@@ -14,11 +14,11 @@ int main(int argc, char * argv[]){
   #endif
 
   auto retval = flecsi::execution::context_t::instance().initialize(argc,argv);
-  return retval;
-  
+
   #if FLECSI_RUNTIME_MODEL == FLECSI_RUNTIME_MODEL_mpilegion
     MPI_Finalize();
   #endif
+  return retval;
 
 }
 
