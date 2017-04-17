@@ -145,9 +145,12 @@ public:
 
     friend std::ostream& operator<<(std::ostream& os, const body& b){
       os << "Particle: Pos: " <<b.position_ << " Dens: " << b.density_; 
-      os << " H: " << b.smoothinglength_ << " Pres: " << b.pressure_ << std::endl;
-      os << "          Vel: " << b.velocity_ << " VelH: " << b.velocityhalf_ << " Mass: " << b.mass_ << std::endl;
-      os << "   Force: hyd: " << b.hydroforce_ << " grav: " << b.gravforce_ << std::endl;
+      os << " H: " << b.smoothinglength_;
+      os << " Pres: " << b.pressure_ << std::endl;
+      os << "          Vel: " << b.velocity_ << " VelH: " << b.velocityhalf_;
+      os << " Mass: " << b.mass_ << std::endl;
+      os << "   Force: hyd: " << b.hydroforce_;
+      os << " grav: " << b.gravforce_ << std::endl;
       os << "          Acc: " << b.acceleration_; 
       return os;
     }
@@ -202,7 +205,8 @@ public:
     }
 
     point_t 
-    coordinates(const std::array<flecsi::point<element_t, dimension>,2>& range) const{
+    coordinates(
+        const std::array<flecsi::point<element_t, dimension>,2>& range) const{
       point_t p;
       branch_id_t bid = id(); 
       bid.coordinates(range,p);

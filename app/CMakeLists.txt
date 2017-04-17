@@ -33,30 +33,16 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 
 #------------------------------------------------------------------------------#
-# Add flecsi with absolute path and link library    
+# Add Not REQUIRED PACKAGES
 #------------------------------------------------------------------------------#
 
-# For flecsi.h
-#include_directories(/home/jloiseau/local/include)
-
-#include_directories(/home/jloiseau/local/include/legion)
-#include_directories(/home/jloiseau/local/include/realm)
-#include_directories(/home/jloiseau/local/include/mappers)
-
-#include_directories(/home/jloiseau/local/include/flecsi)
-
-# for legion/helper.h 
-#include_directories(/home/jloiseau/flecsi/flecsi/)
-
+# Add HDF5
+find_package(HDF5)
+include_directories(${HDF5_INCLUDE_DIR})
 
 #------------------------------------------------------------------------------#
 # Executables    
 #------------------------------------------------------------------------------#
-
-# Serial version
-#add_executable(tree_serial tree.cc tree_driver.cc io.cc physics.cc)
-#target_link_libraries(tree_serial /home/jloiseau/flecsi/flecsi/build/lib/libflecsi.so)
-#target_link_libraries(tree_serial ${CMAKE_THREAD_LIBS_INIT})
 
 # MPILEGION version
 add_executable(tree_mpilegion 
@@ -72,5 +58,6 @@ target_link_libraries(tree_mpilegion ${LEGION_LIBRARY} ${REALM_LIBRARY})
 target_link_libraries(tree_mpilegion /home/jloiseau/local/lib64/liblegion.so rt dl)
 target_link_libraries(tree_mpilegion ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(tree_mpilegion ${MPI_LIBRARIES})
+target_link_libraries(tree_mpilegion ${HDF5_LIBRARIES})
 #target_compile_definitions(tree_mpilegion PRIVATE -DFLECSI_RUNTIME_MODEL=FLECSI_RUNTIME_MODEL_mpi)
 target_compile_definitions(tree_mpilegion PRIVATE -DFLECSI_OVERRIDE_DEFAULT_SPECIALIZATION_DRIVER)

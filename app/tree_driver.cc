@@ -2,6 +2,9 @@
 #define tree_driver_h
 
 #include <iostream>
+#include <numeric> // For accumulate
+#include <iostream>
+
 #include <mpi.h>
 #include <legion.h>
 #include <omp.h>
@@ -41,14 +44,16 @@ void specialization_driver(int argc, char * argv[]){
   const char * filename = argv[1];
   const size_t nsteps = atoi(argv[2]);
 
-  auto dc = new flecsi::data::data_client_t;
+  //auto dc = new flecsi::data::data_client_t;
 
-  flecsi_register_data(*dc,hydro,pressure,double,global,1);
-  flecsi_register_data(*dc,hydro,density,double,global,1);
-  flecsi_register_data(*dc,hydro,position,point_t,global,1);
-  flecsi_register_data(*dc,hydro,smoothinglength,double,global,1);
+  //tree_topology_t test; 
 
-  auto accs = flecsi_get_accessors(*dc,hydro,double,global,0);
+  //flecsi_register_data(test,hydro,pressure,double,dense,1,body);
+ // flecsi_register_data(test,hydro,density,double,global,1);
+ // flecsi_register_data(test,hydro,position,point_t,global,1);
+ // flecsi_register_data(test,hydro,smoothinglength,double,global,1);
+
+  //auto accs = flecsi_get_accessors(test,hydro,double,global,0);
 
   //std::cout << "Launching task"; 
   //auto res = flecsi_execute_task(mpi_task,mpi,single);
@@ -60,6 +65,7 @@ void specialization_driver(int argc, char * argv[]){
   double timers[10] = {0.};
   tree_topology_t t; 
   std::vector<body*> bodies; 
+  double totaltime = 0.;
   point_t maxposition = {-999,-999,-999}; 
   point_t minposition = {999,999,999};
   // Thread pool for the neighbor searh
@@ -91,7 +97,8 @@ void specialization_driver(int argc, char * argv[]){
   double dt = 1.0e-7;
 
   for(size_t step = 0; step < nsteps; ++step){
-    std::cout << "---- step = " << step+1 << "/" << nsteps << " dt: " << dt << std::endl;
+    std::cout << "---- step = " 
+      << step+1 << "/" << nsteps << " dt: " << dt << std::endl;
   
 
     double step_01 = omp_get_wtime();
@@ -115,7 +122,8 @@ void specialization_driver(int argc, char * argv[]){
     timers[0] += step_02 - step_01; 
     std::cout << "moveBody         : " << step_02-step_01 << "s" << std::endl; 
     {
-    std::cout << "min: " << minposition << " max: " << maxposition << std::endl; 
+    std::cout << "min: " << minposition << 
+      " max: " << maxposition << std::endl; 
     t.update_all(minposition,maxposition);
     }
     double step_03 = omp_get_wtime();
@@ -124,7 +132,8 @@ void specialization_driver(int argc, char * argv[]){
     {
     // Compute density 
     for(auto bi : bodies){
-      auto ents = t.find_in_radius(pool, bi->coordinates(), 2*bi->getSmoothinglength());
+      auto ents = t.find_in_radius(
+          pool, bi->coordinates(), 2*bi->getSmoothinglength());
       std::vector<body*> bod = ents.to_vec();
       physics::computeDensity(bi,bod);
     } // for
@@ -145,7 +154,8 @@ void specialization_driver(int argc, char * argv[]){
     {
     // Compute Hydro 
     for(auto bi : bodies){
-      auto ents = t.find_in_radius(pool, bi->coordinates(), 2*bi->getSmoothinglength());
+      auto ents = t.find_in_radius(
+          pool, bi->coordinates(), 2*bi->getSmoothinglength());
       std::vector<body*> bod = ents.to_vec();
       physics::computeHydro(bi,bod);
     } // for
@@ -176,11 +186,13 @@ void specialization_driver(int argc, char * argv[]){
     dt = 1.; 
     for(auto bi : bodies){
       point_t accel = bi->getAcceleration();
+
       double accelNorm = 0.;
       for(size_t i=0;i<accel.dimension;++i)
         accelNorm+=accel[i]*accel[i];
       accelNorm = sqrt(accelNorm);
-      double ldt = physics::kCoeffDt*pow(bi->getSmoothinglength()/accelNorm,1./2.); 
+      double ldt = physics::kCoeffDt*
+        pow(bi->getSmoothinglength()/accelNorm,1./2.); 
       if(ldt < dt)
         dt = ldt;
     } // for
@@ -188,21 +200,38 @@ void specialization_driver(int argc, char * argv[]){
     double step_09 = omp_get_wtime();
     timers[7] += step_09 - step_08;
     std::cout << "computeDt        : " << step_09-step_08 << "s" << std::endl; 
+  
     // Display first and last body
     std::cout << *bodies.front() << std::endl;
     std::cout << *bodies.back() << std::endl; 
     std::cout << std::endl;
+    // Output data
+    io::outputDataHDF5(bodies,"./output/output_",step,totaltime);
+    totaltime += dt; 
   }
 
-  // Display mean times 
-  std::cout << "moveBody         :" << timers[0]/(double)nsteps  << std::endl;
-  std::cout << "updateTree       :" << timers[1]/(double)nsteps  << std::endl;
-  std::cout << "computeDensity   :" << timers[2]/(double)nsteps  << std::endl;
-  std::cout << "computePressure  :" << timers[3]/(double)nsteps  << std::endl;
-  std::cout << "computeHydro     :" << timers[4]/(double)nsteps  << std::endl;
-  std::cout << "computeGrav      :" << timers[5]/(double)nsteps  << std::endl;
-  std::cout << "computeAccel     :" << timers[6]/(double)nsteps  << std::endl;
-  std::cout << "computeDt        :" << timers[7]/(double)nsteps  << std::endl;
+  std::cout.precision(5);
+  std::cout.setf(std::ios::fixed);
+  double totaltimers = std::accumulate(timers,timers+7,0.0);
+  std::cout << "Total Time       :" << totaltime << std::endl;
+
+  // Display mean times and percents  
+  std::cout << "moveBody         :" << timers[0]/(double)nsteps  
+    << " " << timers[0]/totaltimers*100. << "\%" << std::endl;
+  std::cout << "updateTree       :" << timers[1]/(double)nsteps  
+    << " " << timers[1]/totaltimers*100. << "\%" << std::endl;
+  std::cout << "computeDensity   :" << timers[2]/(double)nsteps  
+    << " " << timers[2]/totaltimers*100. << "\%" << std::endl;
+  std::cout << "computePressure  :" << timers[3]/(double)nsteps  
+    << " " << timers[3]/totaltimers*100. << "\%" << std::endl;
+  std::cout << "computeHydro     :" << timers[4]/(double)nsteps  
+    << " " << timers[4]/totaltimers*100. << "\%" << std::endl;
+  std::cout << "computeGrav      :" << timers[5]/(double)nsteps  
+    << " " << timers[5]/totaltimers*100. << "\%" << std::endl;
+  std::cout << "computeAccel     :" << timers[6]/(double)nsteps  
+    << " " << timers[6]/totaltimers*100. << "\%" << std::endl;
+  std::cout << "computeDt        :" << timers[7]/(double)nsteps  
+    << " " << timers[7]/totaltimers*100. << "\%" << std::endl;
 
  // return 0; 
 } // driver

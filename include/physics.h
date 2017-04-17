@@ -12,7 +12,7 @@ const double kViscAlpha = 2.0;
 const double kViscBeta  = 2.0;
 const double kViscEta = 0.01; 
 const double kGravConstant = 1.0;
-const double kCoeffDt = 0.0001;
+const double kCoeffDt = 0.1;
 
 
 // Utils functions

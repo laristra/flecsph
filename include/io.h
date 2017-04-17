@@ -5,10 +5,16 @@
 #include <iostream>
 #include <vector>
 
+#include <hdf5.h>
+
 #include "tree.h"
 
 namespace io{
   void inputDataTxt(std::vector<body*>&, const char *, tree_topology_t&); 
+  void inputDataHDF5(std::vector<body*>&, const char *, tree_topology_t&); 
+  
+  void outputDataTxt(); 
+  void outputDataHDF5(std::vector<body*>&,const char*, int, double); 
 } // namespace io
 
 #endif // io_h
