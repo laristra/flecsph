@@ -3,7 +3,7 @@
 #------------------------------------------------------------------------------#
 
 set(CMAKE_CXX_FLAGS_DEBUG "-O2 -Wall")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall") 
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -Wno-unused -Wno-comment") 
 
 # includes 
 include_directories(${CMAKE_SOURCE_DIR}/include)
