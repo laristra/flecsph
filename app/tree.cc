@@ -1,4 +1,4 @@
-#include "flecsi.h"
+#include <flecsi.h>
 #include "flecsi/execution/execution.h"
 #include "flecsi/concurrency/thread_pool.h"
 

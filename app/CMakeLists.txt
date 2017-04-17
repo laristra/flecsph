@@ -9,7 +9,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall")
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
 #------------------------------------------------------------------------------#
-# Threads needed for this version
+# Add REQUIRED PACKAGES
 #------------------------------------------------------------------------------#
 
 # Pthreads for parallelism in thre tree 
@@ -23,11 +23,14 @@ include_directories(${MPI_INCLUDE_PATH})
 find_package(Legion REQUIRED)
 include_directories(${Legion_INCLUDE_DIRS})
 
+# Add FleCSI TODO= Change findFlecsi.cmake
 find_package(FleCSI REQUIRED)
 include_directories(${FleCSI_INCLUDE_DIRS})
 
-message(STATUS "Includes: ${FleCSI_INCLUDE_DIRS}")
-message(STATUS "Libraries ${FleCSI_LIBRARIES}")
+# Add OpenMP 
+find_package(OpenMP REQUIRED)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 
 #------------------------------------------------------------------------------#
 # Add flecsi with absolute path and link library    
