@@ -13,65 +13,48 @@ else()
 endif()
 
 #------------------------------------------------------------------------------#
-# Find Legion
+# Find FleCSI
 #------------------------------------------------------------------------------#
 
-if(FLECSI_RUNTIME_MODEL STREQUAL "legion" OR 
-    FLECSI_RUNTIME_MODEL STREQUAL "mpilegion")
+find_package(FleCSI REQUIRED)
+include_directories(${FleCSI_INCLUDE_DIR})
+set(FleCSPH_LIBRARIES ${FleCSI_LIBRARIES})
 
-  find_package(Legion REQUIRED)
+#------------------------------------------------------------------------------#
+# Pthreads for parallelism in the tree
+#------------------------------------------------------------------------------#
 
-  message(STATUS "Legion found: ${Legion_FOUND}")
+#find_package(Threads REQUIRED)
+#include_directories(${THREADS_INCLUDE_PATH})
 
-endif()
+#------------------------------------------------------------------------------#
+# MPI
+#------------------------------------------------------------------------------#
 
-#
-# Serial interface
-#
-if(FLECSI_RUNTIME_MODEL STREQUAL "serial")
-  set(_runtime_path ${PROJECT_SOURCE_DIR}/flecsi/execution/serial)
+find_package(MPI REQUIRED)
+include_directories(${MPI_INCLUDE_PATH})
+list(APPEND FleCSPH_LIBRARIES ${MPI_LIBRARIES})
 
-#
-# Legion interface
-#
-elseif(FLECSI_RUNTIME_MODEL STREQUAL "legion")
-  set(_runtime_path ${PROJECT_SOURCE_DIR}/flecsi/execution/legion)
-  if(NOT APPLE)
-    set(FLECSI_RUNTIME_LIBRARIES  -ldl ${Legion_LIBRARIES} ${MPI_LIBRARIES})
-  else()
-    set(FLECSI_RUNTIME_LIBRARIES  ${Legion_LIBRARIES} ${MPI_LIBRARIES})
-  endif()
-    include_directories(${Legion_INCLUDE_DIRS})
+#------------------------------------------------------------------------------#
+# Legion
+#------------------------------------------------------------------------------#
 
-#
-# MPI interface
-#
-elseif(FLECSI_RUNTIME_MODEL STREQUAL "mpi")
-  set(_runtime_path ${PROJECT_SOURCE_DIR}/flecsi/execution/mpi)
-  if(NOT APPLE)
-    set(FLECSI_RUNTIME_LIBRARIES  -ldl ${MPI_LIBRARIES})
-  else()
-    set(FLECSI_RUNTIME_LIBRARIES ${MPI_LIBRARIES})
-  endif()
+find_package(Legion REQUIRED)
+include_directories(${Legion_INCLUDE_DIRS})
+list(APPEND FleCSPH_LIBRARIES ${Legion_LIBRARY} ${REALM_LIBRARY})
 
-#
-# MPI+Legion interface
-#
-elseif(FLECSI_RUNTIME_MODEL STREQUAL "mpilegion")
-  if(NOT ENABLE_MPI)
-    message (FATAL_ERROR "MPI is required for the mpilegion runtime model")
-  endif()                    
-    set(_runtime_path ${PROJECT_SOURCE_DIR}/flecsi/execution/mpilegion)
-  if(NOT APPLE)
-    set(FLECSI_RUNTIME_LIBRARIES  -ldl ${Legion_LIBRARIES} ${MPI_LIBRARIES})
-  else()
-    set(FLECSI_RUNTIME_LIBRARIES  ${Legion_LIBRARIES} ${MPI_LIBRARIES})
-  endif()
-  include_directories(${Legion_INCLUDE_DIRS})
+#------------------------------------------------------------------------------#
+# HDF5
+#------------------------------------------------------------------------------#
 
-#
-# Default
-#
-else(FLECSI_RUNTIME_MODEL STREQUAL "serial")
-  message(FATAL_ERROR "Unrecognized runtime selection")  
-endif(FLECSI_RUNTIME_MODEL STREQUAL "serial")
+find_package(HDF5)
+include_directories(${HDF5_INCLUDE_DIR})
+list(APPEND FleCSPH_LIBRARIES ${HDF5_LIBRARIES})
+
+#------------------------------------------------------------------------------#
+# Add OpenMP
+#------------------------------------------------------------------------------#
+
+find_package(OpenMP REQUIRED)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
