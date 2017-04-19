@@ -44,7 +44,7 @@ void inputDataTxt(
 // Read data from txt file with ranges
 // This is not the most beautiful way, but enough for testing
 void inputDataTxtRange(
-    std::vector<body*>& bodies, 
+    std::vector<std::pair<entity_key_t,body*>>& bodies, 
     int& nbodies,
     int& totalnbodies,
     int rank, 
@@ -87,13 +87,13 @@ void inputDataTxtRange(
   char buffer[2048]; 
   //int iintbuffer; 
  
-  printf("%d/%d from %d to %d",rank,size,startposition,stopposition);
+  //printf("%d/%d from %d to %d",rank,size,startposition,stopposition);
 
   // Read a line in char buffer
   MPI_File_read_at(file,startposition,
       &buffer,2048,MPI_CHAR,MPI_STATUS_IGNORE); 
   // Print the read value 
-  std::cout << "Just read: "<< buffer<< std::endl;
+  //std::cout << "Just read: "<< buffer<< std::endl;
   
   // For all but the first process, go to the end of this line 
   if(rank != 0){
@@ -107,7 +107,7 @@ void inputDataTxtRange(
     MPI_File_read_at(file,startposition,
       &buffer,2048,MPI_CHAR,MPI_STATUS_IGNORE); 
     // Print the read value 
-    std::cout << "Second read: "<< buffer<< std::endl;
+    //std::cout << "Second read: "<< buffer<< std::endl;
   }
 
   // Interpret the buffer 
@@ -130,7 +130,7 @@ void inputDataTxtRange(
   
   auto bi = t.make_entity(position,velocity,velocityhalf,
       acceleration,density,pressure,entropy,mass,smoothinglength);   
-  bodies.push_back(bi);
+  bodies.push_back(std::make_pair(entity_key_t::null(),bi));
   ++nbodies;
 
   // Move at the end of this line 
@@ -165,7 +165,7 @@ void inputDataTxtRange(
     acceleration = {accX, accY, accZ};
     auto bi = t.make_entity(position,velocity,velocityhalf,
       acceleration,density,pressure,entropy,mass,smoothinglength);   
-    bodies.push_back(bi);
+    bodies.push_back(std::make_pair(entity_key_t::null(),bi));
     ++nbodies;
     //std::cout << *bi << std::endl;
     // Move at the end of this line 
@@ -217,7 +217,7 @@ void outputDataHDF5(
     double dt
     ){
   hsize_t size = bodies.size(); 
-  int nbodies = bodies.size(); 
+  //int nbodies = bodies.size(); 
   char outputfilename[128];
   hid_t dset, file, space;
   herr_t status; 

@@ -23,7 +23,7 @@ int main(int argc, char * argv[]){
 
   std::cout << "MPI_Init done, Initialize" << std::endl;
   auto retval = flecsi::execution::context_t::instance().initialize(argc,argv);
-  std::cout << "Initialize done" << std::endl;
+  //std::cout << "Initialize done" << std::endl;
 
 //#ifndef GASNET_CONDUIT_MPI
   //MPI_Finalize();

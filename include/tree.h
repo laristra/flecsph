@@ -230,6 +230,138 @@ using branch_t = tree_topology_t::branch_t;
 using branch_id_t = tree_topology_t::branch_id_t;
 using space_vector_t = tree_topology_t::space_vector_t;
 
+using entity_id_t = flecsi::topology::entity_id_t;
+
+
+class entity_key_t
+{
+  public:
+    using int_t = uint64_t;
+    static const size_t dimension = 3;
+    static constexpr size_t bits = sizeof(int_t) * 8;
+    static constexpr size_t max_depth = (bits - 1)/dimension;
+
+    entity_key_t()
+    : id_(0)
+    {}
+
+    entity_key_t(
+      const std::array<point_t, 2>& range,
+      const point_t& p)
+    : id_(int_t(1) << max_depth * dimension + (bits - 1) % dimension)
+    {
+      std::array<int_t, dimension> coords;
+      for(size_t i = 0; i < dimension; ++i)
+      {
+        double min = range[0][i];
+        double scale = range[1][i] - min;
+        coords[i] = (p[i] - min)/scale * (int_t(1) << (bits - 1)/dimension);
+      }
+      size_t k = 0;
+      for(size_t i = 0; i < max_depth; ++i)
+      {
+        for(size_t j = 0; j < dimension; ++j)
+        {
+          int_t bit = (coords[j] & int_t(1) << i) >> i;
+          id_ |= bit << (k * dimension + j);
+        }
+        ++k;
+      }
+    }
+
+  constexpr entity_key_t(const entity_key_t& bid)
+  : id_(bid.id_)
+  {}
+
+  static 
+  constexpr
+  entity_key_t
+  null()
+  {
+    return entity_key_t(0);
+  }
+
+  constexpr
+  bool 
+  is_null() const
+  {
+    return id_ == int_t(0);
+  }
+
+  entity_key_t&
+  operator=(
+      const entity_key_t& ek
+  ) 
+  {
+    id_ = ek.id_; 
+    return *this;
+  }
+
+  constexpr
+  bool 
+  operator==(
+      const entity_key_t& ek
+  ) const 
+  {
+    return id_ == ek.id_; 
+  }
+
+  constexpr 
+  bool 
+  operator!=(
+    const entity_key_t& ek
+  ) const
+  {
+    return id_ != ek.id_; 
+  }
+
+  void
+  output_(
+    std::ostream& ostr
+  ) const
+  {
+    ostr << std::oct << id_ << std::dec;
+    //constexpr int_t mask = ((int_t(1) << dimension) - 1) << bits - dimension;
+    //size_t d = max_depth;
+    //int_t id = id_;
+    //
+    //while((id & mask) == int_t(0))
+    //{
+    //  --d;
+    //  id <<= dimension;
+    //}
+    //if(d == 0)
+    //{
+    //  ostr << "<root>";
+    //  return;
+    //}
+    //id <<= 1 + (bits - 1) % dimension;
+    //for(size_t i = 1; i <= d; ++i)
+    //{
+    //  int_t val = (id & mask) >> (bits - dimension);
+    //  ostr << std::oct << val << std::dec; 
+    //  //ostr << i << ":" << std::bitset<dimension>(val) << " ";
+    //  id <<= dimension;
+    //}
+  }
+
+  bool
+  operator<(
+    const entity_key_t& bid
+  ) const
+  {
+    return id_ < bid.id_;
+  }
+
+private:
+  int_t id_;
+  constexpr
+  entity_key_t(
+    int_t id
+  )
+  :id_(id)
+  {}
+};
 
 
 #endif // tree_h
