@@ -23,5 +23,5 @@ add_executable(tree_mpilegion
 
 target_link_libraries(tree_mpilegion ${FleCSPH_LIBRARIES})
 
-target_compile_definitions(tree_mpilegion PRIVATE
-  -DFLECSI_OVERRIDE_DEFAULT_SPECIALIZATION_DRIVER)
+add_definitions(-DFLECSI_ENABLE_SPECIALIZATION_DRIVER)
+add_definitions(-DFLECSI_OVERRIDE_DEFAULT_SPECIALIZATION_DRIVER)

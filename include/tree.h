@@ -9,14 +9,12 @@
 
 using namespace flecsi;
 
-struct Aggregate{
-  Aggregate(){
-    center = {0,0,0};
-    mass = 0;
-  }
-  double mass; 
-  flecsi::point<double,3> center; 
-}; // struct Aggregate 
+namespace flecsi{
+namespace execution{
+void specialization_driver(int argc, char * argv[]);
+void driver(int argc, char*argv[]); 
+} // namespace execution
+} // namespace flecsi 
 
 class tree_policy{
 public:
