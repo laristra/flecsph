@@ -12,7 +12,7 @@
 namespace io{
   void inputDataTxt(std::vector<body*>&, const char *, tree_topology_t&); 
   void inputDataHDF5(std::vector<body*>&, const char *, tree_topology_t&); 
-  void inputDataTxtRange(std::vector<std::pair<entity_key_t,body*>>&,
+  void inputDataTxtRange(std::vector<std::pair<entity_key_t,body>>&,
       int&,int&,int,int,const char *);
 
   void outputDataTxt(); 

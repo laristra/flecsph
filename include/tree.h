@@ -51,6 +51,9 @@ public:
         hydroforce_(point_t(0.,0.,0.))
     {};
 
+    body()
+    {};
+
     const point_t& coordinates() const{
       return position_; 
     }
@@ -151,7 +154,7 @@ public:
       os << " grav: " << b.gravforce_ << std::endl;
       os << "          Acc: " << b.acceleration_; 
       return os;
-    }
+    }      
 
   private:
     point_t position_; 
@@ -248,7 +251,7 @@ class entity_key_t
     entity_key_t(
       const std::array<point_t, 2>& range,
       const point_t& p)
-    : id_(int_t(1) << max_depth * dimension + (bits - 1) % dimension)
+    : id_(int_t(1) << ((max_depth * dimension) + ((bits - 1) % dimension)))
     {
       std::array<int_t, dimension> coords;
       for(size_t i = 0; i < dimension; ++i)
@@ -351,6 +354,65 @@ class entity_key_t
   ) const
   {
     return id_ < bid.id_;
+  }
+  
+  bool
+  operator>(
+    const entity_key_t& bid
+  ) const
+  {
+    return id_ > bid.id_;
+  }
+
+  bool
+  operator<=(
+    const entity_key_t& bid
+  ) const
+  {
+    return id_ <= bid.id_;
+  }
+  
+  bool
+  operator>=(
+    const entity_key_t& bid
+  ) const
+  {
+    return id_ >= bid.id_;
+  }
+  entity_key_t 
+  operator/(const int div){
+    return entity_key_t(id_/div);
+  }
+
+  entity_key_t
+  operator+(const entity_key_t& oth )
+  {
+    return entity_key_t(id_+oth.id_);
+  }
+
+  entity_key_t 
+  operator-(const entity_key_t& oth)
+  {
+    return entity_key_t(id_-oth.id_);
+  }
+
+  // The first possible key 10000....
+  static 
+  constexpr
+  entity_key_t
+  first_key()
+  {
+    return entity_key_t(int_t(1) << 
+        ((max_depth*dimension)+((bits-1)%dimension)));
+  }
+
+  // The last key 1777..., should be modified using not bit operation
+  static
+  constexpr
+  entity_key_t
+  last_key()
+  {
+    return entity_key_t(~int_t(0) >> (bits-(1+max_depth)*dimension+2));   
   }
 
 private:

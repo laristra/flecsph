@@ -44,7 +44,7 @@ void inputDataTxt(
 // Read data from txt file with ranges
 // This is not the most beautiful way, but enough for testing
 void inputDataTxtRange(
-    std::vector<std::pair<entity_key_t,body*>>& bodies, 
+    std::vector<std::pair<entity_key_t,body>>& bodies, 
     int& nbodies,
     int& totalnbodies,
     int rank, 
@@ -128,8 +128,8 @@ void inputDataTxtRange(
   point_t velocityhalf = {velHX,velHY,velHZ};
   point_t acceleration = {accX, accY, accZ};
   
-  auto bi = t.make_entity(position,velocity,velocityhalf,
-      acceleration,density,pressure,entropy,mass,smoothinglength);   
+  auto bi = *(t.make_entity(position,velocity,velocityhalf,
+      acceleration,density,pressure,entropy,mass,smoothinglength));   
   bodies.push_back(std::make_pair(entity_key_t::null(),bi));
   ++nbodies;
 
@@ -163,8 +163,8 @@ void inputDataTxtRange(
     velocity = {velX,velY,velZ};
     velocityhalf = {velHX,velHY,velHZ};
     acceleration = {accX, accY, accZ};
-    auto bi = t.make_entity(position,velocity,velocityhalf,
-      acceleration,density,pressure,entropy,mass,smoothinglength);   
+    auto bi = *(t.make_entity(position,velocity,velocityhalf,
+      acceleration,density,pressure,entropy,mass,smoothinglength));   
     bodies.push_back(std::make_pair(entity_key_t::null(),bi));
     ++nbodies;
     //std::cout << *bi << std::endl;
