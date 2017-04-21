@@ -1,3 +1,5 @@
+![logo](doc/flecsph_logo_bg.png)
+
 # SPH on FleCSI 
 
 This project is an implementation of SPH problem using FleCSI framework.
@@ -6,6 +8,13 @@ This project is an implementation of SPH problem using FleCSI framework.
 
     % git clone --recursive git@gitlab.lanl.gov/jloiseau/FleCSI_SPH.git
 
+# Requirements
+
+Before trying to compile you need to install on your system: 
+
+- FleCSI thrird party
+- FleCSI = compile legion
+
 # Build 
 
     % mkdir build
@@ -13,10 +22,3 @@ This project is an implementation of SPH problem using FleCSI framework.
     % ccmake ../ 
     % make 
 
-# Known problems 
-
-When FleCSI is make and installed I needed to add manually some includes:
-- helper.h 
-- future.h
-- thread_pool.h
-- virutal_semaphore.h
