@@ -146,13 +146,13 @@ public:
 
     friend std::ostream& operator<<(std::ostream& os, const body& b){
       os << "Particle: Pos: " <<b.position_ << " Dens: " << b.density_; 
-      os << " H: " << b.smoothinglength_;
+      /*os << " H: " << b.smoothinglength_;
       os << " Pres: " << b.pressure_ << std::endl;
       os << "          Vel: " << b.velocity_ << " VelH: " << b.velocityhalf_;
       os << " Mass: " << b.mass_ << std::endl;
       os << "   Force: hyd: " << b.hydroforce_;
       os << " grav: " << b.gravforce_ << std::endl;
-      os << "          Acc: " << b.acceleration_; 
+      os << "          Acc: " << b.acceleration_;*/ 
       return os;
     }      
 
@@ -413,6 +413,12 @@ class entity_key_t
   last_key()
   {
     return entity_key_t(~int_t(0) >> (bits-(1+max_depth)*dimension+2));   
+  }
+
+  int_t 
+  value()
+  {
+    return id_;
   }
 
 private:

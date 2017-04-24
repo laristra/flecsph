@@ -49,9 +49,9 @@ void inputDataTxtRange(
     int& totalnbodies,
     int rank, 
     int size,
-    const char * filename
+    const char * filename,
+    tree_topology_t& tree
   ){
-  tree_topology_t t;
   nbodies = 0; 
   totalnbodies = 0;
   int mpi_err;
@@ -128,7 +128,7 @@ void inputDataTxtRange(
   point_t velocityhalf = {velHX,velHY,velHZ};
   point_t acceleration = {accX, accY, accZ};
   
-  auto bi = *(t.make_entity(position,velocity,velocityhalf,
+  auto bi = *(tree.make_entity(position,velocity,velocityhalf,
       acceleration,density,pressure,entropy,mass,smoothinglength));   
   bodies.push_back(std::make_pair(entity_key_t::null(),bi));
   ++nbodies;
@@ -163,7 +163,7 @@ void inputDataTxtRange(
     velocity = {velX,velY,velZ};
     velocityhalf = {velHX,velHY,velHZ};
     acceleration = {accX, accY, accZ};
-    auto bi = *(t.make_entity(position,velocity,velocityhalf,
+    auto bi = *(tree.make_entity(position,velocity,velocityhalf,
       acceleration,density,pressure,entropy,mass,smoothinglength));   
     bodies.push_back(std::make_pair(entity_key_t::null(),bi));
     ++nbodies;

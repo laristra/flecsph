@@ -1,21 +1,5 @@
-#ifndef tree_driver_h
-#define tree_driver_h
-
-#include <iostream>
-#include <numeric> // For accumulate
-#include <iostream>
-
-#include <mpi.h>
-#include <legion.h>
-#include <omp.h>
-
-#include "flecsi/execution/execution.h"
-#include "flecsi/data/data_client.h"
-#include "flecsi/data/data.h"
-
-#include "physics.h"
-#include "io.h"
-
+#include "mpi_partition.h"
+  
 std::ostream&
 operator<<(
   std::ostream& ostr,
@@ -38,13 +22,22 @@ auto is_contiguous(I first, I last)
   return test;        
 }
 
-// First sort, here a silly bubble 
+// This method sort the particles over all the processes
+// Then proceed to balancing the particles over the processes
 void mpi_sort(std::vector<std::pair<entity_key_t,body>>& rbodies,
     std::vector<int> targetnbodies)
 {
   int rank,size;
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
+
+  std::sort(rbodies.begin(),rbodies.end(),[](auto& left, auto& right){
+    return left.first == right.first;    
+  });
+
+  // If there is just one process, skip the distribution
+  if(size==1)
+    return;
   // Normally the pivot position should be selected randomly 
   // Here we hae the assumption that at the begining the particles 
   // are approximetly well distributed then we consider:
@@ -171,8 +164,9 @@ void mpi_sort(std::vector<std::pair<entity_key_t,body>>& rbodies,
   MPI_Type_create_struct(2,blocks,displacements,types,&pair_entity_body);
   MPI_Type_commit(&pair_entity_body);
 
-  int datasize;
-  MPI_Type_size(pair_entity_body,&datasize);
+  int typesize=0;
+  MPI_Type_size(pair_entity_body,&typesize); 
+  assert(sizeof(std::pair<entity_key_t,body>)==typesize); ;
 
   // Use this array for the global buckets communication
   MPI_Alltoallv(&sendbuffer[0],&bucketssize[0],&sendoffsets[0],pair_entity_body,
@@ -185,16 +179,41 @@ void mpi_sort(std::vector<std::pair<entity_key_t,body>>& rbodies,
     return left.first<right.first;
   }); 
 
+  for(auto it=rbodies.begin();it<rbodies.end();++it){
+    auto nx = std::next(it);
+    if((*nx).first == (*it).first){
+      std::cout<<(*nx).first<<";"<<(*it).first<<std::endl;
+      std::cout<<(*nx).second<<std::endl;
+      std::cout<<(*it).second<<std::endl;
+
+    }
+  }
+
+  // Check for duplicates
+  assert(rbodies.end() == std::unique(rbodies.begin(),rbodies.end(),
+      [](const auto& left, const auto& right ){ 
+        return left.first == right.first;
+      })
+  );
+
   std::vector<int> totalnbodies(size);
   int mybodies = rbodies.size();
   // Share the final array size of everybody 
   MPI_Allgather(&mybodies,1,MPI_INT,&totalnbodies[0],1,MPI_INT,MPI_COMM_WORLD);
 
-  if(rank == 0)
-    std::cout<<"Repartition: "<<totalnbodies[0]<<";"<<totalnbodies[1]<<";"<<totalnbodies[2]<<";"<<totalnbodies[3]<<std::endl;
+  if(rank == 0){
+    std::cout<<"Repartition: ";
+    for(auto num: totalnbodies)
+      std::cout<<num<<";";
+    std::cout<<std::endl;
+  }
 
-  if(rank == 0)
-    std::cout<<"Target: "<<targetnbodies[0]<<";"<<targetnbodies[1]<<";"<<targetnbodies[2]<<";"<<targetnbodies[3]<<std::endl;
+  if(rank == 0){
+    std::cout<<"Target: ";
+    for(auto num: targetnbodies)
+      std::cout<<num<<";";
+    std::cout<<std::endl;
+  }
 
   // Distribution using full right and then full left
   // First full right, normally the worst if size iteration
@@ -239,6 +258,7 @@ void mpi_sort(std::vector<std::pair<entity_key_t,body>>& rbodies,
         MPI_INT,MPI_COMM_WORLD);
   }
 
+
   // Now go to left  
   while(!std::equal(totalnbodies.begin(),totalnbodies.end(),
         targetnbodies.begin()))
@@ -269,11 +289,11 @@ void mpi_sort(std::vector<std::pair<entity_key_t,body>>& rbodies,
       int nsend = needs[rank-1];
       if(nsend>totalnbodies[rank])
         nsend = totalnbodies[rank];
-      int position = rbodies.size()-nsend;
+      int position = 0;
       MPI_Send(&rbodies[position],nsend,pair_entity_body,rank-1,0,
           MPI_COMM_WORLD);
       // Suppress the bodies 
-      rbodies.erase(rbodies.end()-nsend,rbodies.end()); 
+      rbodies.erase(rbodies.begin(),rbodies.begin()+nsend); 
     }
     // Gather new array size
     mybodies = rbodies.size();
@@ -287,132 +307,78 @@ void mpi_sort(std::vector<std::pair<entity_key_t,body>>& rbodies,
       std::cout<<num<<";";
     std::cout<<std::endl;
   }
+
+  // Display final particles 
+  //for(auto bi: rbodies)
+  //  std::cout<<rank<<": "<< bi.first <<std::endl;
 }
 
-namespace flecsi{
-namespace execution{
+void mpi_tree_traversal_graphviz(tree_topology_t & tree,
+   std::array<point_t,2>& range)
+{
+  int rank = 0;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
-void
-mpi_task(/*const char * filename*/){
-  const char * filename = "../data/data_binary_8338.txt";
-  //std::vector<body*> rbodies; // Body read by the process
+  FILE * output;
+  char fname[64];
+  sprintf(fname,"output_graphviz_%d.gv",rank);
+  output = fopen(fname,"w");
+  fprintf(output,"digraph G {");
 
-  int rank; 
-  int size; 
-  int nbodies = 0;
-  int totalnbodies = 0;
-  tree_topology_t t;
-  std::vector<std::pair<entity_key_t,body>> rbodies;
+  std::stack<branch_t*> stk;
+  // Get root
+  auto rt = tree.root();
+  stk.push(rt);
 
-  MPI_Comm_size(MPI_COMM_WORLD,&size);
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank); 
-  printf("%d/%d, file %s\n",rank,size,filename);   
-  // Read data from file, each process read a part of it 
-  // For HDF5, no problems because we know the number of particles 
-  // For txt format, work on the number of lines yet ... 
-  io::inputDataTxtRange(rbodies,nbodies,totalnbodies,rank,size,filename); 
-  //std::cout << "Read done" << std::endl;
-
-  // Compute the range to compute the keys 
-  double max[3] = {-9999,-9999,-9999};
-  double min[3] = {9999,9999,9999};
-  for(auto bi: rbodies){
-    for(int i=0;i<3;++i){
-        if(bi.second.coordinates()[i]>max[i])
-          max[i] = bi.second.coordinates()[i];
-        if(bi.second.coordinates()[i]<min[i])
-          min[i] = bi.second.coordinates()[i];
+  while(!stk.empty()){
+    branch_t* cur = stk.top();
+    stk.pop();
+    if(!cur->is_leaf()){
+      // Add the child to the stack and add for display 
+      for(int i=0;i<8;++i){
+        auto br = tree.child(cur,i);
+        if(br){
+          stk.push(br);
+          fprintf(output,"\"%llo\" -> \"%llo\"\n",
+              cur->id().value_(),br->id().value_());
+        }
       }
+    }else{
+      for(auto ent: *cur){
+        entity_key_t key(range,ent->coordinates());
+        fprintf(output,"\"%llo\" -> \"%llo\"\n",cur->id().value_(),
+            key.value());
+      }
+    } 
   }
+  fprintf(output,"}");
+  fclose(output);
+}
 
-  // Do the MPI Reduction 
-  MPI_Allreduce(MPI_IN_PLACE,max,3,MPI_DOUBLE,MPI_MAX,MPI_COMM_WORLD); 
-  MPI_Allreduce(MPI_IN_PLACE,min,3,MPI_DOUBLE,MPI_MIN,MPI_COMM_WORLD); 
- 
-  point_t minposition = {min[0],min[1],min[2]};
-  point_t maxposition = {max[0],max[1],max[2]};
+// The aim of this method is to shared the global informations on the tree 
+// and the local informations with the process neighbors 
+void mpi_branches_exchange(tree_topology_t& tree)
+{
+  int rank,size;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  MPI_Comm_size(MPI_COMM_WORLD,&size);
 
-  if(rank==0)
-    std::cout <<"boundaries: "<< minposition << maxposition << std::endl;
+  std::cout<<"Branch repartition"<<std::endl;
 
-  std::array<point_t,2> range = {minposition,maxposition};
-
-  // The bodies are loaded
-  // Compute the key and sort them 
-  for(auto& bi: rbodies){
-    bi.first = entity_key_t(range,bi.second.coordinates());
-    //std::cout << bi.first << std::endl;
-  }
-  // Sort based on keys 
-  std::sort(rbodies.begin(),rbodies.end(), [](auto &left,auto &right){
-      return left.first < right.first; 
-  });
-
-  // Target number of bodies for every process
-  // The last one will takes more 
-  std::vector<int> targetnbodies;
-  for(int i=0;i<size;++i){
-    if(i!=size-1){
-      targetnbodies.push_back(totalnbodies/size);
-    }else{ 
-      targetnbodies.push_back(totalnbodies-((size-1)*(totalnbodies/size)));
+  // Get the root of the tree
+  auto rt = tree.root(); 
+  std::cout<<rt->id()<<std::endl; 
+  // Get the first level children 
+  std::vector<branch_t*> branches;
+  for(int i=0;i<8;++i){
+    auto br = tree.child(rt,i);
+    if(br){
+      branches.push_back(br);
+      std::cout<<rank<<":"<<br->id()<<
+        br->is_leaf()<<std::endl;
     }
-  }
-  // Apply a distributed sort algorithm 
-  mpi_sort(rbodies,targetnbodies);
-
-  // Get the first and last key, send to everyone
-  //std::array<entity_key_t,2> locboundaries; 
-  //locboundaries[0] = rbodies.front().first;
-  //locboundaries[1] = rbodies.back().first; 
-  //std::cout <<rank<<"/"<<size<<" f: "<<locboundaries[0]<<" l: "
-  //  <<locboundaries[1]<<std::endl;
-
-  // Share the boundary keys, here we know it is a 64 unsigned int 
-  // Make a vector for the right number of pairs 
-  //vector<entity_key_t> globalboundaries;
-
-  //MPI_Allgather(&locboundaries[0],2,);  
-
-  // Create one vector per process with its keys 
-
-  // Send the informations vio MPI_Alltoallv
-
-  // Generate the local tree 
-
-  // Do the research of ghost and shared 
-  
-  // Index everything
-
-  // Register data and create the final tree ?
-  MPI_Barrier(MPI_COMM_WORLD);
+  } 
 
 }
 
-flecsi_register_task(mpi_task,mpi,index);
-
-void 
-specialization_driver(int argc, char * argv[]){
-  if (argc!=2) {
-    std::cerr << "Error not enough arguments\n"
-        "Usage: tree <datafile>\n";
-    exit(-1); 
-  }
-
-  std::cout << "In user specialization_driver" << std::endl;
-  /*const char * filename = argv[1];*/
-
-  flecsi_execute_task(mpi_task,mpi,index/*,filename*/); 
-} // specialization driver
-
-void 
-driver(int argc, char * argv[]){
-  std::cout << "In user driver" << std::endl;
-} // driver
-
-
-} // namespace
-} // namespace
-
-
-#endif // tree_driver_h
+// Go through the tree to see the structure 

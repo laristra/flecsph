@@ -14,8 +14,9 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 
 # MPILEGION version
 add_executable(tree_mpilegion 
-  tree.cc 
-  tree_driver.cc 
+  main.cc 
+  main_driver.cc 
+  mpi_partition.cc
   io.cc 
   physics.cc
   ${FleCSI_RUNTIME}/runtime_driver.cc
