@@ -9,6 +9,7 @@ void inputDataTxt(
     const char * filename,
     tree_topology_t& t
   ){
+#if 0
   // Load data from text file and setup bodies 
   FILE * inputfile = fopen(filename,"r");
   size_t nbodies = 0;
@@ -39,6 +40,7 @@ void inputDataTxt(
     if(nbodies < 5)
       std::cout << *bi << std::endl;
   } // while 
+#endif
 } // inputDataTxt
 
 // Read data from txt file with ranges
@@ -49,8 +51,7 @@ void inputDataTxtRange(
     int& totalnbodies,
     int rank, 
     int size,
-    const char * filename,
-    tree_topology_t& tree
+    const char * filename
   ){
   nbodies = 0; 
   totalnbodies = 0;
@@ -128,8 +129,8 @@ void inputDataTxtRange(
   point_t velocityhalf = {velHX,velHY,velHZ};
   point_t acceleration = {accX, accY, accZ};
   
-  auto bi = *(tree.make_entity(position,velocity,velocityhalf,
-      acceleration,density,pressure,entropy,mass,smoothinglength));   
+  auto bi = body(position,velocity,velocityhalf,
+      acceleration,density,pressure,entropy,mass,smoothinglength);
   bodies.push_back(std::make_pair(entity_key_t::null(),bi));
   ++nbodies;
 
@@ -163,9 +164,11 @@ void inputDataTxtRange(
     velocity = {velX,velY,velZ};
     velocityhalf = {velHX,velHY,velHZ};
     acceleration = {accX, accY, accZ};
-    auto bi = *(tree.make_entity(position,velocity,velocityhalf,
-      acceleration,density,pressure,entropy,mass,smoothinglength));   
+
+    auto bi = body(position,velocity,velocityhalf,
+      acceleration,density,pressure,entropy,mass,smoothinglength);
     bodies.push_back(std::make_pair(entity_key_t::null(),bi));
+    
     ++nbodies;
     //std::cout << *bi << std::endl;
     // Move at the end of this line 

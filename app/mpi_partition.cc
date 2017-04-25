@@ -10,6 +10,17 @@ operator<<(
   return ostr;
 }
 
+inline 
+bool
+operator==(
+    const point_t& p1, 
+    const point_t& p2)
+{
+  return p1[0]==p2[0]&&
+    p1[1]==p2[1]&&
+    p1[2]==p2[2];
+}
+
 template<class I>
 auto is_contiguous(I first, I last)
 { 
@@ -149,7 +160,7 @@ void mpi_sort(std::vector<std::pair<entity_key_t,body>>& rbodies,
 
   // Create the MPI datatype associate with the pair 
   // First the entity_key_t which is an uint64_t
-  int blocks[2] = {1,26};
+  int blocks[2] = {1,24};
   MPI_Datatype types[2] = {MPI_UINT64_T,MPI_DOUBLE}; 
   MPI_Aint displacements[2];
   MPI_Aint lb[2];
@@ -165,7 +176,8 @@ void mpi_sort(std::vector<std::pair<entity_key_t,body>>& rbodies,
   MPI_Type_commit(&pair_entity_body);
 
   int typesize=0;
-  MPI_Type_size(pair_entity_body,&typesize); 
+  MPI_Type_size(pair_entity_body,&typesize);
+  //std::cout<<sizeof(std::pair<entity_key_t,body>)<<":"<<typesize<<std::endl;
   assert(sizeof(std::pair<entity_key_t,body>)==typesize); ;
 
   // Use this array for the global buckets communication
@@ -347,7 +359,25 @@ void mpi_tree_traversal_graphviz(tree_topology_t & tree,
       for(auto ent: *cur){
         entity_key_t key(range,ent->coordinates());
         fprintf(output,"\"%llo\" -> \"%llo\"\n",cur->id().value_(),
-            key.value());
+            key.truncate_value(17));
+        switch (ent->getLocality()){
+          case SHARED:
+            fprintf(output,"\"%llo\" [shape=box,color=blue]\n",
+              key.truncate_value(17));
+            break;
+          case EXCL:
+            fprintf(output,"\"%llo\" [shape=box,color=red]\n",
+              key.truncate_value(17));
+            break;
+          case GHOST:
+            fprintf(output,"\"%llo\" [shape=box,color=green]\n",
+              key.truncate_value(17));
+            break;
+          default:
+            fprintf(output,"\"%llo\" [shape=circle,color=black]\n",
+              key.truncate_value(17));
+            break;
+        }
       }
     } 
   }
@@ -357,28 +387,77 @@ void mpi_tree_traversal_graphviz(tree_topology_t & tree,
 
 // The aim of this method is to shared the global informations on the tree 
 // and the local informations with the process neighbors 
+// Send all the body holders to everyone 
+// Exchage all the tree informations
+// Here we need to gather all the nodes and bodies info (key)
+// The communication will propagate info in all the processes 
+// For 4 processes :
+// 0 <-> 1 2 <-> 3
+// 0 <-> 2 1 <-> 3
 void mpi_branches_exchange(tree_topology_t& tree)
 {
   int rank,size;
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
+  if(rank==0)
+    std::cout<<"Branches repartition";
+  int comms = log2(size);
+  // TODO handle for non power of 2
+  for(int comm=0;comm<comms;++comm)
+  {
+    int neighb = rank ^ (1 << comm);
+    //std::cout<<"comm: "<<rank<<"<>"<<neighb<<std::endl;
+    auto allents_ncontiguous = tree.entities();
+    
+    // Create a new vector to have contiguous memory TODO better way 
+    std::vector<body_holder_mpi_t> allents;
+    for(auto ent: allents_ncontiguous)
+      allents.push_back(body_holder_mpi_t{ent->coordinates(),ent->getOwner()});
+    
+    // Send this to the neighb
+    // 1. exchange to sizes
+    int sendsize = allents.size()*sizeof(body_holder_mpi_t);
+    int recvsize = 0;
+    MPI_Sendrecv(&sendsize,1,MPI_INT,neighb,0,
+      &recvsize,1,MPI_INT,neighb,MPI_ANY_TAG,
+      MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 
-  std::cout<<"Branch repartition"<<std::endl;
+    std::vector<body_holder_mpi_t> recvents;
+    recvents.resize(recvsize/sizeof(body_holder_mpi_t));
 
-  // Get the root of the tree
-  auto rt = tree.root(); 
-  std::cout<<rt->id()<<std::endl; 
-  // Get the first level children 
-  std::vector<branch_t*> branches;
-  for(int i=0;i<8;++i){
-    auto br = tree.child(rt,i);
-    if(br){
-      branches.push_back(br);
-      std::cout<<rank<<":"<<br->id()<<
-        br->is_leaf()<<std::endl;
+    //for(auto ent: allents)
+    //  std::cout<<rank<<": SEND"<<ent.position
+    //    <<":"<<ent.owner<<" S: "<<sizeof(ent)<<std::endl;
+    //body_holder_mpi_t * ptr = &allents[0];
+    //for(int i = 0 ; i < 20 ; ++i)
+    //  std::cout<<rank<<": SEND"<<(ptr+i)->position
+    //    <<":"<<(ptr+i)->owner<<std::endl;
+    //std::cout<<rank<<": SIZE:"<<sendsize<<":"<<recvsize<<std::endl;
+
+    MPI_Sendrecv(&allents[0],sendsize,MPI_BYTE,neighb,0,
+      &recvents[0],recvsize,MPI_BYTE,neighb,MPI_ANY_TAG,
+      MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+
+    //for(auto ent: recvents)
+    //  std::cout<<rank<<": RECV"<<ent.position<<ent.owner<<std::endl;
+    // Add the entities in the tree, changing the ptr to nullptr
+    for(auto bi: recvents)
+    {
+      //if(bi.getOwner()!=rank){
+        auto nbi = tree.make_entity(bi.position,nullptr,bi.owner);
+        //std::cout<<rank<<": inserting: "<<*nbi<<std::endl;
+        tree.insert(nbi);
+      //}
     }
-  } 
+  }
+  MPI_Barrier(MPI_COMM_WORLD); 
+  if(rank == 0)
+    std::cout<<".done"<<std::endl;
+}
 
+void mpi_tree_traversal(tree_topology_t& tree)
+{
+  // Do a post order traversal 
 }
 
 // Go through the tree to see the structure 

@@ -30,7 +30,7 @@ namespace flecsi{
 namespace execution{
 
 void
-mpi_task(/*const char * filename*/){
+mpi_init_task(/*const char * filename*/){
   const char * filename = "../data/data_test_40.txt";
   //std::vector<body*> rbodies; // Body read by the process
 
@@ -39,7 +39,7 @@ mpi_task(/*const char * filename*/){
   int nbodies = 0;
   int totalnbodies = 0;
   std::vector<std::pair<entity_key_t,body>> rbodies;
-  tree_topology_t tree;
+  //tree_topology_t tree;
 
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank); 
@@ -47,7 +47,7 @@ mpi_task(/*const char * filename*/){
   // Read data from file, each process read a part of it 
   // For HDF5, no problems because we know the number of particles 
   // For txt format, work on the number of lines yet ... 
-  io::inputDataTxtRange(rbodies,nbodies,totalnbodies,rank,size,filename,tree); 
+  io::inputDataTxtRange(rbodies,nbodies,totalnbodies,rank,size,filename); 
   //std::cout << "Read done" << std::endl;
 
   // Compute the range to compute the keys 
@@ -115,46 +115,81 @@ mpi_task(/*const char * filename*/){
         )
   );
 
-  // Use a new tree strcture or clear the old one 
-  tree_topology_t ntree;
-  // Recreate the bodies 
-  std::vector<body*> bodies;
+  // Generate the local tree 
+  tree_topology_t tree(minposition,maxposition);
+
+  // create the bodies  holders
+  std::vector<body_holder*> bodies;
   for(auto bi: rbodies){
-    auto nbi = ntree.make_entity(bi.second.getPosition(),
-        bi.second.getVelocity(),
-        bi.second.getVelocityhalf(),
-        bi.second.getAcceleration(),
-        bi.second.getDensity(),
-        bi.second.getPressure(),
-        bi.second.getEntropy(),
-        bi.second.getMass(),
-        bi.second.getSmoothinglength());
+    auto nbi = tree.make_entity(bi.second.getPosition(),
+        &bi.second,rank);
     bodies.push_back(nbi); 
   }
 
-  // Generate the local tree 
-  ntree.update_all(minposition,maxposition);
   for(auto bi: bodies){
-    ntree.insert(bi); 
+    tree.insert(bi); 
   }
 
-  MPI_Barrier(MPI_COMM_WORLD);
-  mpi_tree_traversal_graphviz(ntree,range);
-
-
   // Search and share the branches 
-  //mpi_branches_exchange(tree);
+  mpi_branches_exchange(tree);
 
   // Do the research of ghost and shared 
+  std::vector<body_holder*> ghosts;
+  std::vector<body_holder*> shared;
   
+  // In this version consider constant H 
+  double smoothinglength = bodies[0]->getBody()->getSmoothinglength(); 
+
+  // 1. Search for ghost
+  // Do the tree traversal for my bodies
+  // The entities that are non local are ghost 
+  if(rank==0)
+    std::cout<<"Ghost search";
+  for(auto bi: bodies)
+  {
+    auto neighbors = tree.find_in_radius(bi->coordinates(),
+        2*smoothinglength);
+    for(auto nb: neighbors)
+      if(!nb->is_local()){
+        nb->setLocality(GHOST);
+        ghosts.push_back(nb);
+      }
+  }
+  if(rank==0)
+    std::cout<<".done"<<std::endl;
+
+
+  // 2. Search for shared 
+  if(rank==0)
+    std::cout<<"Shared search";
+  // Get all the entities in the tree
+  auto allents = tree.entities();
+  for(auto bi: allents)
+  {
+    // If this entity if not mine, search neighbors
+    if(!bi->is_local()){
+      auto neighbors = tree.find_in_radius(bi->coordinates(),
+        2*smoothinglength);
+      // Mark them as shared
+    for(auto nb: neighbors)
+      if(nb->is_local())
+        nb->setLocality(SHARED);
+    }
+  }
+  if(rank==0)
+    std::cout<<".done"<<std::endl;
+  
+  // Display current tree, with shared branches 
+  MPI_Barrier(MPI_COMM_WORLD);
+  mpi_tree_traversal_graphviz(tree,range);
+
   // Index everything
 
   // Register data and create the final tree ?
   MPI_Barrier(MPI_COMM_WORLD);
-
 }
 
-flecsi_register_task(mpi_task,mpi,index);
+flecsi_register_task(mpi_init_task,mpi,index);
 
 void 
 specialization_driver(int argc, char * argv[]){
@@ -167,7 +202,7 @@ specialization_driver(int argc, char * argv[]){
   std::cout << "In user specialization_driver" << std::endl;
   /*const char * filename = argv[1];*/
 
-  flecsi_execute_task(mpi_task,mpi,index/*,filename*/); 
+  flecsi_execute_task(mpi_init_task,mpi,index/*,filename*/); 
 } // specialization driver
 
 void 
