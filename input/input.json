@@ -1,0 +1,8 @@
+{
+	"program-info" :
+	{
+		"working-path" : "build/",
+		"output-folder-name" : "run/",
+		"debug-log-path" : "logs/"
+	}
+}
