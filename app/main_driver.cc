@@ -1,6 +1,3 @@
-#ifndef main_driver_h
-#define main_driver_h
-
 #include <iostream>
 #include <numeric> // For accumulate
 #include <iostream>
@@ -17,7 +14,7 @@
 #include "physics.h"
 #include "io.h"
 
-bool
+inline bool
 operator==(
   const point_t& p1,
   const point_t& p2
@@ -30,66 +27,41 @@ namespace flecsi{
 namespace execution{
 
 void
-mpi_init_task(/*const char * filename*/){
+mpi_init_task(/*std::string sfilename*/){
+  // TODO find a way to use the file name from the specialiszation_driver
+  //std::cout<<sfilename<<std::endl;
   const char * filename = "../data/data_test_40.txt";
-  //std::vector<body*> rbodies; // Body read by the process
 
   int rank; 
   int size; 
+  MPI_Comm_size(MPI_COMM_WORLD,&size);
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank); 
+  
   int nbodies = 0;
   int totalnbodies = 0;
   std::vector<std::pair<entity_key_t,body>> rbodies;
-  //tree_topology_t tree;
-
-  MPI_Comm_size(MPI_COMM_WORLD,&size);
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank); 
+  
   printf("%d/%d, file %s\n",rank,size,filename);   
   // Read data from file, each process read a part of it 
   // For HDF5, no problems because we know the number of particles 
   // For txt format, work on the number of lines yet ... 
   io::inputDataTxtRange(rbodies,nbodies,totalnbodies,rank,size,filename); 
-  //std::cout << "Read done" << std::endl;
 
-  // Compute the range to compute the keys 
-  double max[3] = {-9999,-9999,-9999};
-  double min[3] = {9999,9999,9999};
-  for(auto bi: rbodies){
-    for(int i=0;i<3;++i){
-        if(bi.second.coordinates()[i]>max[i])
-          max[i] = bi.second.coordinates()[i];
-        if(bi.second.coordinates()[i]<min[i])
-          min[i] = bi.second.coordinates()[i];
-      }
-  }
-
-  // Do the MPI Reduction 
-  MPI_Allreduce(MPI_IN_PLACE,max,3,MPI_DOUBLE,MPI_MAX,MPI_COMM_WORLD); 
-  MPI_Allreduce(MPI_IN_PLACE,min,3,MPI_DOUBLE,MPI_MIN,MPI_COMM_WORLD); 
- 
-  point_t minposition = {min[0]-0.1,min[1]-0.1,min[2]-0.1};
-  point_t maxposition = {max[0]+0.1,max[1]+0.1,max[2]+0.1};
-
-  if(rank==0)
-    std::cout <<"boundaries: "<< minposition << maxposition << std::endl;
-
-  std::array<point_t,2> range = {minposition,maxposition};
+  std::array<point_t,2> range;
+  mpi_compute_range(rbodies,range);
 
   // The bodies are loaded
   // Compute the key and sort them 
   for(auto& bi: rbodies){
     bi.first = entity_key_t(range,bi.second.coordinates());
-    //std::cout << bi.first << std::endl;
   }
 
   // Check for duplicates keys, particles
   assert(rbodies.end() == 
       std::unique(rbodies.begin(),rbodies.end(),
-        [](const auto& left, const auto& right)
-        {
+        [](const auto& left, const auto& right){
           return left.first == right.first;
-        }
-        )
-  );
+        }));
  
   // Target number of bodies for every process
   // The last one will takes more 
@@ -104,30 +76,24 @@ mpi_init_task(/*const char * filename*/){
 
   // Apply a distributed sort algorithm 
   mpi_sort(rbodies,targetnbodies);
-  assert(rbodies.size() == targetnbodies[rank]); 
-  assert(rbodies.end() == 
-      std::unique(rbodies.begin(),rbodies.end(),
-        [](const auto& left, const auto& right)
-        {
+  assert(rbodies.size() == (size_t)targetnbodies[rank]); 
+  assert(rbodies.end() == std::unique(rbodies.begin(),rbodies.end(),
+        [](const auto& left, const auto& right){
           return left.second.coordinates()==right.second.coordinates() &&
             left.first == right.first;
-        }
-        )
-  );
+        }));
 
   // Generate the local tree 
-  tree_topology_t tree(minposition,maxposition);
+  tree_topology_t tree(range[0],range[1]);
 
-  // create the bodies  holders
+  // create the bodies holders for my local bodies
+  // They will be registred as exclusive
   std::vector<body_holder*> bodies;
   for(auto bi: rbodies){
-    auto nbi = tree.make_entity(bi.second.getPosition(),
-        &bi.second,rank);
+    auto nbi = tree.make_entity(bi.second.getPosition(),&bi.second,rank);
     bodies.push_back(nbi); 
-  }
-
-  for(auto bi: bodies){
-    tree.insert(bi); 
+    // Add them in the tree
+    tree.insert(bi);
   }
 
   // Search and share the branches 
@@ -138,6 +104,8 @@ mpi_init_task(/*const char * filename*/){
   std::vector<body_holder*> shared;
   
   // In this version consider constant H 
+  // TODO handle different H, problem the holder does not contain the H 
+  // yet, add it or find a way 
   double smoothinglength = bodies[0]->getBody()->getSmoothinglength(); 
 
   // 1. Search for ghost
@@ -160,6 +128,8 @@ mpi_init_task(/*const char * filename*/){
 
 
   // 2. Search for shared 
+  // Search for the non local entity 
+  // The entities found that are LOCAL are shared 
   if(rank==0)
     std::cout<<"Shared search";
   // Get all the entities in the tree
@@ -179,14 +149,14 @@ mpi_init_task(/*const char * filename*/){
   if(rank==0)
     std::cout<<".done"<<std::endl;
   
-  // Display current tree, with shared branches 
+  // Display current tree, with GHOSTS,SHARED,EXCL,NONLOCAL
   MPI_Barrier(MPI_COMM_WORLD);
   mpi_tree_traversal_graphviz(tree,range);
 
   // Index everything
 
   // Register data and create the final tree ?
-  MPI_Barrier(MPI_COMM_WORLD);
+  //
 }
 
 flecsi_register_task(mpi_init_task,mpi,index);
@@ -201,7 +171,8 @@ specialization_driver(int argc, char * argv[]){
 
   std::cout << "In user specialization_driver" << std::endl;
   /*const char * filename = argv[1];*/
-
+  /*std::string filename(argv[1]);
+  std::cout<<filename<<std::endl;*/
   flecsi_execute_task(mpi_init_task,mpi,index/*,filename*/); 
 } // specialization driver
 
@@ -214,5 +185,3 @@ driver(int argc, char * argv[]){
 } // namespace
 } // namespace
 
-
-#endif // tree_driver_h

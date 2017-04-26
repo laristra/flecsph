@@ -351,30 +351,30 @@ void mpi_tree_traversal_graphviz(tree_topology_t & tree,
         auto br = tree.child(cur,i);
         if(br){
           stk.push(br);
-          fprintf(output,"\"%llo\" -> \"%llo\"\n",
+          fprintf(output,"\"%lo\" -> \"%lo\"\n",
               cur->id().value_(),br->id().value_());
         }
       }
     }else{
       for(auto ent: *cur){
         entity_key_t key(range,ent->coordinates());
-        fprintf(output,"\"%llo\" -> \"%llo\"\n",cur->id().value_(),
+        fprintf(output,"\"%lo\" -> \"%lo\"\n",cur->id().value_(),
             key.truncate_value(17));
         switch (ent->getLocality()){
           case SHARED:
-            fprintf(output,"\"%llo\" [shape=box,color=blue]\n",
+            fprintf(output,"\"%lo\" [shape=box,color=blue]\n",
               key.truncate_value(17));
             break;
           case EXCL:
-            fprintf(output,"\"%llo\" [shape=box,color=red]\n",
+            fprintf(output,"\"%lo\" [shape=box,color=red]\n",
               key.truncate_value(17));
             break;
           case GHOST:
-            fprintf(output,"\"%llo\" [shape=box,color=green]\n",
+            fprintf(output,"\"%lo\" [shape=box,color=green]\n",
               key.truncate_value(17));
             break;
           default:
-            fprintf(output,"\"%llo\" [shape=circle,color=black]\n",
+            fprintf(output,"\"%lo\" [shape=circle,color=black]\n",
               key.truncate_value(17));
             break;
         }
@@ -406,7 +406,6 @@ void mpi_branches_exchange(tree_topology_t& tree)
   for(int comm=0;comm<comms;++comm)
   {
     int neighb = rank ^ (1 << comm);
-    //std::cout<<"comm: "<<rank<<"<>"<<neighb<<std::endl;
     auto allents_ncontiguous = tree.entities();
     
     // Create a new vector to have contiguous memory TODO better way 
@@ -424,36 +423,61 @@ void mpi_branches_exchange(tree_topology_t& tree)
 
     std::vector<body_holder_mpi_t> recvents;
     recvents.resize(recvsize/sizeof(body_holder_mpi_t));
-
-    //for(auto ent: allents)
-    //  std::cout<<rank<<": SEND"<<ent.position
-    //    <<":"<<ent.owner<<" S: "<<sizeof(ent)<<std::endl;
-    //body_holder_mpi_t * ptr = &allents[0];
-    //for(int i = 0 ; i < 20 ; ++i)
-    //  std::cout<<rank<<": SEND"<<(ptr+i)->position
-    //    <<":"<<(ptr+i)->owner<<std::endl;
-    //std::cout<<rank<<": SIZE:"<<sendsize<<":"<<recvsize<<std::endl;
-
+ 
     MPI_Sendrecv(&allents[0],sendsize,MPI_BYTE,neighb,0,
       &recvents[0],recvsize,MPI_BYTE,neighb,MPI_ANY_TAG,
       MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 
-    //for(auto ent: recvents)
-    //  std::cout<<rank<<": RECV"<<ent.position<<ent.owner<<std::endl;
     // Add the entities in the tree, changing the ptr to nullptr
     for(auto bi: recvents)
     {
-      //if(bi.getOwner()!=rank){
-        auto nbi = tree.make_entity(bi.position,nullptr,bi.owner);
-        //std::cout<<rank<<": inserting: "<<*nbi<<std::endl;
-        tree.insert(nbi);
-      //}
+      assert(bi.owner!=rank);
+      auto nbi = tree.make_entity(bi.position,nullptr,bi.owner);
+      tree.insert(nbi);
     }
   }
   MPI_Barrier(MPI_COMM_WORLD); 
   if(rank == 0)
     std::cout<<".done"<<std::endl;
 }
+  
+// compute the range, minposition and maxposition from a group of bodies
+void 
+mpi_compute_range(
+    std::vector<std::pair<entity_key_t,body>>& bodies,
+    std::array<point_t,2>& range
+    )
+{
+  int rank, size; 
+  MPI_Comm_size(MPI_COMM_WORLD,&size);
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+
+  // Compute the range to compute the keys 
+  double max[3] = {-9999,-9999,-9999};
+  double min[3] = {9999,9999,9999};
+  for(auto bi: bodies){
+    for(int i=0;i<3;++i){
+        if(bi.second.coordinates()[i]>max[i])
+          max[i] = bi.second.coordinates()[i];
+        if(bi.second.coordinates()[i]<min[i])
+          min[i] = bi.second.coordinates()[i];
+      }
+  }
+
+  // Do the MPI Reduction 
+  MPI_Allreduce(MPI_IN_PLACE,max,3,MPI_DOUBLE,MPI_MAX,MPI_COMM_WORLD); 
+  MPI_Allreduce(MPI_IN_PLACE,min,3,MPI_DOUBLE,MPI_MIN,MPI_COMM_WORLD); 
+ 
+  point_t minposition = {min[0]-0.1,min[1]-0.1,min[2]-0.1};
+  point_t maxposition = {max[0]+0.1,max[1]+0.1,max[2]+0.1};
+
+  if(rank==0)
+    std::cout <<"boundaries: "<< minposition << maxposition << std::endl;
+  
+  range[0] = minposition;
+  range[1] = maxposition;
+}
+
 
 void mpi_tree_traversal(tree_topology_t& tree)
 {

@@ -22,3 +22,8 @@ Before trying to compile you need to install on your system:
     % ccmake ../ 
     % make 
 
+
+# Todo 
+- Handle the file name from the specialization driver to the mpi task 
+- Add non power of two handler in the branch sharing
+- See the code structuration 

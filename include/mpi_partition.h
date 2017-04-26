@@ -12,7 +12,11 @@ operator<<(
     std::ostream& ostr,
     const entity_key_t& id
 );
-  
+
+void mpi_compute_range(
+    std::vector<std::pair<entity_key_t,body>>&,
+    std::array<point_t,2>&);
+
 void mpi_sort(
     std::vector<std::pair<entity_key_t,body>>&,
     std::vector<int>);
