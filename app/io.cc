@@ -43,6 +43,8 @@ void inputDataTxt(
 #endif
 } // inputDataTxt
 
+
+
 // Read data from txt file with ranges
 // This is not the most beautiful way, but enough for testing
 void inputDataTxtRange(

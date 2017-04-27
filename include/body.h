@@ -5,10 +5,12 @@
 #include "flecsi/geometry/point.h"
 #include "flecsi/geometry/space_vector.h"
 
+#include "user.h"
+
 class body{
 
-  static const size_t dimension = 3;
-  using element_t = double; 
+  static const size_t dimension = gdimension;
+  using element_t = type_t; 
   using point_t = flecsi::point<element_t, dimension>;
   
 public:
@@ -32,90 +34,55 @@ public:
       mass_(mass),
       smoothinglength_(smoothinglength),
       soundspeed_(0),
-      gravforce_(point_t(0.,0.,0.)),
-      hydroforce_(point_t(0.,0.,0.))
+      gravforce_(point_t{}),
+      hydroforce_(point_t{})
   {};
 
   body()
   {};
 
-  const point_t& coordinates() const{
-    return position_; 
-  }
-  const point_t& getPosition() const{
-    return position_;
-  }
-  double getMass() const{
-    return mass_;
-  }
-  double getSmoothinglength() const{
-    return smoothinglength_;
-  }
-  double getPressure() const{
-    return pressure_; 
-  }
-  double getSoundspeed() const{
-    return soundspeed_; 
-  }
-  double getEntropy() const{
-    return entropy_; 
-  }
-  double getDensity() const{
-    return density_;
-  }
-  point_t getVelocity() const{
-    return velocity_;
-  }
-  point_t getHydroForce() const{
-    return hydroforce_;
-  }
-  point_t getGravForce() const{
-    return gravforce_;
-  }
-  point_t getVelocityhalf() const{
-    return velocityhalf_;
-  }
-  point_t getAcceleration() const{
-    return acceleration_;
-  }
-  void setPosition(point_t position){
-    position_ = position;
-  }
-  void setAcceleration(point_t acceleration){
-    acceleration_ = acceleration;
-  }
-  void setVelocity(point_t velocity){
-    velocity_ = velocity; 
-  }
-  void setVelocityhalf(point_t velocityhalf){
-    velocityhalf_ = velocityhalf;
-  }
-  void setGravForce(point_t gravforce){
-    gravforce_ = gravforce;
-  }
-  void setHydroForce(point_t hydroforce){
-    hydroforce_ = hydroforce; 
-  }
-  void setSoundspeed(double soundspeed){
-    soundspeed_ = soundspeed;
-  }
-  void setPressure(double pressure){
-    assert(pressure > 0);
-    pressure_ = pressure;
-  }
-  void setDensity(double density){
-    assert(density >= 0);
-    density_ = density;
-  }
+  const point_t& coordinates() const{return position_;}
+  const point_t& getPosition() const{return position_;}
+  double getMass() const{return mass_;}
+  double getSmoothinglength() const{return smoothinglength_;}
+  double getPressure() const{return pressure_;}
+  double getSoundspeed() const{return soundspeed_;}
+  double getEntropy() const{return entropy_;}
+  double getDensity() const{return density_;}
+  point_t getVelocity() const{return velocity_;}
+  point_t getHydroForce() const{return hydroforce_;}
+  point_t getGravForce() const{return gravforce_;}
+  point_t getVelocityhalf() const{return velocityhalf_;}
+  point_t getAcceleration() const{return acceleration_;}
+  double getInternalenergy() const{return internalenergy_;}
+  double getDudt(){return dudt_;};
+
+  void setPosition(point_t position){position_ = position;}
+  void setAcceleration(point_t acceleration){acceleration_ = acceleration;}
+  void setVelocity(point_t velocity){velocity_ = velocity;}
+  void setVelocityhalf(point_t velocityhalf){velocityhalf_ = velocityhalf;}
+  void setGravForce(point_t gravforce){gravforce_ = gravforce;}
+  void setHydroForce(point_t hydroforce){hydroforce_ = hydroforce;}
+  void setSoundspeed(double soundspeed){soundspeed_ = soundspeed;}
+  void setPressure(double pressure){assert(pressure > 0);pressure_ = pressure;}
+  void setDensity(double density){assert(density >= 0);density_ = density;}
+  void setMass(double mass){mass_ = mass;};
+  void setInternalenergy(double internalenergy)
+    {internalenergy_=internalenergy;};
+  void setSmoothinglength(double smoothinglength)
+    {smoothinglength_=smoothinglength;};
+  void setDudt(double dudt){dudt_ = dudt;};
+
   friend std::ostream& operator<<(std::ostream& os, const body& b){
+    // TODO change regarding to dimension 
     os << "Particle: Pos: " <<b.position_ << " Dens: " << b.density_; 
-    /*os << " H: " << b.smoothinglength_;
-    os << " Pres: " << b.pressure_ << std::endl;
-    os << "          Vel: " << b.velocity_ << " VelH: " << b.velocityhalf_;
-    os << " Mass: " << b.mass_ << std::endl;
-    os << "   Force: hyd: " << b.hydroforce_;
-    os << " grav: " << b.gravforce_ << std::endl;
-    os << "          Acc: " << b.acceleration_;*/ 
+    os << " H: " << b.smoothinglength_;
+    os << " Pres: " << b.pressure_;
+    os << " Vel: " << b.velocity_ << " VelH: " << b.velocityhalf_;
+    os << " Mass: " << b.mass_;
+    os << " Force: hyd: " << b.hydroforce_;
+    os << " grav: " << b.gravforce_;
+    os << "          Acc: " << b.acceleration_;
     return os;
   }      
 
@@ -130,6 +97,8 @@ private:
   double mass_;
   double smoothinglength_; 
   double soundspeed_;
+  double internalenergy_;
+  double dudt_;
   point_t gravforce_;
   point_t hydroforce_;
 }; // class body 

@@ -3,9 +3,9 @@
 #------------------------------------------------------------------------------#
 
 set(CMAKE_CXX_FLAGS_DEBUG 
-  "-O2 -Wall -Wno-return-type -Wno-unused -Wno-comment")
+  "-O2 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses")
 set(CMAKE_CXX_FLAGS_RELEASE 
-  "-O3 -Wall -Wno-return-type -Wno-unused -Wno-comment") 
+  "-O3 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses") 
 
 # includes 
 include_directories(${CMAKE_SOURCE_DIR}/include)
@@ -19,7 +19,8 @@ add_executable(tree_mpilegion
   main.cc 
   main_driver.cc 
   mpi_partition.cc
-  io.cc 
+  io.cc
+  sodtube.cc 
   physics.cc
   ${FleCSI_RUNTIME}/runtime_driver.cc
 )

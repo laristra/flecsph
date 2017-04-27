@@ -21,8 +21,8 @@ void driver(int argc, char*argv[]);
 enum locality {LOCAL,NONLOCAL,EXCL,SHARED,GHOST};
 
 struct body_holder_mpi_t{
-  static const size_t dimension = 3;
-  using element_t = double; 
+  static const size_t dimension = gdimension;
+  using element_t = type_t; 
   using point_t = flecsi::point<element_t, dimension>;
 
   point_t position; 
@@ -33,8 +33,8 @@ class tree_policy{
 public:
   using tree_t = flecsi::topology::tree_topology<tree_policy>;
   using branch_int_t = uint64_t;
-  static const size_t dimension = 3;
-  using element_t = double; 
+  static const size_t dimension = gdimension;
+  using element_t = type_t; 
   using point_t = flecsi::point<element_t, dimension>;
   using space_vector_t = flecsi::space_vector<element_t,dimension>;
 
@@ -69,6 +69,7 @@ public:
     int getOwner(){return owner_;};
 
     void setLocality(locality loc){locality_ = loc;};
+    void setBody(body * bodyptr){bodyptr_ = bodyptr;};
 
     bool
     is_local()
@@ -79,6 +80,12 @@ public:
 
     friend std::ostream& operator<<(std::ostream& os, const body_holder& b){
       os << "Holder: Pos: " <<b.position_ ; 
+      if(b.locality_ == LOCAL || b.locality_ == EXCL || b.locality_ == SHARED)
+      {
+        os<< "LOCAL";
+      }else{
+        os << "NONLOCAL";
+      }
       return os;
     }  
 
@@ -97,7 +104,7 @@ public:
 
     void insert(body_holder* ent){
       ents_.push_back(ent);
-      if(ents_.size() > 8){
+      if(ents_.size() > (1<<dimension)){
         refine();
       }
     } // insert
@@ -165,9 +172,10 @@ class entity_key_t
 {
   public:
     using int_t = uint64_t;
-    static const size_t dimension = 3;
+    static const size_t dimension = gdimension;
     static constexpr size_t bits = sizeof(int_t) * 8;
     static constexpr size_t max_depth = (bits - 1)/dimension;
+    using element_t = type_t;
 
     entity_key_t()
     : id_(0)
@@ -181,8 +189,8 @@ class entity_key_t
       std::array<int_t, dimension> coords;
       for(size_t i = 0; i < dimension; ++i)
       {
-        double min = range[0][i];
-        double scale = range[1][i] - min;
+        element_t min = range[0][i];
+        element_t scale = range[1][i] - min;
         coords[i] = (p[i] - min)/scale * (int_t(1) << (bits - 1)/dimension);
       }
       size_t k = 0;
@@ -255,8 +263,15 @@ class entity_key_t
     std::ostream& ostr
   ) const
   {
-    ostr << std::oct << id_ << std::dec;
-    //constexpr int_t mask = ((int_t(1) << dimension) - 1) << bits - dimension;
+    // TODO change for others dimensions
+    if(dimension == 3){
+      ostr << std::oct << id_ << std::dec;
+    }else if(dimension == 1){
+      ostr << std::bitset<8>(id_>>bits-8);
+    }else{
+      ostr << "Dimension not handled";
+    }
+      //constexpr int_t mask = ((int_t(1) << dimension) - 1) << bits - dimension;
     //size_t d = max_depth;
     //int_t id = id_;
     //
@@ -344,7 +359,8 @@ class entity_key_t
   entity_key_t
   last_key()
   {
-    return entity_key_t(~int_t(0) >> (bits-(1+max_depth)*dimension+2));   
+    return entity_key_t(~int_t(0) >> (bits-(1+max_depth)*dimension
+          +(gdimension-1)));      
   }
 
   int_t 

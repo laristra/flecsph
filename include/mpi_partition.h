@@ -28,5 +28,15 @@ void mpi_tree_traversal_graphviz(
     tree_topology_t&,
     std::array<point_t,2>&);
 
+void mpi_gather_ghosts(
+    tree_topology_t&,
+    double smoothinglength,
+    std::vector<body>&);
+
+void mpi_output_txt(
+    std::vector<std::pair<entity_key_t,body>>&,
+    std::vector<int>&,
+    int
+    );
 
 #endif // mpi_partition_h
