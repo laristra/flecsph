@@ -182,11 +182,18 @@ mpi_init_task(/*std::string sfilename*/){
     // For test, gather the neighbors and loop over here
     MPI_Barrier(MPI_COMM_WORLD);
     mpi_gather_ghosts(tree,smoothinglength,recvbodies);
+    
+    if(iter==1){
+      // Display current tree, with GHOSTS,SHARED,EXCL,NONLOCAL
+      MPI_Barrier(MPI_COMM_WORLD);
+      mpi_tree_traversal_graphviz(tree,range);
+    }
 
-     
     // Do the physics 
     for(auto& bi: bodies)
     {
+      //tree.apply_in_radius();
+
       auto ents = tree.find_in_radius(bi->coordinates(),2*smoothinglength);
       // Apply physics
       auto vecents = ents.to_vec(); 

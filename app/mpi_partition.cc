@@ -163,44 +163,19 @@ void mpi_sort(std::vector<std::pair<entity_key_t,body>>& rbodies,
   receivoffsets.pop_back(); 
   sendoffsets.pop_back();
 
-
-  // Create the MPI datatype associate with the pair 
-  // First the entity_key_t which is an uint64_t
-  int blocks[2] = {1,14};
-  MPI_Datatype types[2] = {MPI_UINT64_T,MPI_DOUBLE}; 
-  MPI_Aint displacements[2];
-  MPI_Aint lb[2];
-
-  MPI_Datatype pair_entity_body;
-  MPI_Aint uintex,doublex;
-
-  MPI_Type_get_extent(MPI_UINT64_T,&lb[0],&uintex);
-  MPI_Type_get_extent(MPI_DOUBLE,&lb[1],&doublex);
-  displacements[0] = static_cast<MPI_Aint>(0);
-  displacements[1] = uintex;
-  MPI_Type_create_struct(2,blocks,displacements,types,&pair_entity_body);
-  MPI_Type_commit(&pair_entity_body);
-
-  int typesize=0;
-  MPI_Type_size(pair_entity_body,&typesize);
-  //std::cout<<sizeof(std::pair<entity_key_t,body>)<<":"<<typesize<<std::endl;
-  assert(sizeof(std::pair<entity_key_t,body>)==typesize); ;
-
   // Trnaform the offsets for bytes 
- /* for(auto& bs: bucketssize)
+  for(auto& bs: bucketssize)
     bs*=sizeof(std::pair<entity_key_t,body>);
   for(auto& bs: sendoffsets)
     bs*=sizeof(std::pair<entity_key_t,body>);
   for(auto& bs: receivbucket)
     bs*=sizeof(std::pair<entity_key_t,body>);
   for(auto& bs: receivoffsets)
-    bs*=sizeof(std::pair<entity_key_t,body>);*/
-
-
+    bs*=sizeof(std::pair<entity_key_t,body>);
 
   // Use this array for the global buckets communication
-  MPI_Alltoallv(&sendbuffer[0],&bucketssize[0],&sendoffsets[0],pair_entity_body,
-      &rbodies[0],&receivbucket[0],&receivoffsets[0],pair_entity_body,
+  MPI_Alltoallv(&sendbuffer[0],&bucketssize[0],&sendoffsets[0],MPI_BYTE,
+      &rbodies[0],&receivbucket[0],&receivoffsets[0],MPI_BYTE,
       MPI_COMM_WORLD);
 
   // Sort the incoming buffer 
@@ -216,7 +191,8 @@ void mpi_sort(std::vector<std::pair<entity_key_t,body>>& rbodies,
       })
   );
 
-  std::vector<int> totalnbodies(size);
+  std::vector<int> totalnbodies;
+  totalnbodies.resize(size);
   int mybodies = rbodies.size();
   // Share the final array size of everybody 
   MPI_Allgather(&mybodies,1,MPI_INT,&totalnbodies[0],1,MPI_INT,MPI_COMM_WORLD);
@@ -238,19 +214,20 @@ void mpi_sort(std::vector<std::pair<entity_key_t,body>>& rbodies,
   // Distribution using full right and then full left
   // First full right, normally the worst if size iteration
   for(int i=0;i<size;++i)
-  {   
+  {  
     std::vector<int> needs(size);
     // Compute the current needs  
     for(int i=0;i<size;++i){
       needs[i] = targetnbodies[i]-totalnbodies[i];
     }  
     // Look at the right if someone have the bodies I need 
-    if(rank!=0 && needs[rank]>0 && totalnbodies[rank-1]>=needs[rank]){
+    if(rank!=0 && needs[rank]>0 && totalnbodies[rank-1]>0){
       int nrecv = needs[rank];
       if(totalnbodies[rank-1]<nrecv)
         nrecv = totalnbodies[rank-1];
       std::vector<std::pair<entity_key_t,body>> recvbuffer(nrecv);
-      MPI_Recv(&recvbuffer[0],nrecv,pair_entity_body,rank-1,0,MPI_COMM_WORLD,
+      MPI_Recv(&recvbuffer[0],nrecv*sizeof(std::pair<entity_key_t,body>),
+          MPI_BYTE,rank-1,0,MPI_COMM_WORLD,
           MPI_STATUS_IGNORE);
       // Add and keep sorted
       rbodies.insert(rbodies.end(),recvbuffer.begin(),
@@ -261,12 +238,13 @@ void mpi_sort(std::vector<std::pair<entity_key_t,body>>& rbodies,
             return left.first<right.first;
           });
     }
-    if(rank!=size-1 && needs[rank+1]>0 && totalnbodies[rank]>=needs[rank+1]){
+    if(rank!=size-1 && needs[rank+1]>0 && totalnbodies[rank]>0){
       int nsend = needs[rank+1];
       if(nsend>totalnbodies[rank])
         nsend = totalnbodies[rank];
       int position = rbodies.size() - nsend;
-      MPI_Send(&(rbodies[position]),nsend,pair_entity_body,rank+1,0,
+      MPI_Send(&(rbodies[position]),nsend*sizeof(std::pair<entity_key_t,body>),
+          MPI_BYTE,rank+1,0,
           MPI_COMM_WORLD);
       // Suppress the bodies 
       rbodies.erase(rbodies.end()-nsend,rbodies.end()); 
@@ -278,11 +256,11 @@ void mpi_sort(std::vector<std::pair<entity_key_t,body>>& rbodies,
         MPI_INT,MPI_COMM_WORLD);
   }
 
-
   // Now go to left  
   while(!std::equal(totalnbodies.begin(),totalnbodies.end(),
         targetnbodies.begin()))
   {
+    
     std::vector<int> needs(size);
     // Compute the current needs  
     for(int i=0;i<size;++i){
@@ -294,7 +272,8 @@ void mpi_sort(std::vector<std::pair<entity_key_t,body>>& rbodies,
       if(totalnbodies[rank+1]<nrecv)
         nrecv = totalnbodies[rank+1];
       std::vector<std::pair<entity_key_t,body>> recvbuffer(nrecv);
-      MPI_Recv(&recvbuffer[0],nrecv,pair_entity_body,rank+1,0,MPI_COMM_WORLD,
+      MPI_Recv(&recvbuffer[0],nrecv*sizeof(std::pair<entity_key_t,body>),
+          MPI_BYTE,rank+1,0,MPI_COMM_WORLD,
           MPI_STATUS_IGNORE);
       // Add and keep sorted
       rbodies.insert(rbodies.end(),recvbuffer.begin(),
@@ -310,7 +289,8 @@ void mpi_sort(std::vector<std::pair<entity_key_t,body>>& rbodies,
       if(nsend>totalnbodies[rank])
         nsend = totalnbodies[rank];
       int position = 0;
-      MPI_Send(&rbodies[position],nsend,pair_entity_body,rank-1,0,
+      MPI_Send(&rbodies[position],nsend*sizeof(std::pair<entity_key_t,body>),
+          MPI_BYTE,rank-1,0,
           MPI_COMM_WORLD);
       // Suppress the bodies 
       rbodies.erase(rbodies.begin(),rbodies.begin()+nsend); 
@@ -363,15 +343,15 @@ void mpi_tree_traversal_graphviz(tree_topology_t & tree,
             output<<std::oct<<cur->id().value_()
               <<"->"<<br->id().value_()<<std::dec<<std::endl;
           }else if(gdimension == 1){
-            output<<std::bitset<6>(cur->id().value_())<<"->"<<
-              std::bitset<6>(br->id().value_())<<std::endl;
+            output<<std::bitset<64>(cur->id().value_())<<"->"<<
+              std::bitset<64>(br->id().value_())<<std::endl;
           }
         //}
       }
     }else{
       for(auto ent: *cur){
         entity_key_t key(range,ent->coordinates());
-        output<<std::bitset<6>(cur->id().value_())<<
+        output<<std::bitset<64>(cur->id().value_())<<
           "->"<<key<<std::endl;
         //fprintf(output,"\"%lo\" -> \"%lo\"\n",cur->id().value_(),
         //    key.truncate_value(17));
