@@ -8,7 +8,7 @@ int main(int argc, char *argv[])
 	// Read in arguments
 	if (argc < 2)
 	{
-		std::cout << "Need input param file. Exiting now..." << std::endl;
+		std::cout << "Need input json file. Exiting now..." << std::endl;
 		return 0;
 	}
 
