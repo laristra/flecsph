@@ -62,6 +62,7 @@ public:
        owner_(-1)
     {};
 
+    // Function used in the tree structure 
     const point_t& coordinates() const {return position_;}
     const point_t& getPosition() const {return position_;}
     body* getBody(){return bodyptr_;};
@@ -90,6 +91,7 @@ public:
     }  
 
   private:
+    // Should be replace by the key corresponding to the entity 
     point_t position_;
     body * bodyptr_; 
     int locality_;
@@ -269,9 +271,11 @@ class entity_key_t
     }else if(dimension == 1){
       ostr << std::bitset<64>(id_>>bits-8);
     }else{
+      // For dimension 2, display base 4
       ostr << "Dimension not handled";
     }
-      //constexpr int_t mask = ((int_t(1) << dimension) - 1) << bits - dimension;
+    // Old display group of bits based on the dimension
+    //constexpr int_t mask = ((int_t(1) << dimension) - 1) << bits - dimension;
     //size_t d = max_depth;
     //int_t id = id_;
     //
