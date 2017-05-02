@@ -31,7 +31,7 @@ namespace flecsi{
 namespace execution{
 
 void
-mpi_init_task(/*std::string sfilename*/){
+mpi_init_task(/*std::string sfilename*/int inputparticles){
   // TODO find a way to use the file name from the specialiszation_driver
   //std::cout<<sfilename<<std::endl;
   const char * filename = "../data/data_test_40.txt";
@@ -42,32 +42,30 @@ mpi_init_task(/*std::string sfilename*/){
   MPI_Comm_rank(MPI_COMM_WORLD,&rank); 
   
   int nbodies = 0;
+  int totaliters = 100;
   int totalnbodies = 0;
   std::vector<std::pair<entity_key_t,body>> rbodies;
+  std::array<point_t,2> range;
+  mpi_ghosts_t ghosts_data;
   
   //printf("%d/%d, file %s\n",rank,size,filename);   
   // Read data from file, each process read a part of it 
   // For HDF5, no problems because we know the number of particles 
   // For txt format, work on the number of lines yet ... 
   //io::inputDataTxtRange(rbodies,nbodies,totalnbodies,rank,size,filename); 
-  //totalnbodies = 40;
+  totalnbodies = inputparticles;
   sodtube::randomDataSodTube1D(rbodies,nbodies,totalnbodies,rank,size);
-
-  std::array<point_t,2> range;
-  std::vector<body> recvbodies;
   
   // Target number of bodies for every process
   // The last one will takes more 
-  std::vector<int> targetnbodies;
-  for(int i=0;i<size;++i){
-    if(i!=size-1){
-      targetnbodies.push_back(totalnbodies/size);
-    }else{ 
-      targetnbodies.push_back(totalnbodies-((size-1)*(totalnbodies/size)));
-    }
-  }
-
-  double smoothinglength = 1.0e-2;
+  //std::vector<int> targetnbodies;
+  //for(int i=0;i<size;++i){
+  //  if(i!=size-1){
+  //    targetnbodies.push_back(totalnbodies/size);
+  //  }else{ 
+  //    targetnbodies.push_back(totalnbodies-((size-1)*(totalnbodies/size)));
+  //  }
+  //}
 
 #if 0  
   // Do the research of ghost and shared 
@@ -125,12 +123,20 @@ mpi_init_task(/*std::string sfilename*/){
 #endif
 
 
-  
+  double smoothinglength = 0.0;
   int iter = 0;
-  mpi_output_txt(rbodies,targetnbodies,iter); 
+  //mpi_output_txt(rbodies,iter); 
   ++iter; 
   do
   {
+
+    // Get the worst smothing length 
+    if(rank==0)
+      smoothinglength = rbodies[0].second.getSmoothinglength();
+
+    MPI_Bcast(&smoothinglength,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
+
+
     MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0)
       std::cout<<std::endl<<"#### Iteration "<<iter<<std::endl;
@@ -139,7 +145,7 @@ mpi_init_task(/*std::string sfilename*/){
     mpi_compute_range(rbodies,range);
 
     // The bodies are loaded
-    // Compute the key and sort them 
+    // Compute the key    
     for(auto& bi: rbodies){
       bi.first = entity_key_t(range,bi.second.coordinates());
     }
@@ -149,10 +155,10 @@ mpi_init_task(/*std::string sfilename*/){
         [](const auto& left, const auto& right){
           return left.first == right.first;
         }));
- 
+
     // Apply a distributed sort algorithm 
-    mpi_sort(rbodies,targetnbodies);
-    assert(rbodies.size() == (size_t)targetnbodies[rank]); 
+    mpi_sort_unbalanced(rbodies,totalnbodies);
+    //assert(rbodies.size() == (size_t)targetnbodies[rank]); 
     assert(rbodies.end() == std::unique(rbodies.begin(),rbodies.end(),
         [](const auto& left, const auto& right){
           return left.second.coordinates()==right.second.coordinates() &&
@@ -173,47 +179,54 @@ mpi_init_task(/*std::string sfilename*/){
     }
 
     // Search and share the branches 
-    mpi_branches_exchange(tree);
-    {
-      auto tents = tree.entities();
-      assert(tents.size() == (size_t)totalnbodies);
-    }
-
-    // For test, gather the neighbors and loop over here
-    MPI_Barrier(MPI_COMM_WORLD);
-    mpi_gather_ghosts(tree,smoothinglength,recvbodies);
+    mpi_branches_exchange_useful(tree,rbodies,range);
+    //{
+    //  auto tents = tree.entities();
+    //  assert(tents.size() == (size_t)totalnbodies);
+    //}
     
-    if(iter==1){
-      // Display current tree, with GHOSTS,SHARED,EXCL,NONLOCAL
-      MPI_Barrier(MPI_COMM_WORLD);
-      mpi_tree_traversal_graphviz(tree,range);
-    }
+    // For test, gather the neighbors and loop over here
+    mpi_compute_ghosts(tree,smoothinglength,ghosts_data);
+    mpi_refresh_ghosts(tree,ghosts_data);
 
-    // Do the physics 
+    //if(iter==1){
+      // Display current tree, with GHOSTS,SHARED,EXCL,NONLOCAL
+      //MPI_Barrier(MPI_COMM_WORLD);
+      //mpi_tree_traversal_graphviz(tree,range);
+    //}
+
+    // Do the physics
+    if(rank==0)
+      std::cout<<"Density"<<std::flush; 
     for(auto& bi: bodies)
     {
       //tree.apply_in_radius();
-
-      auto ents = tree.find_in_radius(bi->coordinates(),2*smoothinglength);
+      bi->getBody()->setDensity(0.0);
+      tree.apply_in_radius(bi->coordinates(),2*smoothinglength,
+          sodtube::computeDensityApply,bi);
+      //auto ents = tree.find_in_radius(bi->coordinates(),2*smoothinglength);
       // Apply physics
-      auto vecents = ents.to_vec(); 
-      sodtube::computeDensity(bi,vecents);
+      //auto vecents = ents.to_vec(); 
+      //sodtube::computeDensity(bi,vecents);
     }
     if(rank==0)
-      std::cout<<"Density.done"<<std::endl;
+      std::cout<<".done"<<std::endl;
 
+    if(rank==0)
+      std::cout<<"PressureSoundSpeed"<<std::flush; 
     for(auto& bi: bodies)
     {
       sodtube::computePressureSoundSpeed(bi);
     }
     if(rank==0)
-      std::cout<<"PressureSoundSpeed.done"<<std::endl;
+      std::cout<<".done"<<std::endl;
 
     MPI_Barrier(MPI_COMM_WORLD);
-    // Share data again, need the density and pressure of my ghosts 
-    mpi_gather_ghosts(tree,smoothinglength,recvbodies);
-    
+    // Share data again, need the density and pressure of the ghosts 
+    mpi_refresh_ghosts(tree,ghosts_data);    
 
+    if(rank==0)
+      std::cout<<"Acceleration"<<std::flush; 
     for(auto& bi: bodies)
     {
       auto ents = tree.find_in_radius(bi->coordinates(),2*smoothinglength);
@@ -222,9 +235,10 @@ mpi_init_task(/*std::string sfilename*/){
       sodtube::computeAcceleration(bi,vecents);
     }
     if(rank==0)
-      std::cout<<"Acceleration.done"<<std::endl;
+      std::cout<<".done"<<std::endl;
 
-
+    if(rank==0)
+      std::cout<<"Viscosity"<<std::flush; 
     for(auto& bi: bodies)
     {
       auto ents = tree.find_in_radius(bi->coordinates(),2*smoothinglength);
@@ -233,20 +247,22 @@ mpi_init_task(/*std::string sfilename*/){
       sodtube::computeViscosity(bi,vecents);
     }
     if(rank==0)
-      std::cout<<"Viscosity.done"<<std::endl;
+      std::cout<<".done"<<std::endl;
 
+    if(rank==0)
+      std::cout<<"MoveParticles"<<std::flush; 
     for(auto& bi: bodies)
     {
-      sodtube::moveParticle(bi);
+      sodtube::moveParticle(bi,range);
     }
     if(rank==0)
-      std::cout<<"MoveParticles.done"<<std::endl;
+      std::cout<<".done"<<std::endl;
 
-    mpi_output_txt(rbodies,targetnbodies,iter);
+    //mpi_output_txt(rbodies,iter);
 
     ++iter;
 
-  }while(iter<100);
+  }while(iter<totaliters);
 }
 
 flecsi_register_task(mpi_init_task,mpi,index);
@@ -263,7 +279,7 @@ specialization_driver(int argc, char * argv[]){
   /*const char * filename = argv[1];*/
   /*std::string filename(argv[1]);
   std::cout<<filename<<std::endl;*/
-  flecsi_execute_task(mpi_init_task,mpi,index/*,filename*/); 
+  flecsi_execute_task(mpi_init_task,mpi,index,atoi(argv[1])/*,filename*/); 
 } // specialization driver
 
 void 

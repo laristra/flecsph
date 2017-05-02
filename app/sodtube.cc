@@ -68,11 +68,12 @@ void randomDataSodTube1D(
   if(rank == size-1)
     nbodies = totalnbodies-((size-1)*(totalnbodies/size));
 
-  double procposition = 1./(double)size;
-  double particlespace = 1/(double)totalnbodies;
-  double middle = 0.5;
-  double procstart = procposition*rank;
-  double procstop = procposition*rank+procposition;
+  //double procposition = 1./(double)size;
+  //double particlespace = 1/(double)totalnbodies;
+  double distance = 0.0026566;
+  double middle = totalnbodies*distance/2.;
+  double procstart = distance*(totalnbodies/size)*rank;
+  double procstop = procstart+(distance*totalnbodies/size);
   std::cout<<rank<<": ["<<procstart<<";"<<procstop<<"["<<std::endl;
   double position = procstart;
   double velocity = 0.0;
@@ -100,7 +101,7 @@ void randomDataSodTube1D(
     bi.setAcceleration(acceleration);
     // Positions between [procstart;procstop[
     bodies.push_back(std::make_pair(entity_key_t::null(),bi));
-    position += particlespace;
+    position += distance;
   } 
 }
 
@@ -110,9 +111,9 @@ double kernel(double dist, double h)
   double q = dist/h;
   assert(q>=0);
   if(q<1)
-    return sigma*(0.25*pow(2.0-q,3)-pow(1.0-q,3));
+    return sigma*(0.25*(2.0-q)*(2.0-q)*(2.0-q)-(1.0-q)*(1.0-q)*(1.0-q));
   if(q>=1 && q<2)
-    return sigma*(0.25*pow(2.0-q,3));
+    return sigma*(0.25*(2.0-q)*(2.0-q)*(2.0-q));
   return 0.0;
 }
 
@@ -122,10 +123,28 @@ double gradkernel(double dist, double h)
   double q = dist/h;
   assert(q>=0);
   if(q<1)
-    return -sigma*(-0.75*pow(2.0-q,2)+3.*pow(1.0-q,2))/h;
+    return -sigma*(-0.75*(2.0-q)*(2.0-q)+3.*(1.0-q)*(1.0-q))/h;
   if(q>=1 && q<2)
-    return -sigma*(-0.75*pow(2.0-q,2))/h;
+    return -sigma*(-0.75*(2.0-q)*(2.0-q))/h;
   return 0.0;
+}
+
+void computeDensityApply(
+    body_holder * nb, 
+    body_holder * src)
+{
+  body * srcb = src->getBody();
+  assert(srcb!=nullptr);
+  double density = srcb->getDensity();
+  // I am at least only in the vector 
+  body * nbb = nb->getBody();
+  assert(nbb!=nullptr);
+    
+  double dist = flecsi::distance(srcb->getPosition(),nbb->getPosition());
+  double kern = kernel(dist,srcb->getSmoothinglength());
+  density += nbb->getMass()*kern;
+  
+  srcb->setDensity(density);
 }
 
 void computeDensity(body_holder * src, std::vector<body_holder*>& neighb )
@@ -226,11 +245,12 @@ void computeAcceleration(body_holder * src, std::vector<body_holder*>& neighb)
   srcb->setAcceleration(acc);
 }
 
-void moveParticle(body_holder * src)
+void moveParticle(body_holder * src,std::array<point_t,2>& range)
 {
   body * srcb = src->getBody();
   assert(srcb!=nullptr);
-  if(srcb->getPosition()[0]>0.1 && srcb->getPosition()[0]<0.9){
+  if(srcb->getPosition()[0]>0.1
+      && srcb->getPosition()[0]<0.9){
     srcb->setPosition(srcb->getPosition()+srcb->getVelocity()*kDt);
     srcb->setVelocity(srcb->getVelocity()+srcb->getAcceleration()*kDt);
     srcb->setInternalenergy(srcb->getInternalenergy()+srcb->getDudt()*kDt);

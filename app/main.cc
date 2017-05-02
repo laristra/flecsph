@@ -11,12 +11,12 @@ int main(int argc, char * argv[]){
   
 //#ifdef GASNET_CONDUIT_MPI
   int provided;
-  MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-  if (provided < MPI_THREAD_MULTIPLE)
-    printf("ERROR: Your implementation of MPI does not support "
-      "MPI_THREAD_MULTIPLE which is required for use of the "
-      "GASNet MPI conduit with the Legion-MPI Interop!\n");
-  assert(provided == MPI_THREAD_MULTIPLE);
+  MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
+  //if (provided < MPI_THREAD_MULTIPLE)
+  //  printf("ERROR: Your implementation of MPI does not support "
+  //   "MPI_THREAD_MULTIPLE which is required for use of the "
+  //   "GASNet MPI conduit with the Legion-MPI Interop!\n");
+  //assert(provided == MPI_THREAD_MULTIPLE);
 //#else
 //  MPI_Init(&argc,&argv);
 //#endif

@@ -269,7 +269,7 @@ class entity_key_t
     if(dimension == 3){
       ostr << std::oct << id_ << std::dec;
     }else if(dimension == 1){
-      ostr << std::bitset<64>(id_>>bits-8);
+      ostr << std::bitset<64>(id_);
     }else{
       // For dimension 2, display base 4
       ostr << "Dimension not handled";

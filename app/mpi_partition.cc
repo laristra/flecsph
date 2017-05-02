@@ -25,16 +25,206 @@ operator==(
   return true;
 }
 
-template<class I>
-auto is_contiguous(I first, I last)
-{ 
-  auto test = true;
-  auto const n = std::distance(first, last);
-  for (auto i = 0; i < n && test; ++i) {
-    test &= (*(std::next(first, i))).first == 
-     (*(std::next(std::addressof(*first), i))).first;
-  }        
-  return test;        
+inline 
+point_t
+operator+(
+    const point_t& p, 
+    const double& val)
+{
+  point_t pr = p;
+  for(size_t i=0;i<gdimension;++i)
+    pr[i]+=val;
+  return pr;
+}
+
+inline 
+point_t
+operator-(
+    const point_t& p, 
+    const double& val)
+{
+  point_t pr = p;
+  for(size_t i=0;i<gdimension;++i)
+    pr[i]-=val;
+  return pr;
+}
+
+
+
+void mpi_sort_unbalanced(
+    std::vector<std::pair<entity_key_t,body>>& rbodies,
+    int totalnbodies
+    )
+{
+  int size, rank;
+  MPI_Comm_size(MPI_COMM_WORLD,&size);
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+
+  // Sort the keys 
+  std::sort(rbodies.begin(),rbodies.end(),
+      [](auto& left, auto& right)
+      {
+        return left.first < right.first;
+      });
+
+  // If on process, done 
+  if(size==1)
+    return;
+
+  // Create a vector for the samplers 
+  std::vector<entity_key_t> keys_sample;
+  // Number of elements for sampling 
+  // In this implementation we share up to 256KB to 
+  // the master. 
+  size_t noct = 256*1024;
+  size_t nsample = noct / sizeof(entity_key_t);
+  if(rbodies.size()<nsample){nsample = rbodies.size();}
+  int chuncksize = rbodies.size()/nsample;
+  //std::cout<<rank<<": nsample: "<<nsample<<" chuncksize: "<<chuncksize<<std::endl;
+
+  for(size_t i=0;i<nsample;++i)
+  {
+    keys_sample.push_back(rbodies[chuncksize*i].first);
+  }
+  assert(keys_sample.size()==nsample);
+
+  std::vector<entity_key_t> master_keys;
+  std::vector<int> master_recvcounts;
+  std::vector<int> master_offsets;
+  int master_nkeys = 0;
+  // Master 
+  if(rank == 0)
+  {
+    master_recvcounts.resize(size);
+    master_offsets.resize(size); 
+    master_nkeys = noct/sizeof(entity_key_t)*size;
+    if(totalnbodies<master_nkeys){master_nkeys=totalnbodies;}
+    // Number to receiv from each process
+    std::fill(master_recvcounts.begin(),master_recvcounts.end()
+        ,nsample*sizeof(entity_key_t));
+    // The last process may send more
+    master_recvcounts.back() = totalnbodies*sizeof(entity_key_t) - 
+      (size-1)*nsample*sizeof(entity_key_t);
+    std::partial_sum(master_recvcounts.begin(),master_recvcounts.end(),
+        &master_offsets[0]); 
+    master_offsets.insert(master_offsets.begin(),0);
+    master_keys.resize(master_nkeys);
+  }
+
+  MPI_Gatherv(&keys_sample[0],nsample*sizeof(entity_key_t),MPI_BYTE,
+      &master_keys[0],&master_recvcounts[0],&master_offsets[0],MPI_BYTE,
+      0,MPI_COMM_WORLD);
+
+  // Generate the splitters
+  std::vector<entity_key_t> splitters; 
+  splitters.resize(size-1);
+  if(rank==0)
+  {
+
+    std::sort(master_keys.begin(),master_keys.end());
+    //std::cout<<entity_key_t::first_key()<<std::endl;
+    chuncksize = master_nkeys/size;
+    for(int i=0;i<size-1;++i){
+      splitters[i] = master_keys[(i+1)*chuncksize];
+    //  std::cout<<splitters[i]<<std::endl;
+    }
+    //std::cout<<entity_key_t::last_key()<<std::endl;
+  }
+
+  // Bradcast the splitters 
+  MPI_Bcast(&splitters[0],(size-1)*sizeof(entity_key_t),MPI_BYTE,
+      0,MPI_COMM_WORLD);
+
+  // The rbodies array is already sorted. We just need to determine the 
+  // limits for each process
+  std::vector<int> sendcount(size);
+  std::fill(sendcount.begin(),sendcount.end(),0);
+  for(auto bi: rbodies)
+  {
+    for(int i = 0; i< size;++i)
+    {
+      if(i == 0 && bi.first < splitters[i]){
+        sendcount[0]++;
+      }else if(i == size-1 && bi.first >= splitters[size-2]){
+        sendcount[i]++;
+      }else if(bi.first < splitters[i] && bi.first >= splitters[i-1]){
+        sendcount[i]++;
+      }
+    }
+  }
+ 
+  // Share the bucket 
+  // First send the sizes of each bucket 
+  std::vector<int> recvcount(size);
+  MPI_Alltoall(&sendcount[0],1,MPI_INT,&recvcount[0],1,MPI_INT,
+      MPI_COMM_WORLD);
+
+  // Create the offset for alltoallv
+  //  First receiv offset
+  std::vector<int> recvoffsets(size);
+  std::partial_sum(recvcount.begin(),recvcount.end(),&recvoffsets[0]); 
+  // As we need an exscan, add a zero
+  recvoffsets.insert(recvoffsets.begin(),0);
+  
+  // Then send offsets
+  std::vector<int> sendoffsets(size);
+  std::partial_sum(sendcount.begin(),sendcount.end(),&sendoffsets[0]);
+  // As we need an exscan, add a zero
+  sendoffsets.insert(sendoffsets.begin(),0);
+ 
+  // The receiv buffer, work in th rbodies
+  std::vector<std::pair<entity_key_t,body>> recvbuffer; 
+  recvbuffer.resize(recvoffsets.back(),
+      std::make_pair(entity_key_t::null(),body()));
+
+  // We need to keep the last value to generate rbodies before erasing
+  //recvoffsets.pop_back(); 
+  //sendoffsets.pop_back();
+
+  // Trnaform the offsets for bytes 
+  for(auto& bs: sendcount)
+    bs*=sizeof(std::pair<entity_key_t,body>);
+  for(auto& bs: sendoffsets)
+    bs*=sizeof(std::pair<entity_key_t,body>);
+  for(auto& bs: recvcount)
+    bs*=sizeof(std::pair<entity_key_t,body>);
+  for(auto& bs: recvoffsets)
+    bs*=sizeof(std::pair<entity_key_t,body>);
+
+  // Use this array for the global buckets communication
+  MPI_Alltoallv(&rbodies[0],&sendcount[0],&sendoffsets[0],MPI_BYTE,
+      &recvbuffer[0],&recvcount[0],&recvoffsets[0],MPI_BYTE,
+      MPI_COMM_WORLD);
+
+  //rbodies.clear();
+  rbodies = recvbuffer;
+
+  // Sort the incoming buffer 
+  sort(rbodies.begin(),rbodies.end(),[](auto& left, auto &right)
+  {
+    return left.first<right.first;
+  }); 
+
+  // Check for duplicates
+  assert(rbodies.end() == std::unique(rbodies.begin(),rbodies.end(),
+      [](const auto& left, const auto& right ){ 
+        return left.first == right.first;
+      })
+  );
+
+  std::vector<int> totalprocbodies;
+  totalprocbodies.resize(size);
+  int mybodies = rbodies.size();
+  // Share the final array size of everybody 
+  MPI_Allgather(&mybodies,1,MPI_INT,&totalprocbodies[0],1,MPI_INT,
+      MPI_COMM_WORLD);
+
+  if(rank == 0){
+    std::cout<<"Repartition: ";
+    for(auto num: totalprocbodies)
+      std::cout<<num<<";";
+    std::cout<<std::endl;
+  }
 }
 
 // This method sort the particles over all the processes
@@ -128,8 +318,7 @@ void mpi_sort(std::vector<std::pair<entity_key_t,body>>& rbodies,
     std::move(bucket.begin(),bucket.end(),std::back_inserter(sendbuffer));
     bucket.erase(bucket.begin(),bucket.end());
   }
-  assert(is_contiguous(sendbuffer.begin(),sendbuffer.end()));
-
+  
   // Share the bucket 
   // First send the sizes of each bucket 
   std::vector<int> receivbucket;
@@ -382,6 +571,140 @@ void mpi_tree_traversal_graphviz(tree_topology_t & tree,
   output.close();
 }
 
+void
+mpi_branches_exchange_useful(tree_topology_t& tree,
+    std::vector<std::pair<entity_key_t,body>>& rbodies,
+    std::array<point_t,2>& rangekeys)
+{
+  int rank,size;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  MPI_Comm_size(MPI_COMM_WORLD,&size);
+  MPI_Barrier(MPI_COMM_WORLD);
+  if(rank==0)
+    std::cout<<"Branches repartition" << std::flush;
+  
+  // Search for my min and max key needed
+  std::pair<entity_key_t,entity_key_t> range;
+  range.first = entity_key_t::last_key();
+  range.second = entity_key_t::first_key();
+  // Get all my entities 
+  for(auto ent: rbodies)
+  {
+    // TODO check validity for 3 dimensions
+    point_t pos = ent.second.coordinates(); 
+    double h = ent.second.getSmoothinglength()*2;
+    if(entity_key_t(rangekeys,pos-h) < range.first)
+      range.first = entity_key_t(rangekeys,pos-h);
+    if(entity_key_t(rangekeys,pos+h) > range.second)
+      range.second = entity_key_t(rangekeys,pos+h);
+  }
+  // Handle on the extremities for 0 and size-1
+  if(range.first < entity_key_t::first_key())
+    range.first = entity_key_t::first_key();
+
+  if(range.second > entity_key_t::last_key())
+    range.second = entity_key_t::last_key();
+
+  //std::cout<<rank<<": "<<range.first<<" "<<range.second<<std::endl<<std::flush;
+  //MPI_Barrier(MPI_COMM_WORLD);
+
+  // Gather the keys of everyone 
+  std::vector<std::pair<entity_key_t,entity_key_t>> ranges(size);
+  MPI_Allgather(&range,sizeof(std::pair<entity_key_t,entity_key_t>),
+      MPI_BYTE,&ranges[0],sizeof(std::pair<entity_key_t,entity_key_t>),
+      MPI_BYTE,MPI_COMM_WORLD);
+
+  // Now generate the snedbufer, ordered by processes
+  //  for the holders 
+  std::vector<body_holder_mpi_t> sendbuffer;
+  std::vector<int> sendcount(size);
+  // To be able to search in the rbodies array 
+  std::vector<std::pair<entity_key_t,body>> s1(size);
+  std::vector<std::pair<entity_key_t,body>> s2(size);
+
+  for(int i=0;i<size;++i)
+  {
+    s1[i].first=ranges[i].first;
+    s2[i].first=ranges[i].second;
+  }
+
+  for(int i=0;i<size;++i)
+  {
+    if(i==rank)
+    {
+      sendcount[i]=0;
+      continue;
+    }
+    auto lb = std::lower_bound(rbodies.begin(),rbodies.end(),s1[i],
+        [](auto& left, auto& right)
+        {
+          return left.first < right.first; 
+        });
+    auto hb = std::upper_bound(rbodies.begin(),rbodies.end(),s2[i],
+        [](auto& left, auto& right)
+        {
+          return left.first < right.first; 
+        });
+    // TODO check here, if last element is valid 
+    if(lb != rbodies.end())
+    {
+      sendcount[i]=std::distance(lb,hb); 
+      for(;lb!=hb;++lb)
+        sendbuffer.push_back(
+            body_holder_mpi_t{lb->second.coordinates(),rank}); 
+    }else{
+      sendcount[i]=0;
+    } 
+  }
+
+  //int tot = 0;
+  //for(auto val: sendcount)
+  //{
+  //  std::cout<<rank<<": sendto "<<tot<<"="<<val<<" from: "<<
+  //    s1[tot].first<<";"<<s2[tot].first<<std::endl;
+  //  tot++;
+  //}
+
+  //Count the elements to send 
+  std::vector<int> sendoffsets(size);
+  std::vector<int> recvcount(size);
+  std::vector<int> recvoffsets(size);
+
+  MPI_Alltoall(&sendcount[0],1,MPI_INT,
+      &recvcount[0],1,MPI_INT,MPI_COMM_WORLD);
+
+  int totalrecv = 0;
+  for(int i=0;i<size;++i)
+  {
+    totalrecv += recvcount[i];
+    sendcount[i]*=sizeof(body_holder_mpi_t);
+    recvcount[i]*=sizeof(body_holder_mpi_t);
+    if(i<size-1)
+    {
+      sendoffsets[i+1]=sendoffsets[i]+sendcount[i];
+      recvoffsets[i+1]=recvoffsets[i]+recvcount[i];
+    }
+  }
+
+  std::vector<body_holder_mpi_t> recvbuffer(totalrecv);
+  MPI_Alltoallv(&sendbuffer[0],&sendcount[0],&sendoffsets[0],MPI_BYTE,
+      &recvbuffer[0],&recvcount[0],&recvoffsets[0],MPI_BYTE,
+      MPI_COMM_WORLD);
+
+  // Add in the tree 
+  for(auto bi: recvbuffer)
+  {
+    assert(bi.owner!=rank);
+    auto nbi = tree.make_entity(bi.position,nullptr,bi.owner);
+    tree.insert(nbi);
+  }
+
+  if(rank==0)
+    std::cout<<".done"<<std::endl;
+
+
+}
+
 // The aim of this method is to shared the global informations on the tree 
 // and the local informations with the process neighbors 
 // Send all the body holders to everyone 
@@ -396,8 +719,11 @@ void mpi_branches_exchange(tree_topology_t& tree)
   int rank,size;
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
+  MPI_Barrier(MPI_COMM_WORLD);
   if(rank==0)
     std::cout<<"Branches repartition";
+
+//#if 0
   int comms = log2(size);
   // TODO handle for non power of 2
   for(int comm=0;comm<comms;++comm)
@@ -433,6 +759,55 @@ void mpi_branches_exchange(tree_topology_t& tree)
       tree.insert(nbi);
     }
   }
+//#endif
+
+#if 0
+  // Do a MPI_Allgatherv instead 
+  // Get all my tree entities
+  auto allents_ncontiguous = tree.entities();
+    
+  // Create a new vector to have contiguous memory TODO better way ?
+  std::vector<body_holder_mpi_t> allents;
+  for(auto ent: allents_ncontiguous)
+  {
+    allents.push_back(body_holder_mpi_t{ent->coordinates(),ent->getOwner()});
+  } 
+  // Prepare MPI_Allgatherv
+  // 1. exchange the sizes
+  int sendcount;
+  std::vector<int> recvcount(size);
+  sendcount = allents.size();
+  MPI_Allgather(&sendcount,1,MPI_INT,
+      &recvcount[0],1,MPI_INT,MPI_COMM_WORLD);
+  // Compute recv offset and do transfert 
+  std::vector<int> recvoffsets(size);
+  recvoffsets[0] = 0;
+  int totalrecv = 0;
+  for(int i=0;i<size;++i)
+  {
+    totalrecv += recvcount[i];
+    recvcount[i] = recvcount[i]*sizeof(body_holder_mpi_t);
+    if(i<size-1)
+      recvoffsets[i+1] = recvoffsets[i]+recvcount[i];
+  } 
+  std::vector<body_holder_mpi_t> recvbuffer(totalrecv);
+
+  MPI_Allgatherv(&allents[0],sendcount*sizeof(body_holder_mpi_t),MPI_BYTE,
+      &recvbuffer[0],&recvcount[0],&recvoffsets[0],MPI_BYTE,
+      MPI_COMM_WORLD);
+
+  // Add everything in my tree
+  // changing the ptr to nullptr 
+  for(auto bi: recvbuffer)
+  {
+    if(bi.owner != rank)
+    {
+      auto nbi = tree.make_entity(bi.position,nullptr,bi.owner);
+      tree.insert(nbi);
+    }
+  }
+
+#endif
   MPI_Barrier(MPI_COMM_WORLD); 
   if(rank == 0)
     std::cout<<".done"<<std::endl;
@@ -492,205 +867,45 @@ void mpi_tree_traversal(tree_topology_t& tree)
   // Do a post order traversal 
 }
 
-// Go through the tree to see the structure
-
-void mpi_gather_ghosts(
-    tree_topology_t& tree,
-    double smoothinglength,
-    std::vector<body>& recvbodies)
+void mpi_refresh_ghosts(
+    tree_topology_t& tree, 
+    mpi_ghosts_t& refresh    
+    )
 {
   int rank,size;
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
-  // 1. for each processes, bucket of send, bucket of receiv 
-  std::vector<int> nsendholders;
-  nsendholders.resize(size);
-  std::fill(nsendholders.begin(),nsendholders.end(),0);
-  std::vector<int> nrecvholders;
-  nrecvholders.resize(size);
-  std::fill(nrecvholders.begin(),nrecvholders.end(),0);
-  std::vector<std::set<body_holder*>> sendholders;
-  sendholders.resize(size);
-  std::vector<std::set<body_holder*>> recvholders;
-  recvholders.resize(size);
-
-  // Clear the body vector 
-  recvbodies.clear();
-
-  int totalrecvbodies = 0;
-  // 1.a bodies to send  
-  auto treeents = tree.entities();
-  for(auto bi: treeents)
-  {
-    if(!bi->is_local())
-    {  
-      auto gstneighbs = tree.find_in_radius(bi->coordinates(),
-          2*smoothinglength);
-      for(auto nb: gstneighbs)
-      {
-        // I f I am the owner, I can send data to this ghost owner
-        if(nb->is_local())
-        {
-          //nsendholders[bi->getOwner()]++;
-          sendholders[bi->getOwner()].insert(nb);
-        }
-      }
-    }
-  }
-  // Unique, some bodies are required for several neighbs
-  for(int i=0;i<size;++i){
-    nsendholders[i] = sendholders[i].size();
-  }
   
-  //1.b body I will receive 
-  for(auto bi: treeents)
-  { 
-    if(bi->is_local())
-    {
-      assert(bi->getOwner() == rank);
-      auto bodiesneighbs = tree.find_in_radius(bi->coordinates(),
-           2*smoothinglength);
-        for(auto nb: bodiesneighbs)
-       {
-         if(!nb->is_local())
-         {
-          //nrecvholders[nb->getOwner()]++;
-          recvholders[nb->getOwner()].insert(nb);
-          //totalrecvbodies++;
-         }
-       }
-    }
-  }
-  // Unique, some bodies are required for several neighbs
-  for(int i=0;i<size;++i){
-    nrecvholders[i] = recvholders[i].size();
-    totalrecvbodies += nrecvholders[i];
-  }
+  MPI_Barrier(MPI_COMM_WORLD);
+  if(rank==0)
+    std::cout<<"Refresh Ghosts" << std::flush;
 
-  // Make a vector with the recvholsters to be able to connect the pointer
-  // at the end of the communication
-  std::vector<body_holder*> totalrecvholders;
-  for(auto proc: recvholders)
+  // Refresh the sendbodies with new data
+  auto itsb = refresh.sendbodies.begin();
+  for(auto proc: refresh.sendholders)
   {
     for(auto bi: proc)
     {
-      totalrecvholders.push_back(bi);
+      *itsb = *(bi->getBody());
+      itsb++;
     }
   }
 
-  // Now gather the bodies data to send in a vector 
-  std::vector<body> sendbodies;
-  // Take the holders in the order 0 to n
-  for(auto proc: sendholders)
-  {
-    for(auto bi: proc)
-    {
-      auto bodyholder = tree.get(bi->id());
-      assert(bodyholder->getBody()!=nullptr);
-      sendbodies.push_back(*(bodyholder->getBody()));
-    }
-  }
-
-  // Prepare offsets for alltoallv
-  std::vector<int> nrecvoffsets;
-  nrecvoffsets.resize(size);
-  std::fill(nrecvoffsets.begin(),nrecvoffsets.end(),0);
-  std::vector<int> nsendoffsets;
-  nsendoffsets.resize(size);
-  std::fill(nsendoffsets.begin(),nsendoffsets.end(),0);
-
-  for(int i=1;i<size;++i)
-  {
-    nrecvoffsets[i] = nrecvholders[i-1]+nrecvoffsets[i-1];
-    nsendoffsets[i] = nsendholders[i-1]+nsendoffsets[i-1]; 
-  }
-
-  /*std::cout<<rank<<": recv "
-    <<nrecvholders[0]<<":"
-    <<nrecvholders[1]<<":"
-    <<nrecvholders[2]<<":"
-    <<nrecvholders[3]<<":"
-    <<std::endl;
-  std::cout<<rank<<": send "
-    <<nsendholders[0]<<":"
-    <<nsendholders[1]<<":"
-    <<nsendholders[2]<<":"
-    <<nsendholders[3]<<":"
-    <<std::endl;
-
-  std::cout<<rank<<": offrecv "
-    <<nrecvoffsets[0]<<":"
-    <<nrecvoffsets[1]<<":"
-    <<nrecvoffsets[2]<<":"
-    <<nrecvoffsets[3]<<":"
-    <<std::endl;
-  std::cout<<rank<<": offsend "
-    <<nsendoffsets[0]<<":"
-    <<nsendoffsets[1]<<":"
-    <<nsendoffsets[2]<<":"
-    <<nsendoffsets[3]<<":"
-    <<std::endl;*/
-
-
-  recvbodies.resize(totalrecvbodies);
-
-  // Convert the offsets to byte
-  for(int i=0;i<size;++i)
-  {
-    nsendholders[i]*=sizeof(body);
-    nrecvholders[i]*=sizeof(body);
-    nsendoffsets[i]*=sizeof(body);
-    nrecvoffsets[i]*=sizeof(body);
-  }
-  
-  /*std::cout<<"sizebody"<<sizeof(body)<<std::endl;
-
-  std::cout<<rank<<":d recv "
-    <<nrecvholders[0]<<":"
-    <<nrecvholders[1]<<":"
-    <<nrecvholders[2]<<":"
-    <<nrecvholders[3]<<":"
-    <<std::endl;
-  std::cout<<rank<<":d send "
-    <<nsendholders[0]<<":"
-    <<nsendholders[1]<<":"
-    <<nsendholders[2]<<":"
-    <<nsendholders[3]<<":"
-    <<std::endl;
-
-  std::cout<<rank<<":d offrecv "
-    <<nrecvoffsets[0]<<":"
-    <<nrecvoffsets[1]<<":"
-    <<nrecvoffsets[2]<<":"
-    <<nrecvoffsets[3]<<":"
-    <<std::endl;
-  std::cout<<rank<<":d offsend "
-    <<nsendoffsets[0]<<":"
-    <<nsendoffsets[1]<<":"
-    <<nsendoffsets[2]<<":"
-    <<nsendoffsets[3]<<":"
-    <<std::endl;*/
-
-
-  MPI_Alltoallv(&sendbodies[0],&nsendholders[0],&nsendoffsets[0],MPI_BYTE,
-      &recvbodies[0],&nrecvholders[0],&nrecvoffsets[0],MPI_BYTE,
+  MPI_Alltoallv(&refresh.sendbodies[0],&refresh.nsendholders[0],
+      &refresh.nsendoffsets[0],MPI_BYTE,
+      &refresh.recvbodies[0],&refresh.nrecvholders[0],
+      &refresh.nrecvoffsets[0],MPI_BYTE,
       MPI_COMM_WORLD);
 
   // Sort the bodies based on position
-  std::sort(recvbodies.begin(),recvbodies.end(),
+  std::sort(refresh.recvbodies.begin(),refresh.recvbodies.end(),
       [](auto& left, auto& right){
         return left.coordinates()[0]<right.coordinates()[0];
       });
-  // Sort the holders too 
-  std::sort(totalrecvholders.begin(),totalrecvholders.end(),
-      [](auto& left, auto& right){
-        return left->coordinates()[0]<right->coordinates()[0];
-      });
-
-
+ 
   // Then link the holders with these bodies
-  auto it = recvbodies.begin(); 
-  for(auto& bi: totalrecvholders)
+  auto it = refresh.recvbodies.begin(); 
+  for(auto& bi: refresh.totalrecvholders)
   {
     auto bh = tree.get(bi->id());
     assert(bh->getLocality()==NONLOCAL||bh->getLocality()==GHOST);
@@ -701,10 +916,138 @@ void mpi_gather_ghosts(
     ++it;
   }  
   
+  MPI_Barrier(MPI_COMM_WORLD);
+  if(rank==0)
+    std::cout<<".done" << std::endl << std::flush;
 }
 
-void mpi_output_txt(std::vector<std::pair<entity_key_t,body>>&rbodies,
-    std::vector<int>& targetnbodies,
+void mpi_compute_ghosts(
+    tree_topology_t& tree,
+    double smoothinglength,
+    mpi_ghosts_t& ghosts_data)
+{
+  int rank,size;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  MPI_Comm_size(MPI_COMM_WORLD,&size);
+  
+  MPI_Barrier(MPI_COMM_WORLD);
+  if(rank==0)
+    std::cout<<"Compute Ghosts" << std::flush;
+
+  // Clean the structure 
+  ghosts_data.sendbodies.clear();
+  ghosts_data.recvbodies.clear();
+  ghosts_data.totalrecvholders.clear();
+  ghosts_data.sendholders.clear();
+  // For the first iteration init the count and offset size in the structure
+  if(ghosts_data.nsendholders.size()==0)
+  {
+    ghosts_data.nsendholders.resize(size);
+    ghosts_data.nsendoffsets.resize(size);
+    ghosts_data.nrecvholders.resize(size);
+    ghosts_data.nrecvoffsets.resize(size);
+  }
+  assert(ghosts_data.nsendholders.size()==(size_t)size);
+
+  // 1. for each processes, bucket of send, bucket of receiv 
+  ghosts_data.sendholders.resize(size);
+  std::vector<std::set<body_holder*>> recvholders(size);
+
+  // Considering the biggest h
+  // TODO add a reduction over h 
+  int totalrecvbodies = 0;
+  int totalsendbodies = 0;
+  auto treeents = tree.entities();
+  for(auto bi: treeents)
+  { 
+    if(bi->is_local())
+    {
+      assert(bi->getOwner() == rank);
+      auto bodiesneighbs = tree.find_in_radius(bi->coordinates(),
+           2*smoothinglength);
+       for(auto nb: bodiesneighbs)
+       {
+         if(!nb->is_local())
+         {
+           // THIS IS TRUE BECAUSE WE CONSIDER THE BIGGEST SMOOTHING LENGTH
+           // The distant particle will need mine
+           ghosts_data.sendholders[nb->getOwner()].insert(bi);;
+          // I will also need the distant particle 
+          recvholders[nb->getOwner()].insert(nb);
+         }
+       }
+    }
+  }
+
+  for(int i=0;i<size;++i){
+    ghosts_data.nsendholders[i] = ghosts_data.sendholders[i].size();
+    totalsendbodies += ghosts_data.nsendholders[i];
+  }
+  
+  for(int i=0;i<size;++i){
+    ghosts_data.nrecvholders[i] = recvholders[i].size();
+    totalrecvbodies += ghosts_data.nrecvholders[i];
+  }
+  
+  // Make a vector with the recvholsters to be able to connect the pointer
+  // at the end of the communication
+  for(auto proc: recvholders){
+    ghosts_data.totalrecvholders.insert(
+        ghosts_data.totalrecvholders.end(),proc.begin(),proc.end());
+  }
+
+  // Now gather the bodies data to send in a vector 
+  // Take the holders in the order 0 to n processes
+  //for(auto proc: ghosts_data.sendholders)
+  //{
+  //  for(auto bi: proc)
+  //  {
+  //    auto bodyholder = tree.get(bi->id());
+  //    assert(bodyholder->getBody()!=nullptr);
+  //    ghosts_data.sendbodies.push_back(*(bodyholder->getBody()));
+  //  }
+  //}
+  ghosts_data.sendbodies.resize(totalsendbodies);
+
+  // Prepare offsets for alltoallv
+  ghosts_data.nrecvoffsets[0]=0;
+  ghosts_data.nsendoffsets[0]=0;
+
+  for(int i=1;i<size;++i)
+  {
+    ghosts_data.nrecvoffsets[i] = ghosts_data.nrecvholders[i-1]+
+      ghosts_data.nrecvoffsets[i-1];
+    ghosts_data.nsendoffsets[i] = ghosts_data.nsendholders[i-1]+
+      ghosts_data.nsendoffsets[i-1]; 
+  }
+
+  ghosts_data.recvbodies.resize(totalrecvbodies);
+
+  // Convert the offsets to byte
+  for(int i=0;i<size;++i)
+  {
+    ghosts_data.nsendholders[i]*=sizeof(body);
+    ghosts_data.nrecvholders[i]*=sizeof(body);
+    ghosts_data.nsendoffsets[i]*=sizeof(body);
+    ghosts_data.nrecvoffsets[i]*=sizeof(body);
+  }
+  
+  // Sort the holdersonce
+  std::sort(ghosts_data.totalrecvholders.begin(),
+            ghosts_data.totalrecvholders.end(),
+      [](auto& left, auto& right){
+        return left->coordinates()[0]<right->coordinates()[0];
+      });
+
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  if(rank==0)
+    std::cout<<".done"<<std::endl;
+  
+}
+
+void mpi_output_txt(
+    std::vector<std::pair<entity_key_t,body>>&rbodies,
     int iter)
 {
 
@@ -712,8 +1055,14 @@ void mpi_output_txt(std::vector<std::pair<entity_key_t,body>>&rbodies,
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
 
-  int totalnbodies = std::accumulate(targetnbodies.begin(),
-      targetnbodies.end(),0);
+  std::vector<int> processnbodies(size);
+  processnbodies[rank] = rbodies.size();
+  // Gather the number of bodies per process on 0
+  MPI_Gather(&processnbodies[rank],1,MPI_INT,
+      &processnbodies[0],1,MPI_INT,0,MPI_COMM_WORLD);
+
+  int totalnbodies = std::accumulate(processnbodies.begin(),
+      processnbodies.end(),0);
   //std::cout<<totalnbodies<<std::endl;
   // Display initial data 
   // Ouput the data
@@ -727,9 +1076,9 @@ void mpi_output_txt(std::vector<std::pair<entity_key_t,body>>&rbodies,
     std::fill(recvoffsets.begin(),recvoffsets.end(),0);
     for(int i=0;i<size;++i)
     {
-      recvcount[i] = targetnbodies[i]*sizeof(std::pair<entity_key_t,body>);
+      recvcount[i] = processnbodies[i]*sizeof(std::pair<entity_key_t,body>);
       if(i < size-1){
-        recvoffsets[i+1] = recvoffsets[i] + targetnbodies[i];
+        recvoffsets[i+1] = recvoffsets[i] + processnbodies[i];
         //recvoffsets[i+1] *=  sizeof(std::pair<entity_key_t,body>);
       }
     }
@@ -741,7 +1090,7 @@ void mpi_output_txt(std::vector<std::pair<entity_key_t,body>>&rbodies,
   }
   
    MPI_Gatherv(&rbodies[0],
-      targetnbodies[rank]*sizeof(std::pair<entity_key_t,body>),
+      processnbodies[rank]*sizeof(std::pair<entity_key_t,body>),
       MPI_BYTE,
       &gatheroutput[0],&recvcount[0],&recvoffsets[0],MPI_BYTE,
       0,MPI_COMM_WORLD);
@@ -749,18 +1098,19 @@ void mpi_output_txt(std::vector<std::pair<entity_key_t,body>>&rbodies,
   if(rank == 0)
   {
     char name[64];
-    sprintf(name,"output_sod_%03d.txt",iter);
+    sprintf(name,"output_sod_%05d.txt",iter);
     std::cout<<"Output in file "<<name<<std::endl;
     //std::cout<<"Received: "<<gatheroutput.size()<<std::endl;
     FILE * file;
     file = fopen(name,"w");
-    fprintf(file,"# X d p u\n");
+    fprintf(file,"# X d p u vel\n");
     // Write in an output file 
     for(auto bi: gatheroutput)
     {
-      fprintf(file,"%.10f %.10f %.10f %.10f\n",
+      fprintf(file,"%.10f %.10f %.10f %.10f %.10f\n",
           bi.second.getPosition()[0],bi.second.getDensity(),
-          bi.second.getPressure(),bi.second.getInternalenergy());
+          bi.second.getPressure(),bi.second.getInternalenergy(),
+          bi.second.getVelocity()[0]);
     }
     fclose(file);
   }
