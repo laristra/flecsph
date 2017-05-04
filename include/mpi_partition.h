@@ -52,6 +52,13 @@ mpi_branches_exchange_useful(
   std::vector<std::pair<entity_key_t,entity_key_t>>&);
 
 void 
+mpi_branches_exchange_useful_positions(
+    tree_topology_t& tree,
+    std::vector<std::pair<entity_key_t,body>>&,
+    std::vector<std::pair<point_t,point_t>>&,
+    double);
+
+void 
 mpi_tree_traversal_graphviz(
   tree_topology_t&,
   std::array<point_t,2>&);
@@ -79,6 +86,13 @@ mpi_gather_com(
   tree_topology_t&, 
   std::array<point_t,2>&,
   std::vector<std::pair<entity_key_t,entity_key_t>>&,
+  std::vector<body_holder>&);
+
+void 
+mpi_gather_com_positions(
+  tree_topology_t&, 
+  std::array<point_t,2>&,
+  std::vector<std::pair<point_t,point_t>>&,
   std::vector<body_holder>&);
 
 #endif // mpi_partition_h

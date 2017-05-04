@@ -49,6 +49,29 @@ operator-(
   return pr;
 }
 
+inline 
+bool
+operator<(
+    const point_t& p, 
+    const point_t& q)
+{
+  for(size_t i=0;i<gdimension;++i)
+    if(p[i]>q[i])
+      return false;
+  return true;
+}
+
+inline 
+bool
+operator>(
+    const point_t& p, 
+    const point_t& q)
+{
+  for(size_t i=0;i<gdimension;++i)
+    if(p[i]<q[i])
+      return false;
+  return true;
+}
 
 
 void mpi_sort_unbalanced(
@@ -576,6 +599,112 @@ void mpi_tree_traversal_graphviz(tree_topology_t & tree,
 }
 
 void
+mpi_branches_exchange_useful_positions(
+    tree_topology_t& tree,
+    std::vector<std::pair<entity_key_t,body>>& rbodies,
+    std::vector<std::pair<point_t,point_t>>& ranges,
+    double smoothinglength)
+{
+  int rank,size;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  MPI_Comm_size(MPI_COMM_WORLD,&size);
+  MPI_Barrier(MPI_COMM_WORLD);
+  if(rank==0)
+    std::cout<<"Branches repartition" << std::flush;
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  // Search for my min and max posititon needed
+  std::pair<point_t,point_t> range;
+  range.first = rbodies.front().second.getPosition();
+  range.second = rbodies.front().second.getPosition();
+
+  // Lowest position:
+  for(auto bi: rbodies)
+  {
+    for(size_t dim=0;dim<gdimension;++dim)
+    {
+      if(range.first[dim]>bi.second.getPosition()[dim])
+        range.first[dim] = bi.second.getPosition()[dim];
+      if(range.second[dim]<bi.second.getPosition()[dim])
+        range.second[dim] = bi.second.getPosition()[dim];
+    } 
+  }
+
+  range.first = range.first-2*smoothinglength;
+  range.second = range.second+2*smoothinglength;
+
+  std::cout<<rank<<": "<<range.first<<";"<<range.second<<std::endl;
+  
+  // Gather the keys of everyone 
+  if(ranges.size() == 0)
+    ranges.resize(size);
+  //std::vector<std::pair<entity_key_t,entity_key_t>> ranges(size);
+  MPI_Allgather(&range,sizeof(std::pair<point_t,point_t>),
+      MPI_BYTE,&ranges[0],sizeof(std::pair<point_t,point_t>),
+      MPI_BYTE,MPI_COMM_WORLD);
+
+  // Now generate the sendbuffer, ordered by processes
+  // for the holders 
+  std::vector<body_holder_mpi_t> sendbuffer;
+  std::vector<int> sendcount(size);
+  sendcount[rank]=0;
+
+  // Search in the tree for each processes 
+  for(int i=0;i<size;++i)
+  {
+    if(i==rank)
+      continue;
+    auto ents = tree.find_in_box(ranges[i].first,ranges[i].second);
+    sendcount[i] = ents.size();
+    for(auto ent: ents)
+    {
+      sendbuffer.push_back(body_holder_mpi_t{
+            ent->getPosition(),
+            rank,
+            ent->getMass()});
+    }
+  }
+
+  //Count the elements to send 
+  std::vector<int> sendoffsets(size);
+  std::vector<int> recvcount(size);
+  std::vector<int> recvoffsets(size);
+
+  MPI_Alltoall(&sendcount[0],1,MPI_INT,
+      &recvcount[0],1,MPI_INT,MPI_COMM_WORLD);
+
+  int totalrecv = 0;
+  for(int i=0;i<size;++i)
+  {
+    totalrecv += recvcount[i];
+    sendcount[i]*=sizeof(body_holder_mpi_t);
+    recvcount[i]*=sizeof(body_holder_mpi_t);
+    if(i<size-1)
+    {
+      sendoffsets[i+1]=sendoffsets[i]+sendcount[i];
+      recvoffsets[i+1]=recvoffsets[i]+recvcount[i];
+    }
+  }
+
+  std::vector<body_holder_mpi_t> recvbuffer(totalrecv);
+  MPI_Alltoallv(&sendbuffer[0],&sendcount[0],&sendoffsets[0],MPI_BYTE,
+      &recvbuffer[0],&recvcount[0],&recvoffsets[0],MPI_BYTE,
+      MPI_COMM_WORLD);
+
+  // Add in the tree 
+  for(auto bi: recvbuffer)
+  {
+    assert(bi.owner!=rank);
+    auto nbi = tree.make_entity(bi.position,nullptr,bi.owner,bi.mass);
+    tree.insert(nbi);
+  }
+
+  if(rank==0)
+    std::cout<<".done"<<std::endl;
+
+}
+ 
+void
 mpi_branches_exchange_useful(tree_topology_t& tree,
     std::vector<std::pair<entity_key_t,body>>& rbodies,
     std::array<point_t,2>& rangekeys,
@@ -913,6 +1042,8 @@ void mpi_tree_traversal_com(tree_topology_t& tree)
     //std::cout<< b->id() <<std::endl<<std::flush;
     double mass = 0.0;
     point_t com = {0,0,0};
+    double radius = 0.0;
+    double h = 0.0;
     if(b->is_leaf())
     {
       for(auto child: *b)
@@ -924,6 +1055,15 @@ void mpi_tree_traversal_com(tree_topology_t& tree)
         }
       }
       com = com / mass;
+      // Compute the radius 
+      // TODO handle the circle with the smoothing length
+      for(auto child: *b)
+      {
+        if(child->is_local()){
+          radius = std::max(radius,flecsi::distance(com,
+              child->getPosition()+child->getBody()->getSmoothinglength()*2.));
+        }
+      }
     }
     else
     {
@@ -939,9 +1079,17 @@ void mpi_tree_traversal_com(tree_topology_t& tree)
         }
       }
       com = com / mass;
+      // Compute the radius
+      for(int i=0;i<(1<<gdimension);++i)
+      {
+        auto branch = tree.child(b,i);
+        radius = std::max(radius,
+            flecsi::distance(com,branch->getPosition())+branch->getRadius());        
+      }
     }
     b->setMass(mass);
     b->setPosition(com);
+    b->setRadius(radius);
     //std::cout<<com<<";"<<mass<<std::endl;
 
   };
@@ -1051,17 +1199,17 @@ mpi_compute_ghosts(
       assert(bi->getOwner() == rank);
       auto bodiesneighbs = tree.find_in_radius(bi->coordinates(),
            2*smoothinglength);
-       for(auto nb: bodiesneighbs)
-       {
-         if(!nb->is_local())
-         {
-           // THIS IS TRUE BECAUSE WE CONSIDER THE BIGGEST SMOOTHING LENGTH
-           // The distant particle will need mine
-           ghosts_data.sendholders[nb->getOwner()].insert(bi);;
+      for(auto nb: bodiesneighbs)
+      {
+        if(!nb->is_local())
+        {
+          // THIS IS TRUE BECAUSE WE CONSIDER THE BIGGEST SMOOTHING LENGTH
+          // The distant particle will need mine
+          ghosts_data.sendholders[nb->getOwner()].insert(bi);
           // I will also need the distant particle 
           recvholders[nb->getOwner()].insert(nb);
-         }
-       }
+        }
+      }
     }
   }
 
@@ -1134,11 +1282,9 @@ mpi_compute_ghosts(
         entity_key_t(range,right->coordinates());
       });
 
-
   MPI_Barrier(MPI_COMM_WORLD);
   if(rank==0)
     std::cout<<".done"<<std::endl;
-  
 }
 
 void mpi_output_txt(
@@ -1218,6 +1364,156 @@ void mpi_output_txt(
     }
     fclose(file);
   }
+}
+
+bool 
+intersect_sphere_box(
+    point_t& scenter, 
+    double sradius, 
+    point_t& bmax,
+    point_t& bmin
+    )
+{
+  double x[gdimension] = {};
+  for(size_t dim=0;dim<gdimension;++dim)
+    x[dim]=std::max(bmin[dim],std::min(scenter[dim],bmax[dim]));
+  double dist = 0.0;
+  for(size_t dim=0;dim<gdimension;++dim)
+    dist += (x[dim]-scenter[dim])*(x[dim]*scenter[dim]);
+  dist = sqrt(dist);
+  return dist<sradius;
+
+}
+
+
+void 
+mpi_gather_com_positions(
+    tree_topology_t& tree,
+    std::array<point_t,2>& range,
+    std::vector<std::pair<point_t,point_t>>& rangeproc,
+    std::vector<body_holder>& recv_COM
+    )
+{
+  int rank,size;
+  MPI_Comm_size(MPI_COMM_WORLD,&size);
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+
+  if(rank==0)
+    std::cout<<"Gather COM"<<std::flush;
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  // Reset the recv vector 
+  recv_COM.clear();
+  // Compute COM data for the current tree
+  mpi_tree_traversal_com(tree);
+
+  // Display my root data
+  double mymass = tree.root()->getMass();
+  //std::cout<<rank<<":"<<tree.root()->getMass()<<" "<<tree.root()->getRadius()<<
+  //  tree.root()->getPosition()<<std::endl;
+  double total = 0.0;
+  MPI_Reduce(&(mymass),&total,1,MPI_DOUBLE,
+      MPI_SUM,0,MPI_COMM_WORLD);
+
+   
+
+  // Get the interesting branches for everyones. 
+  // Do a traversal and create a vector for every other processes
+
+  // Set a unique vector for everyone, to be contiguous 
+  std::vector<body_holder> shared_COM;
+  std::vector<int> shared_COM_size(size);
+  std::vector<int> shared_COM_offsets(size);
+  std::fill(shared_COM_size.begin(),shared_COM_size.end(),0);
+  std::fill(shared_COM_offsets.begin(),shared_COM_offsets.end(),0);
+
+  std::function<void(
+    branch_t *,
+    std::vector<body_holder>&,
+    std::pair<point_t,point_t>&,
+    int&)>traverse;
+
+  traverse = [rank,&tree,&traverse,&range]
+    (branch_t * b,
+     std::vector<body_holder>& vbh,
+     std::pair<point_t,point_t>& rangeproc,
+     int& nelements)
+  {
+    auto pos = b->getPosition();
+    // If in the range, go further 
+    if(intersect_sphere_box(pos,b->getRadius(),
+          rangeproc.first,rangeproc.second))
+    {
+      if(!b->is_leaf())
+      {
+        for(int i=0;i<(1<<gdimension);++i)
+          traverse(tree.child(b,i),vbh,rangeproc,nelements);
+      }else{
+        // If I am a leaf check if one of my children is out of the range
+        for(auto child: *b)
+        {
+          // Only for local particles 
+          if(child->is_local()){
+             auto childpos = child->getPosition();
+             if(intersect_sphere_box(childpos,
+                   child->getBody()->getSmoothinglength()*2,
+                   rangeproc.first,rangeproc.second))
+            {
+              vbh.push_back(body_holder(child->getPosition(),nullptr,rank,
+                  child->getMass()));
+              nelements++;
+            }
+          }   
+        }
+      }
+    }else
+    {
+      // Mass = 0 just for elements I did not owe
+      if(b->getMass()!=0)
+      {
+        // Not in range, stop going down and add in vector 
+        vbh.push_back(body_holder(b->getPosition(),nullptr,rank,
+              b->getMass()));
+        nelements++;
+      }
+    } 
+  };
+
+  for(int i=0;i<size;++i)
+  {
+    int nelements = 0;
+    // Do a tree traversal knowing the limits of every processes limits
+    // Only take the keys that are outside
+    if(i!=rank)
+      traverse(tree.root(),shared_COM,rangeproc[i],nelements);
+    shared_COM_size[i]=nelements*sizeof(body_holder);
+    if(i<size-2)
+      shared_COM_offsets[i+1] = shared_COM_offsets[i]+shared_COM_size[i];
+    //std::cout<<rank<<" for "<<i<<": "<<nelements<<std::endl;
+  }
+
+  std::vector<int> recvcount(size);
+  std::vector<int> recvoffsets(size);
+  // Share data size
+  MPI_Alltoall(&shared_COM_size[0],1,MPI_INT,
+      &recvcount[0],1,MPI_INT,MPI_COMM_WORLD);
+  std::partial_sum(recvcount.begin(),recvcount.end(),&recvoffsets[0]); 
+  // As we need an exscan, add a zero and delete the last element 
+  recvoffsets.insert(recvoffsets.begin(),0);
+ 
+  recv_COM.resize(recvoffsets.back()/sizeof(body_holder)); 
+  // Share the data
+  MPI_Alltoallv(&shared_COM[0],&shared_COM_size[0],&shared_COM_offsets[0],
+      MPI_BYTE,&recv_COM[0],&recvcount[0],&recvoffsets[0],
+      MPI_BYTE,MPI_COMM_WORLD); 
+
+  if(rank==0)
+    std::cout<<".done"<<std::endl<<std::flush;
+  if(rank==0)
+    std::cout<<"Total mass = "<<total<<std::endl;
+  
+
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 void 

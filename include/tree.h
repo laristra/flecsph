@@ -150,13 +150,16 @@ public:
 
     point_t getPosition(){return position_;};
     element_t getMass(){return mass_;};
+    element_t getRadius(){return radius_;};
     void setPosition(point_t position){position_ = position;};
     void setMass(element_t mass){mass_ = mass;};
+    void setRadius(element_t radius){radius_ = radius;};
 
    private:
     std::vector<body_holder*> ents_;
     point_t position_;
-    element_t mass_; 
+    element_t mass_;
+    element_t radius_; 
   }; // class branch 
 
   bool should_coarsen(branch* parent){

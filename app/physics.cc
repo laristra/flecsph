@@ -204,6 +204,9 @@ double computeDt(body_holder* srch, std::vector<body_holder*>& ngbhs)
      1.2+kViscBeta*max_mu_ij);
   dt2 *= kCoeffDt;
 
+  if(dt1 < dt2)
+    std::cout<<"Min due to accel"<<std::endl;
+
   return std::min(dt1,dt2);
 }// computeDt
 

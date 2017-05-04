@@ -47,6 +47,7 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
   std::vector<std::pair<entity_key_t,body>> rbodies;
   std::array<point_t,2> range;
   std::vector<std::pair<entity_key_t,entity_key_t>> rangeproc;
+  std::vector<std::pair<point_t,point_t>> rangeposproc;
   mpi_ghosts_t ghosts_data;
   std::vector<body_holder> recv_COM;
   
@@ -124,7 +125,13 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
     }
 
     // Search and share the branches 
-    mpi_branches_exchange_useful(tree,rbodies,range,rangeproc); 
+    //mpi_branches_exchange_useful(tree,rbodies,range,rangeproc);
+    mpi_branches_exchange_useful_positions(
+        tree,
+        rbodies,
+        rangeposproc,
+        smoothinglength);
+
     // For test, gather the neighbors and loop over here
     mpi_compute_ghosts(tree,smoothinglength,ghosts_data,range);
     mpi_refresh_ghosts(tree,ghosts_data,range);
@@ -239,26 +246,16 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
     if(rank==0)
       std::cout<<".done"<<std::endl<<std::flush;
 
+
     // Compute and exchange the aggregate 
-    mpi_gather_com(tree,range,rangeproc,recv_COM);
+    //mpi_gather_com(tree,range,rangeproc,recv_COM);
+    mpi_gather_com_positions(tree,range,rangeposproc,recv_COM);
     // TODO change make a vector of pointers 
     std::vector<body_holder*> recv_COM_ptr;
     for(auto bi: recv_COM)
       recv_COM_ptr.push_back(&bi);
     if(size!=0)
       assert(recv_COM.size()!=0);
-
-    //if(rank==0)
-    //{
-    //  for(auto bi: recv_COM)
-    //  {
-    //    std::cout<<bi.getPosition()<<";"<<bi.getMass()<<std::endl;
-    //  }
-    //  std::cout<<"Exchanged: "<<recv_COM.size()<<std::endl;
-    //}
-
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //exit(-1);
 
     // Compute Gravity 
     if(rank==0)
