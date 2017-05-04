@@ -27,6 +27,7 @@ struct body_holder_mpi_t{
 
   point_t position; 
   int owner; 
+  double mass;
 };
 
 class tree_policy{
@@ -45,9 +46,10 @@ public:
 
     body_holder(point_t position,
         body * bodyptr,
-        int owner
+        int owner,
+        element_t mass
         )
-      :position_(position),bodyptr_(bodyptr),owner_(owner)
+      :position_(position),bodyptr_(bodyptr),owner_(owner),mass_(mass)
     {
       if(bodyptr_==nullptr)
         locality_ = NONLOCAL;
@@ -59,7 +61,8 @@ public:
       :position_(point_t{0,0,0}),
        bodyptr_(nullptr),
        locality_(NONLOCAL),
-       owner_(-1)
+       owner_(-1),
+       mass_(0.0)
     {};
 
     // Function used in the tree structure 
@@ -68,6 +71,7 @@ public:
     body* getBody(){return bodyptr_;};
     int getLocality(){return locality_;};
     int getOwner(){return owner_;};
+    element_t getMass(){return mass_;};
 
     void setLocality(locality loc){locality_ = loc;};
     void setBody(body * bodyptr){bodyptr_ = bodyptr;};
@@ -96,6 +100,9 @@ public:
     body * bodyptr_; 
     int locality_;
     int owner_;
+
+    // Add this for COM in the current version
+    element_t mass_;
   };
     
   using entity_t = body_holder;
@@ -141,8 +148,15 @@ public:
       return p;
     }
 
+    point_t getPosition(){return position_;};
+    element_t getMass(){return mass_;};
+    void setPosition(point_t position){position_ = position;};
+    void setMass(element_t mass){mass_ = mass;};
+
    private:
     std::vector<body_holder*> ents_;
+    point_t position_;
+    element_t mass_; 
   }; // class branch 
 
   bool should_coarsen(branch* parent){

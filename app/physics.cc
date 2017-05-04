@@ -2,6 +2,9 @@
 
 namespace physics{
 
+double dt = 0.0;
+
+
 // Basic spline kernel for SPH 
 double kernel(double r, double h){
   double rh = r/h;
@@ -34,11 +37,16 @@ point_t gradKernel(point_t vecP, double h){
 
 } // gradKernel 
 
+
+
 // Compute density based on neighbors
-void computeDensity(body* source, std::vector<body*>& neighbors){
+void computeDensity(body_holder* srch, std::vector<body_holder*>& nbsh)
+{
+  body* source = srch->getBody();
   double density = 0;
-  assert(neighbors.size()>0);
-  for(auto nb : neighbors){
+  assert(nbsh.size()>0);
+  for(auto nbh : nbsh){
+    body* nb = nbh->getBody();
     double dist = flecsi::distance(source->getPosition(),nb->getPosition());
     assert(dist>=0.0);
     double kernelresult = (1./2.)*(
@@ -51,16 +59,22 @@ void computeDensity(body* source, std::vector<body*>& neighbors){
   source->setDensity(density);
 } // computeDensity
 
+
+
 // Computre pressure on a body 
 // This function does not need the neighbors
-void computePressure(body* source){
+void computePressure(body_holder* srch)
+{
+  body* source = srch->getBody();
   source->setPressure(source->getEntropy()*
       pow(source->getDensity(),kHeatRatio));
 } // computePressure
 
 // Compute the sound speed on a body 
 // This function does not need the neighbors
-void computeSoundspeed(body* source){
+void computeSoundspeed(body_holder* srch)
+{
+  body* source = srch->getBody();
   source->setSoundspeed(pow(kHeatRatio*
         source->getPressure()/source->getDensity(),1./2.));
 } // computeSoundspeed
@@ -87,9 +101,12 @@ double mu(body* source, body* nb){
 } // mu
 
 // Conpute the Hydrostatic force 
-void computeHydro(body* source, std::vector<body*>& neighbors){
+void computeHydro(body_holder* srch, std::vector<body_holder*>& ngbsh){
+  body* source = srch->getBody();
+
   point_t hydro = {0,0,0};
-  for(auto nb : neighbors){
+  for(auto nbh : ngbsh){
+    body* nb = nbh->getBody();
 
     // Artificial viscosity
     double density_ij = (1./2.)*(source->getDensity()+nb->getDensity());
@@ -120,7 +137,8 @@ void computeHydro(body* source, std::vector<body*>& neighbors){
 
 // Compute acceleration for the FGrav and FHydro 
 // If we consider the relaxation step, we need FRoche or FRot 
-void computeAcceleration(body* source, double dt){
+void computeAcceleration(body_holder* srch, double dt){
+  body* source = srch->getBody();
   point_t acceleration = {0.,0.,0.};
   acceleration += source->getHydroForce();
   acceleration += source->getGravForce();
@@ -136,20 +154,22 @@ void computeAcceleration(body* source, double dt){
 
 // moveBody, apply the acceleration to compute new velocity 
 // and position. Using a leapfrog scheme 
-void moveBody(body* source, double dt){
+void moveBody(body_holder* srch, double dt){
+  body* source = srch->getBody();
   point_t position;
   point_t velocityhalf; 
   velocityhalf = source->getVelocity()+dt/2.0*source->getAcceleration();
   position = source->getPosition()+ dt*source->getVelocityhalf();
   source->setPosition(position);
   source->setVelocityhalf(velocityhalf);
-}
+}// moveBody
 
 // Compute the gravitation for using all the others particles
 // This is the N^2 version of the algorithm
-void computeGrav(body* source, std::vector<body*>& neighbor){
+void computeGrav(body_holder* srch, std::vector<body_holder*>& ngbh){
+  body* source = srch->getBody();
   point_t grav = {0.,0.,0.};
-  for(auto nb : neighbor){
+  for(auto nb : ngbh){
     double dist = flecsi::distance(source->getPosition(),nb->getPosition());
     if(dist > 0.0){
       point_t vecPosition = nb->getPosition() - source->getPosition();
@@ -158,6 +178,33 @@ void computeGrav(body* source, std::vector<body*>& neighbor){
     }
   }
   source->setGravForce(grav);
-}
+}// computeGrav
+
+double computeDt(body_holder* srch, std::vector<body_holder*>& ngbhs)
+{
+  body* source = srch->getBody();
+  // First compute the dt based on acceleration norm
+  double accelNorm = 0.0;
+  for(size_t i=0;i<gdimension;++i)
+    accelNorm += source->getAcceleration()[i]*source->getAcceleration()[i];
+  accelNorm = sqrt(accelNorm);
+  double dt1 = sqrt(source->getSmoothinglength()/accelNorm); 
+ 
+  // Second based on max mu 
+  double max_mu_ij = -9999;
+  for(auto nbh: ngbhs)
+  {
+    body* nb = nbh->getBody();
+    double local_mu = fabs(mu(source,nb));
+    max_mu_ij = std::max(max_mu_ij,local_mu);  
+  }
+  double dt2 = source->getSmoothinglength()/
+    (source->getSoundspeed()+
+     1.2*kViscAlpha*source->getSoundspeed()+
+     1.2+kViscBeta*max_mu_ij);
+  dt2 *= kCoeffDt;
+
+  return std::min(dt1,dt2);
+}// computeDt
 
 } // namespace 
