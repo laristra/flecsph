@@ -9,6 +9,7 @@ class HDF5SimIO: public SimIO
   public:
   	int createDataset();
 	int writeData();
+    hid_t getHDF5Datatype(std::string _datatypeName);
 };
 
 
@@ -26,6 +27,27 @@ class HDF5SimIO: public SimIO
 //		Timestep : Group attribute
 //		Timestamp: Group attribute
 
+
+
+hid_t getHDF5Datatype(std::string _datatypeName)
+{
+    hid_t _datatype;
+    if (_datatypeName == "double")
+        _datatype = H5Tcopy(H5T_NATIVE_DOUBLE);
+    else if (_datatypeName == "int")
+        _datatype = H5Tcopy(H5T_NATIVE_INT);
+    else if (_datatypeName == "float")
+        _datatype = H5Tcopy(H5T_NATIVE_FLOAT);
+    else if (_datatypeName == "char")
+        _datatype = H5Tcopy(H5T_NATIVE_CHAR);
+    else
+    {
+        std::cout << "Datatype " << _datatypeName << " has not been defined yet!" << std::endl;
+        datatype = NULL;
+    }
+
+    return _datatype;
+}
 
 inline int createDataset()
 {
@@ -57,14 +79,13 @@ inline int writeData(int _timeStep)
     		
     		hsize_t *dims = new hsize_t[_numDims];
 
-
     		hid_t dataspace = H5Screate_simple(_numDims, dims, NULL);
-    		datatype = H5Tcopy(H5T_NATIVE_INT);
+    		datatype = getHDF5Datatype((timeVariables[_timeStep]).dataType);
 
     		status = H5Tset_order(datatype, endian==little?H5T_ORDER_LE:H5T_ORDER_BE);
 
-    		dataset = H5Dcreate(dataFile, DATASETNAME, datatype, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    		status = H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    		dataset = H5Dcreate(dataFile, outputFileName, datatype, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    		status = H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, (double *)(timeVariables[_timeStep]).data);
 
     		delete []dims;
     	}

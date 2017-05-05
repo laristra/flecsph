@@ -19,7 +19,7 @@ link_directories(/home/pascal/NGC/IO/hdf5-1.8.18/install/lib/)
 
 
 # Sources
-set(SRC_LIST hdf5_sample/sample1.cpp)
+set(SRC_LIST main.cpp)
 
 
 # Options
@@ -28,5 +28,5 @@ option (ENABLE_DEBUG "enable debugging mode" ON)
 
 # Executable
 #add_library(Example Example.cpp)
-add_executable(hdf5sample hdf5_sample/sample1.cpp)
-target_link_libraries(hdf5sample libhdf5.so hdf5_cpp.so)
+add_executable(hdf5Test main.cpp)
+target_link_libraries(hdf5Test libhdf5.so hdf5_cpp.so)

@@ -18,8 +18,8 @@ enum VariableType
 
 enum TreeType
 {
-	octree  = 0,
-	k-dtree = 1
+	octree = 0,
+	kdtree = 1
 };
 
 
@@ -34,14 +34,14 @@ struct Variable
 {
 	std::string name;				// Variable name
 	int numDims;					// 1 or 2 or 3 ...
-	std::vector<int> gridDims;		// 
+	std::vector<int> gridDims;		// Size of each dimension
 	std::vector<double> extents;	// (min, max) pair for each dimension
 	VariableType varType;			// point or ...
 	std::string dataType;			// datatype: int, char, float, ...
 	void* data;						// the actual data
 };
 
-struct timeStep
+struct TimeStep
 {
 	std::vector<Variable> vars;
 	int timestep;
@@ -64,17 +64,28 @@ class SimIO
   public:  
 	std::string outputFileName;
 	Endianness endian;
-	std::vector<timeStep> timeVariables;
-	dataOrganization layout;				// storing the organization as just one of the variables
+	std::vector<TimeStep> timeVariables;
+	dataOrganization layout;		// storing the organization as just one of the variables
 
   public:
-	SimIO(std::string _outputFileName){ outputFileName = _outputFileName; }
+	SimIO(std::string _outputFileName);
 	~SimIO(){}{ }
 
 	virtual int createDataset() = 0;
 	virtual int writeData(int _timeStep) = 0;
 };
 
+
+
+inline SimIO::SimIO(std::string _outputFileName):outputFileName(_outputFileName)
+{
+	endian = little;
+}
+
+inline SimIO::SimIO()
+{
+
+}
 
 } // end Flecsi_Sim_IO namespace
 
