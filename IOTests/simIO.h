@@ -22,11 +22,21 @@ enum TreeType
 	kdtree = 1
 };
 
-
 enum Endianness
 {
 	little  = 0,
 	big = 1
+};
+
+
+struct dataOrganization
+{	
+	bool available;
+	TreeType type;
+	void *data;
+
+	dataOrganization(){ data=NULL; }
+	~dataOrganization(){ }
 };
 
 
@@ -38,23 +48,33 @@ struct Variable
 	std::vector<double> extents;	// (min, max) pair for each dimension
 	VariableType varType;			// point or ...
 	std::string dataType;			// datatype: int, char, float, ...
-	void* data;						// the actual data
+	void *data;						// the actual data
+
+	Variable(){ data = NULL; }
+	~Variable(){
+		if (data != NULL) return;
+		
+		if ( dataType == "float")			delete [] (float *) data;
+		else if ( dataType == "double")		delete [] (double *) data;
+		else if ( dataType == "int8_t")		delete [] (int8_t *) data;
+		else if ( dataType == "int16_t")	delete [] (int16_t *) data;
+		else if ( dataType == "int32_t")	delete [] (int32_t *) data;
+		else if ( dataType == "int64_t")	delete [] (int64_t *) data;
+		else if ( dataType == "uint8_t")	delete [] (uint8_t *) data;
+		else if ( dataType == "uint16_t")	delete [] (uint16_t *) data;
+		else if ( dataType == "uint32_t")	delete [] (uint32_t *) data;
+		else if ( dataType == "uint64_t")	delete [] (uint64_t *) data;
+		else { }
+		
+	}
 };
+
 
 struct TimeStep
 {
 	std::vector<Variable> vars;
 	int timestep;
 	double timeStamp;
-};
-
-
-
-struct dataOrganization
-{	
-	bool available;
-	TreeType type;
-	void *data;
 };
 
 
@@ -68,23 +88,25 @@ class SimIO
 	dataOrganization layout;		// storing the organization as just one of the variables
 
   public:
-	SimIO(std::string _outputFileName);
-	~SimIO(){}{ }
+  	SimIO(){ endian = little; }
+	SimIO(std::string _outputFileName):outputFileName(_outputFileName){ endian = little; }
+	~SimIO();
+
+	void setFilename(std::string _name){ outputFileName = _name; }
+	void setEndianness(Endianness _en){ endian = _en; }
+	void setLayout(dataOrganization _layout){ layout = _layout; }
 
 	virtual int createDataset() = 0;
-	virtual int writeData(int _timeStep) = 0;
+	virtual int writeGridData(int _timeStep) = 0;
+	virtual int writePointData(int _timeStep) = 0;
 };
 
-
-
-inline SimIO::SimIO(std::string _outputFileName):outputFileName(_outputFileName)
+inline SimIO::~SimIO()
 {
-	endian = little;
-}
+	for (int i=0; i<timeVariables.size(); i++)
+	{
 
-inline SimIO::SimIO()
-{
-
+	}
 }
 
 } // end Flecsi_Sim_IO namespace
