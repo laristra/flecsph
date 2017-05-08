@@ -96,8 +96,6 @@ inline int HDF5SimIO::writeGridData(int _timeStep)
     		dataset = H5Dcreate(dataFile, _varname.c_str(), datatype, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     		status  = H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, ((timeVariables[_timeStep]).vars[i]).data);
 
-    		dataset = H5Dcreate(dataFile, DATASETNAME, datatype, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    		status = H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
 
             //
             // Clean up
