@@ -95,7 +95,7 @@ double mu(body* source, body* nb){
     return result;
   // Should add norm to space_vector
   double dist = flecsi::distance(source->getPosition(),nb->getPosition());
-  result = dotproduct / (h_ij*(((dist*dist)/(h_ij*h_ij))+kViscEta+kViscEta));
+  result = dotproduct / (h_ij*(((dist*dist)/(h_ij*h_ij))+kViscEta*kViscEta));
   assert(result < 0.0);
   return result; 
 } // mu
@@ -132,6 +132,7 @@ void computeHydro(body_holder* srch, std::vector<body_holder*>& ngbsh){
     hydro += source->getMass()*nb->getMass()*(pressureDensity+viscosity)
         *resultkernelgradient;
   }
+  hydro = -1.0*hydro;
   source->setHydroForce(hydro);
 } // computeHydro
 
@@ -140,9 +141,9 @@ void computeHydro(body_holder* srch, std::vector<body_holder*>& ngbsh){
 void computeAcceleration(body_holder* srch, double dt){
   body* source = srch->getBody();
   point_t acceleration = {0.,0.,0.};
-  acceleration += source->getHydroForce();
+  acceleration += source->getHydroForce() / source->getMass();
   acceleration += source->getGravForce();
-  acceleration /= source->getMass();
+  //acceleration /= source->getMass();
   
   // Use it in the new velocity 
   point_t velocity = {0.,0.,0.};
@@ -159,7 +160,7 @@ void moveBody(body_holder* srch, double dt){
   point_t position;
   point_t velocityhalf; 
   velocityhalf = source->getVelocity()+dt/2.0*source->getAcceleration();
-  position = source->getPosition()+ dt*source->getVelocityhalf();
+  position = source->getPosition()+ dt*velocityhalf ;
   source->setPosition(position);
   source->setVelocityhalf(velocityhalf);
 }// moveBody
@@ -171,9 +172,10 @@ void computeGrav(body_holder* srch, std::vector<body_holder*>& ngbh){
   point_t grav = {0.,0.,0.};
   for(auto nb : ngbh){
     double dist = flecsi::distance(source->getPosition(),nb->getPosition());
+    assert(dist>=0.0);
     if(dist > 0.0){
       point_t vecPosition = nb->getPosition() - source->getPosition();
-      grav += kGravConstant*source->getMass()*nb->getMass()/
+      grav += kGravConstant/**source->getMass()*/*nb->getMass()/
         (dist*dist*dist) * vecPosition;
     }
   }
@@ -188,10 +190,10 @@ double computeDt(body_holder* srch, std::vector<body_holder*>& ngbhs)
   for(size_t i=0;i<gdimension;++i)
     accelNorm += source->getAcceleration()[i]*source->getAcceleration()[i];
   accelNorm = sqrt(accelNorm);
-  double dt1 = sqrt(source->getSmoothinglength()/accelNorm); 
+  double dt1 = pow(source->getSmoothinglength()/accelNorm,1.0/2.0); 
  
   // Second based on max mu 
-  double max_mu_ij = -9999;
+  double max_mu_ij = -9999999;
   for(auto nbh: ngbhs)
   {
     body* nb = nbh->getBody();
@@ -203,9 +205,6 @@ double computeDt(body_holder* srch, std::vector<body_holder*>& ngbhs)
      1.2*kViscAlpha*source->getSoundspeed()+
      1.2+kViscBeta*max_mu_ij);
   dt2 *= kCoeffDt;
-
-  if(dt1 < dt2)
-    std::cout<<"Min due to accel"<<std::endl;
 
   return std::min(dt1,dt2);
 }// computeDt

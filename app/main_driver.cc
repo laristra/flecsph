@@ -27,6 +27,30 @@ operator==(
   return true;
 }
 
+inline 
+point_t 
+operator+(
+  const point_t& p, 
+  const double& val)
+{
+  point_t pr = p; 
+  for(size_t i=0;i<gdimension;++i)
+    pr[i]+=val;
+  return pr;
+}
+
+inline 
+point_t 
+operator-(
+  const point_t& p, 
+  const double& val)
+{
+  point_t pr = p; 
+  for(size_t i=0;i<gdimension;++i)
+    pr[i]-=val;
+  return pr;
+}
+
 namespace flecsi{
 namespace execution{
 
@@ -34,7 +58,7 @@ void
 mpi_init_task(/*std::string sfilename*/int inputparticles){
   // TODO find a way to use the file name from the specialiszation_driver
   //std::cout<<sfilename<<std::endl;
-  const char * filename = "../data/data_binary_rdy_16288.txt";
+  const char * filename = "../data/data_bns_4169.txt";
 
   int rank; 
   int size; 
@@ -42,8 +66,11 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
   MPI_Comm_rank(MPI_COMM_WORLD,&rank); 
   
   int nbodies = 0;
-  int totaliters = 10000;
+  int totaliters = 100000;
+  int iteroutput = 10;
   int totalnbodies = 0;
+  double totaltime = 0.0;
+  double maxtime = 2.0;
   std::vector<std::pair<entity_key_t,body>> rbodies;
   std::array<point_t,2> range;
   std::vector<std::pair<entity_key_t,entity_key_t>> rangeproc;
@@ -95,11 +122,11 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
       bi.first = entity_key_t(range,bi.second.coordinates());
     }
     // Check for duplicates keys, particles
-    assert(rbodies.end() == 
-      std::unique(rbodies.begin(),rbodies.end(),
-        [](const auto& left, const auto& right){
-          return left.first == right.first;
-        }));
+    //assert(rbodies.end() == 
+    //  std::unique(rbodies.begin(),rbodies.end(),
+    //    [](const auto& left, const auto& right){
+    //      return left.first == right.first;
+    //    }));
 
     // Apply a distributed sort algorithm 
     mpi_sort_unbalanced(rbodies,totalnbodies);
@@ -116,14 +143,14 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
     // create the bodies holders for my local bodies
     // They will be registred as exclusive
     std::vector<body_holder*> bodies;
+    double lowmass = 10.0;
     for(auto& bi: rbodies){
       auto nbi = tree.make_entity(bi.second.getPosition(),&(bi.second),rank,
           bi.second.getMass());
       // Add them in the tree
       tree.insert(nbi);
       bodies.push_back(nbi);
-    }
-
+    } 
     // Search and share the branches 
     //mpi_branches_exchange_useful(tree,rbodies,range,rangeproc);
     mpi_branches_exchange_useful_positions(
@@ -135,6 +162,9 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
     // For test, gather the neighbors and loop over here
     mpi_compute_ghosts(tree,smoothinglength,ghosts_data,range);
     mpi_refresh_ghosts(tree,ghosts_data,range);
+
+    if(size==1)
+      assert(ghosts_data.recvbodies.size() == 0);
 
 #ifdef OUTPUTGRAPH
     if(iter==1){
@@ -169,7 +199,7 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
 
     MPI_Barrier(MPI_COMM_WORLD);
     // Share data again, need the density and pressure of the ghosts 
-    mpi_refresh_ghosts(tree,ghosts_data);    
+    mpi_refresh_ghosts(tree,ghosts_data,range);    
 
     if(rank==0)
       std::cout<<"Acceleration"<<std::flush; 
@@ -247,35 +277,46 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
       std::cout<<".done"<<std::endl<<std::flush;
 
 
+    if(size==1)
+      assert(tree.entities().size() == totalnbodies);
     // Compute and exchange the aggregate 
     //mpi_gather_com(tree,range,rangeproc,recv_COM);
-    mpi_gather_com_positions(tree,range,rangeposproc,recv_COM);
+    //mpi_gather_com_positions(tree,range,rangeposproc,recv_COM);
     // TODO change make a vector of pointers 
-    std::vector<body_holder*> recv_COM_ptr;
-    for(auto bi: recv_COM)
-      recv_COM_ptr.push_back(&bi);
-    if(size!=0)
-      assert(recv_COM.size()!=0);
+    //std::vector<body_holder*> recv_COM_ptr;
 
+    //for(auto bi: recv_COM)
+    //{
+      //std::cout<<rank<<": "<<bi<<std::endl;
+    //  recv_COM_ptr.push_back(&bi);
+    //}
+
+    //if(size!=1)
+    //  assert(recv_COM.size()!=0);
+    //else 
+    //  assert(recv_COM.size()==0);
+
+    double macangle= M_PI/3.0;
+    double mcell = 1.0e-3;
+    //int totaladded = 0.0;
+    //auto vecents = tree.entities().to_vec();
     // Compute Gravity 
     if(rank==0)
       std::cout<<"Grav"<<std::flush;
-    for(auto bi: bodies)
-    {
-      // Use all the entites in the tree with smoothing length 
-      auto ents = tree.find_in_radius(bi->coordinates(),2*smoothinglength); 
-      auto vecents = ents.to_vec();
-      // Get all the COM received
-      vecents.insert(vecents.end(),recv_COM_ptr.begin(),recv_COM_ptr.end());
-      physics::computeGrav(bi,vecents);
-      //if(rank==0)
-      //  std::cout<<bi->getBody()->getGravForce()<<std::endl;
-    }
+    //for(auto bi: bodies)
+    //{
+    //  physics::computeGrav(bi,vecents);
+    int nbody = 0;
+    tree_traversal_com(tree);
+    tree_traversal_grav(tree,tree.root(),mcell,macangle,nbody);
+    assert(nbody == totalnbodies);
+    //}
     if(rank==0)
       std::cout<<".done"<<std::endl<<std::flush;
+    //std::cout<<totaladded<<std::endl;
 
     // Reset the COM 
-    recv_COM.clear();
+    //recv_COM.clear();
 
     // Compute Acceleration 
     if(rank==0)
@@ -298,10 +339,14 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
       auto ents = tree.find_in_radius(bi->coordinates(),2*smoothinglength);
       auto vecents = ents.to_vec();
       double localdt = physics::computeDt(bi,vecents);
-      physics::dt = std::min(physics::dt,localdt); 
+      physics::dt = std::min(physics::dt,localdt);
+
     }
-    // Do a reduction 
-    MPI_Allreduce(MPI_IN_PLACE,&physics::dt,1,MPI_DOUBLE,MPI_MIN,MPI_COMM_WORLD);
+
+    // Do a reduction for dt
+    MPI_Allreduce(MPI_IN_PLACE,&physics::dt,1,MPI_DOUBLE,
+        MPI_MIN,MPI_COMM_WORLD);
+    //physics::dt = 1.0e-4;
     if(rank==0)
       std::cout<<".done"<<std::endl<<std::flush;
     assert(physics::dt<1&&physics::dt>0);
@@ -324,14 +369,28 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
 #endif
 
 #ifdef OUTPUT
-    if(iter % 10 == 0)
+    if(iter % iteroutput == 0)
     {
-      mpi_output_txt(rbodies,iter/10);
+      mpi_output_txt(rbodies,iter/iteroutput);
     }
+    // output to see repartition
+    /*char fname[64];
+    sprintf(fname,"part_%d_%d.txt",rank,iter); 
+    FILE * tmpf = fopen(fname,"w");
+    fprintf(tmpf,"X Y Z\n");
+    for(auto bi: rbodies)
+    {
+      fprintf(tmpf,"%.4f %.4f %.4f\n",bi.second.getPosition()[0],
+          bi.second.getPosition()[1],bi.second.getPosition()[2]); 
+    }
+    fclose(tmpf);*/
 #endif
     ++iter;
+    totaltime += physics::dt; 
+    if(rank==0)
+      std::cout<<"Time: "<<totaltime<<std::endl;
 
-  }while(iter<totaliters);
+  }while(totaltime<maxtime);
 }
 
 flecsi_register_task(mpi_init_task,mpi,index);

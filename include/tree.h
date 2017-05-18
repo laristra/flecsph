@@ -84,7 +84,7 @@ public:
     }
 
     friend std::ostream& operator<<(std::ostream& os, const body_holder& b){
-      os << "Holder: Pos: " <<b.position_ ; 
+      os << "Holder. Pos: " <<b.position_ << " Mass: "<< b.mass_ << " "; 
       if(b.locality_ == LOCAL || b.locality_ == EXCL || b.locality_ == SHARED)
       {
         os<< "LOCAL";

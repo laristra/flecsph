@@ -95,4 +95,80 @@ mpi_gather_com_positions(
   std::vector<std::pair<point_t,point_t>>&,
   std::vector<body_holder>&);
 
+void
+traversal_COM(
+  int,
+  tree_topology_t&,
+  std::array<point_t,2>&,
+  branch_t *, 
+  std::vector<body_holder>&,
+  std::pair<point_t,point_t>&,
+  int&);
+
+#if 0
+bool
+MAC(
+    body_holder*,
+    branch_t *,
+    double,
+    double);
+
+void
+traversal_COM_MAC_seq(
+  tree_topology_t&,
+  body_holder* bi,
+  branch_t *, 
+  std::vector<body_holder>&,
+  double&,
+  double&);
+#endif
+
+void 
+computeAcceleration(
+    point_t,
+    point_t,
+    double,
+    point_t&,
+    //point_t&,
+    double*);
+
+bool 
+MAC(
+    branch_t*,
+    branch_t*,
+    double);
+
+void 
+tree_traversal_c2c(
+    tree_topology_t&,
+    branch_t*,
+    branch_t*,
+    point_t&,
+    //point_t&,
+    double*,
+    double&);
+
+void 
+sink_traversal_c2p(
+  tree_topology_t&,
+  branch_t*,
+  point_t&,
+  //point_t&,
+  point_t&, 
+  double*,
+  std::vector<body*>&,
+  int&);
+
+void 
+tree_traversal_grav(
+    tree_topology_t&,
+    branch_t*,
+    double&, 
+    double&,
+    int&);
+
+void
+tree_traversal_com(
+    tree_topology_t&);
+
 #endif // mpi_partition_h
