@@ -1,3 +1,25 @@
+/*~--------------------------------------------------------------------------~*
+ * 
+ * /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
+ * /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
+ * /@@       /@@  @@@@@  @@    // /@@       /@@   /@@/@@     /@@
+ * /@@@@@@@  /@@ @@///@@/@@       /@@@@@@@@@/@@@@@@@ /@@@@@@@@@@
+ * /@@////   /@@/@@@@@@@/@@       ////////@@/@@////  /@@//////@@
+ * /@@       /@@/@@//// //@@    @@       /@@/@@      /@@     /@@
+ * /@@       @@@//@@@@@@ //@@@@@@  @@@@@@@@ /@@      /@@     /@@
+ * //       ///  //////   //////  ////////  //       //      //  
+ *
+ *~--------------------------------------------------------------------------~*/
+
+/**
+ * @file main_driver.cc
+ * @author Julien Loiseau
+ * @date April 2017
+ * @brief Specialization and Main driver used in FleCSI. 
+ * The Specialization Driver is normally used to register data and the main 
+ * code is in the Driver.  
+ */
+
 #include <iostream>
 #include <numeric> // For accumulate
 #include <iostream>
@@ -278,7 +300,7 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
 
 
     if(size==1)
-      assert(tree.entities().size() == totalnbodies);
+      assert(tree.entities().size() == (size_t)totalnbodies);
     // Compute and exchange the aggregate 
     //mpi_gather_com(tree,range,rangeproc,recv_COM);
     //mpi_gather_com_positions(tree,range,rangeposproc,recv_COM);
@@ -418,4 +440,5 @@ driver(int argc, char * argv[]){
 
 } // namespace
 } // namespace
+
 

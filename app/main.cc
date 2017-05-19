@@ -1,3 +1,23 @@
+/*~--------------------------------------------------------------------------~*
+ * 
+ * /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
+ * /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
+ * /@@       /@@  @@@@@  @@    // /@@       /@@   /@@/@@     /@@
+ * /@@@@@@@  /@@ @@///@@/@@       /@@@@@@@@@/@@@@@@@ /@@@@@@@@@@
+ * /@@////   /@@/@@@@@@@/@@       ////////@@/@@////  /@@//////@@
+ * /@@       /@@/@@//// //@@    @@       /@@/@@      /@@     /@@
+ * /@@       @@@//@@@@@@ //@@@@@@  @@@@@@@@ /@@      /@@     /@@
+ * //       ///  //////   //////  ////////  //       //      //  
+ *
+ *~--------------------------------------------------------------------------~*/
+
+/**
+ * @file main.cc
+ * @author Julien Loiseau
+ * @date April 2017
+ * @brief Main function, start MPI with Gasnet. Then launch fleCSI runtime.  
+ */
+
 #include <flecsi.h>
 #include "flecsi/execution/execution.h"
 #include "flecsi/concurrency/thread_pool.h"
@@ -11,6 +31,7 @@ int main(int argc, char * argv[]){
   
 //#ifdef GASNET_CONDUIT_MPI
   int provided;
+  // Use FUNNELED for debug and debug with allinea 
   MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
   //if (provided < MPI_THREAD_MULTIPLE)
   //  printf("ERROR: Your implementation of MPI does not support "
@@ -32,4 +53,5 @@ int main(int argc, char * argv[]){
   return retval;
 
 }
+
 

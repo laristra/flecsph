@@ -1,5 +1,25 @@
-#ifndef mpi_partition_h
-#define mpi_partition_h
+/*~--------------------------------------------------------------------------~*
+ * 
+ * /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
+ * /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
+ * /@@       /@@  @@@@@  @@    // /@@       /@@   /@@/@@     /@@
+ * /@@@@@@@  /@@ @@///@@/@@       /@@@@@@@@@/@@@@@@@ /@@@@@@@@@@
+ * /@@////   /@@/@@@@@@@/@@       ////////@@/@@////  /@@//////@@
+ * /@@       /@@/@@//// //@@    @@       /@@/@@      /@@     /@@
+ * /@@       @@@//@@@@@@ //@@@@@@  @@@@@@@@ /@@      /@@     /@@
+ * //       ///  //////   //////  ////////  //       //      //  
+ *
+ *~--------------------------------------------------------------------------~*/
+
+/**
+ * @file mpi_partition.h
+ * @author Julien Loiseau
+ * @date April 2017
+ * @brief Function needed for MPI distribution of the bodies 
+ */
+
+#ifndef MPI_PARTITION_H
+#define MPI_PARTITION_H
 
 #include <vector>
 #include <numeric>
@@ -36,22 +56,6 @@ mpi_sort_unbalanced(
   int);
 
 void 
-mpi_sort(
-  std::vector<std::pair<entity_key_t,body>>&,
-  std::vector<int>);
-
-void 
-mpi_branches_exchange(
-  tree_topology_t&);
-
-void 
-mpi_branches_exchange_useful(
-  tree_topology_t&,
-  std::vector<std::pair<entity_key_t,body>>&,
-  std::array<point_t,2>&,
-  std::vector<std::pair<entity_key_t,entity_key_t>>&);
-
-void 
 mpi_branches_exchange_useful_positions(
     tree_topology_t& tree,
     std::vector<std::pair<entity_key_t,body>>&,
@@ -80,48 +84,6 @@ void
 mpi_output_txt(
   std::vector<std::pair<entity_key_t,body>>&,
   int);
-
-void 
-mpi_gather_com(
-  tree_topology_t&, 
-  std::array<point_t,2>&,
-  std::vector<std::pair<entity_key_t,entity_key_t>>&,
-  std::vector<body_holder>&);
-
-void 
-mpi_gather_com_positions(
-  tree_topology_t&, 
-  std::array<point_t,2>&,
-  std::vector<std::pair<point_t,point_t>>&,
-  std::vector<body_holder>&);
-
-void
-traversal_COM(
-  int,
-  tree_topology_t&,
-  std::array<point_t,2>&,
-  branch_t *, 
-  std::vector<body_holder>&,
-  std::pair<point_t,point_t>&,
-  int&);
-
-#if 0
-bool
-MAC(
-    body_holder*,
-    branch_t *,
-    double,
-    double);
-
-void
-traversal_COM_MAC_seq(
-  tree_topology_t&,
-  body_holder* bi,
-  branch_t *, 
-  std::vector<body_holder>&,
-  double&,
-  double&);
-#endif
 
 void 
 computeAcceleration(
@@ -171,4 +133,81 @@ void
 tree_traversal_com(
     tree_topology_t&);
 
-#endif // mpi_partition_h
+
+
+#if 0
+void 
+mpi_sort(
+  std::vector<std::pair<entity_key_t,body>>&,
+  std::vector<int>);
+#endif
+
+#if 0
+void 
+mpi_branches_exchange(
+  tree_topology_t&);
+#endif
+
+#if 0
+void 
+mpi_branches_exchange_useful(
+  tree_topology_t&,
+  std::vector<std::pair<entity_key_t,body>>&,
+  std::array<point_t,2>&,
+  std::vector<std::pair<entity_key_t,entity_key_t>>&);
+#endif 
+
+#if 0
+void 
+mpi_gather_com(
+  tree_topology_t&, 
+  std::array<point_t,2>&,
+  std::vector<std::pair<entity_key_t,entity_key_t>>&,
+  std::vector<body_holder>&);
+#endif 
+
+#if 0
+void 
+mpi_gather_com_positions(
+  tree_topology_t&, 
+  std::array<point_t,2>&,
+  std::vector<std::pair<point_t,point_t>>&,
+  std::vector<body_holder>&);
+#endif 
+
+#if 0
+void
+traversal_COM(
+  int,
+  tree_topology_t&,
+  std::array<point_t,2>&,
+  branch_t *, 
+  std::vector<body_holder>&,
+  std::pair<point_t,point_t>&,
+  int&);
+#endif 
+
+#if 0
+bool
+MAC(
+    body_holder*,
+    branch_t *,
+    double,
+    double);
+#endif 
+
+#if 0
+void
+traversal_COM_MAC_seq(
+  tree_topology_t&,
+  body_holder* bi,
+  branch_t *, 
+  std::vector<body_holder>&,
+  double&,
+  double&);
+#endif
+
+
+
+#endif // MPI_PARTITION_H
+
