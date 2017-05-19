@@ -16,6 +16,15 @@ enum VariableType
 	grid_faceCentered   = 3
 };
 
+enum FieldType
+{ 
+	point          = 0,
+	cellCentered   = 1,
+	vertexCentered = 2,
+	faceCentered   = 3,
+	other		   = 4	
+};
+
 enum TreeType
 {
 	octree = 0,
@@ -43,9 +52,7 @@ struct dataOrganization
 struct Variable
 {
 	std::string name;				// Variable name
-	int numDims;					// 1 or 2 or 3 ...
-	std::vector<int> gridDims;		// Size of each dimension
-	std::vector<double> extents;	// (min, max) pair for each dimension
+	
 	VariableType varType;			// point or ...
 	std::string dataType;			// datatype: int, char, float, ...
 	void *data;						// the actual data
@@ -56,6 +63,7 @@ struct Variable
 		
 		if ( dataType == "float")			delete [] (float *) data;
 		else if ( dataType == "double")		delete [] (double *) data;
+		else if ( dataType == "int")		delete [] (int *) data;
 		else if ( dataType == "int8_t")		delete [] (int8_t *) data;
 		else if ( dataType == "int16_t")	delete [] (int16_t *) data;
 		else if ( dataType == "int32_t")	delete [] (int32_t *) data;
@@ -79,11 +87,19 @@ struct TimeStep
 
 
 
+
+/*
 class SimIO
 {
   public:  
 	std::string outputFileName;
 	Endianness endian;
+
+	int numDims;					// 1 or 2 or 3 ...
+
+	std::vector<int> gridDims;		// Size of each dimension
+	std::vector<double> extents;	// (min, max) pair for each dimension
+
 	std::vector<TimeStep> timeVariables;
 	dataOrganization layout;		// storing the organization as just one of the variables
 
@@ -96,10 +112,60 @@ class SimIO
 	void setEndianness(Endianness _en){ endian = _en; }
 	void setLayout(dataOrganization _layout){ layout = _layout; }
 
+
 	virtual int createDataset() = 0;
 	virtual int writeGridData(int _timeStep) = 0;
 	virtual int writePointData(int _timeStep) = 0;
 };
+*/
+
+
+
+
+class Field
+{
+  public:
+	std::string name;		// name of field; e.g pressure, temperature
+	std::string dataType;	// datatype: int, char, float, ...
+	FieldType association;	// cell-centered, face-centered, ...
+	size_t numElements;		// # elements
+
+	void *data;				// the actual data
+
+  public:
+  	Field(){};
+  	Field(std::string _name):name(_name){}
+  	~Field(){};
+
+  	void setName(std::string _name){ name=_name; }
+  	void setDataype(std::string _dataType){ dataType=_dataType; }
+  	void setNumElements(size_t _numElements){ numElements=_numElements; }
+  	void setAssociation(FieldType _association){ association = _association; }
+};
+
+
+
+
+class Coord
+{
+	std::string fieldName;
+
+  public:
+  	Coord();
+  	~Coord();
+};
+
+
+class SimIO
+{
+	std::string outputFileName;
+	Endianness endian;
+	int numDims;			// 1 or 2 or 3 ...
+
+	std::vector<Field> variables;
+
+};
+
 
 inline SimIO::~SimIO()
 {
