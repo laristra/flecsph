@@ -124,33 +124,60 @@ computeAcceleration(
     double sourceMass,
     point_t& fc, 
     //point_t& dfc,
-    double* jacobi
+    double* jacobi,
+    double* hessian
     )
 {
   double dist = flecsi::distance(sinkPosition,sourcePosition);
   assert(dist > 0.0);
-  fc +=  - sourceMass/(dist*dist*dist)*(sinkPosition - sourcePosition);
+  point_t diffPos = sinkPosition - sourcePosition;
+  fc +=  - sourceMass/(dist*dist*dist)*(diffPos);
   //std::cout<<fc<<std::endl;
   //dfc += - sourceMass/(dist*dist*dist)*(1-3/(dist*dist))*
   //  (sinkPosition-sourcePosition)*(sinkPosition-sourcePosition);
   // Compute Jacobi matrix 
   double jacobicoeff = -sourceMass/(dist*dist*dist);
-  for(int i=0;i<3;++i)
-  {
-    for(int j=0;j<3;++j)
-    {
+  for(int i=0;i<3;++i){
+    for(int j=0;j<3;++j){
       if(i==j)
       {
         jacobi[i*3+j] += jacobicoeff* 
-          (1 - 3*(sinkPosition[i]-sourcePosition[i])*
-         (sinkPosition[j]-sourcePosition[j])/(dist*dist)); 
+          (1 - 3*(diffPos[i])*(diffPos[j])/(dist*dist)); 
       }else
       {
         jacobi[i*3+j] += jacobicoeff*
-         (- 3*(sinkPosition[i]-sourcePosition[i])*
-         (sinkPosition[j]-sourcePosition[j])/(dist*dist));
+         (- 3*(diffPos[i])*(diffPos[j])/(dist*dist));
       }
       assert(!std::isnan(jacobi[i*3+j]));
+    }
+  }
+  // Compute the Hessian matrix 
+  double hessiancoeff = -3*sourceMass/(dist*dist*dist*dist*dist);
+  for(int i=0;i<3;++i){
+    int matrixPos = i*9;
+    for(int j=0;j<3;++j){
+      for(int k=0;k<3;++k){
+        int position = matrixPos+j*3+k;
+        hessian[position] = 0.0;
+        double firstterm = 0.0;
+        if(i==j){
+          firstterm += hessiancoeff * diffPos[k];
+        }
+        if(j==k){
+          firstterm += hessiancoeff * diffPos[i];
+        }
+        if(k==i){
+          firstterm += hessiancoeff * diffPos[j];
+        }
+        //if(i==j==k){
+        //  firstterm*=1.0;
+        //}else{
+        //  firstterm*=3.0;
+        //}
+        hessian[position] += firstterm;
+        hessian[position] += hessiancoeff * -5.0/(dist*dist)*
+          (diffPos[i])*(diffPos[j])*(diffPos[k]);
+      }
     }
   }
 }
@@ -174,14 +201,16 @@ tree_traversal_c2c(
     point_t& fc, 
     //point_t& dfc,
     double* jacobi,
+    double* hessian,
     double& macangle)
 {
+  // Do not consider the cell itself 
   if(source->getPosition()==sink->getPosition())
       return;
   if(MAC(sink,source,macangle))
   {
     computeAcceleration(sink->getPosition(),source->getPosition(),
-      source->getMass(),fc,jacobi);
+      source->getMass(),fc,jacobi,hessian);
   }else
   {
     if(source->is_leaf())
@@ -190,13 +219,13 @@ tree_traversal_c2c(
       {
         if(sink->getPosition() != bi->getPosition())
           computeAcceleration(sink->getPosition(),bi->getPosition(),
-            bi->getMass(),fc,jacobi);
+            bi->getMass(),fc,jacobi,hessian);
       }
     }else
     {
       for(int i=0;i<(1<<gdimension);++i)
         tree_traversal_c2c(tree,sink,tree.child(source,i),
-            fc,jacobi,macangle);
+            fc,jacobi,hessian,macangle);
     }
   }
 }
@@ -209,23 +238,42 @@ sink_traversal_c2p(
     point_t& fc, 
     //point_t& dfc, 
     double* jacobi,
+    double* hessian,
     std::vector<body*>& neighbors,
     int& nbody
     )
 {
-  if(b->is_leaf())
-  {
+  if(b->is_leaf()){
     // Apply the expansion on the bodies
-    for(auto bi: *b)
-    {
+    for(auto bi: *b){
+      //point_t diffPos = sinkPosition-bi->getPosition();
+      point_t diffPos = bi->getPosition() - sinkPosition;
       point_t grav = fc;
-      for(int i=0;i<3;++i)
-      {
-        for(int j=0;j<3;++j)
-        {
-          grav[i] += (jacobi[i*3+j]*
-              (sinkPosition[i]-bi->getPosition()[i]));
+      // The Jacobi 
+      for(int i=0;i<3;++i){
+        for(int j=0;j<3;++j){
+          grav[i] += (jacobi[i*3+j]*(diffPos[j]));
         }
+      }
+      // The hessian 
+      double tmpMatrix[9];
+      for(int i=0;i<3;++i){
+        for(int j=0;j<3;++j){
+          for(int k=0;k<3;++k){
+            tmpMatrix[i*3+j] = 0.0;
+            tmpMatrix[i*3+j] += diffPos[k]*hessian[i*9+j+k*3];
+          }
+        }
+      }
+      double tmpVector[3];
+      for(int i=0;i<3;++i){
+        for(int j=0;j<3;++j){
+          tmpVector[i] = 0.0;
+          tmpVector[i] += tmpMatrix[i*3+j]*diffPos[j];
+        }
+      }
+      for(int i=0;i<3;++i){
+        grav[i] += 1/2*tmpVector[i];
       }
       neighbors.push_back(bi->getBody());
       bi->getBody()->setGravForce(grav);
@@ -235,7 +283,7 @@ sink_traversal_c2p(
   }else
   {
     for(int i=0;i<(1<<gdimension);++i)
-      sink_traversal_c2p(tree,tree.child(b,i),sinkPosition,fc,jacobi,
+      sink_traversal_c2p(tree,tree.child(b,i),sinkPosition,fc,jacobi,hessian,
           neighbors,nbody);
   }
   
@@ -256,20 +304,22 @@ tree_traversal_grav(
   {
     point_t fc = {0.0,0.0,0.0};
     //point_t dfc = {};
-    double* jacobi = new double[9]();
+    double jacobi[9] = {0.0};
+    double hessian[27] = {0.0};
     std::vector<body*> neighbors;
-    tree_traversal_c2c(tree,sink,tree.root(),fc,jacobi,macangle);
+    tree_traversal_c2c(tree,sink,tree.root(),fc,jacobi,hessian,macangle);
     point_t sinkPosition = sink->getPosition();
-    sink_traversal_c2p(tree,sink,sinkPosition,fc,jacobi,neighbors,nbody);
+    sink_traversal_c2p(tree,sink,sinkPosition,
+        fc,jacobi,hessian,neighbors,nbody);
     // apply local gravitation from particles in this branch 
     for(auto bi: neighbors)
-    {
+    { 
       point_t grav = bi->getGravForce();
       for(auto nb: neighbors)
-      {
+      { 
         double dist = flecsi::distance(bi->getPosition(),nb->getPosition());
         if(dist>0.0)
-        {
+        { 
           grav += - nb->getMass()/(dist*dist*dist)*
             (bi->getPosition()-nb->getPosition());
         }

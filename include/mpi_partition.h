@@ -18,8 +18,8 @@
  * @brief Function needed for MPI distribution of the bodies 
  */
 
-#ifndef MPI_PARTITION_H
-#define MPI_PARTITION_H
+#ifndef mpi_partition_h
+#define mpi_partition_h
 
 #include <vector>
 #include <numeric>
@@ -92,6 +92,7 @@ computeAcceleration(
     double,
     point_t&,
     //point_t&,
+    double*,
     double*);
 
 bool 
@@ -108,6 +109,7 @@ tree_traversal_c2c(
     point_t&,
     //point_t&,
     double*,
+    double*,
     double&);
 
 void 
@@ -117,6 +119,7 @@ sink_traversal_c2p(
   point_t&,
   //point_t&,
   point_t&, 
+  double*,
   double*,
   std::vector<body*>&,
   int&);
@@ -209,5 +212,5 @@ traversal_COM_MAC_seq(
 
 
 
-#endif // MPI_PARTITION_H
+#endif // mpi_partition_h
 

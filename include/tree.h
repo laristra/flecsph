@@ -18,8 +18,8 @@
  * @brief Description of the tree policy used in the tree_topology from FleCSI. 
  */
 
-#ifndef TREE_H
-#define TREE_H
+#ifndef tree_h
+#define tree_h
 
 #include <vector>
 
@@ -421,5 +421,5 @@ private:
 };
 
 
-#endif // TREE_H
+#endif // tree_h
 

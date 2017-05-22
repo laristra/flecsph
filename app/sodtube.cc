@@ -12,7 +12,7 @@
  *~--------------------------------------------------------------------------~*/
 
 /**
- * @file sodtube.h
+ * @file sodtube.cc
  * @author Julien Loiseau
  * @date April 2017
  * @brief Physics functions for the 1D Sod Tube implementation
@@ -25,45 +25,54 @@
 inline
 point_t
 operator*(
-    const point_t p,const double val)
+    const point_t p,
+    const double val)
 {
   point_t p1 = p;
-  for(size_t i=0;i<gdimension;++i)
+  for(size_t i=0;i<gdimension;++i){
     p1[i]*=val;
+  }
   return p1;
 }
 
 inline
 point_t
 operator*(
-    const double val, const point_t p)
+    const double val, 
+    const point_t p)
 {
   point_t p1 = p;
-  for(size_t i=0;i<gdimension;++i)
+  for(size_t i=0;i<gdimension;++i){
     p1[i]*=val;
+  }
   return p1;
 }
 
 inline
 point_t
 operator*(
-    const point_t p1, const point_t p2)
+    const point_t p1, 
+    const point_t p2)
 {
   point_t p3 = p1;
-  for(size_t i=0;i<gdimension;++i)
+  for(size_t i=0;i<gdimension;++i){
     p3[i]*=p2[i];
+  }
   return p3;
 }
 
 inline 
 bool 
 operator==(
-    const point_t& p1, const point_t& p2
+    const point_t& p1, 
+    const point_t& p2
     )
 {
-  for(size_t i=0;i<gdimension;++i)
-    if(p1[i] != p2[i])
+  for(size_t i=0;i<gdimension;++i){
+    if(p1[i] != p2[i]){
       return false;
+    }
+  }
   return true;
 }
 
@@ -72,7 +81,8 @@ namespace sodtube{
 
 const double kDt = 0.0025;
 
-void randomDataSodTube1D(
+void 
+randomDataSodTube1D(
     std::vector<std::pair<entity_key_t,body>>& bodies,
     int& nbodies,
     int& totalnbodies,
@@ -102,12 +112,10 @@ void randomDataSodTube1D(
   point_t acceleration = {0};
   double mass = 2.65e-3;
   double smoothinglength = 1.0e-2;
-  for(int i=0;i<nbodies;++i)
-  {
+  for(int i=0;i<nbodies;++i){
     // Create empty body 
     body bi;
-    if(position > middle)
-    {
+    if(position > middle){
       internalenergy = 2;
       density = 0.125;
       mass = 3.3125e-4;
@@ -125,31 +133,42 @@ void randomDataSodTube1D(
   } 
 }
 
-double kernel(double dist, double h)
+double 
+kernel(
+    double dist, 
+    double h)
 {
   double sigma = 2./(3.*h);
   double q = dist/h;
   assert(q>=0);
-  if(q<1)
+  if(q<1){
     return sigma*(0.25*(2.0-q)*(2.0-q)*(2.0-q)-(1.0-q)*(1.0-q)*(1.0-q));
-  if(q>=1 && q<2)
+  }
+  if(q>=1 && q<2){
     return sigma*(0.25*(2.0-q)*(2.0-q)*(2.0-q));
+  }
   return 0.0;
 }
 
-double gradkernel(double dist, double h)
+double 
+gradkernel(
+    double dist, 
+    double h)
 {
   double sigma = 2./(3.*h);
   double q = dist/h;
   assert(q>=0);
-  if(q<1)
+  if(q<1){
     return -sigma*(-0.75*(2.0-q)*(2.0-q)+3.*(1.0-q)*(1.0-q))/h;
-  if(q>=1 && q<2)
+  }
+  if(q>=1 && q<2){
     return -sigma*(-0.75*(2.0-q)*(2.0-q))/h;
+  }
   return 0.0;
 }
 
-void computeDensityApply(
+void 
+computeDensityApply(
     body_holder * nb, 
     body_holder * src)
 {
@@ -167,15 +186,17 @@ void computeDensityApply(
   srcb->setDensity(density);
 }
 
-void computeDensity(body_holder * src, std::vector<body_holder*>& neighb )
+void 
+computeDensity(
+    body_holder * src, 
+    std::vector<body_holder*>& neighb )
 {
   body * srcb = src->getBody();
   assert(srcb!=nullptr);
   double density = 0.0;
   // I am at least only in the vector 
   assert(neighb.size() > 0);
-  for(auto nb: neighb)
-  {
+  for(auto nb: neighb){
     body * nbb = nb->getBody();
     assert(nbb!=nullptr);
     
@@ -186,7 +207,9 @@ void computeDensity(body_holder * src, std::vector<body_holder*>& neighb )
   srcb->setDensity(density);
 }
 
-void computePressureSoundSpeed(body_holder * src)
+void 
+computePressureSoundSpeed(
+    body_holder * src)
 {
   body * srcb = src->getBody();
   assert(srcb!=nullptr);
@@ -196,7 +219,10 @@ void computePressureSoundSpeed(body_holder * src)
   srcb->setSoundspeed(cs);
 }
 
-void computeViscosity(body_holder * src, std::vector<body_holder*>& neighb )
+void 
+computeViscosity(
+    body_holder * src, 
+    std::vector<body_holder*>& neighb)
 {
   body * srcb = src->getBody();
   assert(srcb!=nullptr);
@@ -205,20 +231,19 @@ void computeViscosity(body_holder * src, std::vector<body_holder*>& neighb )
   point_t acc = srcb->getAcceleration();
   double dudt = srcb->getDudt();
   assert(neighb.size()!=0);
-  for(auto nb: neighb)
-  {
+  for(auto nb: neighb){
     body * nbb = nb->getBody();
     assert(nbb!=nullptr);
-    if(srcb->getPosition() == nbb->getPosition())
+    if(srcb->getPosition() == nbb->getPosition()){
       continue;
+    }
     
     double dist = flecsi::distance(srcb->getPosition(),nbb->getPosition());
     point_t xv = (srcb->getPosition()-nbb->getPosition())
       *(srcb->getVelocity()-nbb->getVelocity());
     point_t rhat = (srcb->getPosition()-nbb->getPosition())/dist;
     point_t Pi = {}; 
-    if(xv[0] < 0.0)
-    {
+    if(xv[0] < 0.0){
       double average_c = 0.5 * (srcb->getSoundspeed() + nbb->getSoundspeed());
       double rhobar = 0.5*(srcb->getDensity()+nbb->getDensity());
       double hbar = 0.5*(srcb->getSmoothinglength()+nbb->getSmoothinglength());
@@ -230,26 +255,28 @@ void computeViscosity(body_holder * src, std::vector<body_holder*>& neighb )
     acc += nbb->getMass()*Pi*gradkern*rhat;
     point_t vij = srcb->getVelocity() - nbb->getVelocity();
     dudt += (-0.5*Pi*nbb->getMass()*vij*gradkern*rhat)[0];
-
   }
   srcb->setDudt(dudt);
   srcb->setAcceleration(acc);
 }
 
-void computeAcceleration(body_holder * src, std::vector<body_holder*>& neighb)
+void 
+computeAcceleration(
+    body_holder * src, 
+    std::vector<body_holder*>& neighb)
 {
   body * srcb = src->getBody();
   assert(srcb!=nullptr);
   point_t acc = {0};
   double dudt = 0;
   assert(neighb.size()!=0);
-  for(auto nb: neighb)
-  {
+  for(auto nb: neighb){
     body * nbb = nb->getBody();
     assert(nbb!=nullptr);
     
-    if(nbb->getPosition() == srcb->getPosition())
+    if(nbb->getPosition() == srcb->getPosition()){
       continue;
+    }
     
     double dist = flecsi::distance(srcb->getPosition(),nbb->getPosition());
     point_t rhat = (srcb->getPosition()-nbb->getPosition())/dist;
@@ -265,19 +292,19 @@ void computeAcceleration(body_holder * src, std::vector<body_holder*>& neighb)
   srcb->setAcceleration(acc);
 }
 
-void moveParticle(body_holder * src,std::array<point_t,2>& range)
+void 
+moveParticle(
+    body_holder * src,
+    std::array<point_t,2>& range)
 {
   body * srcb = src->getBody();
   assert(srcb!=nullptr);
-  if(srcb->getPosition()[0]>0.1
-      && srcb->getPosition()[0]<0.9){
+  if(srcb->getPosition()[0]>0.1 && srcb->getPosition()[0]<0.9){
     srcb->setPosition(srcb->getPosition()+srcb->getVelocity()*kDt);
     srcb->setVelocity(srcb->getVelocity()+srcb->getAcceleration()*kDt);
     srcb->setInternalenergy(srcb->getInternalenergy()+srcb->getDudt()*kDt);
   }
-
 }
-
 }// namespace sodtube
 
 

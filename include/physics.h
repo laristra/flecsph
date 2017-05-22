@@ -18,8 +18,8 @@
  * @brief Physics needed for the BNS implementation 
  */
 
-#ifndef PHYSICS_H
-#define PHYSICS_H 
+#ifndef physics_h
+#define physics_h
 
 #include <vector>
 
@@ -37,20 +37,56 @@ const double kCoeffDt = 0.1;
 
 
 // Utils functions
-double kernel(double, double);
-double mu(body*, body*);
+double 
+kernel(
+    double, 
+    double);
+
+double 
+mu(
+    body*, 
+    body*);
 
 // Main functions
-void computeDensity(body_holder*, std::vector<body_holder*>&);
-void computeSoundspeed(body_holder*);
-void computePressure(body_holder*);
-void computeHydro(body_holder*, std::vector<body_holder*>&);
-void computeAcceleration(body_holder*,double);
-void computeGrav(body_holder*,std::vector<body_holder*>&);
-void moveBody(body_holder*,double);
-double computeDt(body_holder*,std::vector<body_holder*>&);
+void 
+computeDensity(
+    body_holder*, 
+    std::vector<body_holder*>&);
+
+void 
+computeSoundspeed(
+    body_holder*);
+
+void 
+computePressure(
+    body_holder*);
+
+void 
+computeHydro(
+    body_holder*, 
+    std::vector<body_holder*>&);
+
+void 
+computeAcceleration(
+    body_holder*,
+    double);
+
+void 
+computeGrav(
+    body_holder*,
+    std::vector<body_holder*>&);
+
+void 
+moveBody(
+    body_holder*,
+    double);
+
+double 
+computeDt(
+    body_holder*,
+    std::vector<body_holder*>&);
 
 } // namespace
 
-#endif // PHYSICS_H 
+#endif // physics_h 
 

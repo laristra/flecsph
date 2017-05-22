@@ -18,16 +18,14 @@
  * @brief Representation of a body, a particle for our SPH implementation 
  */
 
-#ifndef BODY_H
-#define BODY_H
+#ifndef body_h
+#define body_h
 
 #include "flecsi/topology/tree_topology.h"
 #include "flecsi/geometry/point.h"
 #include "flecsi/geometry/space_vector.h"
 
 #include "user.h"
-
-
 
 class body{
 
@@ -125,5 +123,5 @@ private:
   point_t hydroforce_;
 }; // class body 
   
-#endif // BODY_H
+#endif // body_h
 

@@ -318,8 +318,8 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
     //else 
     //  assert(recv_COM.size()==0);
 
-    double macangle= M_PI/3.0;
-    double mcell = 1.0e-3;
+    double macangle = M_PI/10000.0;
+    double mcell = 1.0e-10;
     //int totaladded = 0.0;
     //auto vecents = tree.entities().to_vec();
     // Compute Gravity 

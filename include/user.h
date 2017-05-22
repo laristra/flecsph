@@ -36,5 +36,5 @@ static const size_t gdimension = 1;
 using type_t = double; 
 #endif
 
-#endif
+#endif // user_h
 

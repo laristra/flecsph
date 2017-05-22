@@ -18,8 +18,8 @@
  * @brief Simple implementation for Input Output for serial and distributed 
  */
 
-#ifndef IO_H
-#define IO_H 
+#ifndef io_h
+#define io_h 
 
 #include <cstdlib>
 #include <iostream>
@@ -30,14 +30,39 @@
 #include "tree.h"
 
 namespace io{
-  void inputDataTxt(std::vector<body*>&, const char *, tree_topology_t&); 
-  void inputDataHDF5(std::vector<body*>&, const char *, tree_topology_t&); 
-  void inputDataTxtRange(std::vector<std::pair<entity_key_t,body>>&,
-      int&,int&,int,int,const char *);
+  
+  void 
+  inputDataTxt(
+      std::vector<body*>&, 
+      const char *, 
+      tree_topology_t&); 
 
-  void outputDataTxt(); 
-  void outputDataHDF5(std::vector<body*>&,const char*, int, double); 
+  void 
+  inputDataHDF5(
+      std::vector<body*>&, 
+      const char *, 
+      tree_topology_t&); 
+
+  void 
+  inputDataTxtRange(
+      std::vector<std::pair<entity_key_t,body>>&,
+      int&,
+      int&,
+      int,
+      int,
+      const char *);
+
+  void 
+  outputDataTxt();
+
+  void 
+  outputDataHDF5(
+      std::vector<body*>&,
+      const char*, 
+      int, 
+      double); 
+
 } // namespace io
 
-#endif // IO_H
+#endif // io_h
 
