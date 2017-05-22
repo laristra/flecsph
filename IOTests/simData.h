@@ -1,19 +1,26 @@
-#ifndef _SIM_IO_H_
-#define _SIM_IO_H_
+#ifndef _SIM_DATA_H_
+#define _SIM_DATA_H_
 
 #include <string>
 #include <vector>
 
-//#include "field.h"
-//#include "octree.h"
-//#include "cellSet.h"
+#include "field.h"
+#include "octree.h"
+#include "cellSet.h"
 
 namespace Flecsi_Sim_IO
 {
 
+enum FieldType
+{ 
+	point          = 0,
+	cellCentered   = 1,
+	vertexCentered = 2,
+	faceCentered   = 3,
+	other		   = 4	
+};
 
-//
-// Enums
+
 enum VariableType
 { 
 	point               = 0,
@@ -23,19 +30,12 @@ enum VariableType
 };
 
 
-enum OutputType
-{
-	structuredGrid 	 = 0,
-	unStructuredGrid = 1
-};
-
 
 enum TreeType
 {
 	octree = 0,
 	kdtree = 1
 };
-
 
 enum Endianness
 {
@@ -44,7 +44,15 @@ enum Endianness
 };
 
 
+struct dataOrganization
+{	
+	bool available;
+	TreeType type;
+	void *data;
 
+	dataOrganization(){ data=NULL; }
+	~dataOrganization(){ }
+};
 
 
 struct Variable
@@ -71,40 +79,107 @@ struct Variable
 		else if ( dataType == "uint32_t")	delete [] (uint32_t *) data;
 		else if ( dataType == "uint64_t")	delete [] (uint64_t *) data;
 		else { }
+		
 	}
 };
 
 
+struct TimeStep
+{
+	std::vector<Variable> vars;
+	int timestep;
+	double timeStamp;
+};
 
+
+
+
+/*
 class SimIO
 {
   public:  
 	std::string outputFileName;
 	Endianness endian;
 
-	OutputType datasetType;
 	int numDims;					// 1 or 2 or 3 ...
 
 	std::vector<int> gridDims;		// Size of each dimension
 	std::vector<double> extents;	// (min, max) pair for each dimension
 
-	std::vector<Variable> vars;
+	std::vector<TimeStep> timeVariables;
+	dataOrganization layout;		// storing the organization as just one of the variables
 
   public:
   	SimIO(){ endian = little; }
 	SimIO(std::string _outputFileName):outputFileName(_outputFileName){ endian = little; }
-	~SimIO(){};
+	~SimIO();
 
 	void setFilename(std::string _name){ outputFileName = _name; }
 	void setEndianness(Endianness _en){ endian = _en; }
+	void setLayout(dataOrganization _layout){ layout = _layout; }
 
 
 	virtual int createDataset() = 0;
+	virtual int writeGridData(int _timeStep) = 0;
+	virtual int writePointData(int _timeStep) = 0;
+};
+*/
 
-	virtual int writeGridData() = 0;
-	virtual int writePointData() = 0;
+
+
+
+class Field
+{
+  public:
+	std::string name;		// name of field; e.g pressure, temperature
+	std::string dataType;	// datatype: int, char, float, ...
+	FieldType association;	// cell-centered, face-centered, ...
+	size_t numElements;		// # elements
+
+	void *data;				// the actual data
+
+  public:
+  	Field(){};
+  	Field(std::string _name):name(_name){}
+  	~Field(){};
+
+  	void setName(std::string _name){ name=_name; }
+  	void setDataype(std::string _dataType){ dataType=_dataType; }
+  	void setNumElements(size_t _numElements){ numElements=_numElements; }
+  	void setAssociation(FieldType _association){ association = _association; }
 };
 
+
+
+
+class Coord
+{
+	std::string fieldName;
+
+  public:
+  	Coord();
+  	~Coord();
+};
+
+
+class SimIO
+{
+	std::string outputFileName;
+	Endianness endian;
+	int numDims;			// 1 or 2 or 3 ...
+
+	std::vector<Field> variables;
+	
+};
+
+
+inline SimIO::~SimIO()
+{
+	for (int i=0; i<timeVariables.size(); i++)
+	{
+
+	}
+}
 
 } // end Flecsi_Sim_IO namespace
 

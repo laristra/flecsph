@@ -5,11 +5,10 @@
 int main(int argc, char * argv[])
 {
 
-	/*
+ 	#if 1
 	//
 	// Point data test
-	Flecsi_Sim_IO::HDF5SimIO testDataSet( argv[1] );
-
+	
 
 	// Some variables
 	float *_x_data = new float[16];
@@ -59,26 +58,28 @@ int main(int argc, char * argv[])
 	_pressure.dataType = "double";
 	_pressure.data = _pressure_data;
 
+	//
+	// Create hdf5
+	Flecsi_Sim_IO::HDF5SimIO testDataSet( argv[1] );
 
-	Flecsi_Sim_IO::TimeStep testTs;
-	testTs.timestep = 0;
-	testTs.timeStamp = 0.125;
-	testTs.vars.push_back(_x);
-	testTs.vars.push_back(_y);
-	testTs.vars.push_back(_z);
-	testTs.vars.push_back(_pressure);
-
-	testDataSet.timeVariables.push_back(testTs);
 	testDataSet.createDataset();
-	testDataSet.writePointData(0);
-	*/
 
-	
+	testDataSet.numDims = 3;
+	testDataSet.datasetType = Flecsi_Sim_IO::structuredGrid;
+
+	testDataSet.vars.push_back(_x);
+	testDataSet.vars.push_back(_y);
+	testDataSet.vars.push_back(_z);
+	testDataSet.vars.push_back(_pressure);
+
+	testDataSet.writePointData();
+
+  #else
 	// 
 	// Grid data test
-	Flecsi_Sim_IO::HDF5SimIO testDataSet( argv[1] );
 	
-
+	//
+	// Create data
 	double *pressureData = new double[4*2*2];
 
 	pressureData[0] = 10.0;		pressureData[1] = 20.0;		pressureData[2] = 30.0; 	pressureData[3] = 40.0;
@@ -89,23 +90,30 @@ int main(int argc, char * argv[])
 
 	Flecsi_Sim_IO::Variable testScalar;
 	testScalar.name = "pressure";
-	testScalar.numDims = 3;
-	testScalar.gridDims.push_back(4);
-	testScalar.gridDims.push_back(2);
-	testScalar.gridDims.push_back(2);
 	testScalar.varType = Flecsi_Sim_IO::grid_cellCentered;
 	testScalar.dataType = "double";
 	testScalar.data = pressureData;
 
-	Flecsi_Sim_IO::TimeStep testTs;
-	testTs.timestep = 0;
-	testTs.timeStamp = 0.125;
-	testTs.vars.push_back(testScalar);
 
-	testDataSet.timeVariables.push_back(testTs);
+	//
+	// Create hdf5
+	Flecsi_Sim_IO::HDF5SimIO testDataSet( argv[1] );
+
 	testDataSet.createDataset();
-	testDataSet.writeGridData(0);
+	testDataSet.vars.push_back(testScalar);
 	
+	testDataSet.datasetType = structuredGrid;
+	testDataSet.numDims = 3;
+	testDataSet.gridDims.push_back(4);
+	testDataSet.gridDims.push_back(2);
+	testDataSet.gridDims.push_back(2);
+
+	testDataSet.writeGridData();
+  #endif
 
 	return 0;
 }
+
+
+// Run:
+// ./hdf5Test gridTest.h5

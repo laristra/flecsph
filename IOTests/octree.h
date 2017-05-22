@@ -1,9 +1,11 @@
-#ifndef _Z_ORDER_OCTREE_H_
-#define _Z_ORDER_OCTREE_H_
+#ifndef _OCTREE_H_
+#define _OCTREE_H_
 
 #include <vector>
 #include <list>
 #include <iostream>
+
+#include "simIO.h"
 
 //
 // Octree Encoding:
@@ -34,7 +36,7 @@
 // 0:left  1:right  2:bottom  3:top  4:front  5:back
 
 
-enum direction{LEFT=0, RIGHT=1, BOTTOM=2, TOP=3, FRONT=4, BACK=5};
+
 
 
 std::string toBinary(int num)
@@ -74,6 +76,7 @@ class Octree
 
   public:
   	static const int BIT_STRING_SIZE = 3;
+  	enum direction{LEFT=0, RIGHT=1, BOTTOM=2, TOP=3, FRONT=4, BACK=5};
 
   	Octree(){  node.clear(); maxLevel=0; }
   	~Octree(){ node.clear(); maxLevel=0; }

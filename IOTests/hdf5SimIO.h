@@ -31,8 +31,8 @@ class HDF5SimIO: public SimIO
     hid_t getHDF5Datatype(std::string _datatypeName);
 
     int createDataset();
-    int writeGridData(int _timeStep);
-    int writePointData(int _timeStep);
+    int writeGridData();
+    int writePointData();
 };
 
 
@@ -69,33 +69,32 @@ inline int HDF5SimIO::createDataset()
 
 
 
-inline int HDF5SimIO::writeGridData(int _timeStep)
+inline int HDF5SimIO::writeGridData()
 {
 	hid_t  dataFile;    
     dataFile = H5Fopen(outputFileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
 
-    for (int i=0; i<(timeVariables[_timeStep]).vars.size(); i++)
+    for (int i=0; i<vars.size(); i++)
     {
-    	if ( ((timeVariables[_timeStep]).vars[i]).varType == grid_cellCentered )
+    	if ( vars[i].varType == grid_cellCentered )
     	{
             hid_t  dataset, datatype;
             herr_t status;
 
-            std::string _varname  = ((timeVariables[_timeStep]).vars[i]).name;
+            std::string _varname  = vars[i].name;
 
-    		int _numDims          = ((timeVariables[_timeStep]).vars[i]).numDims;
+    		int _numDims  = numDims;
     		hsize_t *dims = new hsize_t[_numDims];
             for (int j=0; j<_numDims; j++)
-                dims[j]=((timeVariables[_timeStep]).vars[i]).gridDims[j];
+                dims[j]=gridDims[j];
 
-    		datatype = getHDF5Datatype( ((timeVariables[_timeStep]).vars[i]).dataType );
+    		datatype = getHDF5Datatype( vars[i].dataType );
     		status   = H5Tset_order(datatype, endian==little?H5T_ORDER_LE:H5T_ORDER_BE);
 
 
             hid_t dataspace = H5Screate_simple(_numDims, dims, NULL);
     		dataset = H5Dcreate(dataFile, _varname.c_str(), datatype, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    		status  = H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, ((timeVariables[_timeStep]).vars[i]).data);
-
+    		status  = H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, vars[i].data);
 
             //
             // Clean up
@@ -112,37 +111,28 @@ inline int HDF5SimIO::writeGridData(int _timeStep)
 }
 
 
-inline int HDF5SimIO::writePointData(int _timeStep)
+inline int HDF5SimIO::writePointData()
 {
     hid_t  dataFile;    
     dataFile = H5Fopen(outputFileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
 
-    for (int i=0; i<(timeVariables[_timeStep]).vars.size(); i++)
+    for (int i=0; i<vars.size(); i++)
     {
-        if ( ((timeVariables[_timeStep]).vars[i]).varType == grid_cellCentered )
+        if ( vars[i].varType == point )
         {
             hid_t  dataset, datatype;
             herr_t status;
 
-            std::string _varname  = ((timeVariables[_timeStep]).vars[i]).name;
+            std::string _varname  = vars[i].name;
+            int _numDims          = numDims;
 
-            int _numDims          = ((timeVariables[_timeStep]).vars[i]).numDims;
-            hsize_t *dims = new hsize_t[_numDims];
-            for (int j=0; j<_numDims; j++)
-                dims[j]=((timeVariables[_timeStep]).vars[i]).gridDims[j];
-
-            datatype = getHDF5Datatype( ((timeVariables[_timeStep]).vars[i]).dataType );
+            datatype = getHDF5Datatype( vars[i].dataType );
             status   = H5Tset_order(datatype, endian==little?H5T_ORDER_LE:H5T_ORDER_BE);
 
 
-            hid_t dataspace = H5Screate_simple(_numDims, dims, NULL);
+            hid_t dataspace = H5Screate(H5S_SIMPLE);
             dataset = H5Dcreate(dataFile, _varname.c_str(), datatype, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-            status  = H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, ((timeVariables[_timeStep]).vars[i]).data);
-
-
-            //
-            // Clean up
-            delete []dims;
+            status  = H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, vars[i].data);
 
             H5Sclose(dataspace);
             H5Tclose(datatype);
@@ -151,6 +141,7 @@ inline int HDF5SimIO::writePointData(int _timeStep)
     }
 
     H5Fclose(dataFile);
+    
     return 0;
 }
 
