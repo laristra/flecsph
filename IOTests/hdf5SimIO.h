@@ -130,7 +130,7 @@ inline int HDF5SimIO::writePointData()
             status   = H5Tset_order(datatype, endian==little?H5T_ORDER_LE:H5T_ORDER_BE);
 
 
-            hid_t dataspace = H5Screate(H5S_SIMPLE);
+            hid_t dataspace = H5Screate(H5S_SCALAR);
             dataset = H5Dcreate(dataFile, _varname.c_str(), datatype, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
             status  = H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, vars[i].data);
 
