@@ -109,7 +109,7 @@ randomDataSodTube1D(
   double velocity = 0.0;
   double internalenergy = 2.5;
   double density = 1;
-  point_t acceleration = {0};
+  point_t acceleration = {};
   double mass = 2.65e-3;
   double smoothinglength = 1.0e-2;
   for(int i=0;i<nbodies;++i){
@@ -120,11 +120,11 @@ randomDataSodTube1D(
       density = 0.125;
       mass = 3.3125e-4;
     }
-    bi.setPosition(point_t{position});
+    bi.setPosition(point_t{position,0,0});
     bi.setDensity(density);
     bi.setInternalenergy(internalenergy);
     bi.setMass(mass);
-    bi.setVelocity(point_t{velocity});
+    bi.setVelocity(point_t{velocity,0,0});
     bi.setSmoothinglength(smoothinglength);
     bi.setAcceleration(acceleration);
     // Positions between [procstart;procstop[
@@ -267,14 +267,14 @@ computeAcceleration(
 {
   body * srcb = src->getBody();
   assert(srcb!=nullptr);
-  point_t acc = {0};
+  point_t acc = {0,0,0};
   double dudt = 0;
   assert(neighb.size()!=0);
   for(auto nb: neighb){
     body * nbb = nb->getBody();
     assert(nbb!=nullptr);
     
-    if(nbb->getPosition() == srcb->getPosition()){
+    if(nbb-> getPosition() == srcb->getPosition()){
       continue;
     }
     
@@ -296,7 +296,7 @@ void
 moveParticle(
     body_holder * src,
     std::array<point_t,2>& range)
-{
+{ 
   body * srcb = src->getBody();
   assert(srcb!=nullptr);
   if(srcb->getPosition()[0]>0.1 && srcb->getPosition()[0]<0.9){
