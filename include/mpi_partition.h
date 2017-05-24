@@ -33,6 +33,22 @@ operator<<(
     const entity_key_t& id
 );
 
+struct mpi_cell{
+  point_t position;
+  point_t fc;
+  double dfcdr[9];
+  double dfcdrdr[27];
+  double radius;
+  branch_id_t id;
+
+  mpi_cell(point_t position_,double radius_, branch_id_t id_){
+    position = position_;  
+    id = id_;
+    radius = radius_;
+  }
+  mpi_cell(){};
+};
+
 struct mpi_ghosts_t{
   std::vector<body> sendbodies;
   std::vector<int> nsendholders;
@@ -43,6 +59,32 @@ struct mpi_ghosts_t{
   std::vector<body_holder*> totalrecvholders;
   std::vector<std::set<body_holder*>> sendholders;
 };
+
+void
+mpi_gather_ghosts_com(
+    tree_topology_t&,
+    std::vector<mpi_cell>&,
+    std::vector<int>&,
+    std::array<point_t,2>&);
+
+void 
+mpi_gather_cells(
+    tree_topology_t&,
+    std::vector<mpi_cell> &,
+    std::vector<int>&);
+
+void 
+mpi_compute_fmm(
+    tree_topology_t&,
+    std::vector<mpi_cell>&,
+    double);
+
+void 
+mpi_exchange_cells(
+    tree_topology_t&, 
+    std::vector<mpi_cell>&,
+    std::vector<int>&,
+    double);
 
 void 
 mpi_compute_range(

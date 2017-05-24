@@ -117,6 +117,318 @@ operator*(
   return r;
 }
 
+
+void
+mpi_exchange_cells(
+    tree_topology_t& tree,
+    std::vector<mpi_cell>& recvcells,
+    std::vector<int>& nrecvcells,
+    double maxMass)
+{
+  int rank,size; 
+  MPI_Comm_size(MPI_COMM_WORLD,&size);
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  // Find in the radius in the tree each of the COM that will be concerned by
+  // the FMM method 
+  std::vector<mpi_cell> vcells;
+
+  // Perform a tree traversal to gather the cells  
+  std::function<void(branch_t*)>traverse;
+  traverse = [&tree,&traverse,&vcells,&maxMass](branch_t * b)
+  {
+    if(b->getMass() <= 0.0)
+      return;
+    if(b->is_leaf() || b->getMass() < maxMass)
+    {
+      vcells.push_back(mpi_cell(b->getPosition(),b->getRadius(),b->id()));
+    }else{
+      for(int i=0;i<(1<<gdimension);++i)
+        traverse(tree.child(b,i));
+    }
+  };
+  traverse(tree.root());
+
+  // Gather the number of cells from everyone 
+  nrecvcells.resize(size);
+  std::vector<int> noffsets(size);
+  nrecvcells[rank] = vcells.size();
+  MPI_Allgather(&nrecvcells[rank],1,MPI_INT,&nrecvcells[0],1,
+      MPI_INT,MPI_COMM_WORLD);
+ 
+  /*if(rank==0)
+  {
+    std::cout<<std::endl<<"send COM: "<<std::endl;
+    for(int i=0;i<size;++i)
+      std::cout<<i<<": "<<nrecvcells[i]<<std::endl;
+  }*/
+
+  int totalrecv = 0;
+  noffsets[0] = 0;
+  for(int i=0;i<size;++i){
+    totalrecv += nrecvcells[i];
+    nrecvcells[i]*=sizeof(mpi_cell);
+    if(i<size-1)
+      noffsets[i+1] += nrecvcells[i]+noffsets[i];
+  }
+
+  recvcells.resize(totalrecv);
+  MPI_Allgatherv(&vcells[0],nrecvcells[rank],MPI_BYTE,
+      &recvcells[0],&nrecvcells[0],&noffsets[0],MPI_BYTE,MPI_COMM_WORLD);
+
+  for(size_t i=0;i<vcells.size();++i){
+    assert(vcells[i].position == 
+        recvcells[i+noffsets[rank]/sizeof(mpi_cell)].position);
+  }
+  //std::cout<<rank<<": recv="<<recvcells.size()<<std::endl;
+}
+
+void
+mpi_compute_fmm(
+    tree_topology_t& tree,
+    std::vector<mpi_cell>& vcells,
+    double macangle)
+{
+    for(auto &cell: vcells){
+      branch_t sink;
+      sink.setPosition(cell.position);
+      sink.setRadius(cell.radius);
+      memset(&cell.fc,0,sizeof(point_t));
+      memset(cell.dfcdr,0,sizeof(double)*9);
+      memset(cell.dfcdrdr,0,sizeof(double)*27);
+      // Do the tree traversal, compute the cells data
+      tree_traversal_c2c(tree,&sink,tree.root(),
+          cell.fc,cell.dfcdr,cell.dfcdrdr,
+          macangle);
+    }
+}
+
+
+void 
+mpi_gather_ghosts_com(
+    tree_topology_t& tree,
+    std::vector<mpi_cell>& vcells,
+    std::vector<int>& nsend,
+    std::array<point_t,2>& range)
+{
+  int rank, size; 
+  MPI_Comm_size(MPI_COMM_WORLD,&size);
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+
+  std::vector<body_holder> sendbh; 
+  std::vector<int> nsendbh(size);
+  std::vector<int> soffsets(size);
+  std::vector<int> nrecvbh(size);
+  std::vector<int> roffsets(size);
+
+  nsendbh[rank] =0;
+  int position = 0;
+
+  // Go through all the particles but ignore the particles on this process
+  for(int i=0;i<size;++i){
+    int ncells = nsend[i]/sizeof(mpi_cell);
+    if(i!=rank){
+      for(int j=0;j<ncells;++j){
+        auto ents = tree.find_in_radius(vcells[position].position,
+            vcells[position].radius);
+        auto vecents = ents.to_vec();
+        // Just add the ones that are local 
+        for(auto bi: vecents){
+          if(bi->is_local()){
+            nsendbh[i]++;
+            sendbh.push_back(body_holder(bi->getPosition(),
+                  nullptr,rank,bi->getMass()));
+          }
+        }
+        position++;
+      }
+    }else{
+      position+=ncells;
+    }
+  }
+
+  std::vector<body_holder>::iterator iter = sendbh.begin();
+  // Do a sort and unique per interval 
+  for(int i=0;i<size;++i){
+    if(i==rank){
+      assert(nsendbh[i]==0);
+      continue;
+    }
+    // First sort 
+    std::sort(iter,iter+nsendbh[i],
+        [&range](auto& left, auto &right)
+      {
+        return entity_key_t(range,left.getPosition()) <
+          entity_key_t(range,right.getPosition());
+      });
+    auto last = std::unique(iter,iter+nsendbh[i],
+      [&range](auto& left, auto& right){
+        return entity_key_t(range,left.getPosition())
+          == entity_key_t(range,right.getPosition());
+      });
+    int eraselements = std::distance(last,iter+nsendbh[i]);
+    sendbh.erase(last,iter+nsendbh[i]);
+    // Change the number of elements 
+    nsendbh[i] -= eraselements;
+    iter = last;
+  }
+
+  // Gather the send in recv 
+  MPI_Alltoall(&nsendbh[0],1,MPI_INT,&nrecvbh[0],1,MPI_INT,MPI_COMM_WORLD);
+
+  int totalrecv = 0;
+  // Generate the offsets 
+  for(int i=0;i<size;++i){
+    totalrecv+= nrecvbh[i];
+
+    nsendbh[i]*=sizeof(body_holder);
+    nrecvbh[i]*=sizeof(body_holder);
+    if(i>1){
+      soffsets[i] = soffsets[i-1]+nsendbh[i-1];
+      roffsets[i] = roffsets[i-1]+nrecvbh[i-1];
+    }
+  }
+
+  std::vector<body_holder> recvbh(totalrecv);
+  MPI_Alltoallv(&sendbh[0],&nsendbh[0],&soffsets[0],MPI_BYTE,
+      &recvbh[0],&nrecvbh[0],&roffsets[0],MPI_BYTE,MPI_COMM_WORLD);
+
+  std::cout<<rank<<": gathered="<<recvbh.size()<<std::endl;
+
+  // Sort base on keys 
+  std::sort(recvbh.begin(),recvbh.end(),
+      [&range](auto& left, auto &right)
+      {
+        return entity_key_t(range,left.getPosition()) <
+          entity_key_t(range,right.getPosition());
+      });
+
+  // Unique the vector based on position and then add this comtribution
+  recvbh.erase(std::unique(recvbh.begin(),recvbh.end(),
+      [&range](auto& left, auto& right){
+        return entity_key_t(range,left.getPosition())
+          == entity_key_t(range,right.getPosition());
+      }),recvbh.end());
+
+  std::cout<<rank<<": gathered unique ="<<recvbh.size()<<std::endl;
+
+  // Create a local tree 
+  tree_topology_t localtree(range[0],range[1]);
+  // Add in the tree 
+  for(auto bi: recvbh){
+    auto nbi = localtree.make_entity(bi.getPosition(),nullptr,bi.getOwner(),
+        bi.getMass());
+    localtree.insert(nbi);
+  }
+
+  int ncells = nsend[rank]/sizeof(mpi_cell);
+  for(int i=0;i<ncells;++i){
+    auto subents = localtree.find_in_radius(vcells[i].position,
+        vcells[i].radius);
+    auto subentsapply = tree.find_in_radius(vcells[i].position,
+        vcells[i].radius);
+    auto subvec = subents.to_vec();
+    auto subvecapply = subentsapply.to_vec();
+    for(auto bi: subvecapply)
+    { 
+      if(bi->is_local()){
+        point_t grav = bi->getBody()->getGravForce();
+        for(auto nb: subvec)
+        { 
+          double dist = flecsi::distance(bi->getPosition(),nb->getPosition());
+          if(dist>0.0)
+          { 
+            grav += - nb->getMass()/(dist*dist*dist)*
+              (bi->getPosition()-nb->getPosition());
+          }
+        }
+        bi->getBody()->setGravForce(grav);
+      }
+    }
+  }
+}
+
+void 
+mpi_gather_cells(
+    tree_topology_t& tree,
+    std::vector<mpi_cell>& vcells,
+    std::vector<int>& nsend)
+{
+  int rank,size; 
+  MPI_Comm_size(MPI_COMM_WORLD,&size);
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  
+  int totalrecv = nsend[rank]*size;
+  int ncells = nsend[rank]/sizeof(mpi_cell);
+
+  std::vector<int> nrecv(size);
+  std::vector<int> noffsets(size);
+  std::vector<int> soffsets(size);
+  noffsets[0] = 0;
+  soffsets[0] = 0;
+  std::fill(nrecv.begin(),nrecv.end(),nsend[rank]);
+  for(int i=1;i<size;++i){
+    soffsets[i] = soffsets[i-1]+nsend[i-1]; 
+    noffsets[i] = noffsets[i-1]+nsend[rank];
+  }
+
+  std::vector<mpi_cell> recvcells(ncells*size);
+  MPI_Alltoallv(&vcells[0],&nsend[0],&soffsets[0],MPI_BYTE,
+      &recvcells[0],&nrecv[0],&noffsets[0],MPI_BYTE,MPI_COMM_WORLD);
+
+  assert((int)recvcells.size()==ncells*size);
+  //std::cout<<rank<<": receiv total="<<recvcells.size()<<std::endl;
+  //MPI_Barrier(MPI_COMM_WORLD);
+
+  // Reduce the sum on the COM 
+  // They are in the same order from all the others 
+  for(int i=1;i<size;++i){
+    for(int j=0;j<ncells;++j){
+      assert(recvcells[j].position ==  recvcells[i*ncells+j].position );
+      assert(recvcells[j].id == recvcells[i*ncells+j].id);
+      recvcells[j].fc += recvcells[i*ncells+j].fc;
+      for(int k=0;k<27;++k){
+        if(k<9){
+          recvcells[j].dfcdr[k] += recvcells[i*ncells+j].dfcdr[k];
+        }
+        recvcells[j].dfcdrdr[k] += recvcells[i*ncells+j].dfcdrdr[k];
+      } 
+    }
+  }
+
+  //std::cout<<rank<<": updated"<<std::endl;
+  //MPI_Barrier(MPI_COMM_WORLD);
+  
+  int nbody = 0;
+  // Propagate in the particles from sink 
+  for(int i=0;i<ncells;++i){
+    std::vector<body*> subparts;
+    // Find the branch in the local tree with the id
+    branch_t * sink =  tree.get(recvcells[i].id);
+    assert(sink!=nullptr);
+    point_t pos = sink->getPosition();
+    sink_traversal_c2p(tree,sink,pos,
+        recvcells[i].fc,recvcells[i].dfcdr,recvcells[i].dfcdrdr,
+        subparts,nbody);
+    // Also apply the subcells
+    for(auto bi: subparts)
+    { 
+      point_t grav = bi->getGravForce();
+      for(auto nb: subparts)
+      { 
+        double dist = flecsi::distance(bi->getPosition(),nb->getPosition());
+        if(dist>0.0)
+        { 
+          grav += - nb->getMass()/(dist*dist*dist)*
+            (bi->getPosition()-nb->getPosition());
+        }
+      }
+      bi->setGravForce(grav);
+    }
+  }
+  //std::cout<<rank<<": computed"<<std::endl;
+  //MPI_Barrier(MPI_COMM_WORLD);
+}
+
 void 
 computeAcceleration(
     point_t sinkPosition,
@@ -130,7 +442,7 @@ computeAcceleration(
 {
   double dist = flecsi::distance(sinkPosition,sourcePosition);
   assert(dist > 0.0);
-  point_t diffPos = sinkPosition - sourcePosition;
+  point_t diffPos =  sinkPosition - sourcePosition;
   fc +=  - sourceMass/(dist*dist*dist)*(diffPos);
   //std::cout<<fc<<std::endl;
   //dfc += - sourceMass/(dist*dist*dist)*(1-3/(dist*dist))*
@@ -204,11 +516,20 @@ tree_traversal_c2c(
     double* hessian,
     double& macangle)
 {
-  // Do not consider the cell itself 
+
+  // Do not consider the cell itself, or just inside its radius
   if(source->getPosition()==sink->getPosition())
+    return; 
+  double dist = flecsi::distance(source->getPosition(),sink->getPosition());
+  // If the cell is inside me, do not consider it
+  if(dist+source->getRadius()<=sink->getRadius())
       return;
-  if(MAC(sink,source,macangle))
+  if(source->getMass()<=0.0)
+    return;
+  if(/*dist > sink->getRadius() + source->getRadius() &&*/
+      MAC(sink,source,macangle))
   {
+    //std::cout<<"Accepted MAC"<<std::endl;
     computeAcceleration(sink->getPosition(),source->getPosition(),
       source->getMass(),fc,jacobi,hessian);
   }else
@@ -217,7 +538,10 @@ tree_traversal_c2c(
     {
       for(auto bi: *source)
       {
-        if(sink->getPosition() != bi->getPosition())
+        /*double distbi = flecsi::distance(bi->getPosition(),
+            sink->getPosition());
+        if(bi->is_local() && distbi > sink->getRadius())*/
+        if(bi->is_local()&&sink->getPosition()!=bi->getPosition())
           computeAcceleration(sink->getPosition(),bi->getPosition(),
             bi->getMass(),fc,jacobi,hessian);
       }
@@ -243,9 +567,13 @@ sink_traversal_c2p(
     int& nbody
     )
 {
+  if(b->getMass() <= 0.0)
+    return;
   if(b->is_leaf()){
     // Apply the expansion on the bodies
     for(auto bi: *b){
+      if(!bi->is_local())
+        continue;
       //point_t diffPos = sinkPosition-bi->getPosition();
       point_t diffPos = bi->getPosition() - sinkPosition;
       point_t grav = fc;
@@ -348,6 +676,7 @@ void tree_traversal_com(tree_topology_t& tree)
       {
         // Only for local particles 
         if(child->is_local()){
+          assert(child->getMass()>0.0);
           com += child->getMass()*child->getPosition();
           mass += child->getMass();
         }
@@ -358,8 +687,7 @@ void tree_traversal_com(tree_topology_t& tree)
         assert(mass > 0.0);
         // Compute the radius 
         // TODO handle the circle with the smoothing length
-        for(auto child: *b)
-        {
+        for(auto child: *b){
           if(child->is_local()){
             radius = std::max(radius,flecsi::distance(com,
               child->getPosition()+child->getBody()->getSmoothinglength()*2.));
@@ -373,32 +701,31 @@ void tree_traversal_com(tree_topology_t& tree)
       {
         auto branch = tree.child(b,i);
         traverse(branch);
-        if(branch->getMass()!=0)
-        {
-          // Add this children position and coordinates
-          com += branch->getMass()*branch->getPosition();
-          mass += branch->getMass();
-        }
+        // Add this children position and coordinates
+        com += branch->getMass()*branch->getPosition();
+        mass += branch->getMass();
       }
-      com = com / mass;
-      // Compute the radius
-      for(int i=0;i<(1<<gdimension);++i)
-      {
-        auto branch = tree.child(b,i);
-        radius = std::max(radius,
+      if(mass != 0.0){
+        com = com / mass;
+        // Compute the radius
+        for(int i=0;i<(1<<gdimension);++i)
+        {
+          auto branch = tree.child(b,i);
+          radius = std::max(radius,
             flecsi::distance(com,branch->getPosition())+branch->getRadius());        
+        }
       }
     }
     b->setMass(mass);
     assert(!std::isnan(mass));
+    assert(mass>=0.0);
     b->setPosition(com);
     for(size_t i=0;i<gdimension;++i)
       assert(!std::isnan(com[i]));
     b->setRadius(radius);
     assert(!std::isnan(radius));
-    //std::cout<<com<<";"<<mass<<std::endl;
-
   };
+
   traverse(tree.root());
 }
 
@@ -1078,6 +1405,9 @@ mpi_compute_ghosts(
   if(rank==0)
     std::cout<<".done"<<std::endl;
 }
+
+/*~--------------------------------------------------------------------------~*/
+/*                            OLD FUNCTION VERSIONS                           */ 
 
 #if 0
 bool 

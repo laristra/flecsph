@@ -81,18 +81,21 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
   // TODO find a way to use the file name from the specialiszation_driver
   //std::cout<<sfilename<<std::endl;
   const char * filename = "../data/data_bns_4169.txt";
-
-  int rank; 
-  int size; 
+  //const char * filename = "../data/data_binary_rdy_16288.txt";
+  
+  int rank;
+  int size;
   MPI_Comm_size(MPI_COMM_WORLD,&size);
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank); 
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   
   int nbodies = 0;
   int totaliters = 100000;
   int iteroutput = 10;
   int totalnbodies = 0;
   double totaltime = 0.0;
-  double maxtime = 2.0;
+  double maxtime = 10.0;
+  double macangle = 0.5;
+  double mcell = 1.0e-6;
   std::vector<std::pair<entity_key_t,body>> rbodies;
   std::array<point_t,2> range;
   std::vector<std::pair<entity_key_t,entity_key_t>> rangeproc;
@@ -301,45 +304,31 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
 
     if(size==1)
       assert(tree.entities().size() == (size_t)totalnbodies);
-    // Compute and exchange the aggregate 
-    //mpi_gather_com(tree,range,rangeproc,recv_COM);
-    //mpi_gather_com_positions(tree,range,rangeposproc,recv_COM);
-    // TODO change make a vector of pointers 
-    //std::vector<body_holder*> recv_COM_ptr;
-
-    //for(auto bi: recv_COM)
-    //{
-      //std::cout<<rank<<": "<<bi<<std::endl;
-    //  recv_COM_ptr.push_back(&bi);
-    //}
-
-    //if(size!=1)
-    //  assert(recv_COM.size()!=0);
-    //else 
-    //  assert(recv_COM.size()==0);
-
-    double macangle = M_PI/10000.0;
-    double mcell = 1.0e-10;
-    //int totaladded = 0.0;
-    //auto vecents = tree.entities().to_vec();
-    // Compute Gravity 
+    // Compute and exchange the aggregate  
     if(rank==0)
       std::cout<<"Grav"<<std::flush;
-    //for(auto bi: bodies)
-    //{
-    //  physics::computeGrav(bi,vecents);
+    
+#if 1
+    // compute the COM data
+    tree_traversal_com(tree);
+    // Gather all the COM
+    std::vector<mpi_cell> recvcells;
+    std::vector<int> nrecvcells;
+    mpi_exchange_cells(tree,recvcells,nrecvcells,mcell);
+    mpi_compute_fmm(tree,recvcells,macangle);
+    mpi_gather_cells(tree,recvcells,nrecvcells);
+    mpi_gather_ghosts_com(tree,recvcells,nrecvcells,range);
+    MPI_Barrier(MPI_COMM_WORLD);
+#else 
     int nbody = 0;
     tree_traversal_com(tree);
     tree_traversal_grav(tree,tree.root(),mcell,macangle,nbody);
     assert(nbody == totalnbodies);
-    //}
+#endif
+
     if(rank==0)
       std::cout<<".done"<<std::endl<<std::flush;
-    //std::cout<<totaladded<<std::endl;
-
-    // Reset the COM 
-    //recv_COM.clear();
-
+    
     // Compute Acceleration 
     if(rank==0)
       std::cout<<"Acceleration"<<std::flush;
