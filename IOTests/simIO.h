@@ -4,10 +4,6 @@
 #include <string>
 #include <vector>
 
-//#include "field.h"
-//#include "octree.h"
-//#include "cellSet.h"
-
 namespace Flecsi_Sim_IO
 {
 
@@ -42,8 +38,6 @@ enum Endianness
 	little  = 0,
 	big = 1
 };
-
-
 
 
 
@@ -106,9 +100,11 @@ class SimIO
 	SimIO(std::string _outputFileName):outputFileName(_outputFileName){ endian=little; }
 	~SimIO(){};
 
-	void createDataset(OutputType _datasetType, int _numVars, int _numDims){ datasetType=_datasetType;  numVars=_numVars;  numDims=_numDims; }
+	void createDataset(OutputType _datasetType, int _numVars, int _numDims)
+			{ datasetType=_datasetType;  numVars=_numVars;  numDims=_numDims; }
 	virtual int writeGridData() = 0;
 	virtual int writePointData() = 0;
+	virtual int writePointData(int ts) = 0;
 
 	void setFilename(std::string _name){ outputFileName=_name; }
 	void setEndianness(Endianness _en){ endian=_en; }

@@ -5,11 +5,10 @@
 int main(int argc, char * argv[])
 {
 
- 	#if 0
+ 	#if 1
 	//
 	// Point data test
 	
-
 	// Some variables
 	float *_x_data = new float[16];
 	float *_y_data = new float[16];
@@ -54,6 +53,7 @@ int main(int argc, char * argv[])
 	testDataSet.vars.push_back(_z);
 	testDataSet.vars.push_back(_pressure);
 
+	//testDataSet.writePointData(0);
 	testDataSet.writePointData();
 
 
