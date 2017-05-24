@@ -39,6 +39,8 @@ Here have all ON except:
 - GASnet_CONDUIT mpi
 and set a path for the CMAKE_INSTALL_PREFIX like /home/XXX/local/
 
+And
+
     % make ; make install 
 
 Then you will have to install FleCSI. 
@@ -55,7 +57,7 @@ Here add ENABLE_MPI and ENABLE_OPENMP
 Set FLECSI_RUNTIME_MODEL legion
 and set a path for CMAKE_INSTALL_PREFIX like /home/XXX/local/
 
-  % make ; make install 
+    % make ; make install 
 
 Then download and build FleCSPH.
 
