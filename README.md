@@ -19,17 +19,17 @@ The installation steps are the followings:
 
 On DARWIN load the modules: 
 
-  % module load gcc/6.2.0
-  % module load openmpi/2.0.1-gcc_6.2.0
-  % module load git/2.8.0
-  % module load cinch/cinch-utils
-  % module load cmake/3.7.1
+    % module load gcc/6.2.0
+    % module load openmpi/2.0.1-gcc_6.2.0
+    % module load git/2.8.0
+    % module load cinch/cinch-utils
+    % module load cmake/3.7.1
 
 Then install the flecsi third libraries
 
-  % git clone --recursive git@github.com:laristra/flecsi/flecsi-third-party.git
-  % mkdir build ; cd build
-  % ccmake ../
+    % git clone --recursive git@github.com:laristra/flecsi/flecsi-third-party.git
+    % mkdir build ; cd build
+    % ccmake ../
 
 Here have all ON except: 
 - ENABLE_EXODUS OFF 
@@ -39,17 +39,17 @@ Here have all ON except:
 - GASnet_CONDUIT mpi
 and set a path for the CMAKE_INSTALL_PREFIX like /home/XXX/local/
 
-  % make ; make install 
+    % make ; make install 
 
 Then you will have to install FleCSI. 
 
-  % git clone --recursive git@github.com:laristra/flecsi/flecsi.git
+    % git clone --recursive git@github.com:laristra/flecsi/flecsi.git
 
 here we need to change to the refractor branch 
 
-  % git checkout refractor 
-  % mkdir build ; cd build 
-  % ccmake ../
+    % git checkout refractor 
+    % mkdir build ; cd build 
+    % ccmake ../
 
 Here add ENABLE_MPI and ENABLE_OPENMP 
 Set FLECSI_RUNTIME_MODEL legion
