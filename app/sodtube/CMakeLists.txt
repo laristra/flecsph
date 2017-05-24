@@ -15,17 +15,17 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 #------------------------------------------------------------------------------#
 
 # MPILEGION version
-add_executable(tree_mpilegion 
+add_executable(sodtube 
   main.cc 
   main_driver.cc 
-  mpi_partition.cc
-  io.cc
+  #mpi_partition.cc
+  #io.cc
   sodtube.cc 
-  physics.cc
+  #physics.cc
   ${FleCSI_RUNTIME}/runtime_driver.cc
 )
 
-target_link_libraries(tree_mpilegion ${FleCSPH_LIBRARIES})
+target_link_libraries(sodtube ${FleCSPH_LIBRARIES} mpisph)
 
 add_definitions(-DFLECSI_ENABLE_SPECIALIZATION_DRIVER)
 add_definitions(-DFLECSI_OVERRIDE_DEFAULT_SPECIALIZATION_DRIVER)

@@ -107,14 +107,8 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
   // Read data from file, each process read a part of it 
   // For HDF5, no problems because we know the number of particles 
   // For txt format, work on the number of lines yet ... 
-#ifdef BNS
-  io::inputDataTxtRange(rbodies,nbodies,totalnbodies,rank,size,filename); 
-#endif
-
-#ifdef SODTUBE
   totalnbodies = inputparticles;
   sodtube::randomDataSodTube1D(rbodies,nbodies,totalnbodies,rank,size);
-#endif
 
   double smoothinglength = 0.0;
   int iter = 0;
@@ -125,7 +119,7 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
 
   ++iter; 
   do
-  {
+  { 
     // Get the worst smothing length 
     if(rank==0)
       smoothinglength = rbodies[0].second.getSmoothinglength();
@@ -157,7 +151,7 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
     mpi_sort_unbalanced(rbodies,totalnbodies);
     //assert(rbodies.size() == (size_t)targetnbodies[rank]); 
     assert(rbodies.end() == std::unique(rbodies.begin(),rbodies.end(),
-        [](const auto& left, const auto& right){
+        [] (const auto& left, const auto& right){
           return left.second.coordinates()==right.second.coordinates() &&
             left.first == right.first;
         }));
@@ -198,8 +192,6 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
       mpi_tree_traversal_graphviz(tree,range);
     }
 #endif
-
-#ifdef SODTUBE
 
     // Do the Sod Tube physics
     if(rank==0)
@@ -258,134 +250,14 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
     }
     if(rank==0)
       std::cout<<".done"<<std::endl;
-#endif
-
-#ifdef BNS
-    // Do the BNS Physics 
-    
-    // Compute Density
-    if(rank == 0) 
-      std::cout<<"Density"<<std::flush;
-    for(auto& bi: bodies)
-    {
-      auto ents = tree.find_in_radius(bi->coordinates(),2*smoothinglength);
-      auto vecents = ents.to_vec();
-      physics::computeDensity(bi,vecents);
-    }
-    if(rank == 0)
-      std::cout<<".done"<<std::endl<<std::flush;
-  
-    // Compute Pressure and SoundSpeed
-    if(rank == 0)
-      std::cout<<"Pressure"<<std::flush;
-    for(auto& bi: bodies)
-    {
-      physics::computePressure(bi);
-      physics::computeSoundspeed(bi);
-    }
-    if(rank==0)
-      std::cout<<".done"<<std::endl<<std::flush;
-
-    // Exchange data
-    mpi_refresh_ghosts(tree,ghosts_data,range);
-
-    // Compute Hydro 
-    if(rank==0)
-      std::cout<<"Hydro"<<std::flush;
-    for(auto bi: bodies)
-    {
-      auto ents = tree.find_in_radius(bi->coordinates(),2*smoothinglength);
-      auto vecents = ents.to_vec();
-      physics::computeHydro(bi,vecents);
-    }
-    if(rank==0)
-      std::cout<<".done"<<std::endl<<std::flush;
-
-
-    if(size==1)
-      assert(tree.entities().size() == (size_t)totalnbodies);
-    // Compute and exchange the aggregate  
-    if(rank==0)
-      std::cout<<"Grav"<<std::flush;
-    
-#if 1
-    // compute the COM data
-    tree_traversal_com(tree);
-    // Gather all the COM
-    std::vector<mpi_cell> recvcells;
-    std::vector<int> nrecvcells;
-    mpi_exchange_cells(tree,recvcells,nrecvcells,mcell);
-    mpi_compute_fmm(tree,recvcells,macangle);
-    mpi_gather_cells(tree,recvcells,nrecvcells);
-    mpi_gather_ghosts_com(tree,recvcells,nrecvcells,range);
-    MPI_Barrier(MPI_COMM_WORLD);
-#else 
-    int nbody = 0;
-    tree_traversal_com(tree);
-    tree_traversal_grav(tree,tree.root(),mcell,macangle,nbody);
-    assert(nbody == totalnbodies);
-#endif
-
-    if(rank==0)
-      std::cout<<".done"<<std::endl<<std::flush;
-    
-    // Compute Acceleration 
-    if(rank==0)
-      std::cout<<"Acceleration"<<std::flush;
-    for(auto bi: bodies)
-    {
-      physics::computeAcceleration(bi,physics::dt);
-    }
-    if(rank==0)
-      std::cout<<".done"<<std::endl<<std::flush;
-
-    // Compute the new DT
-    physics::dt = 1;
-    if(rank==0)
-      std::cout<<"Dt"<<std::flush;
-    for(auto bi: bodies)
-    {
-      // Compute the local dt for each body 
-      // Use only the neighbors in the smoothing length 
-      auto ents = tree.find_in_radius(bi->coordinates(),2*smoothinglength);
-      auto vecents = ents.to_vec();
-      double localdt = physics::computeDt(bi,vecents);
-      physics::dt = std::min(physics::dt,localdt);
-
-    }
-
-    // Do a reduction for dt
-    MPI_Allreduce(MPI_IN_PLACE,&physics::dt,1,MPI_DOUBLE,
-        MPI_MIN,MPI_COMM_WORLD);
-    //physics::dt = 1.0e-4;
-    if(rank==0)
-      std::cout<<".done"<<std::endl<<std::flush;
-    assert(physics::dt<1&&physics::dt>0);
-
-    if(rank==0)
-      std::cout<<"dt="<<physics::dt<<std::endl<<std::flush;
-
-    // Move the particles 
-    if(rank==0)
-      std::cout<<"MoveParticles"<<std::flush;    
-    for(auto bi: bodies)
-    {
-      physics::moveBody(bi,physics::dt);
-    }
-    if(rank==0)
-      std::cout<<".done"<<std::endl<<std::flush;
-
-    // Add rotation 
-
-#endif
 
 #ifdef OUTPUT
     if(iter % iteroutput == 0)
-    {
+    { 
       mpi_output_txt(rbodies,iter/iteroutput);
     }
     // output to see repartition
-    /*char fname[64];
+    /*char fn ame[64];
     sprintf(fname,"part_%d_%d.txt",rank,iter); 
     FILE * tmpf = fopen(fname,"w");
     fprintf(tmpf,"X Y Z\n");
@@ -397,18 +269,15 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
     fclose(tmpf);*/
 #endif
     ++iter;
-    totaltime += physics::dt; 
-    if(rank==0)
-      std::cout<<"Time: "<<totaltime<<std::endl;
-
-  }while(totaltime<maxtime);
+    
+  }while(iter<totaliters);
 }
 
 flecsi_register_task(mpi_init_task,mpi,index);
 
 void 
 specialization_driver(int argc, char * argv[]){
-  if (argc!=2) {
+  if (argc!=2)  {
     std::cerr << "Error not enough arguments\n"
         "Usage: tree <datafile>\n";
     exit(-1); 
@@ -416,13 +285,13 @@ specialization_driver(int argc, char * argv[]){
 
   std::cout << "In user specialization_driver" << std::endl;
   /*const char * filename = argv[1];*/
-  /*std::string filename(argv[1]);
+  /*std::string  filename(argv[1]);
   std::cout<<filename<<std::endl;*/
   flecsi_execute_task(mpi_init_task,mpi,index,atoi(argv[1])/*,filename*/); 
 } // specialization driver
 
 void 
-driver(int argc, char * argv[]){
+driver(int argc,  char * argv[]){
   std::cout << "In user driver" << std::endl;
 } // driver
 
