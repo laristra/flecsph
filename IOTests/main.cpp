@@ -5,7 +5,7 @@
 int main(int argc, char * argv[])
 {
 
- 	#if 1
+ 	#if 0
 	//
 	// Point data test
 	
@@ -34,38 +34,20 @@ int main(int argc, char * argv[])
 	_x_data[15] =  8.0; _y_data[15] = 18.0; _z_data[15] = 31.0; 	_pressure_data[15] = 0.3;
 
 
-	Flecsi_Sim_IO::Variable _x;
-	_x.name = "x";
-	_x.varType = Flecsi_Sim_IO::point;
-	_x.dataType = "float";
-	_x.data = _x_data;
+	
 
-	Flecsi_Sim_IO::Variable _y;
-	_y.name = "y";
-	_y.varType = Flecsi_Sim_IO::point;
-	_y.dataType = "float";
-	_y.data = _y_data;
-
-	Flecsi_Sim_IO::Variable _z;
-	_z.name = "z";
-	_z.varType = Flecsi_Sim_IO::point;
-	_z.dataType = "float";
-	_z.data = _z_data;
-
-	Flecsi_Sim_IO::Variable _pressure;
-	_pressure.name = "pressure";
-	_pressure.varType = Flecsi_Sim_IO::point;
-	_pressure.dataType = "double";
-	_pressure.data = _pressure_data;
 
 	//
 	// Create hdf5
 	Flecsi_Sim_IO::HDF5SimIO testDataSet( argv[1] );
 
-	testDataSet.createDataset();
+	testDataSet.createDataset(Flecsi_Sim_IO::unStructuredGrid, 4, 3);
 
-	testDataSet.numDims = 3;
-	testDataSet.datasetType = Flecsi_Sim_IO::structuredGrid;
+	Flecsi_Sim_IO::Variable _x, _y, _z, _pressure;
+	_x.createVariable("x", Flecsi_Sim_IO::point, "float", 16, _x_data);	
+	_y.createVariable("y", Flecsi_Sim_IO::point, "float", 16, _y_data);
+	_z.createVariable("z", Flecsi_Sim_IO::point, "float", 16, _z_data);
+	_pressure.createVariable("pressure", Flecsi_Sim_IO::point, "float", 16, _pressure_data);
 
 	testDataSet.vars.push_back(_x);
 	testDataSet.vars.push_back(_y);
@@ -73,6 +55,7 @@ int main(int argc, char * argv[])
 	testDataSet.vars.push_back(_pressure);
 
 	testDataSet.writePointData();
+
 
   #else
 	// 
@@ -84,26 +67,23 @@ int main(int argc, char * argv[])
 
 	pressureData[0] = 10.0;		pressureData[1] = 20.0;		pressureData[2] = 30.0; 	pressureData[3] = 40.0;
 	pressureData[4] = 12.0;		pressureData[5] = 14.0;		pressureData[5] = 16.0; 	pressureData[7] = 18.0;
+
 	pressureData[8] = 22.0;		pressureData[9] = 24.0;		pressureData[10] = 26.0; 	pressureData[11] = 28.0;
 	pressureData[12] = 32.0;	pressureData[13] = 34.0;	pressureData[14] = 36.0; 	pressureData[15] = 38.0;
 
-
-	Flecsi_Sim_IO::Variable testScalar;
-	testScalar.name = "pressure";
-	testScalar.varType = Flecsi_Sim_IO::grid_cellCentered;
-	testScalar.dataType = "double";
-	testScalar.data = pressureData;
 
 
 	//
 	// Create hdf5
 	Flecsi_Sim_IO::HDF5SimIO testDataSet( argv[1] );
 
-	testDataSet.createDataset();
-	testDataSet.vars.push_back(testScalar);
+	testDataSet.createDataset(Flecsi_Sim_IO::structuredGrid, 1, 3);
+
+	Flecsi_Sim_IO::Variable pressure;
+	pressure.createVariable("pressure", Flecsi_Sim_IO::grid_cellCentered, "double", 16, pressureData);
+
+	testDataSet.vars.push_back(pressure);
 	
-	testDataSet.datasetType = structuredGrid;
-	testDataSet.numDims = 3;
 	testDataSet.gridDims.push_back(4);
 	testDataSet.gridDims.push_back(2);
 	testDataSet.gridDims.push_back(2);

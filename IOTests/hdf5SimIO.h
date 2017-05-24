@@ -3,8 +3,10 @@
 
 #include "simIO.h"
 #include "H5Cpp.h"
+#include "H5hut.h"
 
 #include <iostream>
+#include <mpi.h>
 
 namespace Flecsi_Sim_IO
 {
@@ -22,6 +24,7 @@ namespace Flecsi_Sim_IO
 //		Timestep : Group attribute
 //		Timestamp: Group attribute
 
+
 class HDF5SimIO: public SimIO
 {
   public:
@@ -30,11 +33,10 @@ class HDF5SimIO: public SimIO
 
     hid_t getHDF5Datatype(std::string _datatypeName);
 
-    int createDataset();
     int writeGridData();
     int writePointData();
 };
-
+// https://support.hdfgroup.org/HDF5/doc1.8/RM/RM_H5Front.html
 
 
 hid_t HDF5SimIO::getHDF5Datatype(std::string _datatypeName)
@@ -58,20 +60,20 @@ hid_t HDF5SimIO::getHDF5Datatype(std::string _datatypeName)
 }
 
 
-inline int HDF5SimIO::createDataset()
-{
-	// Create file, will fail if already exists
-	hid_t dataFile = H5Fcreate(outputFileName.c_str(), H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT);
-	H5Fclose(dataFile);
+// inline int HDF5SimIO::createDataset()
+// {
+// 	// Create file, will fail if already exists
+// 	hid_t dataFile = H5Fcreate(outputFileName.c_str(), H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT);
+// 	H5Fclose(dataFile);
 
-	return 0;
-}
+// 	return 0;
+// }
 
 
-
+// https://support.hdfgroup.org/HDF5/doc1.8/RM/RM_H5T.html
 inline int HDF5SimIO::writeGridData()
 {
-	hid_t  dataFile;    
+    hid_t dataFile = H5Fcreate(outputFileName.c_str(), H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT); 
     dataFile = H5Fopen(outputFileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
 
     for (int i=0; i<vars.size(); i++)
@@ -111,40 +113,39 @@ inline int HDF5SimIO::writeGridData()
 }
 
 
+//https://accserv.lepp.cornell.edu/svn/packages/h5hut/examples/H5Part/H5PartTest.cc
+// Viz: molecule plot in VisIt
 inline int HDF5SimIO::writePointData()
 {
-    hid_t  dataFile;    
-    dataFile = H5Fopen(outputFileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+    MPI_Init(NULL, NULL);
 
+    int myRank, numProcs;
+    MPI_Comm_rank(MPI_COMM_WORLD,&myRank);
+    MPI_Comm_size(MPI_COMM_WORLD,&numProcs);
+    
+
+    h5_file_t *dataFile;
+    dataFile = H5OpenFile(outputFileName.c_str(), H5_O_RDWR, MPI_COMM_WORLD);
+    if (!dataFile)
+        return -1;
+
+    // Set timestep
+    H5SetStep(dataFile, 0);  
+    
     for (int i=0; i<vars.size(); i++)
     {
+        H5PartSetNumParticles(dataFile, vars[i].numElements);
+
         if ( vars[i].varType == point )
-        {
-            hid_t  dataset, datatype;
-            herr_t status;
-
-            std::string _varname  = vars[i].name;
-            int _numDims          = numDims;
-
-            datatype = getHDF5Datatype( vars[i].dataType );
-            status   = H5Tset_order(datatype, endian==little?H5T_ORDER_LE:H5T_ORDER_BE);
-
-
-            hid_t dataspace = H5Screate(H5S_SCALAR);
-            dataset = H5Dcreate(dataFile, _varname.c_str(), datatype, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-            status  = H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, vars[i].data);
-
-            H5Sclose(dataspace);
-            H5Tclose(datatype);
-            H5Dclose(dataset);
-        }   
+            H5PartWriteDataFloat32(dataFile, (vars[i].name).c_str(), (float *)vars[i].data);
     }
 
-    H5Fclose(dataFile);
+    H5CloseFile(dataFile);
+
+    MPI_Finalize();
     
     return 0;
 }
-
 
 } // end Flecsi_Sim_IO namespace
 

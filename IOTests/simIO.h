@@ -50,13 +50,16 @@ enum Endianness
 struct Variable
 {
 	std::string name;				// Variable name
-	
 	VariableType varType;			// point or ...
 	std::string dataType;			// datatype: int, char, float, ...
+	int numElements;
 	void *data;						// the actual data
 
 	Variable(){ data = NULL; }
-	~Variable(){
+	~Variable()
+	{
+		numElements = 0;
+
 		if (data != NULL) return;
 		
 		if ( dataType == "float")			delete [] (float *) data;
@@ -72,6 +75,15 @@ struct Variable
 		else if ( dataType == "uint64_t")	delete [] (uint64_t *) data;
 		else { }
 	}
+
+	void createVariable(std::string _name, VariableType _varType, std::string _dataType, int _numElements, void *_data)
+	{
+		name = _name;
+		varType = _varType;
+		dataType = _dataType;
+		numElements = _numElements;
+		data = _data;
+	}
 };
 
 
@@ -81,28 +93,28 @@ class SimIO
   public:  
 	std::string outputFileName;
 	Endianness endian;
-
 	OutputType datasetType;
+	int numVars;
 	int numDims;					// 1 or 2 or 3 ...
-
-	std::vector<int> gridDims;		// Size of each dimension
+	
+  public:
+  	std::vector<Variable> vars;
+  	std::vector<int> gridDims;		// Size of each dimension
 	std::vector<double> extents;	// (min, max) pair for each dimension
 
-	std::vector<Variable> vars;
-
-  public:
-  	SimIO(){ endian = little; }
-	SimIO(std::string _outputFileName):outputFileName(_outputFileName){ endian = little; }
+  	SimIO(){ endian=little; }
+	SimIO(std::string _outputFileName):outputFileName(_outputFileName){ endian=little; }
 	~SimIO(){};
 
-	void setFilename(std::string _name){ outputFileName = _name; }
-	void setEndianness(Endianness _en){ endian = _en; }
-
-
-	virtual int createDataset() = 0;
-
+	void createDataset(OutputType _datasetType, int _numVars, int _numDims){ datasetType=_datasetType;  numVars=_numVars;  numDims=_numDims; }
 	virtual int writeGridData() = 0;
 	virtual int writePointData() = 0;
+
+	void setFilename(std::string _name){ outputFileName=_name; }
+	void setEndianness(Endianness _en){ endian=_en; }
+	void setDatasetType(OutputType _datasetType){ datasetType=_datasetType; }
+	void setNumVars(int _numVars){ numVars=_numVars; }
+	void setNumDims(int _numDims){ numDims=_numDims; }
 };
 
 
