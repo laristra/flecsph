@@ -118,6 +118,8 @@ operator*(
 }
 
 
+// Seek for the cells that are in the mass limit
+// Send them to all the other processes 
 void
 mpi_exchange_cells(
     tree_topology_t& tree,
@@ -154,7 +156,7 @@ mpi_exchange_cells(
   nrecvcells[rank] = vcells.size();
   MPI_Allgather(&nrecvcells[rank],1,MPI_INT,&nrecvcells[0],1,
       MPI_INT,MPI_COMM_WORLD);
- 
+   
   /*if(rank==0)
   {
     std::cout<<std::endl<<"send COM: "<<std::endl;
@@ -182,6 +184,8 @@ mpi_exchange_cells(
   //std::cout<<rank<<": recv="<<recvcells.size()<<std::endl;
 }
 
+// Compute the contribution of this process on the cells sended by the 
+// other processes
 void
 mpi_compute_fmm(
     tree_topology_t& tree,
@@ -202,7 +206,8 @@ mpi_compute_fmm(
     }
 }
 
-
+// Compute the ghosts particles needed for the gravity computation 
+// Then send them to the process that reqiure it
 void 
 mpi_gather_ghosts_com(
     tree_topology_t& tree,
@@ -347,6 +352,8 @@ mpi_gather_ghosts_com(
   }
 }
 
+// Gather the result from the other processes and add the forces 
+// Then apply to the particles below it 
 void 
 mpi_gather_cells(
     tree_topology_t& tree,
@@ -409,6 +416,7 @@ mpi_gather_cells(
     sink_traversal_c2p(tree,sink,pos,
         recvcells[i].fc,recvcells[i].dfcdr,recvcells[i].dfcdrdr,
         subparts,nbody);
+    assert(subparts.size()!=0);
     // Also apply the subcells
     for(auto bi: subparts)
     { 
@@ -429,6 +437,7 @@ mpi_gather_cells(
   //MPI_Barrier(MPI_COMM_WORLD);
 }
 
+// Compute the acceleration due to a source branch to the sink branch 
 void 
 computeAcceleration(
     point_t sinkPosition,
@@ -516,41 +525,57 @@ tree_traversal_c2c(
     double* hessian,
     double& macangle)
 {
+  if(source->getMass() == 0.0)
+    return;
 
   // Do not consider the cell itself, or just inside its radius
   if(source->getPosition()==sink->getPosition())
     return; 
   double dist = flecsi::distance(source->getPosition(),sink->getPosition());
   // If the cell is inside me, do not consider it
-  if(dist+source->getRadius()<=sink->getRadius())
-      return;
-  if(source->getMass()<=0.0)
-    return;
-  if(/*dist > sink->getRadius() + source->getRadius() &&*/
-      MAC(sink,source,macangle))
-  {
-    //std::cout<<"Accepted MAC"<<std::endl;
-    computeAcceleration(sink->getPosition(),source->getPosition(),
-      source->getMass(),fc,jacobi,hessian);
-  }else
-  {
-    if(source->is_leaf())
-    {
-      for(auto bi: *source)
-      {
-        /*double distbi = flecsi::distance(bi->getPosition(),
-            sink->getPosition());
-        if(bi->is_local() && distbi > sink->getRadius())*/
-        if(bi->is_local()&&sink->getPosition()!=bi->getPosition())
-          computeAcceleration(sink->getPosition(),bi->getPosition(),
-            bi->getMass(),fc,jacobi,hessian);
+  //if(dist < sink->getRadius() + source->getRadius() ){
+  //  std::cout<<sink->getPosition()<<"+"<<sink->getRadius()<<
+  //   " - "<<source->getPosition()<<"+"<<source->getRadius()<<std::endl;
+  //  exit(0);  
+  //}
+  if(dist + source->getRadius() < sink->getRadius())
+        return;
+  if(dist > sink->getRadius()+source->getRadius()){
+    if(MAC(sink,source,macangle)){
+      //std::cout<<"Accepted MAC"<<std::endl;
+      computeAcceleration(sink->getPosition(),source->getPosition(),
+        source->getMass(),fc,jacobi,hessian);
+    }else{
+      if(source->is_leaf()){
+        for(auto bi: *source){
+          //double distbi = flecsi::distance(bi->getPosition(),
+          //    sink->getPosition());
+          //if(bi->is_local() && distbi > sink->getRadius())
+          //if(bi->is_local()&&sink->getPosition()!=bi->getPosition())
+          if(bi->is_local())
+            computeAcceleration(sink->getPosition(),bi->getPosition(),
+              bi->getMass(),fc,jacobi,hessian);
+        }
+      }else{
+        for(int i=0;i<(1<<gdimension);++i)
+          tree_traversal_c2c(tree,sink,tree.child(source,i),
+            fc,jacobi,hessian,macangle);
       }
-    }else
-    {
+    }
+  }else{
+    if(source->is_leaf()){
+      for(auto bi: *source){
+        double distbi = flecsi::distance(bi->getPosition(),
+            sink->getPosition());
+        if(bi->is_local() && distbi > sink->getRadius())
+            computeAcceleration(sink->getPosition(),bi->getPosition(),
+              bi->getMass(),fc,jacobi,hessian);
+      }
+    }else{
       for(int i=0;i<(1<<gdimension);++i)
         tree_traversal_c2c(tree,sink,tree.child(source,i),
-            fc,jacobi,hessian,macangle);
-    }
+          fc,jacobi,hessian,macangle);
+      }
   }
 }
 
@@ -567,6 +592,7 @@ sink_traversal_c2p(
     int& nbody
     )
 {
+
   if(b->getMass() <= 0.0)
     return;
   if(b->is_leaf()){
@@ -601,12 +627,11 @@ sink_traversal_c2p(
         }
       }
       for(int i=0;i<3;++i){
-        grav[i] += 1/2*tmpVector[i];
+        grav[i] += 1./2.*tmpVector[i];
       }
       neighbors.push_back(bi->getBody());
       bi->getBody()->setGravForce(grav);
-      nbody++;
-      //std::cout<<grav*bi->getMass()<<std::endl;
+      nbody++; 
     }
   }else
   {
@@ -661,6 +686,7 @@ tree_traversal_grav(
   }
 }
 
+// Compute the center of mass values from the particles 
 void tree_traversal_com(tree_topology_t& tree)
 {
   std::function<void(branch_t*)>traverse;
@@ -681,6 +707,7 @@ void tree_traversal_com(tree_topology_t& tree)
           mass += child->getMass();
         }
       }
+      // Possible if the branch just have non local children 
       if(mass != 0.0)
       {
         com = com / mass;
@@ -705,6 +732,7 @@ void tree_traversal_com(tree_topology_t& tree)
         com += branch->getMass()*branch->getPosition();
         mass += branch->getMass();
       }
+      // If the sub branch just contain non local children 
       if(mass != 0.0){
         com = com / mass;
         // Compute the radius
@@ -1058,6 +1086,8 @@ void mpi_output_txt(
   }
 }
 
+// Exchange the usefull body_holder based on the bounding box of this process 
+// This will be used to find the ghosts 
 void
 mpi_branches_exchange_useful_positions(
     tree_topology_t& tree,

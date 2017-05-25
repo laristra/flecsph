@@ -77,7 +77,7 @@ namespace flecsi{
 namespace execution{
 
 void
-mpi_init_task(/*std::string sfilename*/int inputparticles){
+mpi_init_task(/*std:: string sfilename*/){
   // TODO find a way to use the file name from the specialiszation_driver
   //std::cout<<sfilename<<std::endl;
   const char * filename = "../data/data_bns_4169.txt";
@@ -94,8 +94,8 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
   int totalnbodies = 0;
   double totaltime = 0.0;
   double maxtime = 10.0;
-  double macangle = 0.5;
-  double mcell = 1.0e-6;
+  double macangle = 0.00000001;
+  double mcell = 1.0e-10;
   std::vector<std::pair<entity_key_t,body>> rbodies;
   std::array<point_t,2> range;
   std::vector<std::pair<entity_key_t,entity_key_t>> rangeproc;
@@ -118,7 +118,7 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
 
   ++iter; 
   do
-  { 
+  {  
     // Get the worst smothing length 
     if(rank==0)
       smoothinglength = rbodies[0].second.getSmoothinglength();
@@ -338,17 +338,12 @@ flecsi_register_task(mpi_init_task,mpi,index);
 
 void 
 specialization_driver(int argc, char * argv[]){
-  if (argc!=2) {
-    std::cerr << "Error not enough arguments\n"
-        "Usage: tree <datafile>\n";
-    exit(-1); 
-  }
-
+ 
   std::cout << "In user specialization_driver" << std::endl;
   /*const char * filename = argv[1];*/
   /*std::string filename(argv[1]);
   std::cout<<filename<<std::endl;*/
-  flecsi_execute_task(mpi_init_task,mpi,index,atoi(argv[1])/*,filename*/); 
+  flecsi_execute_task(mpi_init_task,mpi,index/*,filename*/); 
 } // specialization driver
 
 void 
