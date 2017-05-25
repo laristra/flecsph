@@ -74,14 +74,14 @@ operator-(
 }
 
 namespace flecsi{
-namespace execution{
+ namespace execution{
 
 void
 mpi_init_task(/*std:: string sfilename*/){
   // TODO find a way to use the file name from the specialiszation_driver
   //std::cout<<sfilename<<std::endl;
-  const char * filename = "../data/data_bns_4169.txt";
-  //const char * filename = "../data/data_binary_rdy_16288.txt";
+  //const char * filename = "../data/data_bns_4169.txt";
+  const char * filename = "../data/data_binary_rdy_16288.txt";
   
   int rank;
   int size;
@@ -90,12 +90,12 @@ mpi_init_task(/*std:: string sfilename*/){
   
   int nbodies = 0;
   int totaliters = 100000;
-  int iteroutput = 10;
+  int iteroutput = 100;
   int totalnbodies = 0;
   double totaltime = 0.0;
   double maxtime = 10.0;
-  double macangle = 0.00000001;
-  double mcell = 1.0e-10;
+  double macangle = 0.7;  // If 0 => consider p to p 
+  double mcell = 1.0e-6;
   std::vector<std::pair<entity_key_t,body>> rbodies;
   std::array<point_t,2> range;
   std::vector<std::pair<entity_key_t,entity_key_t>> rangeproc;
@@ -332,7 +332,7 @@ mpi_init_task(/*std:: string sfilename*/){
       std::cout<<"Time: "<<totaltime<<std::endl;
 
   }while(totaltime<maxtime);
-}
+} 
 
 flecsi_register_task(mpi_init_task,mpi,index);
 

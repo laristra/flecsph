@@ -159,6 +159,7 @@ public:
       } 
     }
 
+
     point_t 
     coordinates(
         const std::array<flecsi::point<element_t, dimension>,2>& range) const{
@@ -171,13 +172,19 @@ public:
     point_t getPosition(){return position_;};
     element_t getMass(){return mass_;};
     element_t getRadius(){return radius_;};
+    point_t getBMin(){return bmin_;};
+    point_t getBMax(){return bmax_;};
     void setPosition(point_t position){position_ = position;};
     void setMass(element_t mass){mass_ = mass;};
-    void setRadius(element_t radius){radius_ = radius;};
+    //void setRadius(element_t radius){radius_ = radius;};
+    void setBMax(point_t bmax){bmax_ = bmax;};
+    void setBMin(point_t bmin){bmin_ = bmin;};
 
    private:
     std::vector<body_holder*> ents_;
     point_t position_;
+    point_t bmax_;
+    point_t bmin_;
     element_t mass_;
     element_t radius_; 
   }; // class branch 

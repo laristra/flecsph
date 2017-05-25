@@ -38,13 +38,16 @@ struct mpi_cell{
   point_t fc;
   double dfcdr[9];
   double dfcdrdr[27];
-  double radius;
+  point_t bmax;
+  point_t bmin;
+  //double radius;
   branch_id_t id;
 
-  mpi_cell(point_t position_,double radius_, branch_id_t id_){
+  mpi_cell(point_t position_,point_t bmin_,point_t bmax_, branch_id_t id_){
     position = position_;  
     id = id_;
-    radius = radius_;
+    bmax = bmax_;
+    bmin = bmin_;
   }
   mpi_cell(){};
 };
