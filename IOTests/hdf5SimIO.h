@@ -163,6 +163,8 @@ inline int HDF5SimIO::writePointData(int ts, MPI_Comm _comm)
     return 0;
 }
 
+
+
 inline int HDF5SimIO::writePointData()
 {
     hid_t dataFile = H5Fcreate(outputFileName.c_str(), H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT); 

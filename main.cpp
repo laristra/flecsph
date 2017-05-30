@@ -35,6 +35,7 @@ int main(int argc, char *argv[])
 	
 	ioTesting.initMPIScaling(MPI_COMM_WORLD);
 	ioTesting.runScalingTest(jsonInput["data"]["num-particles"], jsonInput["data"]["num-timesteps"], testOctree, jsonInput["output"]["filename"]);
+	std::cout << ioTesting.getTimingLog() << std::endl;
 	
 
 	MPI_Finalize();

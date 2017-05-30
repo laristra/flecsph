@@ -9,6 +9,7 @@
 #include <mpi.h>
 
 #include "timer.h"
+#include "log.h"
 #include "hdf5SimIO.h"
 
 class ScalingTest
@@ -17,6 +18,7 @@ class ScalingTest
 	int numRanks;
 	bool theadingON;
 	MPI_Comm mpiComm;
+	Log timingLog;
 
   public:
   	ScalingTest(){ theadingON=false; myRank=0; numRanks=1; }
@@ -25,6 +27,8 @@ class ScalingTest
   	void enableTheading(){ theadingON=true; }
   	void initMPIScaling(MPI_Comm _comm);
   	void runScalingTest(size_t _numParticles, int numTimesteps, Octree simOct, std::string filename);
+
+  	std::string getTimingLog(){ return timingLog.getLog(); }
 };
 
 
@@ -60,7 +64,7 @@ inline void ScalingTest::runScalingTest(size_t _numParticles, int numTimesteps, 
 	{
 		//
 		// Generate Data
-
+	  dataCreation.start();
 		// Some variables
 		float *_x_data = new float[myNumParticles];
 		float *_y_data = new float[myNumParticles];
@@ -80,9 +84,10 @@ inline void ScalingTest::runScalingTest(size_t _numParticles, int numTimesteps, 
 			_z_data[i] = zDis(eng);
 			_pressure_data[i] = pressureDis(eng);
 		}
+	  dataCreation.stop();
 
 
-
+	  dataWriting.start();
 		//
 		// Create hdf5
 		Flecsi_Sim_IO::HDF5SimIO testDataSet( filename.c_str() );
@@ -99,8 +104,12 @@ inline void ScalingTest::runScalingTest(size_t _numParticles, int numTimesteps, 
 		testDataSet.vars.push_back(_y);
 		testDataSet.vars.push_back(_z);
 		testDataSet.vars.push_back(_pressure);
-
+	  
 		testDataSet.writePointData(t, mpiComm);
+	  dataWriting.stop();
+
+	  	timingLog.addLog("Data creation for timestep " + std::to_string(t) + " took: " + std::to_string( dataCreation.getDuration() ) + " s.\n");
+	  	timingLog.addLog("Data write for timestep " + std::to_string(t)+ " took: " + std::to_string( dataWriting.getDuration() ) + " s.\n\n");
 
 		// Delete 
 		if (_x_data != NULL)
@@ -112,6 +121,7 @@ inline void ScalingTest::runScalingTest(size_t _numParticles, int numTimesteps, 
 		if (_pressure_data != NULL)
 			delete [] _pressure_data;
 
+		// Sync writing before going to the next step
 		MPI_Barrier(mpiComm);
 	}
 
