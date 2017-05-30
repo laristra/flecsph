@@ -120,11 +120,11 @@ randomDataSodTube1D(
       density = 0.125;
       mass = 3.3125e-4;
     }
-    bi.setPosition(point_t{position,0,0});
+    bi.setPosition(point_t{position});
     bi.setDensity(density);
     bi.setInternalenergy(internalenergy);
     bi.setMass(mass);
-    bi.setVelocity(point_t{velocity,0,0});
+    bi.setVelocity(point_t{velocity});
     bi.setSmoothinglength(smoothinglength);
     bi.setAcceleration(acceleration);
     // Positions between [procstart;procstop[
@@ -267,7 +267,7 @@ computeAcceleration(
 {
   body * srcb = src->getBody();
   assert(srcb!=nullptr);
-  point_t acc = {0,0,0};
+  point_t acc = {};
   double dudt = 0;
   assert(neighb.size()!=0);
   for(auto nb: neighb){

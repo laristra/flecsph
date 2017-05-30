@@ -32,46 +32,10 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/data/data.h"
 
-#include "mpi_partition.h"
+#include "tree_colorer.h"
 #include "physics.h"
 #include "io.h"
-#include "sodtube.h"
 
-inline bool
-operator==(
-  const point_t& p1,
-  const point_t& p2
-)
-{
-  for(size_t i=0;i<gdimension;++i)
-    if(p1[i]!=p2[i])
-      return false;
-  return true;
-}
-
-inline 
-point_t 
-operator+(
-  const point_t& p, 
-  const double& val)
-{
-  point_t pr = p; 
-  for(size_t i=0;i<gdimension;++i)
-    pr[i]+=val;
-  return pr;
-}
-
-inline 
-point_t 
-operator-(
-  const point_t& p, 
-  const double& val)
-{
-  point_t pr = p; 
-  for(size_t i=0;i<gdimension;++i)
-    pr[i]-=val;
-  return pr;
-}
 
 namespace flecsi{
  namespace execution{
@@ -96,6 +60,9 @@ mpi_init_task(/*std:: string sfilename*/){
   double maxtime = 10.0;
   double macangle = 0.7;  // If 0 => consider p to p 
   double mcell = 1.0e-6;
+  
+  tree_colorer<double,3> tcolorer;
+
   std::vector<std::pair<entity_key_t,body>> rbodies;
   std::array<point_t,2> range;
   std::vector<std::pair<entity_key_t,entity_key_t>> rangeproc;
@@ -113,7 +80,7 @@ mpi_init_task(/*std:: string sfilename*/){
   int iter = 0;
 
 #ifdef OUTPUT
-  mpi_output_txt(rbodies,iter); 
+  tcolorer.mpi_output_txt(rbodies,iter,"output_bns"); 
 #endif
 
   ++iter; 
@@ -132,7 +99,7 @@ mpi_init_task(/*std:: string sfilename*/){
       std::cout<<std::endl<<"#### Iteration "<<iter<<std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
 
-    mpi_compute_range(rbodies,range,smoothinglength);
+    tcolorer.mpi_compute_range(rbodies,range,smoothinglength);
 
     // The bodies are loaded
     // Compute  the key    
@@ -147,7 +114,7 @@ mpi_init_task(/*std:: string sfilename*/){
     //    }));
 
     // Apply a distributed sort algorithm 
-    mpi_sort_unbalanced(rbodies,totalnbodies);
+    tcolorer.mpi_qsort(rbodies,totalnbodies);
     //assert(rbodies.size() == (size_t)targetnbodies[rank]); 
     assert(rbodies.end() == std::unique(rbodies.begin(),rbodies.end(),
         [](const auto& left, const auto& right){
@@ -171,24 +138,24 @@ mpi_init_task(/*std:: string sfilename*/){
     } 
     // Search and share the branches 
     //mpi_branches_exchange_useful(tree,rbodies,range,rangeproc);
-    mpi_branches_exchange_useful_positions(
+    tcolorer.mpi_branches_exchange(
         tree,
         rbodies,
         rangeposproc,
         smoothinglength);
 
     // For test, gather the neighbors and loop over here
-    mpi_compute_ghosts(tree,smoothinglength,ghosts_data,range);
-    mpi_refresh_ghosts(tree,ghosts_data,range);
+    tcolorer.mpi_compute_ghosts(tree,smoothinglength,range);
+    tcolorer.mpi_refresh_ghosts(tree,range);
 
-    if(size==1)
-      assert(ghosts_data.recvbodies.size() == 0);
+    //if(size==1)
+    //  assert(ghosts_data.recvbodies.size() == 0);
 
 #ifdef OUTPUTGRAPH
     if(iter==1){
       // Display current tree, with GHOSTS,SHARED,EXCL,NONLOCAL
       MPI_Barrier(MPI_COMM_WORLD);
-      mpi_tree_traversal_graphviz(tree,range);
+      tcolorer.mpi_tree_traversal_graphviz(tree,range);
     }
 #endif
 
@@ -218,7 +185,7 @@ mpi_init_task(/*std:: string sfilename*/){
       std::cout<<".done"<<std::endl<<std::flush;
 
     // Exchange data
-    mpi_refresh_ghosts(tree,ghosts_data,range);
+    tcolorer.mpi_refresh_ghosts(tree,range);
 
     // Compute Hydro 
     if(rank==0)
@@ -231,32 +198,25 @@ mpi_init_task(/*std:: string sfilename*/){
     }
     if(rank==0)
       std::cout<<".done"<<std::endl<<std::flush;
-
-
     if(size==1)
       assert(tree.entities().size() == (size_t)totalnbodies);
+
+
     // Compute and exchange the aggregate  
+    // Then compute gravitational acceleration
     if(rank==0)
       std::cout<<"Grav"<<std::flush;
     
-#if 1
     // compute the COM data
-    tree_traversal_com(tree);
+    tcolorer.tree_traversal_com(tree);
     // Gather all the COM
     std::vector<mpi_cell> recvcells;
     std::vector<int> nrecvcells;
-    mpi_exchange_cells(tree,recvcells,nrecvcells,mcell);
-    mpi_compute_fmm(tree,recvcells,macangle);
-    mpi_gather_cells(tree,recvcells,nrecvcells);
-    mpi_gather_ghosts_com(tree,recvcells,nrecvcells,range);
+    tcolorer.mpi_exchange_cells(tree,recvcells,nrecvcells,mcell);
+    tcolorer.mpi_compute_fmm(tree,recvcells,macangle);
+    tcolorer.mpi_gather_cells(tree,recvcells,nrecvcells);
+    
     MPI_Barrier(MPI_COMM_WORLD);
-#else 
-    int nbody = 0;
-    tree_traversal_com(tree);
-    tree_traversal_grav(tree,tree.root(),mcell,macangle,nbody);
-    assert(nbody == totalnbodies);
-#endif
-
     if(rank==0)
       std::cout<<".done"<<std::endl<<std::flush;
     
@@ -312,7 +272,7 @@ mpi_init_task(/*std:: string sfilename*/){
 #ifdef OUTPUT
     if(iter % iteroutput == 0)
     {
-      mpi_output_txt(rbodies,iter/iteroutput);
+      tcolorer.mpi_output_txt(rbodies,iter/iteroutput,"output_bns");
     }
     // output to see repartition
     /*char fname[64];

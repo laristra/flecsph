@@ -9,7 +9,8 @@ set(CMAKE_CXX_FLAGS_RELEASE
 
 # includes 
 include_directories(${CMAKE_SOURCE_DIR}/include)
-
+include_directories(${CMAKE_SOURCE_DIR}/app/sodtube/include)
+include_directories(${CMAKE_SOURCE_DIR}/mpisph)
 #------------------------------------------------------------------------------#
 # Executables    
 #------------------------------------------------------------------------------#
@@ -24,6 +25,8 @@ add_executable(sodtube
   #physics.cc
   ${FleCSI_RUNTIME}/runtime_driver.cc
 )
+
+message(STATUS "Libraries: ${FleCSPH_LIBRARIES}")
 
 target_link_libraries(sodtube ${FleCSPH_LIBRARIES} mpisph)
 

@@ -21,11 +21,14 @@
 #ifndef body_h
 #define body_h
 
+#define OUTPUT
+
 #include "flecsi/topology/tree_topology.h"
 #include "flecsi/geometry/point.h"
 #include "flecsi/geometry/space_vector.h"
 
-#include "user.h"
+static const size_t gdimension = 1;
+using type_t = double;
 
 class body{
 

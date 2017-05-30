@@ -32,56 +32,16 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/data/data.h"
 
-#include "mpi_partition.h"
-#include "physics.h"
+#include <tree_colorer.h>
 #include "io.h"
 #include "sodtube.h"
-
-inline bool
-operator==(
-  const point_t& p1,
-  const point_t& p2
-)
-{
-  for(size_t i=0;i<gdimension;++i)
-    if(p1[i]!=p2[i])
-      return false;
-  return true;
-}
-
-inline 
-point_t 
-operator+(
-  const point_t& p, 
-  const double& val)
-{
-  point_t pr = p; 
-  for(size_t i=0;i<gdimension;++i)
-    pr[i]+=val;
-  return pr;
-}
-
-inline 
-point_t 
-operator-(
-  const point_t& p, 
-  const double& val)
-{
-  point_t pr = p; 
-  for(size_t i=0;i<gdimension;++i)
-    pr[i]-=val;
-  return pr;
-}
 
 namespace flecsi{
 namespace execution{
 
 void
-mpi_init_task(/*std::string sfilename*/int inputparticles){
+mpi_init_task(int inputparticles){
   // TODO find a way to use the file name from the specialiszation_driver
-  //std::cout<<sfilename<<std::endl;
-  const char * filename = "../data/data_bns_4169.txt";
-  //const char * filename = "../data/data_binary_rdy_16288.txt";
   
   int rank;
   int size;
@@ -89,8 +49,8 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   
   int nbodies = 0;
-  int totaliters = 100000;
-  int iteroutput = 10;
+  int totaliters = 80;
+  int iteroutput = 1;
   int totalnbodies = 0;
   double totaltime = 0.0;
   double maxtime = 10.0;
@@ -103,6 +63,8 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
   mpi_ghosts_t ghosts_data;
   std::vector<body_holder> recv_COM;
   
+  tree_colorer<double,1> tcolorer;
+
   //printf("%d/%d, file %s\n",rank,size,filename);   
   // Read data from file, each process read a part of it 
   // For HDF5, no problems because we know the number of particles 
@@ -114,7 +76,7 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
   int iter = 0;
 
 #ifdef OUTPUT
-  mpi_output_txt(rbodies,iter); 
+  tcolorer.mpi_output_txt(rbodies,iter,"output_sodtube"); 
 #endif
 
   ++iter; 
@@ -133,7 +95,7 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
       std::cout<<std::endl<<"#### Iteration "<<iter<<std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
 
-    mpi_compute_range(rbodies,range,smoothinglength);
+    tcolorer.mpi_compute_range(rbodies,range,smoothinglength);
 
     // The bodies are loaded
     // Compute the key    
@@ -148,7 +110,7 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
     //    }));
 
     // Apply a distributed sort algorithm 
-    mpi_sort_unbalanced(rbodies,totalnbodies);
+    tcolorer.mpi_qsort(rbodies,totalnbodies);
     //assert(rbodies.size() == (size_t)targetnbodies[rank]); 
     assert(rbodies.end() == std::unique(rbodies.begin(),rbodies.end(),
         [] (const auto& left, const auto& right){
@@ -172,24 +134,24 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
     } 
     // Search and share the branches 
     //mpi_branches_exchange_useful(tree,rbodies,range,rangeproc);
-    mpi_branches_exchange_useful_positions(
+    tcolorer.mpi_branches_exchange(
         tree,
         rbodies,
         rangeposproc,
         smoothinglength);
 
     // For test, gather the neighbors and loop over here
-    mpi_compute_ghosts(tree,smoothinglength,ghosts_data,range);
-    mpi_refresh_ghosts(tree,ghosts_data,range);
+    tcolorer.mpi_compute_ghosts(tree,smoothinglength,range);
+    tcolorer.mpi_refresh_ghosts(tree,range);
 
-    if(size==1)
-      assert(ghosts_data.recvbodies.size() == 0);
+    //if(size==1)
+    //  assert(ghosts_data.recvbodies.size() == 0);
 
 #ifdef OUTPUTGRAPH
     if(iter==1){
       // Display current tree, with GHOSTS,SHARED,EXCL,NONLOCAL
       MPI_Barrier(MPI_COMM_WORLD);
-      mpi_tree_traversal_graphviz(tree,range);
+      tcolorer.mpi_tree_traversal_graphviz(tree,range);
     }
 #endif
 
@@ -216,7 +178,7 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
 
     MPI_Barrier(MPI_COMM_WORLD);
     // Share data again, need the density and pressure of the ghosts 
-    mpi_refresh_ghosts(tree,ghosts_data,range);    
+    tcolorer.mpi_refresh_ghosts(tree,range);    
 
     if(rank==0)
       std::cout<<"Acceleration"<<std::flush; 
@@ -254,7 +216,7 @@ mpi_init_task(/*std::string sfilename*/int inputparticles){
 #ifdef OUTPUT
     if(iter % iteroutput == 0)
     { 
-      mpi_output_txt(rbodies,iter/iteroutput);
+      tcolorer.mpi_output_txt(rbodies,iter/iteroutput,"output_sodtube");
     }
     // output to see repartition
     /*char fn ame[64];
