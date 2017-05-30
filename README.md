@@ -6,7 +6,7 @@ This project is an implementation of SPH problem using FleCSI framework.
 
 # Getting the Code 
 
-    % git clone --recursive git@gitlab.lanl.gov/laristra/FleCSI_SPH.git
+    % git clone --recursive git@gitlab.lanl.gov:laristra/flecsph.git
 
 # Requirements
 
