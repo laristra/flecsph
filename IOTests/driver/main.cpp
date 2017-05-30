@@ -1,10 +1,17 @@
 #include <iostream>
 
 #include "hdf5SimIO.h"
+#include "octree.h"
 
 int main(int argc, char * argv[])
 {
+	Octree testOctree;
 
+	testOctree.buildTree( atoi (argv[1]) );
+	
+	std::cout << testOctree.print();
+
+/*
  	#if 1
 	//
 	// Point data test
@@ -90,7 +97,7 @@ int main(int argc, char * argv[])
 
 	testDataSet.writeGridData();
   #endif
-
+*/
 	return 0;
 }
 

@@ -12,6 +12,7 @@ set(CMAKE_CXX_STANDARD 11)
 
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR})
+include_directories(${CMAKE_SOURCE_DIR}/..)
 include_directories(/home/pascal/NGC/IO/phdf5-1.8.18/install/include/)
 include_directories(/home/pascal/NGC/IO/hdf5-1.8.18/install/include/)
 include_directories(/home/pascal/NGC/IO/H5hut-1.99.13/install/include/)

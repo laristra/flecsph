@@ -36,6 +36,7 @@ class HDF5SimIO: public SimIO
     int writeGridData();
     int writePointData();
     int writePointData(int ts);
+    int writePointData(int ts, MPI_Comm _comm);
 };
 // https://support.hdfgroup.org/HDF5/doc1.8/RM/RM_H5Front.html
 
@@ -137,6 +138,30 @@ inline int HDF5SimIO::writePointData(int ts)
     return 0;
 }
 
+
+
+inline int HDF5SimIO::writePointData(int ts, MPI_Comm _comm)
+{
+    h5_file_t *dataFile;
+    dataFile = H5OpenFile(outputFileName.c_str(), H5_O_RDWR, _comm);
+    if (!dataFile)
+        return -1;
+
+    // Set timestep
+    H5SetStep(dataFile, ts);  
+    
+    for (int i=0; i<vars.size(); i++)
+    {
+        H5PartSetNumParticles(dataFile, vars[i].numElements);
+
+        if ( vars[i].varType == point )
+            H5PartWriteDataFloat32(dataFile, (vars[i].name).c_str(), (float *)vars[i].data);
+    }
+
+    H5CloseFile(dataFile);
+
+    return 0;
+}
 
 inline int HDF5SimIO::writePointData()
 {

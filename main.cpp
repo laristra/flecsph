@@ -2,6 +2,9 @@
 #include <fstream>
 
 #include "json.hpp"
+#include "octree.h"
+#include "scalingTest.h"
+
 
 int main(int argc, char *argv[])
 {
@@ -12,15 +15,29 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
+
 	// Read json file in memory
 	nlohmann::json jsonInput;
 	std::ifstream jsonFile(argv[1]);
 	jsonFile >> jsonInput;
 
 
-	// Output
-	std::cout << jsonInput["program-info"]["debug-log-path"] << std::endl;
+	//// Output
+	//std::cout << jsonInput["program-info"]["debug-log-path"] << std::endl;
 
+	Octree testOctree;
+	ScalingTest ioTesting;
+
+	testOctree.buildTree( jsonInput["data"]["num-octree-levels"] );
+	std::cout << testOctree.print();
+
+	MPI_Init(NULL, NULL);
+	
+	ioTesting.initMPIScaling(MPI_COMM_WORLD);
+	ioTesting.runScalingTest(jsonInput["data"]["num-particles"], jsonInput["data"]["num-timesteps"], testOctree, jsonInput["output"]["filename"]);
+	
+
+	MPI_Finalize();
 
 	return 0;
 }

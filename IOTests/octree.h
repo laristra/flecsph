@@ -37,38 +37,6 @@
 
 
 
-
-
-std::string toBinary(int num)
-{
-    std::string binStr = "";
-
-    while (num>0)
-	{
-	    binStr = std::to_string(num % 2) + binStr;
-	    num /= 2;
-	}
-
-	return binStr;
-}
-
-
-int toDecimal(std::string binary)
-{
-	int num = 0;
-	int pow = 1;
-
-	for (int i=binary.size()-1; i>=0; i--)
-	{
-		num += ( (binary[i] == '0') ? 0 : 1 ) * pow;
-		pow *= 2;
-	}
-
-	return num;
-}
-
-
-
 class Octree
 {
 	int maxLevel;
@@ -82,15 +50,23 @@ class Octree
   	~Octree(){ node.clear(); maxLevel=0; }
 
   	void init();
-  	int splitNode(std::string _node="");
+  	
   	void getSpatialExtent(std::string _node, float array[]);
-  	std::string findNeighborNode(std::string _node, int _dir);
+  	int findNeighborNode(std::string _node, direction _dir, std::string resultNode);
+
+  	int buildTree(int _numLevels);
+  	int splitRootNode();
+  	int splitNode(std::string _node="");
+  	void splitNode(std::list<std::string>::iterator it, std::string _node);
+
 
   	int getMaxLevel() { return maxLevel; }
+  	std::string getNodeAt(size_t pos);
   	int getNodeLevel(std::string _node){ return _node.size()/BIT_STRING_SIZE; }
 
-  	void printOctree();
+  	std::string print();
 };
+
 
 
 void Octree::init()
@@ -99,35 +75,46 @@ void Octree::init()
 }
 
 
-
-int Octree::splitNode(std::string _node)
+int Octree::buildTree(int _numLevels)
 {
-	// If first 8 nodes
-	if (_node == "" && node.size() == 0)
-	{
-		auto it = node.begin();
-		node.insert(it, "000" ); 	node.insert(it, "001" );
-		node.insert(it, "010" ); 	node.insert(it, "011" );
-		 
-		node.insert(it, "100" ); 	node.insert(it, "101" ); 
-		node.insert(it, "110" ); 	node.insert(it, "111" );
-		
-		maxLevel = 1;
+	int numNodes = 8;
+	splitNode();	// creates the first 8 nodes for level 1
 
-		return 0;
+
+	for (int _lvl=1; _lvl<_numLevels; _lvl++)
+	{
+
+		auto it=node.begin();
+		while (it != node.end())
+		{
+			std::string nodeName = *it;
+			splitNode(it, nodeName);
+
+			// Skip 8 nodes ahead to account for creating 8 children of a node
+			for (int i=0; i<8; i++)
+				++it;
+		}
 	}
 
+	return numNodes;
+}
 
-	// Navigate to the node
+
+int Octree::splitRootNode()
+{
 	auto it = node.begin();
-	while (*it != _node)
-		it++;	
+	node.insert(it, "000" ); 	node.insert(it, "001" );
+	node.insert(it, "010" ); 	node.insert(it, "011" );
+	 
+	node.insert(it, "100" ); 	node.insert(it, "101" ); 
+	node.insert(it, "110" ); 	node.insert(it, "111" );
+	
+	maxLevel = 1;
+}
 
-	// Leave if node is not found
-	if (it == node.end())
-		return -1;
 
-
+void Octree::splitNode(std::list<std::string>::iterator it, std::string _node)
+{
 	// Ease it from the octree
 	auto itErase = it;	it++;
 	node.erase(itErase);
@@ -141,6 +128,31 @@ int Octree::splitNode(std::string _node)
 	
 	int nodeLevel = (_node.size())/BIT_STRING_SIZE + 1;
 	maxLevel = std::max(nodeLevel, maxLevel);
+}
+
+
+int Octree::splitNode(std::string _node)
+{
+	// If first 8 nodes
+	if (_node == "" && node.size() == 0)
+	{
+		splitRootNode();
+		return 0;
+	}
+
+
+	// Navigate to the node
+	auto it = node.begin();
+	while (*it != _node)
+		it++;	
+
+	// Leave if node is not found
+	if (it == node.end())
+		return -1;
+
+	// Split the node found
+	splitNode(it, _node);
+
 
 	return 0;
 }
@@ -185,13 +197,29 @@ void Octree::getSpatialExtent(std::string _node, float array[])
 }
 
 
-void Octree::printOctree()
+std::string Octree::getNodeAt(size_t pos)
 {
-	std::cout << "Num nodes: " << node.size() << "  max level: " << maxLevel << std::endl;
-
+	size_t count = 0;
 	for (auto it : node)
-		std::cout << it << "  ";
-	std::cout << "\n\n";
+	{
+		if (pos == count)
+			return it;
+
+		count++;
+	}
+}
+
+
+std::string Octree::print()
+{
+	std::string outputString = "Num nodes: " + std::to_string(node.size()) + ", max level: " + std::to_string(maxLevel) + "\n";
+
+	for (auto it=node.begin(); it!=node.end(); it++)
+		outputString += *it + "  ";
+
+	outputString += "\n\n";
+
+	return outputString;
 }
 
 // 10 11
@@ -211,14 +239,14 @@ int Octree::findNeighborNode(std::string _node, direction _dir, std::string resu
 	if (_dir ==  LEFT)
 		if (_node[strLength-1] == '1')
 		{
-			resultNode[strLength-1] = '0'
+			resultNode[strLength-1] = '0';
 			return 0;
 		}
 
 	if (_dir ==  RIGHT)
 		if (_node[strLength-1] == '0')
 		{
-			resultNode[strLength-1] = '1'
+			resultNode[strLength-1] = '1';
 			return 0;
 		}
 
@@ -226,14 +254,14 @@ int Octree::findNeighborNode(std::string _node, direction _dir, std::string resu
 	if (_dir ==  TOP)
 		if (_node[strLength-2] == '0')
 		{
-			resultNode[strLength-2] = '1'
+			resultNode[strLength-2] = '1';
 			return 0;
 		}
 
 	if (_dir ==  BOTTOM)
 		if (_node[strLength-2] == '1')
 		{
-			resultNode[strLength-2] = '0'
+			resultNode[strLength-2] = '0';
 			return 0;
 		}
 
@@ -241,14 +269,14 @@ int Octree::findNeighborNode(std::string _node, direction _dir, std::string resu
 	if (_dir ==  TOP)
 		if (_node[strLength-2] == '0')
 		{
-			resultNode[strLength-2] = '1'
+			resultNode[strLength-2] = '1';
 			return 0;
 		}
 
 	if (_dir ==  BOTTOM)
 		if (_node[strLength-2] == '1')
 		{
-			resultNode[strLength-2] = '0'
+			resultNode[strLength-2] = '0';
 			return 0;
 		}
 }

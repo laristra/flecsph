@@ -15,6 +15,34 @@
 
 
 
+std::string toBinary(int num)
+{
+    std::string binStr = "";
+
+    while (num>0)
+	{
+	    binStr = std::to_string(num % 2) + binStr;
+	    num /= 2;
+	}
+
+	return binStr;
+}
+
+
+int toDecimal(std::string binary)
+{
+	int num = 0;
+	int pow = 1;
+
+	for (int i=binary.size()-1; i>=0; i--)
+	{
+		num += ( (binary[i] == '0') ? 0 : 1 ) * pow;
+		pow *= 2;
+	}
+
+	return num;
+}
+
 
 #ifdef __linux__ 
 
@@ -27,6 +55,7 @@ inline size_t getCurrentMemoryUse()
 
 	return (size_t) (_rusage.ru_maxrss);
 }
+
 
 #elif _WIN32
 

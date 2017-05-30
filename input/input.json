@@ -4,5 +4,18 @@
 		"working-path" : "build/",
 		"output-folder-name" : "run/",
 		"debug-log-path" : "logs/"
+	},
+
+	"output" :
+	{
+		"filename": "test8000000Part.h5"
+	},
+
+	"data" :
+	{
+		"num-octree-levels" : 1,
+		"num-particles" : 8000000,
+		"num-timesteps" : 2,
+		"num-variables" : 1
 	}
 }
