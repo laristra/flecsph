@@ -30,6 +30,9 @@ set(SRC_LIST main.cpp)
 
 # Options
 option (ENABLE_DEBUG "enable debugging mode" ON)
+if (ENABLE_DEBUG)
+	add_definitions(-DENABLE_DEBUG=1)
+endif()
 
 
 # Executable

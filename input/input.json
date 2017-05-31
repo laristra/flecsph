@@ -6,16 +6,23 @@
 		"debug-log-path" : "logs/"
 	},
 
+	"cluster" :
+	{
+		"num-staging-nodes" : 4
+	},
+
 	"output" :
 	{
-		"filename": "test8000000Part.h5"
+		"filename": "test8000000Part.h5",
+		"repeats" : 10
 	},
 
 	"data" :
 	{
 		"num-octree-levels" : 1,
-		"num-particles" : 8000000,
-		"num-timesteps" : 2,
-		"num-variables" : 1
+		"num-particles" : 800000,
+		"num-timesteps" : 4,
+		"scalars" : ["pressure", "heat"],
+		"num-variables" : 2
 	}
 }

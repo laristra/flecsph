@@ -4,6 +4,7 @@
 
 #include <string>
 #include <iostream>
+#include <sstream>
 #include <random>
 
 #include <mpi.h>
@@ -12,24 +13,32 @@
 #include "log.h"
 #include "hdf5SimIO.h"
 
+
 class ScalingTest
 {
 	int myRank;
 	int numRanks;
 	bool theadingON;
+	int iterationCount;
 	MPI_Comm mpiComm;
-	Log timingLog;
+	std::stringstream logStream;
+	Flecsi_Sim_IO::HDF5SimIO testDataSet;
 
   public:
-  	ScalingTest(){ theadingON=false; myRank=0; numRanks=1; }
+  	ScalingTest(){ theadingON=false; myRank=0; numRanks=1; iterationCount=1; }
   	~ScalingTest(){};
 
   	void enableTheading(){ theadingON=true; }
+  	void setIterationCount(int _iterationCount){ iterationCount=_iterationCount; }
   	void initMPIScaling(MPI_Comm _comm);
-  	void runScalingTest(size_t _numParticles, int numTimesteps, Octree simOct, std::string filename);
 
-  	std::string getTimingLog(){ return timingLog.getLog(); }
+  	void runScalingTest(size_t _numParticles, int numTimesteps, Octree simOct, std::string filename);
+  	void createPseudoData(size_t _numParticles, int numTimesteps, Octree simOct, std::string filename);
+  	void runWriteTest(int timeStep, size_t _numParticles);
+
+  	std::string getTimingLog(){ return logStream.str(); }
 };
+
 
 
 inline void ScalingTest::initMPIScaling(MPI_Comm _comm)
@@ -37,14 +46,18 @@ inline void ScalingTest::initMPIScaling(MPI_Comm _comm)
 	mpiComm = _comm;
 	MPI_Comm_rank(_comm, &myRank);
 	MPI_Comm_size(_comm, &numRanks);
-
-	std::cout << myRank << std::endl;
 }
 
 
 inline void ScalingTest::runScalingTest(size_t _numParticles, int numTimesteps, Octree simOct, std::string filename)
 {
-	Timer dataCreation, dataWriting;
+	createPseudoData(_numParticles, numTimesteps, simOct, filename);
+}
+
+
+inline void ScalingTest::createPseudoData(size_t _numParticles, int numTimesteps, Octree simOct, std::string filename)
+{
+	Timer dataCreation, dataConversion;
 
 	int myNumParticles = _numParticles/numRanks;
 
@@ -54,16 +67,12 @@ inline void ScalingTest::runScalingTest(size_t _numParticles, int numTimesteps, 
 
 	float nodeExtents[6];
 	simOct.getSpatialExtent(nodeID, nodeExtents);
-	std::cout << myRank << " ~ # particles: " << myNumParticles << ", Extents: "	
-										<< nodeExtents[0] << " - " << nodeExtents[1] << "   "
-										<< nodeExtents[2] << " - " << nodeExtents[2] << "   "
-										<< nodeExtents[4] << " - " << nodeExtents[5] << std::endl;
-
 
 	for (int t=0; t<numTimesteps; t++)
 	{
 		//
 		// Generate Data
+
 	  dataCreation.start();
 		// Some variables
 		float *_x_data = new float[myNumParticles];
@@ -87,11 +96,11 @@ inline void ScalingTest::runScalingTest(size_t _numParticles, int numTimesteps, 
 	  dataCreation.stop();
 
 
-	  dataWriting.start();
-		//
+	  	//
 		// Create hdf5
-		Flecsi_Sim_IO::HDF5SimIO testDataSet( filename.c_str() );
-
+	  dataConversion.start();
+		
+		testDataSet.setFilename( filename.c_str() );
 		testDataSet.createDataset(Flecsi_Sim_IO::unStructuredGrid, 4, 3);	// 4: num vars, 3: num dims
 
 		Flecsi_Sim_IO::Variable _x, _y, _z, _pressure;
@@ -104,14 +113,11 @@ inline void ScalingTest::runScalingTest(size_t _numParticles, int numTimesteps, 
 		testDataSet.vars.push_back(_y);
 		testDataSet.vars.push_back(_z);
 		testDataSet.vars.push_back(_pressure);
-	  
-		testDataSet.writePointData(t, mpiComm);
-	  dataWriting.stop();
+	  dataConversion.stop();
 
-	  	timingLog.addLog("Data creation for timestep " + std::to_string(t) + " took: " + std::to_string( dataCreation.getDuration() ) + " s.\n");
-	  	timingLog.addLog("Data write for timestep " + std::to_string(t)+ " took: " + std::to_string( dataWriting.getDuration() ) + " s.\n\n");
+	  	runWriteTest(t, _numParticles);
 
-		// Delete 
+	  	// Delete 
 		if (_x_data != NULL)
 			delete [] _x_data;
 		if (_y_data != NULL)
@@ -121,10 +127,36 @@ inline void ScalingTest::runScalingTest(size_t _numParticles, int numTimesteps, 
 		if (_pressure_data != NULL)
 			delete [] _pressure_data;
 
+
+		logStream << "\nData creation for timestep    " << t << " took ($): " << dataCreation.getDuration() << " s. " << std::endl;
+		logStream << "h5hut conversion for timestep " << t << " took (^): " << dataConversion.getDuration() << " s. " << std::endl << std::endl << std::endl;
+
 		// Sync writing before going to the next step
 		MPI_Barrier(mpiComm);
 	}
-
 }
+
+
+
+inline void ScalingTest::runWriteTest(int timeStep, size_t _numParticles)
+{
+	Timer dataWriting;
+
+	for (int iter=0; iter<iterationCount; iter++)
+	{
+	  dataWriting.start();
+		testDataSet.writePointData(timeStep, mpiComm);
+	  dataWriting.stop();
+
+	  	logStream << iter << " ~ h5hut writing "<< _numParticles << " particles, timestep: " << timeStep << " took(#) " << dataWriting.getDuration() << " s."<< std::endl;
+	}
+}
+
+
+inline void ScalingTest::runGroupWriteTest(int timeStep, size_t _numParticles)
+{
+	
+}
+
 
 #endif
