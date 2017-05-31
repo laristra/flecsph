@@ -1,6 +1,6 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.3)
 
-PROJECT(ScalingFramework)
+PROJECT(ScalingFramework CXX)
 
 # Compiler settings
 set(CMAKE_C_COMPILER mpicc)
@@ -35,6 +35,13 @@ if (ENABLE_DEBUG)
 endif()
 
 
+#Library
+add_library(h5FlecsiPython SHARED IOTests/hdf5SimIO.h)
+set_target_properties(h5FlecsiPython PROPERTIES LINKER_LANGUAGE "CXX")
+set_property(TARGET h5FlecsiPython PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES hdf5.so hdf5_cpp.so H5hut.a)
+
+
 # Executable
 add_executable(ScalingFramework main.cpp)
+
 target_link_libraries(ScalingFramework hdf5.so hdf5_cpp.so H5hut.a)
