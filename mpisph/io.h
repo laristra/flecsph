@@ -175,10 +175,10 @@ void inputDataTxtRange(
 
 // Input data fro HDF5 File
 void inputDataHDF5(
-    std::vector<body*> bodies,
-    const char * filename,
-    tree_topology_t& t){
-  // Data double buffer to read 
+  std::vector<body*> bodies,
+  const char * filename,
+  tree_topology_t& t){
+  //Data double buffer to read 
   //double* data;
   //hid_t file; 
   //hid_t dset; 
@@ -205,8 +205,8 @@ void outputDataHDF5(
     std::vector<body*>& bodies,
     const char* filename,
     int step,
-    double dt
-    ){
+    double dt)
+{
   hsize_t size = bodies.size(); 
   //int nbodies = bodies.size(); 
   char outputfilename[128];

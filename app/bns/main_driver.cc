@@ -45,7 +45,7 @@ mpi_init_task(/*std:: string sfilename*/){
   // TODO find a way to use the file name from the specialiszation_driver
   //std::cout<<sfilename<<std::endl;
   //const char * filename = "../data/data_bns_4169.txt";
-  const char * filename = "../data/data_binary_rdy_16288.txt";
+  const char * filename = "../../data/data_binary_rdy_16288.txt";
   
   int rank;
   int size;
@@ -210,11 +210,10 @@ mpi_init_task(/*std:: string sfilename*/){
     // compute the COM data
     tcolorer.tree_traversal_com(tree);
     // Gather all the COM
-    std::vector<mpi_cell> recvcells;
-    std::vector<int> nrecvcells;
-    tcolorer.mpi_exchange_cells(tree,recvcells,nrecvcells,mcell);
-    tcolorer.mpi_compute_fmm(tree,recvcells,macangle);
-    tcolorer.mpi_gather_cells(tree,recvcells,nrecvcells);
+    tcolorer.mpi_exchange_cells(tree,mcell);
+    tcolorer.mpi_compute_fmm(tree,macangle);
+    tcolorer.mpi_gather_cells(tree);
+    //tcolorer.mpi_gather_ghosts_com(tree,range);
     
     MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0)
