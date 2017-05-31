@@ -9,8 +9,6 @@
 
 int main(int argc, char *argv[])
 {
-	
-
 	// Read in arguments
 	if (argc < 2)
 	{
@@ -53,4 +51,4 @@ int main(int argc, char *argv[])
 }
 
 // Run:
-// ./ScalingFramework ../input/input.json
+// mpirun -np 8 ./ScalingFramework ../input/input.json

@@ -153,10 +153,6 @@ inline void ScalingTest::runWriteTest(int timeStep, size_t _numParticles)
 }
 
 
-inline void ScalingTest::runGroupWriteTest(int timeStep, size_t _numParticles)
-{
-	
-}
 
 
 #endif

@@ -13,14 +13,14 @@
 
 	"output" :
 	{
-		"filename": "test8000000Part.h5",
+		"filename": "test8000.h5part",
 		"repeats" : 10
 	},
 
 	"data" :
 	{
 		"num-octree-levels" : 1,
-		"num-particles" : 800000,
+		"num-particles" : 8000,
 		"num-timesteps" : 4,
 		"scalars" : ["pressure", "heat"],
 		"num-variables" : 2
