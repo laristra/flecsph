@@ -68,11 +68,22 @@ inline void ScalingTest::createPseudoData(size_t _numParticles, int numTimesteps
 	float nodeExtents[6];
 	simOct.getSpatialExtent(nodeID, nodeExtents);
 
+
+	testDataSet.setFilename( filename.c_str() );
+	testDataSet.createDataset(Flecsi_Sim_IO::unStructuredGrid, 4, 3, mpiComm);	// 4: num vars, 3: num dims
+
+	testDataSet.writeGlobalAttribute("numParticles", "int64_t", 800);
+	testDataSet.writeGlobalAttribute("gravitational constant", "double", 6.67300E-11);
+	testDataSet.writeGlobalAttribute("numDims", "int32_t", 3);
+	testDataSet.writeGlobalAttribute("use_fixed_timestep", "int32_t", 0);
+	testDataSet.closeFile();
+
+
+
 	for (int t=0; t<numTimesteps; t++)
 	{
 		//
 		// Generate Data
-
 	  dataCreation.start();
 		// Some variables
 		float *_x_data = new float[myNumParticles];
@@ -96,12 +107,17 @@ inline void ScalingTest::createPseudoData(size_t _numParticles, int numTimesteps
 	  dataCreation.stop();
 
 
+
+
+
+
+
 	  	//
 		// Create hdf5
 	  dataConversion.start();
-		
-		testDataSet.setFilename( filename.c_str() );
-		testDataSet.createDataset(Flecsi_Sim_IO::unStructuredGrid, 4, 3);	// 4: num vars, 3: num dims
+	  	Flecsi_Sim_IO::Attribute timeValue;
+	  	timeValue.createAttribute("time", Flecsi_Sim_IO::timestep, "float", (float)t/10.0);
+	  	testDataSet.timestepAttributes.push_back(timeValue);
 
 		Flecsi_Sim_IO::Variable _x, _y, _z, _pressure;
 		_x.createVariable("x", Flecsi_Sim_IO::point, "float", myNumParticles, _x_data);	
@@ -109,13 +125,20 @@ inline void ScalingTest::createPseudoData(size_t _numParticles, int numTimesteps
 		_z.createVariable("z", Flecsi_Sim_IO::point, "float", myNumParticles, _z_data);
 		_pressure.createVariable("pressure", Flecsi_Sim_IO::point, "double", myNumParticles, _pressure_data);
 
+
 		testDataSet.vars.push_back(_x);
 		testDataSet.vars.push_back(_y);
 		testDataSet.vars.push_back(_z);
 		testDataSet.vars.push_back(_pressure);
 	  dataConversion.stop();
 
-	  	runWriteTest(t, _numParticles);
+	  	//runWriteTest(t, _numParticles);
+	  	testDataSet.writePointData(t, mpiComm);
+
+	  
+
+
+
 
 	  	// Delete 
 		if (_x_data != NULL)

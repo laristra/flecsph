@@ -19,11 +19,19 @@ enum VariableType
 };
 
 
+enum AttributeType
+{ 
+	global   = 0,
+	timestep = 1
+};
+
+
 enum OutputType
 {
 	structuredGrid 	 = 0,
 	unStructuredGrid = 1
 };
+
 
 
 enum TreeType
@@ -41,6 +49,63 @@ enum Endianness
 
 
 
+struct Attribute
+{
+	std::string name;				// Variable name
+	AttributeType attributeType;	// global or timestep
+	std::string dataType;			// datatype: int, char, float, ...
+	int numElements;
+	void *data;						// the actual data	
+
+	Attribute(){ data = NULL; }
+	~Attribute()
+	{
+		numElements = 0;
+
+		if (data != NULL) return;
+		
+		if ( dataType == "float")			delete [] (float *) data;
+		else if ( dataType == "double")		delete [] (double *) data;
+		else if ( dataType == "int")		delete [] (int *) data;
+		else if ( dataType == "int8_t")		delete [] (int8_t *) data;
+		else if ( dataType == "int16_t")	delete [] (int16_t *) data;
+		else if ( dataType == "int32_t")	delete [] (int32_t *) data;
+		else if ( dataType == "int64_t")	delete [] (int64_t *) data;
+		else if ( dataType == "uint8_t")	delete [] (uint8_t *) data;
+		else if ( dataType == "uint16_t")	delete [] (uint16_t *) data;
+		else if ( dataType == "uint32_t")	delete [] (uint32_t *) data;
+		else if ( dataType == "uint64_t")	delete [] (uint64_t *) data;
+		else { }
+	}
+
+
+	template <class T>
+	void createAttribute(std::string _name, AttributeType _attributeType, std::string _dataType, T _data)
+	{
+		name = _name;
+		attributeType = _attributeType;
+		dataType = _dataType;
+		numElements = 1;
+
+		if ( dataType == "float") {			data = new float[numElements];		((float *)data)[0]=_data; }
+		else if ( dataType == "double") {	data = new double[numElements];		((double *)data)[0]=_data; }
+		else if ( dataType == "int32_t"){	data = new int32_t[numElements];	((int32_t *)data)[0]=_data; }
+		else if ( dataType == "int64_t"){	data = new int64_t[numElements];	((int64_t *)data)[0]=_data; }
+		else { }
+	}
+
+	void createAttributeArray(std::string _name, AttributeType _attributeType, std::string _dataType, int _numElements, void *_data)
+	{
+		name = _name;
+		attributeType = _attributeType;
+		dataType = _dataType;
+		numElements = _numElements;
+		data = _data;
+	}
+};
+
+					
+
 struct Variable
 {
 	std::string name;				// Variable name
@@ -48,6 +113,7 @@ struct Variable
 	std::string dataType;			// datatype: int, char, float, ...
 	int numElements;
 	void *data;						// the actual data
+				
 
 	Variable(){ data = NULL; }
 	~Variable()
@@ -69,6 +135,7 @@ struct Variable
 		else if ( dataType == "uint64_t")	delete [] (uint64_t *) data;
 		else { }
 	}
+
 
 	void createVariable(std::string _name, VariableType _varType, std::string _dataType, int _numElements, void *_data)
 	{
@@ -92,9 +159,14 @@ class SimIO
 	int numDims;					// 1 or 2 or 3 ...
 	
   public:
-  	std::vector<Variable> vars;
   	std::vector<int> gridDims;		// Size of each dimension
 	std::vector<double> extents;	// (min, max) pair for each dimension
+
+	//std::vector<Attribute> globalAttributes;
+
+  	std::vector<Variable> vars;
+  	std::vector<Attribute> timestepAttributes;
+  	
 
   	SimIO(){ endian=little; }
 	SimIO(std::string _outputFileName):outputFileName(_outputFileName){ endian=little; }
