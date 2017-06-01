@@ -11,6 +11,7 @@ set(CMAKE_CXX_FLAGS_RELEASE
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/app/bns/include)
 include_directories(${CMAKE_SOURCE_DIR}/mpisph)
+include_directories(${CMAKE_SOURCE_DIR}/third-party-libraries/ScalingFramework/IOTests)
 
 #------------------------------------------------------------------------------#
 # Executables    

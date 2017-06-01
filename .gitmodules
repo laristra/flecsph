@@ -1,3 +1,6 @@
 [submodule "cinch"]
   path = cinch
   url = https://github.com/laristra/cinch.git
+[submodule "third-party-libraries/build_hdf5"]
+	path = third-party-libraries/build_hdf5
+	url = https://github.com/HDFGroup/build_hdf5

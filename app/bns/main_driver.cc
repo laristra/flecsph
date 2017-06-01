@@ -45,7 +45,7 @@ mpi_init_task(/*std:: string sfilename*/){
   // TODO find a way to use the file name from the specialiszation_driver
   //std::cout<<sfilename<<std::endl;
   //const char * filename = "../data/data_bns_4169.txt";
-  const char * filename = "../../data/data_binary_rdy_16288.txt";
+  const char * filename = "../data/data_binary_rdy_16288.txt";
   
   int rank;
   int size;

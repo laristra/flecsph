@@ -25,9 +25,11 @@
 #include <iostream>
 #include <vector>
 
-#include <hdf5.h>
+//#include <hdf5.h>
 
 #include "tree.h"
+
+#include "hdf5SimIO.h"
 
 namespace io{
 

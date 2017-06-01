@@ -8,9 +8,13 @@ set(CMAKE_CXX_FLAGS_RELEASE
   "-O3 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses") 
 
 # includes 
+
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/app/sodtube/include)
 include_directories(${CMAKE_SOURCE_DIR}/mpisph)
+include_directories(${CMAKE_SOURCE_DIR}/third-party-libraries/ScalingFramework/IOTests)
+#include_directories(${CMAKE_SOURCE_DIR}/third-party-libraries/local/include)
+
 #------------------------------------------------------------------------------#
 # Executables    
 #------------------------------------------------------------------------------#
@@ -26,8 +30,13 @@ add_executable(sodtube
   ${FleCSI_RUNTIME}/runtime_driver.cc
 )
 
-message(STATUS "Libraries: ${FleCSPH_LIBRARIES}")
+# MPILEGION version
+add_executable(sodtube_generator 
+  generator/main.cc 
+)
 
+target_link_libraries(sodtube_generator ${MPI_LIBRARIES} 
+  ${HDF5_LIBRARIES} ${H5HUT_LIBRARIES})
 target_link_libraries(sodtube ${FleCSPH_LIBRARIES} mpisph)
 
 add_definitions(-DFLECSI_ENABLE_SPECIALIZATION_DRIVER)

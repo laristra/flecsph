@@ -149,6 +149,8 @@ struct mpi_cell_t{
   mpi_cell_t(){};
 };
 
+
+
 // Structure to keep the data during the ghosts sharing. 
 // Fill the structure during compute_ghosts and then exchange during
 // exchange_ghosts 
@@ -248,19 +250,21 @@ public:
     int rank,size; 
     MPI_Comm_size(MPI_COMM_WORLD,&size);
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    // Find in the radius in the tree each of the COM that will be concerned by
-    // the FMM method 
+    // Find in the tree each of the COM that will be concerned by
+    // the FMM method, based on the mass first 
     std::vector<mpi_cell_t> vcells;
   
     // Perform a tree traversal to gather the cells  
     std::function<void(branch_t*)>traverse;
-     traverse = [&tree,&traverse,&vcells,&maxMass](branch_t * b){
-       if(b->getMass() == 0.0){
+    traverse = [&tree,&traverse,&vcells,&maxMass](branch_t * b){
+      // Do not consider non local branches, mass is 0
+      if(b->getMass() == 0.0){
         return;
       } // if
-       if(b->is_leaf() || b->getMass() < maxMass){
+      // If this branch is a leaf or the mass is under the acceptance mass 
+      if(b->is_leaf() || b->getMass() < maxMass){
         vcells.push_back(mpi_cell_t(b->getPosition(),
-            b->getBMin(),b->getBMax(),b->id()));
+          b->getBMin(),b->getBMax(),b->id()));
       }else{
         for(int i=0;i<(1<<dimension);++i){
           traverse(tree.child(b,i));
@@ -291,7 +295,8 @@ public:
     recvCOM.resize(totalrecv);
     MPI_Allgatherv(&vcells[0],nrecvCOM[rank],MPI_BYTE,
       &recvCOM[0],&nrecvCOM[0],&noffsets[0],MPI_BYTE,MPI_COMM_WORLD);
-  
+    
+    // Check if mine are in the right order 
     for(size_t i=0;i<vcells.size();++i){
       assert(vcells[i].position == 
         recvCOM[i+noffsets[rank]/sizeof(mpi_cell_t)].position);
@@ -305,7 +310,7 @@ public:
     tree_topology_t& tree,
     double macangle)
   {
-    #pragma omp parallel for 
+    //#pragma omp parallel for 
     for(auto cell=recvCOM.begin(); cell < recvCOM.end() ; ++cell){
       branch_t sink;
       sink.setPosition(cell->position);
@@ -486,6 +491,8 @@ public:
             recvcells[j].dfcdr[k] += recvcells[i*ncells+j].dfcdr[k];
           } // if
           recvcells[j].dfcdrdr[k] += recvcells[i*ncells+j].dfcdrdr[k];
+          // Check if cells are not too high 
+          assert(recvcells[j].dfcdrdr[k] < 1000);
         } // for
       } // for 
     } // for
@@ -636,6 +643,7 @@ public:
       if(source->is_leaf()){
         for(auto bi: *source){
           if(bi->is_local()){
+            // Check if particle is inside my radius 
             if(!(bi->getPosition() < sink->getBMax() &&
               bi->getPosition() > sink->getBMin())){
               computeAcceleration(sink->getPosition(),bi->getPosition(),
@@ -778,7 +786,18 @@ public:
     }; // traverse function
     
     traverse(tree.root());
-    // \TODO MPI for mass checking
+    
+#ifdef DEBUG
+    // For Debug, check if mass conserved 
+    static double checkmass = 0.0;
+    double mass = tree.root()->getMass();
+    MPI_Allreduce(MPI_IN_PLACE,&mass,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+    if(checkmass == 0.0){
+      checkmass = mass;
+    }else{
+      assert(fabs(checkmass - mass) < 1.0e-15 );
+    }
+#endif 
   } // tree_traversal_com
 
 /*~---------------------------------------------------------------------------*

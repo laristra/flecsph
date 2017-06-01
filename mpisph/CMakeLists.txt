@@ -9,6 +9,8 @@ set(CMAKE_CXX_FLAGS_RELEASE
 
 # includes 
 include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/third-party-libraries/local/include)
+include_directories(${CMAKE_SOURCE_DIR}/third-party-libraries/ScalingFramework/IOTests)
 
 #------------------------------------------------------------------------------#
 # Executables    

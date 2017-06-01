@@ -14,6 +14,8 @@ elseif(EXISTS ${CMAKE_SOURCE_DIR}/cinch)
   set(CINCH_SOURCE_DIR ${CMAKE_SOURCE_DIR}/cinch)
 endif()
 
+
+
 set(FLECSI_RUNTIME_MODEL "serial" CACHE STRING "The flecsi runtime")
 
 include(${CINCH_SOURCE_DIR}/cmake/ProjectLists.txt)
