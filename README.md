@@ -73,4 +73,36 @@ Then download and build FleCSPH.
 # Todo 
 - Handle the file name from the specialization driver to the mpi task 
 - Add non power of two handler in the branch sharing
-- See the code structuration 
+- See the code structuration
+
+# Input File structure 
+
+For the input file we are using the H5hut format. 
+Headers containts general informations like: 
+
+- Number of particles 
+- Dimension
+
+Then for each Step we save:
+
+- Position X: "x"
+- Position Y: "y" 
+- Position Z: "z" 
+- Velocity X: "vx"
+- Velocity Y: "vy" 
+- Velocity Z: "vz"
+- Acceleration X: "ax"
+- Acceleration Y: "ay"
+- Acceleration Z: "az"
+- Smoothing Length: "h"
+- Density: "rho"
+- Internal Energy: "u"
+- Pressure: "P"
+- Mass: "m"
+- Id: "id" 
+- Time step: "dt"
+
+Types are all double except for:
+
+- id = int64_t
+- nparticles = int64_t 

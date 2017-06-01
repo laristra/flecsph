@@ -87,14 +87,16 @@ public:
   void setGravForce(point_t gravforce){gravforce_ = gravforce;}
   void setHydroForce(point_t hydroforce){hydroforce_ = hydroforce;}
   void setSoundspeed(double soundspeed){soundspeed_ = soundspeed;}
-  void setPressure(double pressure){assert(pressure > 0);pressure_ = pressure;}
-  void setDensity(double density){assert(density >= 0);density_ = density;}
+  void setPressure(double pressure){pressure_ = pressure;}
+  void setDensity(double density){density_ = density;}
   void setMass(double mass){mass_ = mass;};
   void setInternalenergy(double internalenergy)
     {internalenergy_=internalenergy;};
   void setSmoothinglength(double smoothinglength)
     {smoothinglength_=smoothinglength;};
   void setDudt(double dudt){dudt_ = dudt;};
+  void setDt(double dt){dt_ = dt;};
+  void setId(int64_t id){id_ = id;};
 
   friend std::ostream& operator<<(std::ostream& os, const body& b){
     // TODO change regarding to dimension 
@@ -124,6 +126,8 @@ private:
   double dudt_;
   point_t gravforce_;
   point_t hydroforce_;
+  double dt_;
+  int64_t id_;
 }; // class body 
   
 #endif // body_h

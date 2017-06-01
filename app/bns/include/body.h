@@ -95,6 +95,8 @@ public:
   void setSmoothinglength(double smoothinglength)
     {smoothinglength_=smoothinglength;};
   void setDudt(double dudt){dudt_ = dudt;};
+  void setDt(double dt){dt_ = dt;};
+  void setId(int64_t id){id_ = id;};
 
   friend std::ostream& operator<<(std::ostream& os, const body& b){
     // TODO change regarding to dimension 
@@ -124,6 +126,9 @@ private:
   double dudt_;
   point_t gravforce_;
   point_t hydroforce_;
+  double dt_;
+  int64_t id_;
+
 }; // class body 
   
 #endif // body_h

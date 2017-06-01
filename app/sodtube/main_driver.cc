@@ -69,8 +69,10 @@ mpi_init_task(int inputparticles){
   // Read data from file, each process read a part of it 
   // For HDF5, no problems because we know the number of particles 
   // For txt format, work on the number of lines yet ... 
-  totalnbodies = inputparticles;
-  sodtube::randomDataSodTube1D(rbodies,nbodies,totalnbodies,rank,size);
+  //totalnbodies = inputparticles;
+  //sodtube::randomDataSodTube1D(rbodies,nbodies,totalnbodies,rank,size);
+
+  io::inputDataHDF5(rbodies,"hdf5_sodtube.h5");
 
   double smoothinglength = 0.0;
   int iter = 0;
