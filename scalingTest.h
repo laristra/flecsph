@@ -78,14 +78,14 @@ inline void ScalingTest::createPseudoData(size_t _numParticles, int numTimesteps
 		float *_x_data = new float[myNumParticles];
 		float *_y_data = new float[myNumParticles];
 		float *_z_data = new float[myNumParticles];
-		float *_pressure_data = new float[myNumParticles];
+		double *_pressure_data = new double[myNumParticles];
 
 
 		std::default_random_engine eng( (std::random_device()) () );
 		std::uniform_real_distribution<float> xDis(nodeExtents[0], nodeExtents[1]);
 		std::uniform_real_distribution<float> yDis(nodeExtents[2], nodeExtents[3]);
 		std::uniform_real_distribution<float> zDis(nodeExtents[4], nodeExtents[5]);
-		std::uniform_real_distribution<float> pressureDis(-1000.0, 1000.0);
+		std::uniform_real_distribution<double> pressureDis(-1000.0, 1000.0);
 		for (size_t i=0; i<myNumParticles; i++)
 		{
 			_x_data[i] = xDis(eng);
@@ -107,7 +107,7 @@ inline void ScalingTest::createPseudoData(size_t _numParticles, int numTimesteps
 		_x.createVariable("x", Flecsi_Sim_IO::point, "float", myNumParticles, _x_data);	
 		_y.createVariable("y", Flecsi_Sim_IO::point, "float", myNumParticles, _y_data);
 		_z.createVariable("z", Flecsi_Sim_IO::point, "float", myNumParticles, _z_data);
-		_pressure.createVariable("pressure", Flecsi_Sim_IO::point, "float", myNumParticles, _pressure_data);
+		_pressure.createVariable("pressure", Flecsi_Sim_IO::point, "double", myNumParticles, _pressure_data);
 
 		testDataSet.vars.push_back(_x);
 		testDataSet.vars.push_back(_y);

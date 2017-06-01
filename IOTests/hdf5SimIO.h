@@ -127,8 +127,16 @@ inline int HDF5SimIO::writePointData(int ts)
     {
         H5PartSetNumParticles(dataFile, vars[i].numElements);
 
-        if ( vars[i].varType == point )
+        if ( vars[i].dataType == "float" )
             H5PartWriteDataFloat32(dataFile, (vars[i].name).c_str(), (float *)vars[i].data);
+        else if ( vars[i].dataType == "double" )
+            H5PartWriteDataFloat64(dataFile, (vars[i].name).c_str(), (double *)vars[i].data);
+        else if ( vars[i].dataType == "int32_t" )
+            H5PartWriteDataInt32(dataFile, (vars[i].name).c_str(), (int32_t *)vars[i].data);
+        else if ( vars[i].dataType == "int64_t" )
+            H5PartWriteDataInt64(dataFile, (vars[i].name).c_str(), (int64_t *)vars[i].data);
+        else
+            return -1;
     }
 
     H5CloseFile(dataFile);
