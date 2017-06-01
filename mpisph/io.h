@@ -179,12 +179,19 @@ void inputDataTxtRange(
 // Input data fro HDF5 File
 void inputDataHDF5(
   std::vector<std::pair<entity_key_t,body>>& bodies,
-  const char * filename)
+  const char * filename,
+  int& totalnbodies,
+  int& nbodies)
 {
   
   int rank, size; 
   MPI_Comm_size(MPI_COMM_WORLD,&size); 
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  if(rank==0){
+    std::cout<<"Input particles";
+  } 
 
   auto dataFile = H5OpenFile(filename,H5_O_RDWR,MPI_COMM_WORLD);
   // Set the step to 0 for first reading
@@ -200,6 +207,11 @@ void inputDataHDF5(
   if(size-1==rank){
     nparticlesproc = nparticles - nparticlesproc*(size-1);
   }
+
+  // Register for main 
+  totalnbodies = nparticles;
+  nbodies = nparticlesproc;
+
 
   // Resize the bodies vector 
   bodies.clear();
@@ -283,80 +295,117 @@ void inputDataHDF5(
 
   H5CloseFile(dataFile);
 
-}// inputDataHDF5
+  MPI_Barrier(MPI_COMM_WORLD);
+  if(rank==0){
+    std::cout<<".done"<<std::endl;
+  }
 
-// Output data in txt format 
-void outputDataTxt(){
-  
-}// ouputDataTxt
+}// inputDataHDF5
 
 // Output data in HDF5 format 
 // Generate the associate XDMF file 
 void outputDataHDF5(
-    std::vector<body*>& bodies,
+    std::vector<std::pair<entity_key_t,body>>& bodies,
     const char* filename,
-    int step,
-    double dt)
+    int step)
 {
-  hsize_t size = bodies.size(); 
-  //int nbodies = bodies.size(); 
-  char outputfilename[128];
-  hid_t dset, file, space;
-  herr_t status; 
-  int cpt;
-  double *data;  
-  data = (double*)malloc(sizeof(double)*size);
-  sprintf(outputfilename,"%s%d.h5",filename,step); 
-  file = H5Fcreate(outputfilename,H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT);
-  space = H5Screate_simple(1,&size,NULL);  
-  
-  // Positions 
-  // X
-  cpt = 0;
-  for(auto bi: bodies)
-    data[cpt++] =  bi->getPosition()[0];
-  dset = H5Dcreate(file,"/X",H5T_NATIVE_DOUBLE,space,
-      H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT); 
-  status = H5Dwrite(dset,H5T_NATIVE_DOUBLE,H5S_ALL,H5S_ALL,H5P_DEFAULT,data);
-  status = H5Dclose(dset);  
-  // Y
-  cpt = 0;
-  for(auto bi: bodies)
-    data[cpt++] =  bi->getPosition()[1];
-  dset = H5Dcreate(file,"/Y",H5T_NATIVE_DOUBLE,space,
-      H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT); 
-  status = H5Dwrite(dset,H5T_NATIVE_DOUBLE,H5S_ALL,H5S_ALL,H5P_DEFAULT,data);
-  status = H5Dclose(dset); 
-  // Z
-  cpt = 0;
-  for(auto bi: bodies)
-    data[cpt++] =  bi->getPosition()[2];
-  dset = H5Dcreate(file,"/Z",H5T_NATIVE_DOUBLE,space,
-      H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT); 
-  status = H5Dwrite(dset,H5T_NATIVE_DOUBLE,H5S_ALL,H5S_ALL,H5P_DEFAULT,data);
-  status = H5Dclose(dset);
 
-  // Density 
-  cpt = 0;
-  for(auto bi: bodies)
-    data[cpt++] =  bi->getDensity();
-  dset = H5Dcreate(file,"/density",H5T_NATIVE_DOUBLE,space,
-      H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT); 
-  status = H5Dwrite(dset,H5T_NATIVE_DOUBLE,H5S_ALL,H5S_ALL,H5P_DEFAULT,data);
-  status = H5Dclose(dset);
+  int size, rank;
+  MPI_Comm_size(MPI_COMM_WORLD,&size);
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
-  // Time 
-  status = H5Sclose(space); 
-  size = 1;
-  space = H5Screate_simple(1,&size,NULL); 
-  dset = H5Dcreate(file,"/time",H5T_NATIVE_DOUBLE,space,
-      H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
-  status = H5Dwrite(dset,H5T_NATIVE_DOUBLE,H5S_ALL,H5S_ALL,H5P_DEFAULT,data);
-  status = H5Dclose(dset);  
+  MPI_Barrier(MPI_COMM_WORLD);
+  if(rank == 0){
+    std::cout<<"Output particles";
+  }
 
-  status = H5Sclose(space);
-  status = H5Fclose(file);  
-  free(data);
+  int64_t nparticlesproc = bodies.size();
+
+  // open the file 
+  auto dataFile = H5OpenFile(filename,H5_O_RDWR,MPI_COMM_WORLD);
+  // Set the step 
+  H5SetStep(dataFile,step);
+  // Set the number of particles 
+  H5PartSetNumParticles(dataFile,nparticlesproc);
+
+  double* dataX = new double[nparticlesproc];
+  double* dataY = new double[nparticlesproc];
+  double* dataZ = new double[nparticlesproc];
+  int64_t* dataInt = new int64_t[nparticlesproc];
+
+  // Position
+  int64_t pos = 0L;
+  // Extract data from bodies 
+  for(auto bi: bodies){
+    dataX[pos] = bi.second.getPosition()[0];
+    dataY[pos] = 0.0;// bi.second->getPosition()[1];
+    dataZ[pos++] = 0.0;//bi.second->getPosition()[2];
+  }
+  H5PartWriteDataFloat64(dataFile,"x",dataX);
+  H5PartWriteDataFloat64(dataFile,"y",dataY);
+  H5PartWriteDataFloat64(dataFile,"z",dataZ);
+
+  // Velocity
+  pos = 0L;
+  // Extract data from bodies 
+  for(auto bi: bodies){
+    dataX[pos] = bi.second.getVelocity()[0];
+    dataY[pos] = 0.0;// bi.second->getVelocity()[1];
+    dataZ[pos++] = 0.0;//bi.second->getVelocity()[2];
+  }
+  H5PartWriteDataFloat64(dataFile,"vx",dataX);
+  H5PartWriteDataFloat64(dataFile,"vy",dataY);
+  H5PartWriteDataFloat64(dataFile,"vz",dataZ);
+
+  // Acceleration 
+  pos = 0L;
+  // Extract data from bodies 
+  for(auto bi: bodies){
+    dataX[pos] = bi.second.getAcceleration()[0];
+    dataY[pos] = 0.0;// bi.second->getAcceleration()[1];
+    dataZ[pos++] = 0.0;//bi.second->getAcceleration()[2];
+  }
+  H5PartWriteDataFloat64(dataFile,"vx",dataX);
+  H5PartWriteDataFloat64(dataFile,"vy",dataY);
+  H5PartWriteDataFloat64(dataFile,"vz",dataZ);
+
+  // Smoothing length, Density, Internal Energy 
+  pos = 0L;
+  // Extract data from bodies 
+  for(auto bi: bodies){
+    dataX[pos] = bi.second.getSmoothinglength();
+    dataY[pos] = bi.second.getDensity();
+    dataZ[pos++] = bi.second.getInternalenergy();
+  }
+  H5PartWriteDataFloat64(dataFile,"h",dataX);
+  H5PartWriteDataFloat64(dataFile,"rho",dataY);
+  H5PartWriteDataFloat64(dataFile,"u",dataZ);
+
+ // Pressure, Mass, Id, timestep
+  pos = 0L;
+  // Extract data from bodies 
+  for(auto bi: bodies){
+    dataX[pos] = bi.second.getPressure();
+    dataY[pos] = bi.second.getMass();
+    dataZ[pos] = bi.second.getDt();
+    dataInt[pos++] = bi.second.getId();
+  }
+  H5PartWriteDataFloat64(dataFile,"P",dataX);
+  H5PartWriteDataFloat64(dataFile,"m",dataY);
+  H5PartWriteDataFloat64(dataFile,"dt",dataZ);
+  H5PartWriteDataInt64(dataFile,"id",dataInt);
+
+  H5CloseFile(dataFile);
+
+  delete[] dataX;
+  delete[] dataY;
+  delete[] dataZ;
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  if(rank == 0){
+    std::cout<<".done"<<std::endl;
+  }
+
 }// outputDataHDF5
 
 } // namespace io

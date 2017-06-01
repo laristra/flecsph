@@ -40,7 +40,7 @@ namespace flecsi{
 namespace execution{
 
 void
-mpi_init_task(int inputparticles){
+mpi_init_task(){
   // TODO find a way to use the file name from the specialiszation_driver
   
   int rank;
@@ -72,13 +72,14 @@ mpi_init_task(int inputparticles){
   //totalnbodies = inputparticles;
   //sodtube::randomDataSodTube1D(rbodies,nbodies,totalnbodies,rank,size);
 
-  io::inputDataHDF5(rbodies,"hdf5_sodtube.h5");
+  io::inputDataHDF5(rbodies,"hdf5_sodtube.h5part",totalnbodies,nbodies);
 
   double smoothinglength = 0.0;
   int iter = 0;
 
 #ifdef OUTPUT
-  tcolorer.mpi_output_txt(rbodies,iter,"output_sodtube"); 
+  io::outputDataHDF5(rbodies,"output_sodtube.h5part",0);
+  //tcolorer.mpi_output_txt(rbodies,iter,"output_sodtube"); 
 #endif
 
   ++iter; 
@@ -218,7 +219,8 @@ mpi_init_task(int inputparticles){
 #ifdef OUTPUT
     if(iter % iteroutput == 0)
     { 
-      tcolorer.mpi_output_txt(rbodies,iter/iteroutput,"output_sodtube");
+      io::outputDataHDF5(rbodies,"output_sodtube.h5part",iter/iteroutput);
+      //tcolorer.mpi_output_txt(rbodies,iter/iteroutput,"output_sodtube");
     }
     // output to see repartition
     /*char fn ame[64];
@@ -241,17 +243,12 @@ flecsi_register_task(mpi_init_task,mpi,index);
 
 void 
 specialization_driver(int argc, char * argv[]){
-  if (argc!=2)  {
-    std::cerr << "Error not enough arguments\n"
-        "Usage: tree <datafile>\n";
-    exit(-1); 
-  }
-
+  
   std::cout << "In user specialization_driver" << std::endl;
   /*const char * filename = argv[1];*/
   /*std::string  filename(argv[1]);
   std::cout<<filename<<std::endl;*/
-  flecsi_execute_task(mpi_init_task,mpi,index,atoi(argv[1])/*,filename*/); 
+  flecsi_execute_task(mpi_init_task,mpi,index); 
 } // specialization driver
 
 void 

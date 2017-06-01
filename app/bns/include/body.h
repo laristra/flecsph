@@ -79,6 +79,8 @@ public:
   point_t getAcceleration() const{return acceleration_;}
   double getInternalenergy() const{return internalenergy_;}
   double getDudt(){return dudt_;};
+  int64_t getId(){return id_;};
+  double getDt(){return dt_;};
 
   void setPosition(point_t position){position_ = position;}
   void setAcceleration(point_t acceleration){acceleration_ = acceleration;}

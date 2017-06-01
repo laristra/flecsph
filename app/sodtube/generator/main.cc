@@ -11,7 +11,7 @@ const double rho_2 = 0.125;
 const double u_1 = 2.5;
 const double u_2 = 2;
 const double smoothing_length = 1.0e-2;
-const char* filename = "hdf5_sodtube.h5";
+const char* filename = "hdf5_sodtube.h5part";
 
 int main(int argc, char * argv[]){
 
