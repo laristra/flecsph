@@ -38,6 +38,7 @@ class HDF5SimIO: public SimIO
     int createDataset(OutputType _datasetType, int _numVars, int _numDims, MPI_Comm _comm);
     int openFile(std::string filename, MPI_Comm _comm);
     void closeFile(){ H5CloseFile(dataFile); }
+    void setTimeStep(int ts){ H5SetStep(dataFile, ts); }
 
 
     template <class T>
@@ -142,25 +143,16 @@ inline int HDF5SimIO::writeGlobalAttribute(std::string _name, std::string _dataT
 
 inline int HDF5SimIO::writePointData(int ts, MPI_Comm _comm)
 {
-    h5_file_t *dataFile;
-    dataFile = H5OpenFile(outputFileName.c_str(), H5_O_RDWR, _comm);
-    if (!dataFile)
-        return -1;
-    
-    // Set timestep
-    H5SetStep(dataFile, ts);  
-
-
     for (int i=0; i<timestepAttributes.size(); i++)
     {
         if ( timestepAttributes[i].dataType == "int32_t" )
             H5WriteStepAttribInt32(dataFile, (timestepAttributes[i].name).c_str(), (int32_t *)timestepAttributes[i].data, timestepAttributes[i].numElements);
         else if ( timestepAttributes[i].dataType == "int64_t" )
-             H5WriteStepAttribInt64(dataFile, (timestepAttributes[i].name).c_str(), (int64_t *)timestepAttributes[i].data, timestepAttributes[i].numElements);
+            H5WriteStepAttribInt64(dataFile, (timestepAttributes[i].name).c_str(), (int64_t *)timestepAttributes[i].data, timestepAttributes[i].numElements);
         else if ( timestepAttributes[i].dataType == "float" )
-             H5WriteStepAttribFloat32(dataFile, (timestepAttributes[i].name).c_str(), (float *)timestepAttributes[i].data, timestepAttributes[i].numElements);
+            H5WriteStepAttribFloat32(dataFile, (timestepAttributes[i].name).c_str(), (float *)timestepAttributes[i].data, timestepAttributes[i].numElements);
         else if ( timestepAttributes[i].dataType == "double" )
-             H5WriteStepAttribFloat64(dataFile, (timestepAttributes[i].name).c_str(), (double *)timestepAttributes[i].data, timestepAttributes[i].numElements);
+            H5WriteStepAttribFloat64(dataFile, (timestepAttributes[i].name).c_str(), (double *)timestepAttributes[i].data, timestepAttributes[i].numElements);
         else
             return -1;
     }
@@ -183,8 +175,6 @@ inline int HDF5SimIO::writePointData(int ts, MPI_Comm _comm)
 
     timestepAttributes.clear();
     vars.clear();
-
-    H5CloseFile(dataFile);
 
     return 0;
 }

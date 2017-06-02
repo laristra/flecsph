@@ -11,7 +11,7 @@
 
 #include "timer.h"
 #include "log.h"
-#include "hdf5SimIO.h"
+#include "hdf5ParticleIO.h"
 
 
 class ScalingTest
@@ -22,7 +22,8 @@ class ScalingTest
 	int iterationCount;
 	MPI_Comm mpiComm;
 	std::stringstream logStream;
-	Flecsi_Sim_IO::HDF5SimIO testDataSet;
+	//Flecsi_Sim_IO::HDF5SimIO testDataSet;
+	Flecsi_Sim_IO::HDF5ParticleIO testDataSet;
 
   public:
   	ScalingTest(){ theadingON=false; myRank=0; numRanks=1; iterationCount=1; }
@@ -65,17 +66,19 @@ inline void ScalingTest::createPseudoData(size_t _numParticles, int numTimesteps
 	// Get Partition from octree
 	std::string nodeID = simOct.getNodeAt( (size_t)myRank );
 
+
 	float nodeExtents[6];
 	simOct.getSpatialExtent(nodeID, nodeExtents);
 
+	testDataSet.createDataset( filename.c_str(), mpiComm );
 
-	testDataSet.setFilename( filename.c_str() );
-	testDataSet.createDataset(Flecsi_Sim_IO::unStructuredGrid, 4, 3, mpiComm);	// 4: num vars, 3: num dims
-
-	testDataSet.writeGlobalAttribute("numParticles", "int64_t", 800);
+	testDataSet.writeGlobalAttribute("numParticles", "int64_t", 80);
 	testDataSet.writeGlobalAttribute("gravitational constant", "double", 6.67300E-11);
 	testDataSet.writeGlobalAttribute("numDims", "int32_t", 3);
 	testDataSet.writeGlobalAttribute("use_fixed_timestep", "int32_t", 0);
+
+	char *simName = "random_data";
+	testDataSet.writeGlobalAttributeArray("sim_name", "string", simName);
 	testDataSet.closeFile();
 
 
@@ -90,7 +93,6 @@ inline void ScalingTest::createPseudoData(size_t _numParticles, int numTimesteps
 		float *_y_data = new float[myNumParticles];
 		float *_z_data = new float[myNumParticles];
 		double *_pressure_data = new double[myNumParticles];
-
 
 		std::default_random_engine eng( (std::random_device()) () );
 		std::uniform_real_distribution<float> xDis(nodeExtents[0], nodeExtents[1]);
@@ -108,13 +110,14 @@ inline void ScalingTest::createPseudoData(size_t _numParticles, int numTimesteps
 
 
 
-
-
-
-
 	  	//
 		// Create hdf5
 	  dataConversion.start();
+
+	  	testDataSet.openFile(mpiComm);
+	  	testDataSet.setTimeStep(t);
+
+
 	  	Flecsi_Sim_IO::Attribute timeValue;
 	  	timeValue.createAttribute("time", Flecsi_Sim_IO::timestep, "float", (float)t/10.0);
 	  	testDataSet.timestepAttributes.push_back(timeValue);
@@ -125,20 +128,19 @@ inline void ScalingTest::createPseudoData(size_t _numParticles, int numTimesteps
 		_z.createVariable("z", Flecsi_Sim_IO::point, "float", myNumParticles, _z_data);
 		_pressure.createVariable("pressure", Flecsi_Sim_IO::point, "double", myNumParticles, _pressure_data);
 
-
 		testDataSet.vars.push_back(_x);
 		testDataSet.vars.push_back(_y);
 		testDataSet.vars.push_back(_z);
 		testDataSet.vars.push_back(_pressure);
 	  dataConversion.stop();
 
-	  	//runWriteTest(t, _numParticles);
-	  	testDataSet.writePointData(t, mpiComm);
+	  	//testDataSet.writePointData(t, mpiComm);
+	  
+	  	testDataSet.writeTimestepAttributes();
+	  	testDataSet.writeVariables();
 
 	  
-
-
-
+	  	testDataSet.closeFile();
 
 	  	// Delete 
 		if (_x_data != NULL)
@@ -168,7 +170,7 @@ inline void ScalingTest::runWriteTest(int timeStep, size_t _numParticles)
 	for (int iter=0; iter<iterationCount; iter++)
 	{
 	  dataWriting.start();
-		testDataSet.writePointData(timeStep, mpiComm);
+		//testDataSet.writePointData(timeStep, mpiComm);
 	  dataWriting.stop();
 
 	  	logStream << iter << " ~ h5hut writing "<< _numParticles << " particles, timestep: " << timeStep << " took(#) " << dataWriting.getDuration() << " s."<< std::endl;

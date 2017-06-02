@@ -120,6 +120,7 @@ struct Variable
 	{
 		numElements = 0;
 
+		/*
 		if (data != NULL) return;
 		
 		if ( dataType == "float")			delete [] (float *) data;
@@ -134,6 +135,7 @@ struct Variable
 		else if ( dataType == "uint32_t")	delete [] (uint32_t *) data;
 		else if ( dataType == "uint64_t")	delete [] (uint64_t *) data;
 		else { }
+		*/
 	}
 
 
@@ -162,8 +164,6 @@ class SimIO
   	std::vector<int> gridDims;		// Size of each dimension
 	std::vector<double> extents;	// (min, max) pair for each dimension
 
-	//std::vector<Attribute> globalAttributes;
-
   	std::vector<Variable> vars;
   	std::vector<Attribute> timestepAttributes;
   	
@@ -171,12 +171,6 @@ class SimIO
   	SimIO(){ endian=little; }
 	SimIO(std::string _outputFileName):outputFileName(_outputFileName){ endian=little; }
 	~SimIO(){};
-
-	void createDataset(OutputType _datasetType, int _numVars, int _numDims)
-			{ datasetType=_datasetType;  numVars=_numVars;  numDims=_numDims; }
-	virtual int writeGridData() = 0;
-	virtual int writePointData() = 0;
-	virtual int writePointData(int ts) = 0;
 
 	void setFilename(std::string _name){ outputFileName=_name; }
 	void setEndianness(Endianness _en){ endian=_en; }
