@@ -22,28 +22,25 @@ class HDF5ParticleIO: public SimIO
     HDF5ParticleIO():SimIO(){}
     HDF5ParticleIO(std::string _outputFileName):SimIO(_outputFileName){ dataFile=NULL; }
 
-    hid_t getHDF5Datatype(std::string _datatypeName);
-
     int createDataset(std::string _outputFileName, MPI_Comm _comm);
     int openFile(MPI_Comm _comm);
     void closeFile(){ H5CloseFile(dataFile); }
 
     void setTimeStep(int ts){ H5SetStep(dataFile, ts); }
 
-
     template <class T>
-    int writeGlobalAttribute(std::string _name, std::string _dataType, T _data);
-    int writeGlobalAttributeArray(std::string _name, std::string _dataType, void *_data, int numElements=1);
-
+    int writeDatasetAttribute(std::string _name, std::string _dataType, T _data);
+    int writeDatasetAttributeArray(std::string _name, std::string _dataType, void *_data, int numElements=1);
 
     template <class T>
     int writeTimestepAttribute(std::string _name, std::string _dataType, T _data);
     int writeTimestepAttributeArray(std::string _name, std::string _dataType, void * _data, int numElements=1);
 
+
     int writeTimestepAttributes();
     int writeVariables();
 };
-// https://support.hdfgroup.org/HDF5/doc1.8/RM/RM_H5Front.html
+
 
 
 
@@ -71,9 +68,8 @@ int HDF5ParticleIO::openFile(MPI_Comm  _comm)
 
 
 
-
 template <class T>
-inline int HDF5ParticleIO::writeGlobalAttribute(std::string _name, std::string _dataType, T _data)
+inline int HDF5ParticleIO::writeDatasetAttribute(std::string _name, std::string _dataType, T _data)
 {
     if ( _dataType == "int32_t" )
     {
@@ -101,8 +97,7 @@ inline int HDF5ParticleIO::writeGlobalAttribute(std::string _name, std::string _
     return 0;
 }
 
-
-inline int HDF5ParticleIO::writeGlobalAttributeArray(std::string _name, std::string _dataType, void *_data, int numElements)
+inline int HDF5ParticleIO::writeDatasetAttributeArray(std::string _name, std::string _dataType, void *_data, int numElements)
 {
     if ( _dataType == "int32_t" )
     {
@@ -157,7 +152,6 @@ inline int HDF5ParticleIO::writeTimestepAttribute(std::string _name, std::string
         return -1;
 }
 
-
 inline int HDF5ParticleIO::writeTimestepAttributeArray(std::string _name, std::string _dataType, void * _data, int numElements)
 {
     if ( _dataType == "int32_t" )
@@ -183,6 +177,8 @@ inline int HDF5ParticleIO::writeTimestepAttributeArray(std::string _name, std::s
     else 
         return -1;
 }
+
+
 
 inline int HDF5ParticleIO::writeTimestepAttributes()
 {
@@ -226,13 +222,6 @@ inline int HDF5ParticleIO::writeVariables()
     vars.clear();
     return 0;
 }
-
-
-
-
-
-
-
 
 
 } // end Flecsi_Sim_IO namespace

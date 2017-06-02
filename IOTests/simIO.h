@@ -58,24 +58,22 @@ struct Attribute
 	void *data;						// the actual data	
 
 	Attribute(){ data = NULL; }
+	template <class T>
+	Attribute(std::string _name, AttributeType _attributeType, std::string _dataType, T _data){
+		name = _name;
+		attributeType = _attributeType;
+		dataType = _dataType;
+		numElements = 1;
+
+		if ( dataType == "float") {			data = new float[numElements];		((float *)data)[0]=_data; }
+		else if ( dataType == "double") {	data = new double[numElements];		((double *)data)[0]=_data; }
+		else if ( dataType == "int32_t"){	data = new int32_t[numElements];	((int32_t *)data)[0]=_data; }
+		else if ( dataType == "int64_t"){	data = new int64_t[numElements];	((int64_t *)data)[0]=_data; }
+		else { }
+	}
 	~Attribute()
 	{
 		numElements = 0;
-
-		if (data != NULL) return;
-		
-		if ( dataType == "float")			delete [] (float *) data;
-		else if ( dataType == "double")		delete [] (double *) data;
-		else if ( dataType == "int")		delete [] (int *) data;
-		else if ( dataType == "int8_t")		delete [] (int8_t *) data;
-		else if ( dataType == "int16_t")	delete [] (int16_t *) data;
-		else if ( dataType == "int32_t")	delete [] (int32_t *) data;
-		else if ( dataType == "int64_t")	delete [] (int64_t *) data;
-		else if ( dataType == "uint8_t")	delete [] (uint8_t *) data;
-		else if ( dataType == "uint16_t")	delete [] (uint16_t *) data;
-		else if ( dataType == "uint32_t")	delete [] (uint32_t *) data;
-		else if ( dataType == "uint64_t")	delete [] (uint64_t *) data;
-		else { }
 	}
 
 
@@ -116,28 +114,19 @@ struct Variable
 				
 
 	Variable(){ data = NULL; }
+	Variable(std::string _name, VariableType _varType, std::string _dataType, int _numElements, void *_data)
+	{ 
+		name = _name;
+		varType = _varType;
+		dataType = _dataType;
+		numElements = _numElements;
+		data = _data;
+	}
+
 	~Variable()
 	{
 		numElements = 0;
-
-		/*
-		if (data != NULL) return;
-		
-		if ( dataType == "float")			delete [] (float *) data;
-		else if ( dataType == "double")		delete [] (double *) data;
-		else if ( dataType == "int")		delete [] (int *) data;
-		else if ( dataType == "int8_t")		delete [] (int8_t *) data;
-		else if ( dataType == "int16_t")	delete [] (int16_t *) data;
-		else if ( dataType == "int32_t")	delete [] (int32_t *) data;
-		else if ( dataType == "int64_t")	delete [] (int64_t *) data;
-		else if ( dataType == "uint8_t")	delete [] (uint8_t *) data;
-		else if ( dataType == "uint16_t")	delete [] (uint16_t *) data;
-		else if ( dataType == "uint32_t")	delete [] (uint32_t *) data;
-		else if ( dataType == "uint64_t")	delete [] (uint64_t *) data;
-		else { }
-		*/
 	}
-
 
 	void createVariable(std::string _name, VariableType _varType, std::string _dataType, int _numElements, void *_data)
 	{
@@ -177,6 +166,14 @@ class SimIO
 	void setDatasetType(OutputType _datasetType){ datasetType=_datasetType; }
 	void setNumVars(int _numVars){ numVars=_numVars; }
 	void setNumDims(int _numDims){ numDims=_numDims; }
+
+	
+	void addTimeStepAttribute(Attribute _a){ timestepAttributes.push_back(_a); }
+	void addVariable(Variable _v){  vars.push_back(_v); }
+	
+	void clearTimestepAttributes(){ timestepAttributes.clear(); }
+	void clearTimestepVariables() { vars.clear();  }
+	void clearTimestepData()	  { vars.clear(); timestepAttributes.clear(); }
 };
 
 

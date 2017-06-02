@@ -58,7 +58,7 @@ inline void ScalingTest::runScalingTest(size_t _numParticles, int numTimesteps, 
 
 inline void ScalingTest::createPseudoData(size_t _numParticles, int numTimesteps, Octree simOct, std::string filename)
 {
-	Timer dataCreation, dataConversion;
+	Timer dataCreationTimer, dataConversionTimer, dataWritingTimer;
 
 	int myNumParticles = _numParticles/numRanks;
 
@@ -66,19 +66,22 @@ inline void ScalingTest::createPseudoData(size_t _numParticles, int numTimesteps
 	// Get Partition from octree
 	std::string nodeID = simOct.getNodeAt( (size_t)myRank );
 
-
 	float nodeExtents[6];
 	simOct.getSpatialExtent(nodeID, nodeExtents);
 
+
+
+	//
+	// Create Dataset
 	testDataSet.createDataset( filename.c_str(), mpiComm );
 
-	testDataSet.writeGlobalAttribute("numParticles", "int64_t", 80);
-	testDataSet.writeGlobalAttribute("gravitational constant", "double", 6.67300E-11);
-	testDataSet.writeGlobalAttribute("numDims", "int32_t", 3);
-	testDataSet.writeGlobalAttribute("use_fixed_timestep", "int32_t", 0);
+	testDataSet.writeDatasetAttribute("numParticles", "int64_t", 80);
+	testDataSet.writeDatasetAttribute("gravitational constant", "double", 6.67300E-11);
+	testDataSet.writeDatasetAttribute("numDims", "int32_t", 3);
+	testDataSet.writeDatasetAttribute("use_fixed_timestep", "int32_t", 0);
 
 	char *simName = "random_data";
-	testDataSet.writeGlobalAttributeArray("sim_name", "string", simName);
+	testDataSet.writeDatasetAttributeArray("sim_name", "string", simName);
 	testDataSet.closeFile();
 
 
@@ -86,9 +89,8 @@ inline void ScalingTest::createPseudoData(size_t _numParticles, int numTimesteps
 	for (int t=0; t<numTimesteps; t++)
 	{
 		//
-		// Generate Data
-	  dataCreation.start();
-		// Some variables
+		// Generate fake timestep data
+	  dataCreationTimer.start();
 		float *_x_data = new float[myNumParticles];
 		float *_y_data = new float[myNumParticles];
 		float *_z_data = new float[myNumParticles];
@@ -106,43 +108,60 @@ inline void ScalingTest::createPseudoData(size_t _numParticles, int numTimesteps
 			_z_data[i] = zDis(eng);
 			_pressure_data[i] = pressureDis(eng);
 		}
-	  dataCreation.stop();
+	  dataCreationTimer.stop();
 
 
 
 	  	//
-		// Create hdf5
-	  dataConversion.start();
+		// Push fake timestep data to h5hut
+	  dataConversionTimer.start();
 
 	  	testDataSet.openFile(mpiComm);
 	  	testDataSet.setTimeStep(t);
 
 
-	  	Flecsi_Sim_IO::Attribute timeValue;
-	  	timeValue.createAttribute("time", Flecsi_Sim_IO::timestep, "float", (float)t/10.0);
+	  	// Add timestep attributes
+	  	Flecsi_Sim_IO::Attribute timeValue("sim_time", Flecsi_Sim_IO::timestep, "float", (float)t/10.0);
 	  	testDataSet.timestepAttributes.push_back(timeValue);
 
-		Flecsi_Sim_IO::Variable _x, _y, _z, _pressure;
-		_x.createVariable("x", Flecsi_Sim_IO::point, "float", myNumParticles, _x_data);	
+	  	testDataSet.addTimeStepAttribute( Flecsi_Sim_IO::Attribute("step_time", Flecsi_Sim_IO::timestep, "int32_t", t) );
+
+	  	
+
+	  	//
+	  	// Add Variables
+
+	  	// Option 1: create and push to timstep
+	  	Flecsi_Sim_IO::Variable _x("x", Flecsi_Sim_IO::point, "float", myNumParticles, _x_data);
+	  	testDataSet.vars.push_back(_x);
+
+	  	// Option 2: init, create and push
+		Flecsi_Sim_IO::Variable _y;
 		_y.createVariable("y", Flecsi_Sim_IO::point, "float", myNumParticles, _y_data);
-		_z.createVariable("z", Flecsi_Sim_IO::point, "float", myNumParticles, _z_data);
-		_pressure.createVariable("pressure", Flecsi_Sim_IO::point, "double", myNumParticles, _pressure_data);
-
-		testDataSet.vars.push_back(_x);
 		testDataSet.vars.push_back(_y);
-		testDataSet.vars.push_back(_z);
-		testDataSet.vars.push_back(_pressure);
-	  dataConversion.stop();
 
-	  	//testDataSet.writePointData(t, mpiComm);
+		// Option 3: create and add in 2 steps
+		Flecsi_Sim_IO::Variable _z("z", Flecsi_Sim_IO::point, "float", myNumParticles, _z_data);
+		testDataSet.addVariable( _z );
+
+		// Option 4: create and add, all in one step
+		testDataSet.addVariable( Flecsi_Sim_IO::Variable("pressure", Flecsi_Sim_IO::point, "double", myNumParticles, _pressure_data) );
+
+	  dataConversionTimer.stop();
 	  
+
+
+	  	// Write data to hard disk
+	  dataWritingTimer.start();
 	  	testDataSet.writeTimestepAttributes();
 	  	testDataSet.writeVariables();
-
+	  dataWritingTimer.stop();
 	  
 	  	testDataSet.closeFile();
 
-	  	// Delete 
+
+
+	  	// Clean up 
 		if (_x_data != NULL)
 			delete [] _x_data;
 		if (_y_data != NULL)
@@ -152,9 +171,9 @@ inline void ScalingTest::createPseudoData(size_t _numParticles, int numTimesteps
 		if (_pressure_data != NULL)
 			delete [] _pressure_data;
 
-
-		logStream << "\nData creation for timestep    " << t << " took ($): " << dataCreation.getDuration() << " s. " << std::endl;
-		logStream << "h5hut conversion for timestep " << t << " took (^): " << dataConversion.getDuration() << " s. " << std::endl << std::endl << std::endl;
+		logStream << "\nData creation for timestep    " << t << " took ($): " << dataConversionTimer.getDuration() << " s. " << std::endl;
+		logStream << "h5hut conversion for timestep " << t << " took (^): " << dataConversionTimer.getDuration() << " s. " << std::endl << std::endl << std::endl;
+		logStream << "h5hut writing "<< _numParticles << " particles, timestep: " << t << " took(#) " << dataWritingTimer.getDuration() << " s."<< std::endl;
 
 		// Sync writing before going to the next step
 		MPI_Barrier(mpiComm);

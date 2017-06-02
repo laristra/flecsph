@@ -44,7 +44,6 @@ int main(int argc, char *argv[])
 	debugLog.writeLogToDisk();
 
 	
-
 	MPI_Finalize();
 
 	return 0;
