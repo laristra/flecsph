@@ -30,7 +30,7 @@
 #include "tree.h"
 
 #include "H5hut.h"
-#include "hdf5SimIO.h"
+#include "hdf5ParticleIO.h"
 
 namespace io{
 
@@ -191,14 +191,21 @@ void inputDataHDF5(
   MPI_Barrier(MPI_COMM_WORLD);
   if(rank==0){
     std::cout<<"Input particles";
-  } 
+  }
+  MPI_Barrier(MPI_COMM_WORLD); 
 
   auto dataFile = H5OpenFile(filename,H5_O_RDWR,MPI_COMM_WORLD);
   // Set the step to 0 for first reading
   H5SetStep(dataFile,0);
+  // Set number of data to read to one
+  // \TODO change to attribute 
+  H5PartSetNumParticles(dataFile,1);
+  
   // Get the number of particles 
   int64_t nparticles = 0UL; 
-  H5PartReadDataInt64(dataFile,"nparticles",&nparticles);
+  H5ReadFileAttribInt64(dataFile,"nparticles",&nparticles);
+  
+  //H5PartReadDataInt64(dataFile,"nparticles",&nparticles);
   if(rank == 0){
     std::cout<<"Total of "<<nparticles<<" particles"<<std::endl;
   }
@@ -322,84 +329,150 @@ void outputDataHDF5(
   int64_t nparticlesproc = bodies.size();
 
   // open the file 
-  auto dataFile = H5OpenFile(filename,H5_O_RDWR,MPI_COMM_WORLD);
+  // auto dataFile = H5OpenFile(filename,H5_O_RDWR,MPI_COMM_WORLD);
   // Set the step 
-  H5SetStep(dataFile,step);
+  // H5SetStep(dataFile,step);
   // Set the number of particles 
-  H5PartSetNumParticles(dataFile,nparticlesproc);
+  // H5PartSetNumParticles(dataFile,nparticlesproc);
 
-  double* dataX = new double[nparticlesproc];
-  double* dataY = new double[nparticlesproc];
-  double* dataZ = new double[nparticlesproc];
-  int64_t* dataInt = new int64_t[nparticlesproc];
+  Flecsi_Sim_IO::HDF5ParticleIO simio;
+  simio.createDataset(filename,MPI_COMM_WORLD);
+
+  // If iteration 0 put the global header data 
+  // Or check each time if they exists and if no put them  
+
+  // Put the step header
+  simio.setTimeStep(step);
+
+  // 4 buffers, 3 double and 1 int64
+  double* b1 = new double[nparticlesproc];
+  double* b2 = new double[nparticlesproc];
+  double* b3 = new double[nparticlesproc];
+  int64_t* bi = new int64_t[nparticlesproc];
 
   // Position
   int64_t pos = 0L;
   // Extract data from bodies 
   for(auto bi: bodies){
-    dataX[pos] = bi.second.getPosition()[0];
-    dataY[pos] = 0.0;// bi.second->getPosition()[1];
-    dataZ[pos++] = 0.0;//bi.second->getPosition()[2];
+    b1[pos] = bi.second.getPosition()[0];
+    b2[pos] = bi.second.getPosition()[1];
+    b3[pos++] = bi.second.getPosition()[2];
   }
-  H5PartWriteDataFloat64(dataFile,"x",dataX);
-  H5PartWriteDataFloat64(dataFile,"y",dataY);
-  H5PartWriteDataFloat64(dataFile,"z",dataZ);
+
+  // Add variable  
+  simio.addVariable( Flecsi_Sim_IO::Variable("x",Flecsi_Sim_IO::point, 
+        "double", nparticlesproc,b1));
+  simio.addVariable( Flecsi_Sim_IO::Variable("y",Flecsi_Sim_IO::point, 
+        "double", nparticlesproc,b2));
+  simio.addVariable( Flecsi_Sim_IO::Variable("z",Flecsi_Sim_IO::point, 
+        "double", nparticlesproc,b3));
+  // Push to file 
+  simio.writeVariables();
 
   // Velocity
   pos = 0L;
   // Extract data from bodies 
   for(auto bi: bodies){
-    dataX[pos] = bi.second.getVelocity()[0];
-    dataY[pos] = 0.0;// bi.second->getVelocity()[1];
-    dataZ[pos++] = 0.0;//bi.second->getVelocity()[2];
+    b1[pos] = bi.second.getVelocity()[0];
+    b2[pos] = bi.second.getVelocity()[1];
+    b3[pos++] = bi.second.getVelocity()[2];
   }
-  H5PartWriteDataFloat64(dataFile,"vx",dataX);
-  H5PartWriteDataFloat64(dataFile,"vy",dataY);
-  H5PartWriteDataFloat64(dataFile,"vz",dataZ);
+
+  simio.addVariable( Flecsi_Sim_IO::Variable("vx",Flecsi_Sim_IO::point, 
+        "double", nparticlesproc,b1));
+  simio.addVariable( Flecsi_Sim_IO::Variable("vy",Flecsi_Sim_IO::point, 
+        "double", nparticlesproc,b2));
+  simio.addVariable( Flecsi_Sim_IO::Variable("vz",Flecsi_Sim_IO::point, 
+        "double", nparticlesproc,b3));
+
+  //H5PartWriteDataFloat64(dataFile,"vx",dataX);
+  //H5PartWriteDataFloat64(dataFile,"vy",dataY);
+  //H5PartWriteDataFloat64(dataFile,"vz",dataZ);
+
+  simio.writeVariables();
 
   // Acceleration 
   pos = 0L;
   // Extract data from bodies 
   for(auto bi: bodies){
-    dataX[pos] = bi.second.getAcceleration()[0];
-    dataY[pos] = 0.0;// bi.second->getAcceleration()[1];
-    dataZ[pos++] = 0.0;//bi.second->getAcceleration()[2];
+    b1[pos] = bi.second.getAcceleration()[0];
+    b2[pos] = bi.second.getAcceleration()[1];
+    b3[pos++] = bi.second.getAcceleration()[2];
   }
-  H5PartWriteDataFloat64(dataFile,"vx",dataX);
-  H5PartWriteDataFloat64(dataFile,"vy",dataY);
-  H5PartWriteDataFloat64(dataFile,"vz",dataZ);
+
+  simio.addVariable( Flecsi_Sim_IO::Variable("ax",Flecsi_Sim_IO::point, 
+        "double", nparticlesproc,b1));
+  simio.addVariable( Flecsi_Sim_IO::Variable("ay",Flecsi_Sim_IO::point, 
+        "double", nparticlesproc,b2));
+  simio.addVariable( Flecsi_Sim_IO::Variable("az",Flecsi_Sim_IO::point, 
+        "double", nparticlesproc,b3));
+
+  simio.writeVariables();
+
+  // H5PartWriteDataFloat64(dataFile,"vx",dataX);
+  // H5PartWriteDataFloat64(dataFile,"vy",dataY);
+  // H5PartWriteDataFloat64(dataFile,"vz",dataZ);
 
   // Smoothing length, Density, Internal Energy 
   pos = 0L;
   // Extract data from bodies 
   for(auto bi: bodies){
-    dataX[pos] = bi.second.getSmoothinglength();
-    dataY[pos] = bi.second.getDensity();
-    dataZ[pos++] = bi.second.getInternalenergy();
+    b1[pos] = bi.second.getSmoothinglength();
+    b2[pos] = bi.second.getDensity();
+    b3[pos++] = bi.second.getInternalenergy();
   }
-  H5PartWriteDataFloat64(dataFile,"h",dataX);
-  H5PartWriteDataFloat64(dataFile,"rho",dataY);
-  H5PartWriteDataFloat64(dataFile,"u",dataZ);
+
+  simio.addVariable( Flecsi_Sim_IO::Variable("h",Flecsi_Sim_IO::point, 
+        "double", nparticlesproc,b1));
+  simio.addVariable( Flecsi_Sim_IO::Variable("rho",Flecsi_Sim_IO::point, 
+        "double", nparticlesproc,b2));
+  simio.addVariable( Flecsi_Sim_IO::Variable("u",Flecsi_Sim_IO::point, 
+        "double", nparticlesproc,b3));
+
+  simio.writeVariables();
+
+  // H5PartWriteDataFloat64(dataFile,"h",dataX);
+  // H5PartWriteDataFloat64(dataFile,"rho",dataY);
+  // H5PartWriteDataFloat64(dataFile,"u",dataZ);
 
  // Pressure, Mass, Id, timestep
   pos = 0L;
   // Extract data from bodies 
-  for(auto bi: bodies){
-    dataX[pos] = bi.second.getPressure();
-    dataY[pos] = bi.second.getMass();
-    dataZ[pos] = bi.second.getDt();
-    dataInt[pos++] = bi.second.getId();
+  for(auto bid: bodies){
+    b1[pos] = bid.second.getPressure();
+    b2[pos] = bid.second.getMass();
+    b3[pos] = bid.second.getDt();
+    bi[pos++] = bid.second.getId();
   }
-  H5PartWriteDataFloat64(dataFile,"P",dataX);
-  H5PartWriteDataFloat64(dataFile,"m",dataY);
-  H5PartWriteDataFloat64(dataFile,"dt",dataZ);
-  H5PartWriteDataInt64(dataFile,"id",dataInt);
+  
+  simio.addVariable( Flecsi_Sim_IO::Variable("P",Flecsi_Sim_IO::point, 
+        "double", nparticlesproc,b1));
+  simio.addVariable( Flecsi_Sim_IO::Variable("m",Flecsi_Sim_IO::point, 
+        "double", nparticlesproc,b2));
+  simio.addVariable( Flecsi_Sim_IO::Variable("dt",Flecsi_Sim_IO::point, 
+        "double", nparticlesproc,b3));
+  simio.addVariable( Flecsi_Sim_IO::Variable("id",Flecsi_Sim_IO::point, 
+        "double", nparticlesproc,bi));
 
-  H5CloseFile(dataFile);
+  simio.writeVariables();
+  simio.closeFile();
+  // H5PartWriteDataFloat64(dataFile,"P",dataX);
+  // H5PartWriteDataFloat64(dataFile,"m",dataY);
+  // H5PartWriteDataFloat64(dataFile,"dt",dataZ);
+  // H5PartWriteDataInt64(dataFile,"id",dataInt);
 
-  delete[] dataX;
-  delete[] dataY;
-  delete[] dataZ;
+  //int64_t nparticles;
+  //MPI_Allreduce(&nparticles,&nparticlesproc,1,MPI_INT64_T,MPI_COMM_WORLD);
+
+  // Also output nparticles and timestep 
+  //H5PartWriteDataInt64(dataFile,"nparticles",&nparticles);
+
+  // H5CloseFile(dataFile);
+
+  delete[] b1;
+  delete[] b2;
+  delete[] b3;
+  delete[] bi;
 
   MPI_Barrier(MPI_COMM_WORLD);
   if(rank == 0){

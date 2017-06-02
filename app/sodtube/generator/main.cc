@@ -1,7 +1,7 @@
 #include <iostream>
 #include <algorithm>
 
-#include "hdf5SimIO.h"
+#include "hdf5ParticleIO.h"
 
 const double distance = 0.0026566;  // Distance between the particles 
 const double m_1 = 2.65e-3;
@@ -77,7 +77,7 @@ int main(int argc, char * argv[]){
   // the number of particles = nparticles 
   // The value for constant timestep 
   double timestep = 0.001;
-
+  int dimension = 1;
   
   
   for(int64_t part=0; part<nparticlesproc; ++part){
@@ -103,64 +103,79 @@ int main(int argc, char * argv[]){
     //std::cout<<x[part]<<": "<<h[part]<<std::endl;
   }
  
-  
-  Flecsi_Sim_IO::HDF5SimIO testDataSet; 
-  testDataSet.setFilename(filename);
-  testDataSet.createDataset(Flecsi_Sim_IO::unStructuredGrid,18,3);
-
-  Flecsi_Sim_IO::Variable _x,_y,_z,_vx,_vy,_vz,_ax,_ay,_az,
-    _h,_rho,_u,_P,_m,_id,_dt, _nparticles, _timestep;
-
-  _x.createVariable("x",Flecsi_Sim_IO::point,"double",nparticlesproc,x);
-  _y.createVariable("y",Flecsi_Sim_IO::point,"double",nparticlesproc,y);
-  _z.createVariable("z",Flecsi_Sim_IO::point,"double",nparticlesproc,z);
-
-  _vx.createVariable("vx",Flecsi_Sim_IO::point,"double",nparticlesproc,vx);
-  _vy.createVariable("vy",Flecsi_Sim_IO::point,"double",nparticlesproc,vy);
-  _vz.createVariable("vz",Flecsi_Sim_IO::point,"double",nparticlesproc,vz);
-
-  _ax.createVariable("ax",Flecsi_Sim_IO::point,"double",nparticlesproc,ax);
-  _ay.createVariable("ay",Flecsi_Sim_IO::point,"double",nparticlesproc,ay);
-  _az.createVariable("az",Flecsi_Sim_IO::point,"double",nparticlesproc,az);
-
-  _h.createVariable("h",Flecsi_Sim_IO::point,"double",nparticlesproc,h);
-  _rho.createVariable("rho",Flecsi_Sim_IO::point,"double",nparticlesproc,rho);
-  _u.createVariable("u",Flecsi_Sim_IO::point,"double",nparticlesproc,u);
-  _P.createVariable("P",Flecsi_Sim_IO::point,"double",nparticlesproc,P);
-  _m.createVariable("m",Flecsi_Sim_IO::point,"double",nparticlesproc,m);
-  _id.createVariable("id",Flecsi_Sim_IO::point,"int64_t",nparticlesproc,id);
-  _dt.createVariable("dt",Flecsi_Sim_IO::point,"double",nparticlesproc,dt);
  
-  _nparticles.createVariable("nparticles",
-      Flecsi_Sim_IO::point,"int64_t",1,&nparticles);
-  _timestep.createVariable("timestep",
-      Flecsi_Sim_IO::point,"double",1,&timestep);
 
-  testDataSet.vars.push_back(_x);
-  testDataSet.vars.push_back(_y);
-  testDataSet.vars.push_back(_z);
+  Flecsi_Sim_IO::HDF5ParticleIO testDataSet; 
+  testDataSet.createDataset(filename,MPI_COMM_WORLD);
 
-  testDataSet.vars.push_back(_vx);
-  testDataSet.vars.push_back(_vy);
-  testDataSet.vars.push_back(_vz);
+  // add the global attributes
+  testDataSet.writeDatasetAttribute("nparticles","int64_t",nparticles);
+  testDataSet.writeDatasetAttribute("timestep","double",timestep);
+  testDataSet.writeDatasetAttribute("dimension","int32_t",1);
+  testDataSet.writeDatasetAttribute("use_fixed_timestep","int32_t",1);
+
+  char * simName = "sodtube_1D";
+  testDataSet.writeDatasetAttributeArray("name","string",simName);
+  testDataSet.closeFile();
+
+  testDataSet.openFile(MPI_COMM_WORLD);
+  testDataSet.setTimeStep(0);
+
+  Flecsi_Sim_IO::Variable _d1,_d2,_d3;
+
+  _d1.createVariable("x",Flecsi_Sim_IO::point,"double",nparticlesproc,x);
+  _d2.createVariable("y",Flecsi_Sim_IO::point,"double",nparticlesproc,y);
+  _d3.createVariable("z",Flecsi_Sim_IO::point,"double",nparticlesproc,z);
+
+  testDataSet.vars.push_back(_d1);
+  testDataSet.vars.push_back(_d2);
+  testDataSet.vars.push_back(_d3);
+
+  testDataSet.writeVariables();
+
+  _d1.createVariable("vx",Flecsi_Sim_IO::point,"double",nparticlesproc,vx);
+  _d2.createVariable("vy",Flecsi_Sim_IO::point,"double",nparticlesproc,vy);
+  _d3.createVariable("vz",Flecsi_Sim_IO::point,"double",nparticlesproc,vz);
+
+  testDataSet.vars.push_back(_d1);
+  testDataSet.vars.push_back(_d2);
+  testDataSet.vars.push_back(_d3);
+
+  testDataSet.writeVariables();
+
+  _d1.createVariable("ax",Flecsi_Sim_IO::point,"double",nparticlesproc,ax);
+  _d2.createVariable("ay",Flecsi_Sim_IO::point,"double",nparticlesproc,ay);
+  _d3.createVariable("az",Flecsi_Sim_IO::point,"double",nparticlesproc,az);
+
+  testDataSet.vars.push_back(_d1);
+  testDataSet.vars.push_back(_d2);
+  testDataSet.vars.push_back(_d3);
+
+  testDataSet.writeVariables();
+
+
+  _d1.createVariable("h",Flecsi_Sim_IO::point,"double",nparticlesproc,h);
+  _d2.createVariable("rho",Flecsi_Sim_IO::point,"double",nparticlesproc,rho);
+  _d3.createVariable("u",Flecsi_Sim_IO::point,"double",nparticlesproc,u);
   
-  testDataSet.vars.push_back(_ax);
-  testDataSet.vars.push_back(_ay);
-  testDataSet.vars.push_back(_az);
-  
-  testDataSet.vars.push_back(_h);
-  testDataSet.vars.push_back(_rho);
-  testDataSet.vars.push_back(_u);
-  testDataSet.vars.push_back(_P);
-  testDataSet.vars.push_back(_m);
-  testDataSet.vars.push_back(_id);
-  testDataSet.vars.push_back(_dt);
-  
-  testDataSet.vars.push_back(_nparticles);
-  testDataSet.vars.push_back(_timestep);
+  testDataSet.vars.push_back(_d1);
+  testDataSet.vars.push_back(_d2);
+  testDataSet.vars.push_back(_d3);
 
-  testDataSet.writePointData(0,MPI_COMM_WORLD);
+  testDataSet.writeVariables();
 
+  _d1.createVariable("P",Flecsi_Sim_IO::point,"double",nparticlesproc,P);
+  _d2.createVariable("m",Flecsi_Sim_IO::point,"double",nparticlesproc,m);
+  _d3.createVariable("id",Flecsi_Sim_IO::point,"int64_t",nparticlesproc,id);
+  
+  testDataSet.vars.push_back(_d1);
+  testDataSet.vars.push_back(_d2);
+  testDataSet.vars.push_back(_d3);
+
+  testDataSet.writeVariables();
+
+  testDataSet.closeFile(); 
+  
   delete[] x;
   delete[] y;
   delete[] z;

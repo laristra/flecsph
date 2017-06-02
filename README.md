@@ -80,8 +80,14 @@ Then download and build FleCSPH.
 For the input file we are using the H5hut format. 
 Headers containts general informations like: 
 
-- Number of particles 
-- Dimension
+- Number of particles: "nparticles"
+- Dimension: "dimension"
+- Timestep: "timestep"
+- Is fixed timestep used ? "fixed_timestep"
+
+Not implemented yet: 
+- Physics constants ???? 
+- Different files output ??? Talk to Oleg for that
 
 Then for each Step we save:
 
@@ -101,6 +107,10 @@ Then for each Step we save:
 - Mass: "m"
 - Id: "id" 
 - Time step: "dt"
+ 
+Not implemented yet:
+- Particle type: "type"
+- Electron fraction: "Ye"
 
 Types are all double except for:
 
