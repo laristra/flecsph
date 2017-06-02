@@ -180,8 +180,8 @@ void inputDataTxtRange(
 void inputDataHDF5(
   std::vector<std::pair<entity_key_t,body>>& bodies,
   const char * filename,
-  int& totalnbodies,
-  int& nbodies)
+  int64_t& totalnbodies,
+  int64_t& nbodies)
 {
   
   int rank, size; 

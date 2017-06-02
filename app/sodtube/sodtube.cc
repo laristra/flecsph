@@ -294,8 +294,8 @@ computeAcceleration(
 
 void 
 moveParticle(
-    body_holder * src,
-    std::array<point_t,2>& range)
+    body_holder * src
+    )
 { 
   body * srcb = src->getBody();
   assert(srcb!=nullptr);

@@ -32,8 +32,7 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/data/data.h"
 
-#include <tree_colorer.h>
-#include "io.h"
+#include <bodies_system.h>
 #include "sodtube.h"
 
 namespace flecsi{
@@ -48,191 +47,78 @@ mpi_init_task(){
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   
-  int nbodies = 0;
   int totaliters = 80;
   int iteroutput = 1;
-  int totalnbodies = 0;
   double totaltime = 0.0;
   double maxtime = 10.0;
-  double macangle = 0.5;
-  double mcell = 1.0e-6;
-  std::vector<std::pair<entity_key_t,body>> rbodies;
-  std::array<point_t,2> range;
-  std::vector<std::pair<entity_key_t,entity_key_t>> rangeproc;
-  std::vector<std::pair<point_t,point_t>> rangeposproc;
-  mpi_ghosts_t ghosts_data;
-  std::vector<body_holder> recv_COM;
-  
-  tree_colorer<double,1> tcolorer;
-
-  //printf("%d/%d, file %s\n",rank,size,filename);   
-  // Read data from file, each process read a part of it 
-  // For HDF5, no problems because we know the number of particles 
-  // For txt format, work on the number of lines yet ... 
-  //totalnbodies = inputparticles;
-  //sodtube::randomDataSodTube1D(rbodies,nbodies,totalnbodies,rank,size);
-
-  io::inputDataHDF5(rbodies,"hdf5_sodtube.h5part",totalnbodies,nbodies);
-
-  double smoothinglength = 0.0;
   int iter = 0;
 
+  body_system<double,1> bs;
+  bs.read_bodies("hdf5_sodtube.h5part");
+  //io::inputDataHDF5(rbodies,"hdf5_sodtube.h5part",totalnbodies,nbodies);
+
 #ifdef OUTPUT
-  io::outputDataHDF5(rbodies,"output_sodtube.h5part",0);
+  bs.write_bodies("output_sodtube.h5part",iter);
+  //io::outputDataHDF5(rbodies,"output_sodtube.h5part",0);
   //tcolorer.mpi_output_txt(rbodies,iter,"output_sodtube"); 
 #endif
 
   ++iter; 
   do
   { 
-    // Get the worst smothing length 
-    if(rank==0)
-      smoothinglength = rbodies[0].second.getSmoothinglength();
-
-    MPI_Bcast(&smoothinglength,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
-    if(rank==0)
-      std::cout<<"H="<<smoothinglength<<std::endl;
-
     MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0)
       std::cout<<std::endl<<"#### Iteration "<<iter<<std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
 
-    tcolorer.mpi_compute_range(rbodies,range,smoothinglength);
-
-    // The bodies are loaded
-    // Compute the key    
-    for(auto& bi: rbodies){
-      bi.first = entity_key_t(range,bi.second.coordinates());
-    }
-    // Check for duplicates keys, particles
-    //assert(rbodies.end() == 
-    //  std::unique(rbodies.begin(),rbodies.end(),
-    //    [](const auto& left, const auto& right){
-    //      return left.first == right.first;
-    //    }));
-
-    // Apply a distributed sort algorithm 
-    tcolorer.mpi_qsort(rbodies,totalnbodies);
-    //assert(rbodies.size() == (size_t)targetnbodies[rank]); 
-    assert(rbodies.end() == std::unique(rbodies.begin(),rbodies.end(),
-        [] (const auto& left, const auto& right){
-          return left.second.coordinates()==right.second.coordinates() &&
-            left.first == right.first;
-        }));
-
-    // Generate the local tree 
-    tree_topology_t tree(range[0],range[1]);
-
-    // create the bodies holders for my local bodies
-    // They will be registred as exclusive
-    std::vector<body_holder*> bodies;
-    double lowmass = 10.0;
-    for(auto& bi: rbodies){
-      auto nbi = tree.make_entity(bi.second.getPosition(),&(bi.second),rank,
-          bi.second.getMass());
-      // Add them in the tree
-      tree.insert(nbi);
-      bodies.push_back(nbi);
-    } 
-    // Search and share the branches 
-    //mpi_branches_exchange_useful(tree,rbodies,range,rangeproc);
-    tcolorer.mpi_branches_exchange(
-        tree,
-        rbodies,
-        rangeposproc,
-        smoothinglength);
-
-    // For test, gather the neighbors and loop over here
-    tcolorer.mpi_compute_ghosts(tree,smoothinglength,range);
-    tcolorer.mpi_refresh_ghosts(tree,range);
-
-    //if(size==1)
-    //  assert(ghosts_data.recvbodies.size() == 0);
-
-#ifdef OUTPUTGRAPH
-    if(iter==1){
-      // Display current tree, with GHOSTS,SHARED,EXCL,NONLOCAL
-      MPI_Barrier(MPI_COMM_WORLD);
-      tcolorer.mpi_tree_traversal_graphviz(tree,range);
-    }
-#endif
+    // Compute and prepare the tree for this iteration 
+    // - Compute the Max smoothing length 
+    // - Compute the range of the system using the smoothinglength
+    // - Cmopute the keys 
+    // - Distributed qsort and sharing 
+    // - Generate and feed the tree
+    // - Exchange branches for smoothing length 
+    // - Compute and exchange ghosts in real smoothing length 
+    bs.update_iteration();
 
     // Do the Sod Tube physics
     if(rank==0)
       std::cout<<"Density"<<std::flush; 
-    for(auto& bi: bodies)
-    {
-      bi->getBody()->setDensity(0.0);
-      tree.apply_in_radius(bi->coordinates(),2*smoothinglength,
-          sodtube::computeDensityApply,bi);
-    }
+    bs.apply_in_smoothinglength(sodtube::computeDensity);
     if(rank==0)
       std::cout<<".done"<<std::endl;
 
     if(rank==0)
       std::cout<<"PressureSoundSpeed"<<std::flush; 
-    for(auto& bi: bodies)
-    {
-      sodtube::computePressureSoundSpeed(bi);
-    }
+    bs.apply_all(sodtube::computePressureSoundSpeed);
     if(rank==0)
       std::cout<<".done"<<std::endl;
-
-    MPI_Barrier(MPI_COMM_WORLD);
-    // Share data again, need the density and pressure of the ghosts 
-    tcolorer.mpi_refresh_ghosts(tree,range);    
+    
+    // Refresh the neighbors within the smoothing length 
+    bs.update_neighbors(); 
 
     if(rank==0)
       std::cout<<"Acceleration"<<std::flush; 
-    for(auto& bi: bodies)
-    {
-      auto ents = tree.find_in_radius(bi->coordinates(),2*smoothinglength);
-      // Apply physics
-      auto vecents = ents.to_vec(); 
-      sodtube::computeAcceleration(bi,vecents);
-    }
+    bs.apply_in_smoothinglength(sodtube::computeAcceleration);
     if(rank==0)
       std::cout<<".done"<<std::endl;
 
     if(rank==0)
       std::cout<<"Viscosity"<<std::flush; 
-    for(auto& bi: bodies)
-    {
-      auto ents = tree.find_in_radius(bi->coordinates(),2*smoothinglength);
-      // Apply physics
-      auto vecents = ents.to_vec(); 
-      sodtube::computeViscosity(bi,vecents);
-    }
+    bs.apply_in_smoothinglength(sodtube::computeViscosity);
     if(rank==0)
       std::cout<<".done"<<std::endl;
 
     if(rank==0)
       std::cout<<"MoveParticles"<<std::flush; 
-    for(auto& bi: bodies)
-    {
-      sodtube::moveParticle(bi,range);
-    }
+    bs.apply_all(sodtube::moveParticle);
     if(rank==0)
       std::cout<<".done"<<std::endl;
 
 #ifdef OUTPUT
-    if(iter % iteroutput == 0)
-    { 
-      io::outputDataHDF5(rbodies,"output_sodtube.h5part",iter/iteroutput);
-      //tcolorer.mpi_output_txt(rbodies,iter/iteroutput,"output_sodtube");
+    if(iter % iteroutput == 0){ 
+      bs.write_bodies("output_sodtube.h5part",iter/iteroutput);
     }
-    // output to see repartition
-    /*char fn ame[64];
-    sprintf(fname,"part_%d_%d.txt",rank,iter); 
-    FILE * tmpf = fopen(fname,"w");
-    fprintf(tmpf,"X Y Z\n");
-    for(auto bi: rbodies)
-    {
-      fprintf(tmpf,"%.4f %.4f %.4f\n",bi.second.getPosition()[0],
-          bi.second.getPosition()[1],bi.second.getPosition()[2]); 
-    }
-    fclose(tmpf);*/
 #endif
     ++iter;
     

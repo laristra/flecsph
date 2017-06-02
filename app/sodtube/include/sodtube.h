@@ -57,8 +57,7 @@ namespace sodtube{
 
   void 
   moveParticle(
-      body_holder*,
-      std::array<point_t,2>&);
+      body_holder*);
 
   void 
   computeAcceleration(
