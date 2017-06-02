@@ -22,8 +22,6 @@ class ScalingTest
 	int iterationCount;
 	MPI_Comm mpiComm;
 	std::stringstream logStream;
-	//Flecsi_Sim_IO::HDF5SimIO testDataSet;
-	Flecsi_Sim_IO::HDF5ParticleIO testDataSet;
 
   public:
   	ScalingTest(){ theadingON=false; myRank=0; numRanks=1; iterationCount=1; }
@@ -73,7 +71,7 @@ inline void ScalingTest::createPseudoData(size_t _numParticles, int numTimesteps
 
 	//
 	// Create Dataset
-	testDataSet.createDataset( filename.c_str(), mpiComm );
+	Flecsi_Sim_IO::HDF5ParticleIO testDataSet( filename.c_str(), mpiComm );;
 
 	testDataSet.writeDatasetAttribute("numParticles", "int64_t", 80);
 	testDataSet.writeDatasetAttribute("gravitational constant", "double", 6.67300E-11);
@@ -82,7 +80,6 @@ inline void ScalingTest::createPseudoData(size_t _numParticles, int numTimesteps
 
 	char *simName = "random_data";
 	testDataSet.writeDatasetAttributeArray("sim_name", "string", simName);
-	testDataSet.closeFile();
 
 
 
@@ -116,7 +113,6 @@ inline void ScalingTest::createPseudoData(size_t _numParticles, int numTimesteps
 		// Push fake timestep data to h5hut
 	  dataConversionTimer.start();
 
-	  	testDataSet.openFile(mpiComm);
 	  	testDataSet.setTimeStep(t);
 
 
@@ -150,16 +146,12 @@ inline void ScalingTest::createPseudoData(size_t _numParticles, int numTimesteps
 	  dataConversionTimer.stop();
 	  
 
-
 	  	// Write data to hard disk
 	  dataWritingTimer.start();
 	  	testDataSet.writeTimestepAttributes();
 	  	testDataSet.writeVariables();
 	  dataWritingTimer.stop();
 	  
-	  	testDataSet.closeFile();
-
-
 
 	  	// Clean up 
 		if (_x_data != NULL)
@@ -178,6 +170,7 @@ inline void ScalingTest::createPseudoData(size_t _numParticles, int numTimesteps
 		// Sync writing before going to the next step
 		MPI_Barrier(mpiComm);
 	}
+
 }
 
 

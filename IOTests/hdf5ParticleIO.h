@@ -20,11 +20,12 @@ class HDF5ParticleIO: public SimIO
 
   public:
     HDF5ParticleIO():SimIO(){}
-    HDF5ParticleIO(std::string _outputFileName):SimIO(_outputFileName){ dataFile=NULL; }
+    HDF5ParticleIO(std::string _outputFileName, MPI_Comm _comm):SimIO(_outputFileName){ createDataset(_outputFileName, _comm); }
+    ~HDF5ParticleIO(){ closeFile(); }
 
     int createDataset(std::string _outputFileName, MPI_Comm _comm);
     int openFile(MPI_Comm _comm);
-    void closeFile(){ H5CloseFile(dataFile); }
+    void closeFile();
 
     void setTimeStep(int ts){ H5SetStep(dataFile, ts); }
 
@@ -35,7 +36,6 @@ class HDF5ParticleIO: public SimIO
     template <class T>
     int writeTimestepAttribute(std::string _name, std::string _dataType, T _data);
     int writeTimestepAttributeArray(std::string _name, std::string _dataType, void * _data, int numElements=1);
-
 
     int writeTimestepAttributes();
     int writeVariables();
@@ -66,7 +66,14 @@ int HDF5ParticleIO::openFile(MPI_Comm  _comm)
     return 0;
 }
 
-
+void HDF5ParticleIO::closeFile()
+{ 
+    if (dataFile!=NULL)
+    {
+        H5CloseFile(dataFile);
+        dataFile=NULL;
+    }
+}
 
 template <class T>
 inline int HDF5ParticleIO::writeDatasetAttribute(std::string _name, std::string _dataType, T _data)
