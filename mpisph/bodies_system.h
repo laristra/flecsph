@@ -16,7 +16,11 @@ using point_t = flecsi::point<T,D>;
 public:
   body_system():totalnbodies_(0L),localnbodies_(0L),tree_(nullptr)
   {};
-  ~body_system(){};
+  ~body_system(){
+    if(tree_ != nullptr){
+      delete tree_;
+    }
+  };
 
   void read_bodies(
       const char * filename)
@@ -38,7 +42,7 @@ public:
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
     // Destroy the previous tree
-    if(tree_ != nullptr){
+    if(tree_ !=  nullptr){
       delete tree_;
     }
     
@@ -46,7 +50,7 @@ public:
     // Choose the smoothing length to be the biggest from everyone 
     double smoothinglength = 0;
     for(auto bi: localbodies_){
-      if( smoothinglength<bi.second.getSmoothinglength()){
+      if(smoothinglength < bi.second.getSmoothinglength()){
         smoothinglength = bi.second.getSmoothinglength();
       }
     }
@@ -61,7 +65,7 @@ public:
     tcolorer_.mpi_compute_range(localbodies_,range_,smoothinglength);
 
     // Compute the keys 
-    for(auto& bi: localbodies_){
+    for(auto& bi:  localbodies_){
       bi.first = entity_key_t(range_,bi.second.coordinates());
     }
 
@@ -80,7 +84,7 @@ public:
     // Add my local bodies in my tree 
     // Clear the bodies_ vector 
     bodies_.clear();
-    for(auto& bi: localbodies_){
+    for(auto& bi:  localbodies_){
       auto nbi = tree_->make_entity(bi.second.getPosition(),&(bi.second),rank,
           bi.second.getMass());
       tree_->insert(nbi);

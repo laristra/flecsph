@@ -316,7 +316,7 @@ public:
       sink.setPosition(cell->position);
       sink.setBMax(cell->bmax);
       sink.setBMin(cell->bmin);
-      sink.setId(cell->id); 
+      //sink.setId(cell->id); 
       // Do the tree traversal, compute the cells data
       tree_traversal_c2c(tree,&sink,tree.root(),
           cell->fc,cell->dfcdr,cell->dfcdrdr,
