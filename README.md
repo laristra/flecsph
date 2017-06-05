@@ -1,5 +1,10 @@
 ![logo](doc/flecsph_logo_bg.png)
 
+
+<aside class="warning">
+The distributed version of gravitation with FMM is not working yet
+</aside>
+
 # SPH on FleCSI 
 
 This project is an implementation of SPH problem using FleCSI framework.
@@ -70,11 +75,6 @@ Then download and build FleCSPH.
     % make 
 
 
-# Todo 
-- Handle the file name from the specialization driver to the mpi task 
-- Add non power of two handler in the branch sharing
-- See the code structuration
-
 # Input File structure 
 
 For the input file we are using the H5hut format. 
@@ -83,14 +83,19 @@ Headers containts general informations like:
 - Number of particles: "nparticles"
 - Dimension: "dimension"
 - Timestep: "timestep"
-- Is fixed timestep used ? "fixed_timestep"
+- Is fixed timestep used ? "used_fixed_timestep"
 
 Not implemented yet: 
-- Physics constants ???? 
-- Different files output ??? Talk to Oleg for that
+- Physics constants ? 
+- Different files for output ? See Oleg for that
 
 Then for each Step we save:
 
+Header:
+- Timestep "timestep"
+- ???
+
+Particles:
 - Position X: "x"
 - Position Y: "y" 
 - Position Z: "z" 

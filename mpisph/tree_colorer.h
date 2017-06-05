@@ -315,7 +315,8 @@ public:
       branch_t sink;
       sink.setPosition(cell->position);
       sink.setBMax(cell->bmax);
-      sink.setBMin(cell->bmin); 
+      sink.setBMin(cell->bmin);
+      sink.setId(cell->id); 
       // Do the tree traversal, compute the cells data
       tree_traversal_c2c(tree,&sink,tree.root(),
           cell->fc,cell->dfcdr,cell->dfcdrdr,
@@ -622,6 +623,11 @@ public:
     double* hessian,
     double& macangle)
   {
+    // Check if it is the same key 
+    if(sink->id()==source->id())
+    {
+      std::cout<<"Same Id"<<std::endl;
+    }
     if(source->getMass() == 0.0){
       return;
     } // if
