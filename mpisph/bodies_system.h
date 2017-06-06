@@ -23,9 +23,11 @@ public:
   };
 
   void read_bodies(
-      const char * filename)
+      const char * filename,
+      int startiteration)
   {
-    io::inputDataHDF5(localbodies_,filename,totalnbodies_,localnbodies_);
+    io::inputDataHDF5(localbodies_,filename,totalnbodies_,localnbodies_,
+        startiteration);
   }
 
   void write_bodies(
@@ -117,7 +119,7 @@ public:
       auto ents = tree_->find_in_radius(bi->getBody()->coordinates(),
           2*bi->getBody()->getSmoothinglength());
       auto vecents = ents.to_vec();
-      ef(bi,vecents);
+      ef(bi,vecents,std::forward<ARGS>(args)...);
     } 
   }
 

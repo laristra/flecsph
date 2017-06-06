@@ -33,13 +33,13 @@
 #include "flecsi/data/data.h"
 
 #include <bodies_system.h>
-#include "sodtube.h"
+#include "physics.h"
 
 namespace flecsi{
 namespace execution{
 
 void
-mpi_init_task(){
+mpi_init_task(int startiteration){
   // TODO find a way to use the file name from the specialiszation_driver
   
   int rank;
@@ -51,10 +51,13 @@ mpi_init_task(){
   int iteroutput = 1;
   double totaltime = 0.0;
   double maxtime = 10.0;
-  int iter = 0;
+  int iter = startiteration; 
 
-  body_system<double,1> bs;
-  bs.read_bodies("hdf5_sodtube.h5part");
+  // Init if default values are not ok
+  physics::dt = 0.0025;
+
+  body_system<double,gdimension> bs;
+  bs.read_bodies("hdf5_sodtube.h5part",startiteration);
   //io::inputDataHDF5(rbodies,"hdf5_sodtube.h5part",totalnbodies,nbodies);
 
 #ifdef OUTPUT
@@ -84,13 +87,19 @@ mpi_init_task(){
     // Do the Sod Tube physics
     if(rank==0)
       std::cout<<"Density"<<std::flush; 
-    bs.apply_in_smoothinglength(sodtube::computeDensity);
+    bs.apply_in_smoothinglength(physics::compute_density);
     if(rank==0)
       std::cout<<".done"<<std::endl;
 
     if(rank==0)
-      std::cout<<"PressureSoundSpeed"<<std::flush; 
-    bs.apply_all(sodtube::computePressureSoundSpeed);
+      std::cout<<"Pressure"<<std::flush; 
+    bs.apply_all(physics::compute_pressure);
+    if(rank==0)
+      std::cout<<".done"<<std::endl;
+
+    if(rank==0)
+      std::cout<<"Soundspeed"<<std::flush; 
+    bs.apply_all(physics::compute_soundspeed);
     if(rank==0)
       std::cout<<".done"<<std::endl;
     
@@ -98,20 +107,26 @@ mpi_init_task(){
     bs.update_neighbors(); 
 
     if(rank==0)
-      std::cout<<"Acceleration"<<std::flush; 
-    bs.apply_in_smoothinglength(sodtube::computeAcceleration);
+      std::cout<<"Hydro acceleration"<<std::flush; 
+    bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
     if(rank==0)
       std::cout<<".done"<<std::endl;
 
     if(rank==0)
-      std::cout<<"Viscosity"<<std::flush; 
-    bs.apply_in_smoothinglength(sodtube::computeViscosity);
+      std::cout<<"Internalenergy"<<std::flush; 
+    bs.apply_in_smoothinglength(physics::compute_internalenergy);
     if(rank==0)
       std::cout<<".done"<<std::endl;
+
+    //if(rank==0)
+    //  std::cout<<"Viscosity"<<std::flush; 
+    //bs.apply_in_smoothinglength(sodtube::computeViscosity);
+    //if(rank==0)
+    //  std::cout<<".done"<<std::endl;
 
     if(rank==0)
       std::cout<<"MoveParticles"<<std::flush; 
-    bs.apply_all(sodtube::moveParticle);
+    bs.apply_all(physics::leapfrog_integration);
     if(rank==0)
       std::cout<<".done"<<std::endl;
 
@@ -130,11 +145,17 @@ flecsi_register_task(mpi_init_task,mpi,index);
 void 
 specialization_driver(int argc, char * argv[]){
   
+  // Default start at iteration 0
+  int startiteration = 0;
+  if(argc == 2){
+    startiteration = atoi(argv[1]);
+  }
+
   std::cout << "In user specialization_driver" << std::endl;
   /*const char * filename = argv[1];*/
   /*std::string  filename(argv[1]);
   std::cout<<filename<<std::endl;*/
-  flecsi_execute_task(mpi_init_task,mpi,index); 
+  flecsi_execute_task(mpi_init_task,mpi,index,startiteration); 
 } // specialization driver
 
 void 

@@ -23,10 +23,6 @@ include_directories(${CMAKE_SOURCE_DIR}/third-party-libraries/ScalingFramework/I
 add_executable(sodtube 
   main.cc 
   main_driver.cc 
-  #mpi_partition.cc
-  #io.cc
-  sodtube.cc 
-  #physics.cc
   ${FleCSI_RUNTIME}/runtime_driver.cc
 )
 

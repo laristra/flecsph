@@ -27,8 +27,7 @@
 #include "flecsi/geometry/point.h"
 #include "flecsi/geometry/space_vector.h"
 
-static const size_t gdimension = 1;
-using type_t = double;
+#include "user.h"
 
 class body{
 

@@ -181,7 +181,8 @@ void inputDataHDF5(
   std::vector<std::pair<entity_key_t,body>>& bodies,
   const char * filename,
   int64_t& totalnbodies,
-  int64_t& nbodies)
+  int64_t& nbodies,
+  int startiteration)
 {
   
   int rank, size; 
@@ -194,18 +195,27 @@ void inputDataHDF5(
   }
   MPI_Barrier(MPI_COMM_WORLD); 
 
-  auto dataFile = H5OpenFile(filename,H5_O_RDWR,MPI_COMM_WORLD);
-  // Set the step to 0 for first reading
-  H5SetStep(dataFile,0);
-  // Set number of data to read to one
-  // \TODO change to attribute 
-  H5PartSetNumParticles(dataFile,1);
-  
+  //--------------- OPEN FILE AND READ NUMBER OF PARTICLES -------------------- 
+  auto dataFile = H5OpenFile(filename,H5_O_RDONLY|
+      H5_VFD_INDEPENDENT, // Flag to be not use mpiposix
+      MPI_COMM_WORLD);
+  // Check if timestep exists
+  int val = H5HasStep(dataFile,startiteration);
+  if(val != 1){
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){
+      std::cout<<std::endl<<"Step "<<startiteration<<" not found in file "<<
+        filename<<std::endl<<std::endl;
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Finalize();
+  }
+  // If yes, get into this step 
+  H5SetStep(dataFile,startiteration);
+   
   // Get the number of particles 
   int64_t nparticles = 0UL; 
-  H5ReadFileAttribInt64(dataFile,"nparticles",&nparticles);
-  
-  //H5PartReadDataInt64(dataFile,"nparticles",&nparticles);
+  nparticles = H5PartGetNumParticles(dataFile);
   if(rank == 0){
     std::cout<<"Total of "<<nparticles<<" particles"<<std::endl;
   }
@@ -219,34 +229,57 @@ void inputDataHDF5(
   totalnbodies = nparticles;
   nbodies = nparticlesproc;
 
+  std::cout<<rank<<": "<<nparticlesproc<<std::endl;
 
+  //--------------- READ GLOBAL ATTRIBUTES ------------------------------------
+  // read the number of dimension 
+  int32_t dimension;
+  H5ReadFileAttribInt32(dataFile,"dimension",&dimension);
+  
+  //--------------- READ DATA FROM STEP ---------------------------------------
+  // Set the number of particles read by each process
+  H5PartSetNumParticles(dataFile,nparticlesproc);
   // Resize the bodies vector 
   bodies.clear();
   bodies.resize(nparticlesproc); 
-
-  // Set the number of particles for each process 
-  H5PartSetNumParticles(dataFile,nparticlesproc);
 
   // Read the dataset and fill the particles data 
   double* dataX = new double[nparticlesproc];
   double* dataY = new double[nparticlesproc];
   double* dataZ = new double[nparticlesproc];
+  int64_t* dataInt = new int64_t[nparticlesproc];
+
+  std::cout<<rank<<": array allocated"<<std::endl;
 
   // Positions
   H5PartReadDataFloat64(dataFile,"x",dataX);
   H5PartReadDataFloat64(dataFile,"y",dataY);
   H5PartReadDataFloat64(dataFile,"z",dataZ);
   for(int64_t i=0; i<nparticlesproc; ++i){
-    point_t position = point_t{dataX[i]/*,dataY[i],dataZ[i]*/};
+    point_t position = point_t{dataX[i]};
+    if(gdimension>1){
+      position[1] = dataY[i];
+    }
+    if(gdimension>2){
+      position[2] = dataZ[i];
+    }
     bodies[i].second.setPosition(position);
   }
+
+  std::cout<<rank<<": position read"<<std::endl;
 
   // Velocity
   H5PartReadDataFloat64(dataFile,"vx",dataX);
   H5PartReadDataFloat64(dataFile,"vy",dataY);
   H5PartReadDataFloat64(dataFile,"vz",dataZ);
   for(int64_t i=0; i<nparticlesproc; ++i){
-    point_t velocity = point_t{dataX[i]/*,dataY[i],dataZ[i]*/};
+    point_t velocity = point_t{dataX[i]};
+    if(gdimension>1){
+      velocity[1] = dataY[i];
+    }
+    if(gdimension>1){
+      velocity[2] = dataZ[i];
+    }
     bodies[i].second.setVelocity(velocity);
   }
 
@@ -255,8 +288,14 @@ void inputDataHDF5(
   H5PartReadDataFloat64(dataFile,"ay",dataY);
   H5PartReadDataFloat64(dataFile,"az",dataZ);
   for(int64_t i=0; i<nparticlesproc; ++i){
-    point_t acceleration = point_t{dataX[i]/*,dataY[i],dataZ[i]*/};
-    bodies[i].second.setVelocity(acceleration);
+    point_t acceleration = point_t{dataX[i]};
+    if(gdimension>1){
+      acceleration[1] = dataY[i];
+    }
+    if(gdimension>2){
+      acceleration[2] = dataZ[i];
+    }
+    bodies[i].second.setAcceleration(acceleration);
   }
 
   // Smoothing Length 
@@ -270,36 +309,47 @@ void inputDataHDF5(
   for(int64_t i=0; i<nparticlesproc; ++i){
     bodies[i].second.setDensity(dataX[i]);
   }
+
   // Internal Energy   
   H5PartReadDataFloat64(dataFile,"u",dataX);
   for(int64_t i=0; i<nparticlesproc; ++i){
     bodies[i].second.setInternalenergy(dataX[i]);
   }
+
   // Pressure  
   H5PartReadDataFloat64(dataFile,"P",dataX);
   for(int64_t i=0; i<nparticlesproc; ++i){
     bodies[i].second.setPressure(dataX[i]);
   }
-  // Mass  
+ 
+ // Mass  
   H5PartReadDataFloat64(dataFile,"m",dataX);
   for(int64_t i=0; i<nparticlesproc; ++i){
     bodies[i].second.setMass(dataX[i]);
   }
+
   // Id   
-  H5PartReadDataFloat64(dataFile,"id",dataX);
+  H5PartReadDataInt64(dataFile,"id",dataInt);
   for(int64_t i=0; i<nparticlesproc; ++i){
-    bodies[i].second.setId(dataX[i]);
+    bodies[i].second.setId(dataInt[i]);
   }
+ 
   // delta T   
   H5PartReadDataFloat64(dataFile,"dt",dataX);
   for(int64_t i=0; i<nparticlesproc; ++i){
     bodies[i].second.setDt(dataX[i]);
   }
 
+  std::cout<<rank<<": done last"<<std::endl;
+  MPI_Barrier(MPI_COMM_WORLD);
+
+
   delete[] dataX;
   delete[] dataY;
   delete[] dataZ;
+  delete[] dataInt;
 
+  MPI_Barrier(MPI_COMM_WORLD);
   H5CloseFile(dataFile);
 
   MPI_Barrier(MPI_COMM_WORLD);

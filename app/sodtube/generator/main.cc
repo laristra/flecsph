@@ -3,7 +3,7 @@
 
 #include "hdf5ParticleIO.h"
 
-const double distance = 0.0026566;  // Distance between the particles 
+const double distance = 0.003;  // Distance between the particles 
 const double m_1 = 2.65e-3;
 const double m_2 = 3.3125e-4;
 const double rho_1 = 1;

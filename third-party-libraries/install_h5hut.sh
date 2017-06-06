@@ -19,8 +19,8 @@ cd h5hut/
 
 CC=mpicc ./configure --enable-parallel --with-hdf5="$PWD/../local" --prefix="$PWD/../local/" --enable-shared=yes
 
-echo "Remove line 934 to 943 in file to be able to compile"
-sed -e '934,943d' ./src/h5core/h5_hdf5_private.h -i
+echo "Replace the non valid function to be able to compile"
+sed -e 's/if ( H5Pset_fapl_mpiposix (/if ( H5Pset_fapl_mpio (/g' ./src/h5core/h5_hdf5_private.h -i
 
 
 make 
