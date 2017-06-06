@@ -25,7 +25,7 @@ Built:
 
 Note:
  - H5hut
- 	- commented the internal of fn hdf5_set_fapl_mpiposix_property @line 929 in h5_hdf5_private.h and built on top of phdf5
+ 	- commented the internal of fn hdf5_set_fapl_mpiposix_property @line 929 in src/h5core/h5_hdf5_private.h and built on top of phdf5
 	- coz hdf5 does not support posix anymore
 
 

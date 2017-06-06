@@ -167,6 +167,8 @@ class SimIO
 	void setNumVars(int _numVars){ numVars=_numVars; }
 	void setNumDims(int _numDims){ numDims=_numDims; }
 
+	std::string getFilename(){ return outputFileName; }
+
 	
 	void addTimeStepAttribute(Attribute _a){ timestepAttributes.push_back(_a); }
 	void addVariable(Variable _v){  vars.push_back(_v); }

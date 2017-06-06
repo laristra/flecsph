@@ -19,7 +19,7 @@ class HDF5ParticleIO: public SimIO
     int myRank;
 
   public:
-    HDF5ParticleIO():SimIO(){}
+    HDF5ParticleIO():SimIO(){ dataFile=NULL; }
     HDF5ParticleIO(std::string _outputFileName, MPI_Comm _comm):SimIO(_outputFileName){ createDataset(_outputFileName, _comm); }
     ~HDF5ParticleIO(){ closeFile(); }
 

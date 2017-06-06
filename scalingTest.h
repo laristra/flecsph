@@ -170,7 +170,6 @@ inline void ScalingTest::createPseudoData(size_t _numParticles, int numTimesteps
 		// Sync writing before going to the next step
 		MPI_Barrier(mpiComm);
 	}
-
 }
 
 
