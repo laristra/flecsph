@@ -8,9 +8,8 @@ class HDF5ParticleIO:
 	def __init__(self, _outputFileName):
 		self.createDataset(_outputFileName)
 
-	def __del__(self):
-		self.closeFile()
-
+	#def __del__(self):
+	#	self.closeFile()
 
 
 	def createDataset(self, _outputFileName):
@@ -27,13 +26,16 @@ class HDF5ParticleIO:
 
 
 	def writeDatasetAttribute(self, _name, _value):
+		if type(_value) is str:
+			_value = numpy.string_(_value)
 		self.dataFile.attrs.create(_name, _value)
 
 	def writeTimestepAttribute(self, _name, _value):
 		self.currentGroup.attrs.create(_name, _value)
 
-
 	def writeVariable(self, _varName, _data):
 		self.currentGroup.create_dataset(_varName, data=_data)
+
+
 
 
