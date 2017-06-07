@@ -146,6 +146,8 @@ class SimIO
 	std::string outputFileName;
 	Endianness endian;
 	OutputType datasetType;
+	int numTimesteps;
+	int numDatasetAttributes;
 	int numVars;
 	int numDims;					// 1 or 2 or 3 ...
 	
@@ -168,6 +170,9 @@ class SimIO
 	void setNumDims(int _numDims){ numDims=_numDims; }
 
 	std::string getFilename(){ return outputFileName; }
+
+	int getNumTimesteps(){ return numTimesteps; }
+	int getNumDatasetAttributes(){ return numDatasetAttributes; }
 
 	
 	void addTimeStepAttribute(Attribute _a){ timestepAttributes.push_back(_a); }

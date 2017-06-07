@@ -27,6 +27,13 @@ class HDF5ParticleIO: public SimIO
     int openFile(MPI_Comm _comm);
     void closeFile();
 
+    // Reading
+    int readFile(std::string inputFileName);
+    int getNumVariables(int ts);
+    int getNumAttributes(int ts);
+
+
+    // Writing 
     void setTimeStep(int ts){ H5SetStep(dataFile, ts); }
 
     template <class T>
@@ -41,6 +48,32 @@ class HDF5ParticleIO: public SimIO
     int writeVariables();
 };
 
+
+
+int HDF5ParticleIO::readFile(std::string inputFileName, int &numTs, int &numAttrs)
+{
+    dataFile = H5PartOpenFile(inputFileName.c_str(),H5_O_RDONLY);
+    if (!dataFile)
+        return -1;
+
+    numTimesteps = H5GetNumSteps(dataFile);
+    numDatasetAttributes = H5GetNumFileAttribs(dataFile);
+
+    return 0;
+}
+
+
+int HDF5ParticleIO::getNumVariables(int ts)
+{
+    H5PartSetStep(dataFile, ts);
+    return H5PartGetNumDatasets(ts);
+}
+
+int HDF5ParticleIO::getNumAttributes(int ts)
+{
+    H5PartSetStep(dataFile, ts);
+    return H5GetNumStepAttribs(ts);
+}
 
 
 
@@ -189,7 +222,7 @@ inline int HDF5ParticleIO::writeTimestepAttributeArray(std::string _name, std::s
 
 inline int HDF5ParticleIO::writeTimestepAttributes()
 {
-    for (int i=0; i<timestepAttributes.size(); i++)
+    for (size_t i=0; i<timestepAttributes.size(); i++)
     {
         if ( timestepAttributes[i].dataType == "int32_t" )
             H5WriteStepAttribInt32(dataFile, (timestepAttributes[i].name).c_str(), (int32_t *)timestepAttributes[i].data, timestepAttributes[i].numElements);
@@ -210,7 +243,7 @@ inline int HDF5ParticleIO::writeTimestepAttributes()
 
 inline int HDF5ParticleIO::writeVariables()
 {
-    for (int i=0; i<vars.size(); i++)
+    for (size_t i=0; i<vars.size(); i++)
     {
         H5PartSetNumParticles(dataFile, vars[i].numElements);
         
