@@ -25,12 +25,11 @@
 #include <iostream>
 #include <vector>
 
-//#include <hdf5.h>
+#include <H5hut.h>
+#include <hdf5ParticleIO.h>
 
-#include "tree.h"
-
-#include "H5hut.h"
-#include "hdf5ParticleIO.h"
+//#include "tree.h"
+#include "physics.h"
 
 namespace io{
 
@@ -38,12 +37,14 @@ namespace io{
 // This is not the most beautiful way, but enough for testing
 void inputDataTxtRange(
     std::vector<std::pair<entity_key_t,body>>& bodies, 
-    int& nbodies,
-    int& totalnbodies,
-    int rank, 
-    int size,
+    int64_t& nbodies,
+    int64_t& totalnbodies,
     const char * filename
-  ){
+  )
+{
+  int rank, size; 
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  MPI_Comm_size(MPI_COMM_WORLD,&size);
   nbodies = 0; 
   totalnbodies = 0;
   int mpi_err;
@@ -235,7 +236,11 @@ void inputDataHDF5(
   // read the number of dimension 
   int32_t dimension;
   H5ReadFileAttribInt32(dataFile,"dimension",&dimension);
-  
+  assert(gdimension == dimension);
+
+  // timestep 
+  H5ReadFileAttribFloat64(dataFile,"timestep",&physics::dt);
+
   //--------------- READ DATA FROM STEP ---------------------------------------
   // Set the number of particles read by each process
   H5PartSetNumParticles(dataFile,nparticlesproc);
@@ -256,7 +261,8 @@ void inputDataHDF5(
   H5PartReadDataFloat64(dataFile,"y",dataY);
   H5PartReadDataFloat64(dataFile,"z",dataZ);
   for(int64_t i=0; i<nparticlesproc; ++i){
-    point_t position = point_t{dataX[i]};
+    point_t position; 
+    position[0] = dataX[i];
     if(gdimension>1){
       position[1] = dataY[i];
     }
@@ -273,11 +279,12 @@ void inputDataHDF5(
   H5PartReadDataFloat64(dataFile,"vy",dataY);
   H5PartReadDataFloat64(dataFile,"vz",dataZ);
   for(int64_t i=0; i<nparticlesproc; ++i){
-    point_t velocity = point_t{dataX[i]};
+    point_t velocity;
+    velocity[0] = dataX[i];
     if(gdimension>1){
       velocity[1] = dataY[i];
     }
-    if(gdimension>1){
+    if(gdimension>2){
       velocity[2] = dataZ[i];
     }
     bodies[i].second.setVelocity(velocity);
@@ -288,7 +295,8 @@ void inputDataHDF5(
   H5PartReadDataFloat64(dataFile,"ay",dataY);
   H5PartReadDataFloat64(dataFile,"az",dataZ);
   for(int64_t i=0; i<nparticlesproc; ++i){
-    point_t acceleration = point_t{dataX[i]};
+    point_t acceleration;
+    acceleration[0] = dataX[i];
     if(gdimension>1){
       acceleration[1] = dataY[i];
     }
@@ -388,11 +396,22 @@ void outputDataHDF5(
   Flecsi_Sim_IO::HDF5ParticleIO simio;
   simio.createDataset(filename,MPI_COMM_WORLD);
 
-  // If iteration 0 put the global header data 
-  // Or check each time if they exists and if no put them  
+  //-------------------GLOBAL HEADER-------------------------------------------
+  // Only for the first output
 
+  //------------------STEP HEADER----------------------------------------------
   // Put the step header
   simio.setTimeStep(step);
+  simio.addTimeStepAttribute(
+      Flecsi_Sim_IO::Attribute(
+        "dt",
+        Flecsi_Sim_IO::timestep,
+        "double",
+        physics::totaltime)
+      );
+
+
+  //------------------STEP DATA------------------------------------------------
 
   // 4 buffers, 3 double and 1 int64
   double* b1 = new double[nparticlesproc];

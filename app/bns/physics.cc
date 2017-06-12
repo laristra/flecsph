@@ -223,7 +223,7 @@ double computeDt(body_holder* srch, std::vector<body_holder*>& ngbhs)
   double dt2 = source->getSmoothinglength()/
     (source->getSoundspeed()+
      1.2*kViscAlpha*source->getSoundspeed()+
-     1.2+kViscBeta*max_mu_ij);
+     1.2*kViscBeta*max_mu_ij);
   dt2 *= kCoeffDt;
 
   return std::min(dt1,dt2);

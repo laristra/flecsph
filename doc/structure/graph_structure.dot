@@ -1,0 +1,52 @@
+digraph G {
+
+  subgraph cluster_0 {
+    //style=filled;
+    //color=lightgrey;
+    //node [style=filled];
+    "main_driver.cc";
+    "user.h\nheader";
+    label = "app/sodtube/";
+    color=lightgrey;
+  }
+
+  subgraph cluster_1{
+    //node [style=filled];
+    "io.h\nnamespace";
+    "bodies_system.h\nclass";
+    "tree_colorer.h\nclass";
+    label = "mpisph/";
+    color=lightgrey;
+  }
+
+  subgraph cluster_2 {
+    //node [style=filled];
+    "body.h\nclass";
+    "tree.h\nclass";
+    label = "include/"; 
+    color=lightgrey  
+  }
+
+  subgraph cluster_3 {
+    //node [style=filled];
+    "physics.h\nnamespace";
+    "kernel.h\nnamespace";
+    label = "include/physics/"; 
+    color=lightgrey  
+  }
+  "io.h\nnamespace" -> "bodies_system.h\nclass";
+  "bodies_system.h\nclass" -> "main_driver.cc";
+  "tree_colorer.h\nclass" -> "bodies_system.h\nclass";
+
+  "physics.h\nnamespace" -> "main_driver.cc";
+  "kernel.h\nnamespace" -> "physics.h\nnamespace";
+  "tree.h\nclass" -> "kernel.h\nnamespace";
+  "tree.h\nclass" -> "tree_colorer.h\nclass";
+  "body.h\nclass" -> "tree.h\nclass";
+
+  //"tree.h" -> "io.h"
+  "physics.h\nnamespace" -> "io.h\nnamespace"
+
+  "user.h\nheader" -> "body.h\nclass";
+  
+} 

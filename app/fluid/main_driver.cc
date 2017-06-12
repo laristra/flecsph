@@ -33,7 +33,7 @@
 #include "flecsi/data/data.h"
 
 #include <bodies_system.h>
-//#include "physics.h"
+#include "physics.h"
 
 namespace flecsi{
 namespace execution{
@@ -47,30 +47,37 @@ mpi_init_task(int startiteration){
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   
-  int totaliters = 200;
-  int iteroutput = 1;
+  int totaliters = 4000;
+  int iteroutput = 10;
   double totaltime = 0.0;
   double maxtime = 10.0;
   int iter = startiteration; 
 
   // Init if default values are not ok
-  physics::dt = 0.0025;
+  // \TODO in config filem
+  physics::dt = 1.0e-3;
   physics::do_boundaries = true;
-  physics::alpha = 1; 
-  physics::beta = 2; 
-  physics::stop_boundaries = true;
-  physics::min_boundary = {0.1};
-  physics::max_boundary = {1.0};
+  physics::reflect_boundaries = true;
+  //physics::min_boundary = point_t{-1.0,-1.0};
+  //physics::max_boundary = point_t{6.0,1000.0};
+  physics::g_strength = 9.8;
+  physics::K = 1;
+  physics::damp = 0.80;
 
   body_system<double,gdimension> bs;
-  bs.read_bodies("hdf5_sodtube.h5part",startiteration);
+  bs.read_bodies("hdf5_fluid.h5part",startiteration);
   //io::inputDataHDF5(rbodies,"hdf5_sodtube.h5part",totalnbodies,nbodies);
 
   double h = bs.getSmoothinglength();
   physics::epsilon = 0.01*h*h;
 
+  // Set the boundaries based on range 
+  auto range = bs.getRange();
+  physics::min_boundary = range[0] - 1.0;
+  physics::max_boundary = range[1] + 1.0;
+
 #ifdef OUTPUT
-  bs.write_bodies("output_sodtube.h5part",iter);
+  bs.write_bodies("output_fluid.h5part",iter);
   //io::outputDataHDF5(rbodies,"output_sodtube.h5part",0);
   //tcolorer.mpi_output_txt(rbodies,iter,"output_sodtube"); 
 #endif
@@ -92,7 +99,7 @@ mpi_init_task(int startiteration){
     // - Exchange branches for smoothing length 
     // - Compute and exchange ghosts in real smoothing length 
     bs.update_iteration();
-   
+    
     // Do the Sod Tube physics
     if(rank==0)
       std::cout<<"Density"<<std::flush; 
@@ -120,7 +127,13 @@ mpi_init_task(int startiteration){
     bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
     if(rank==0)
       std::cout<<".done"<<std::endl;
- 
+
+    if(rank==0)
+      std::cout<<"Gravitation acceleration"<<std::flush; 
+    bs.apply_all(physics::compute_gravitation);
+    if(rank==0)
+      std::cout<<".done"<<std::endl;
+
     if(rank==0)
       std::cout<<"Internalenergy"<<std::flush; 
     bs.apply_in_smoothinglength(physics::compute_internalenergy);
@@ -139,12 +152,20 @@ mpi_init_task(int startiteration){
     if(rank==0)
       std::cout<<".done"<<std::endl;
 
+    if(rank==0)
+      std::cout<<"MoveParticles"<<std::flush; 
+    bs.apply_all(physics::compute_boundaries);
+    if(rank==0)
+      std::cout<<".done"<<std::endl;
+
+
 #ifdef OUTPUT
     if(iter % iteroutput == 0){ 
-      bs.write_bodies("output_sodtube.h5part",iter/iteroutput);
+      bs.write_bodies("output_fluid.h5part",iter/iteroutput);
     }
 #endif
     ++iter;
+    physics::totaltime += physics::dt;
     
   }while(iter<totaliters);
 }

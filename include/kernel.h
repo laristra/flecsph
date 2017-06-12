@@ -36,7 +36,7 @@ namespace kernel{
       double h)
   {
     double rh = r/h;
-    double result = 1.0/(pow(M_PI,gdimension/2.)*pow(h,gdimension));
+    double result = 2.0/(pow(M_PI,gdimension/2.)*pow(h,gdimension));
     if (0.0 <= rh && rh < 1.0) {
       result *= 1.0 - (3.0/2.0) * pow(rh,2) + (3.0/4.0) * pow(rh,3); 
       return result; 

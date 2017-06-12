@@ -95,6 +95,7 @@ public:
 
     void setLocality(locality loc){locality_ = loc;};
     void setBody(body * bodyptr){bodyptr_ = bodyptr;};
+    void setPosition(point_t position){position_ = position;};
 
     bool
     is_local()

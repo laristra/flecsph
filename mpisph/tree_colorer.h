@@ -310,7 +310,7 @@ public:
     tree_topology_t& tree,
     double macangle)
   {
-    //#pragma omp parallel for 
+    #pragma omp parallel for 
     for(auto cell=recvCOM.begin(); cell < recvCOM.end() ; ++cell){
       branch_t sink;
       sink.setPosition(cell->position);
@@ -324,7 +324,7 @@ public:
     } // for 
   }
 
-
+#if 0
   // Compute the ghosts particles needed for the gravity computation 
   // Then send them to the process that reqiure it
   void 
@@ -446,6 +446,7 @@ public:
       } // for
     } // for
   } // mpi_gather_ghosts_com
+#endif
 
   // Gather the result from the other processes and add the forces 
   // Then apply to the particles below it 
@@ -515,7 +516,7 @@ public:
       assert(subparts.size()!=0);
       // Also apply the subcells
       for(auto bi: subparts){  
-        point_t grav = bi->getGravForce();
+        point_t grav = point_t{};
         for(auto nb: subparts){  
           double dist = flecsi::distance(bi->getPosition(),nb->getPosition());
           if(dist>0.0){  
@@ -523,7 +524,9 @@ public:
               (bi->getPosition()-nb->getPosition());
           } // if
         } // for
-        bi->setGravForce(grav);
+        //bi->setGravForce(grav);
+        // add in the acceleration
+        bi->setAcceleration(bi->getAcceleration()+grav);
       } // for
     } // for
     //std::cout<<rank<<": computed"<<std::endl;
@@ -716,7 +719,10 @@ public:
           grav[i] += 1./2.*tmpVector[i];
         } // for
         neighbors.push_back(bi->getBody());
-        bi->getBody()->setGravForce(grav); 
+        //bi->getBody()->setGravForce(grav); 
+        // add this contribution to acceleration
+        bi->getBody()->setAcceleration(grav+bi->getBody()->getAcceleration());
+        
         nbody++;
       } // for
     }else{
@@ -955,11 +961,11 @@ public:
     }); 
 
     // Check for duplicates
-    assert(rbodies.end() == std::unique(rbodies.begin(),rbodies.end(),
-        [](const auto& left, const auto& right ){ 
-          return left.first == right.first;
-        })
-    );
+    //assert(rbodies.end() == std::unique(rbodies.begin(),rbodies.end(),
+    //    [](const auto& left, const auto& right ){ 
+    //      return left.first == right.first;
+    //    })
+    //);
 
 
     std::vector<int> totalprocbodies;
@@ -1130,7 +1136,7 @@ public:
     }
   }
 
-  // Exchange the usefull body_holder based on the bounding box of this process 
+  // Exchange the usefull body_holder based on the bounding box of this process
   // This will be used to find the ghosts 
   void
   mpi_branches_exchange(
@@ -1321,12 +1327,20 @@ public:
       &ghosts_data.roffsets[0],MPI_BYTE,
       MPI_COMM_WORLD);
 
-    // Sort the bodies based on key
+    // Sort the bodies based on key and or position
     std::sort(ghosts_data.rbodies.begin(),ghosts_data.rbodies.end(),
       [range](auto& left, auto& right){
-        return entity_key_t(range,left.coordinates())<
-        entity_key_t(range,right.coordinates());
-      });
+        if(entity_key_t(range,left.coordinates())<
+        entity_key_t(range,right.coordinates())){
+          return true;
+        }
+        if(entity_key_t(range,left.coordinates())==
+          entity_key_t(range,right.coordinates())){
+          std::cout<<"Key collision"<<std::endl;
+          return left.coordinates()>right.coordinates();
+        }
+        return false;
+      }); 
  
     // Then link the holders with these bodies
     auto it = ghosts_data.rbodies.begin();
@@ -1335,9 +1349,25 @@ public:
     for(auto& bi: ghosts_data.recvholders)
     {
       auto bh = tree.get(bi->id());
-      assert(bh->getLocality()==NONLOCAL||bh->getLocality()==GHOST);
       bh->setBody(&(*it));
+
+      if(entity_key_t(range,bh->coordinates()) != 
+          entity_key_t(range,bh->getBody()->coordinates())){
+            std::cout<<rank<<": "<<std::endl<<*bh<<"\n---"<<*it<<std::endl<<
+            "diff ="<<bh->getPosition()-it->getPosition()<<std::endl;
+        // Replace the body_holder by the received
+        //bh->getBody()->setPosition(bh->getPosition());
+        bh->setPosition(bh->getBody()->getPosition());
+
+      }
+
+      assert(bh->getLocality()==NONLOCAL||bh->getLocality()==GHOST);
+      assert(entity_key_t(range,bh->coordinates()) == 
+          entity_key_t(range,bh->getBody()->coordinates()));
       assert(bh->coordinates()==bh->getBody()->coordinates());
+      // Replace the body_holder by the received
+      bh->getBody()->setPosition(bh->getPosition());
+      bh->setPosition(bh->getBody()->getPosition());
       ++it;
     }   
   
@@ -1455,12 +1485,20 @@ public:
       assert(ghosts_data.roffsets[i]>=0);
     }
   
-    // Sort the olders once
+    // Sort the holders once
     std::sort(ghosts_data.recvholders.begin(),
             ghosts_data.recvholders.end(),
       [range](auto& left, auto& right){
-        return entity_key_t(range,left->coordinates())<
-        entity_key_t(range,right->coordinates());
+        if(entity_key_t(range,left->coordinates())<
+          entity_key_t(range,right->coordinates())){
+          return true;
+        }
+        if(entity_key_t(range,left->coordinates())==
+          entity_key_t(range,right->coordinates())){
+          std::cout<<"Key collision"<<std::endl;
+          return left->coordinates()<right->coordinates();
+        }
+        return false;
       });
 
 #ifdef OUTPUT 

@@ -14,13 +14,18 @@ class body_system{
 using point_t = flecsi::point<T,D>;
 
 public:
-  body_system():totalnbodies_(0L),localnbodies_(0L),tree_(nullptr)
+  body_system():totalnbodies_(0L),localnbodies_(0L),macangle_(0.0),
+  maxmasscell_(1.0e-40),tree_(nullptr)
   {};
   ~body_system(){
     if(tree_ != nullptr){
       delete tree_;
     }
   };
+
+
+  void setMaxmasscell(double maxmasscell){maxmasscell_ = maxmasscell;};
+  void setMacangle(double macangle){macangle_ = macangle;};
 
   void read_bodies(
       const char * filename,
@@ -30,11 +35,69 @@ public:
         startiteration);
   }
 
+  void read_bodies_txt(
+      const char* filename)
+  {
+    io::inputDataTxtRange(localbodies_,localnbodies_,totalnbodies_,filename);
+  }
+
   void write_bodies(
       const char * filename, 
       int iter)
   {
     io::outputDataHDF5(localbodies_,filename,iter);
+  }
+
+  double getSmoothinglength()
+  {
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Comm_size(MPI_COMM_WORLD,&size);
+
+    // Choose the smoothing length to be the biggest from everyone 
+    double smoothinglength = 0;
+    for(auto bi: localbodies_){
+      if(smoothinglength < bi.second.getSmoothinglength()){
+        smoothinglength = bi.second.getSmoothinglength();
+      }
+    }
+    MPI_Allreduce(MPI_IN_PLACE,&smoothinglength,1,MPI_DOUBLE,MPI_MAX,
+        MPI_COMM_WORLD);
+
+    if(rank==0){
+      std::cout<<"H="<<smoothinglength<<std::endl;
+    }
+    return smoothinglength;
+
+  }
+
+  std::array<point_t,2>& getRange()
+  {
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Comm_size(MPI_COMM_WORLD,&size);
+
+    // Destroy the previous tree
+    if(tree_ !=  nullptr){
+      delete tree_;
+    }
+    
+  
+    // Choose the smoothing length to be the biggest from everyone 
+    double smoothinglength = 0;
+    for(auto bi: localbodies_){
+      if(smoothinglength < bi.second.getSmoothinglength()){
+        smoothinglength = bi.second.getSmoothinglength();
+      }
+    }
+    MPI_Allreduce(MPI_IN_PLACE,&smoothinglength,1,MPI_DOUBLE,MPI_MAX,
+        MPI_COMM_WORLD);
+
+    if(rank==0){
+      std::cout<<"H="<<smoothinglength<<std::endl;
+    }
+    tcolorer_.mpi_compute_range(localbodies_,range_,smoothinglength);
+    return range_;
   }
 
   void update_iteration() 
@@ -105,6 +168,17 @@ public:
   void update_neighbors()
   {
     tcolorer_.mpi_refresh_ghosts(*tree_,range_);
+  }
+
+  void gravitation_fmm(){
+    // Compute the COM
+    tcolorer_.tree_traversal_com(*tree_);
+    // Exchange the cells up to a depth 
+    tcolorer_.mpi_exchange_cells(*tree_,maxmasscell_);
+    // Compute the fmm interaction to the gathered cells 
+    tcolorer_.mpi_compute_fmm(*tree_,macangle_);
+    // Gather all the contributions and compute 
+    tcolorer_.mpi_gather_cells(*tree_);
   }
 
   template<

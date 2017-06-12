@@ -18,6 +18,7 @@ endif()
 
 find_package(FleCSI REQUIRED)
 include_directories(${FleCSI_INCLUDE_DIR})
+message(STATUS ${FleCSI_INCLUDE_DIR})
 set(FleCSPH_LIBRARIES ${FleCSI_LIBRARIES})
 
 #------------------------------------------------------------------------------#
