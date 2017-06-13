@@ -52,9 +52,9 @@ Then you will have to install FleCSI.
 
     % git clone --recursive git@github.com:laristra/flecsi/flecsi.git
 
-here we need to change to the refractor branch 
+here we need to change to the refactor branch 
 
-    % git checkout refractor 
+    % git checkout refactor 
     % mkdir build ; cd build 
     % ccmake ../
 
