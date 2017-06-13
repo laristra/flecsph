@@ -32,7 +32,7 @@ On DARWIN load the modules:
 
 Then install the flecsi third libraries
 
-    % git clone --recursive git@github.com:laristra/flecsi/flecsi-third-party.git
+    % git clone --recursive https://github.com/laristra/flecsi-third-party.git
     % mkdir build ; cd build
     % ccmake ../
 
@@ -50,7 +50,7 @@ And
 
 Then you will have to install FleCSI. 
 
-    % git clone --recursive git@github.com:laristra/flecsi/flecsi.git
+    % git clone --recursive https://github.com/laristra/flecsi.git
 
 here we need to change to the refactor branch 
 
@@ -58,9 +58,11 @@ here we need to change to the refactor branch
     % mkdir build ; cd build 
     % ccmake ../
 
-Here add ENABLE_MPI and ENABLE_OPENMP 
-Set FLECSI_RUNTIME_MODEL legion
-and set a path for CMAKE_INSTALL_PREFIX like /home/XXX/local/
+Here add:
+- ENABLE_MPI and ENABLE_OPENMP 
+- Set FLECSI_RUNTIME_MODEL legion
+and set a path for 
+- CMAKE_INSTALL_PREFIX like /home/XXX/local/
 
     % make ; make install 
 
