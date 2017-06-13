@@ -29,6 +29,7 @@ On DARWIN load the modules:
     % module load git/2.8.0
     % module load cinch/cinch-utils
     % module load cmake/3.7.1
+    % module load boost/1.59.0_gcc-6.2.0
 
 Then install the flecsi third libraries
 
