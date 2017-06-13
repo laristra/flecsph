@@ -28,7 +28,7 @@ class HDF5ParticleIO: public SimIO
     void closeFile();
 
     // Reading
-    int readFile(std::string inputFileName);
+    int readFile(std::string inputFileName, MPI_Comm _comm);
 
     int getNumTimestepAttributes(int ts);
     int getNumDatasetAttributes();
@@ -64,9 +64,9 @@ class HDF5ParticleIO: public SimIO
 
 
 
-int HDF5ParticleIO::readFile(std::string inputFileName, int &numTs, int &numAttrs)
+int HDF5ParticleIO::readFile(std::string inputFileName, MPI_Comm _comm)
 {
-    dataFile = H5PartOpenFile(inputFileName.c_str(),H5_O_RDONLY);
+    dataFile = H5OpenFile(inputFileName.c_str(), H5_O_RDONLY, _comm);
     if (!dataFile)
         return -1;
 
@@ -79,7 +79,7 @@ int HDF5ParticleIO::readFile(std::string inputFileName, int &numTs, int &numAttr
 
 int HDF5ParticleIO::getNumTimestepAttributes(int ts)
 {
-    H5PartSetStep(dataFile, ts);
+    H5SetStep(dataFile, ts);
     return H5GetNumStepAttribs(ts);
 }
 
@@ -91,96 +91,9 @@ int HDF5ParticleIO::getNumDatasetAttributes()
 
 int HDF5ParticleIO::getNumVariables(int ts)
 {
-    H5PartSetStep(dataFile, ts);
+    H5SetStep(dataFile, ts);
     return H5PartGetNumDatasets(ts);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 void HDF5ParticleIO::readDatasetAttribute(std::string _name, std::string _dataType, void *_data)

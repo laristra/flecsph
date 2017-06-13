@@ -16,9 +16,6 @@ testIO.writeDatasetAttribute("sim_name", "random_data")
 
 
 
-
-
-
 for ts in range(0,4):
 
 	testIO.setTimeStep(ts)
