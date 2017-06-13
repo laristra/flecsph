@@ -74,6 +74,10 @@ Then download and build FleCSPH.
     % mkdir build
     % cd build 
     % ccmake ../ 
+Here the settings are: 
+- ENABLE_MPI: ON
+- ENABLE_OPENMPI: ON
+- FLECSI_RUNTIME_MODEL: legion
     % make 
 
 
