@@ -170,10 +170,10 @@ mpi_init_task(int startiteration){
   }while(iter<totaliters);
 }
 
-flecsi_register_task(mpi_init_task,mpi,index);
+flecsi_register_mpi_task(mpi_init_task);
 
 void 
-specialization_driver(int argc, char * argv[]){
+specialization_tlt_init(int argc, char * argv[]){
   
   // Default start at iteration 0
   int startiteration = 0;
@@ -185,7 +185,7 @@ specialization_driver(int argc, char * argv[]){
   /*const char * filename = argv[1];*/
   /*std::string  filename(argv[1]);
   std::cout<<filename<<std::endl;*/
-  flecsi_execute_task(mpi_init_task,mpi,index,startiteration); 
+  flecsi_execute_mpi_task(mpi_init_task,startiteration); 
 } // specialization driver
 
 void 
