@@ -1,6 +1,6 @@
 cinch_minimum_required(1.0)
 
-project(tree)
+project(flecsph)
 
 #------------------------------------------------------------------------------#
 # If a C++14 compiler is available, then set the appropriate flags
@@ -86,7 +86,7 @@ list(APPEND FleCSPH_LIBRARIES ${H5HUT_LIBRARIES})
 # Add library target
 #------------------------------------------------------------------------------#
 
-cinch_add_library_target(mpisph "mpisph")
+cinch_add_library_target(mpisph mpisph)
 
 #------------------------------------------------------------------------------#
 # Add application targets
