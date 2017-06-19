@@ -53,9 +53,9 @@ Then you will have to install FleCSI.
 
     % git clone --recursive https://github.com/laristra/flecsi.git
 
-here we need to change to the refactor branch 
+here we need to change to the flecsph branch 
 
-    % git checkout refactor 
+    % git checkout flecsph 
     % mkdir build ; cd build 
     % ccmake ../
 
@@ -76,6 +76,7 @@ Then download and build FleCSPH.
     % cd build 
     % ccmake ../ 
 Here the settings are: 
+- 
 - ENABLE_MPI: ON
 - ENABLE_OPENMPI: ON
 - FLECSI_RUNTIME_MODEL: legion
