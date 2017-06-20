@@ -99,13 +99,15 @@ int main(int argc, char * argv[]){
       P[part] = pressure_2;
       rho[part] = rho_2; 
       u[part] = u_2;
-      m[part] = m_2;
+      //m[part] = m_2;
     }else{
       P[part] = pressure_1;
       rho[part] = rho_1;
       u[part] = u_1;
-      m[part] = m_1;
+      //m[part] = m_1;
     }
+
+    m[part] = rho[part]*middle/(nparticles/2.);
 
     //m[part] = 0.;
     // Y and Z not used 
@@ -118,25 +120,6 @@ int main(int argc, char * argv[]){
     lposition += ldistance;
     //std::cout<<x[part]<<": "<<h[part]<<std::endl;
   }
-
-  // For each particle, search the neighbors to find the mass
-  //for(int64_t p1=0;p1<nparticlesproc; ++p1){
-  //  for(int64_t p2=0;p2<nparticlesproc;++p2){
-  //    if( fabs(x[p1]-x[p2]) < 2*smoothing_length ){
-         // Then consider it for my mass 
-  //      m[p1] += rho[p2]/kernel::cubic_spline_kernel
-  //        (fabs(x[p1]-x[p2]),smoothing_length);
-  //    }
-  //  }
-  //}
-
-  //double totalmass = 0.;
-  //for(int64_t p1=0;p1<nparticlesproc; ++p1){
-  //  totalmass += m[p1];  
-  //}
-  //for(int64_t p1=0;p1<nparticlesproc; ++p1){
-  //  m[p1] = m[p1]/totalmass;
-  //}
 
   char filename[128];
   //sprintf(filename,"%s_%d.h5part",fileprefix,nparticles);
