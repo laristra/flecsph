@@ -34,6 +34,7 @@ class ScalingTest
   	void runScalingTest(size_t _numParticles, int numTimesteps, Octree simOct, std::string filename);
   	void createPseudoData(size_t _numParticles, int numTimesteps, Octree simOct, std::string filename);
   	void runWriteTest(int timeStep, size_t _numParticles);
+  	void readDatasetTest(std::string filename);
 
   	std::string getTimingLog(){ return logStream.str(); }
 };
@@ -71,7 +72,7 @@ inline void ScalingTest::createPseudoData(size_t _numParticles, int numTimesteps
 
 	//
 	// Create Dataset
-	Flecsi_Sim_IO::HDF5ParticleIO testDataSet( filename.c_str(), mpiComm );;
+	Flecsi_Sim_IO::HDF5ParticleIO testDataSet( filename.c_str(), Flecsi_Sim_IO::WRITING, mpiComm );;
 
 	testDataSet.writeDatasetAttribute("numParticles", "int64_t", 80);
 	testDataSet.writeDatasetAttribute("gravitational constant", "double", 6.67300E-11);
@@ -190,5 +191,81 @@ inline void ScalingTest::runWriteTest(int timeStep, size_t _numParticles)
 
 
 
+inline void ScalingTest::readDatasetTest(std::string filename)
+{
+	// 
+	Flecsi_Sim_IO::HDF5ParticleIO testDataSet( filename.c_str(), Flecsi_Sim_IO::READING, mpiComm );
+
+
+	// Get information about file
+	if (myRank == numRanks-1)
+	{
+		// Dataset Attributes
+		std::cout << myRank << " ~ #attributes: " << testDataSet.getNumDatasetAttributes() << std::endl;
+		for (int i=0; i<testDataSet.getNumDatasetAttributes(); i++)
+		{
+			std::string varname, type;
+			int numElements;
+			testDataSet.getDatasetAttributeInfo(i, varname, type, numElements);
+			
+
+			std::cout << i << " : " << varname << ", " << type << ", " << numElements << "   ";
+
+			// Using templates
+			if (i == 0)
+			{
+				int64_t _attrib;
+				_attrib = testDataSet.readDatasetAttribute<int64_t>(varname, type);
+				std::cout << "value: " << _attrib << std::endl;
+			}
+			else
+			{
+				// using void* pointers
+				void *_attrib;
+				if (type == "int32_t")
+				{
+					_attrib = new int32_t[numElements];
+					testDataSet.readDatasetAttributeArray(varname, type, (int32_t *)_attrib);
+					std::cout << "value: " << ((int32_t *)_attrib)[0] << std::endl;
+				}
+				else if (type == "int64_t")
+				{
+					_attrib = new int64_t[numElements];
+					testDataSet.readDatasetAttributeArray(varname, type, (int64_t *)_attrib);
+					std::cout << "value: " << ((int64_t *)_attrib)[0] << std::endl;
+				}
+				else if (type == "float")
+				{
+					_attrib = new float[numElements];
+					testDataSet.readDatasetAttributeArray(varname, type, (float *)_attrib);
+					std::cout << "value: " << ((float *)_attrib)[0] << std::endl;
+				}
+				else if (type == "double")
+				{
+					_attrib = new double[numElements];
+					testDataSet.readDatasetAttributeArray(varname, type, (double *)_attrib);
+					std::cout << "value: " << ((double *)_attrib)[0] << std::endl;
+				}
+				else if (type == "string")
+				{
+					_attrib = new char[numElements];
+					testDataSet.readDatasetAttributeArray(varname, type, (char *)_attrib);
+					std::cout << "value: " << ((char *)_attrib) << std::endl;
+				
+				}
+
+			}
+		}
+
+		std::cout << myRank << " ~ #timesteps: "  << testDataSet.getNumTimesteps() << std::endl;
+
+		for (int i=0; i<testDataSet.getNumTimesteps(); i++ )
+		{
+			std::cout << myRank << " ~ timestep: " << i << ", #attributes: "  << testDataSet.getNumTimestepAttributes(i) 
+								<< ", #variables: " <<  testDataSet.getNumVariables(i) << std::endl;
+		}
+		//testDataSet.displayFileAttributes();
+	}
+}
 
 #endif

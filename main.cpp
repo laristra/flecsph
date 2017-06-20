@@ -37,8 +37,15 @@ int main(int argc, char *argv[])
 
 
 	ioTesting.initMPIScaling( MPI_COMM_WORLD );
-	ioTesting.setIterationCount( jsonInput["output"]["repeats"] );
-	ioTesting.runScalingTest( jsonInput["data"]["num-particles"], jsonInput["data"]["num-timesteps"], testOctree, jsonInput["output"]["filename"] );
+	
+	// Writing
+	// ioTesting.setIterationCount( jsonInput["output"]["repeats"] );
+	// ioTesting.runScalingTest( jsonInput["data"]["num-particles"], jsonInput["data"]["num-timesteps"], testOctree, jsonInput["output"]["filename"] );
+
+
+	// Reading
+	ioTesting.readDatasetTest( jsonInput["output"]["filename"] );
+
 
 	debugLog.addLog( ioTesting.getTimingLog() );
 	debugLog.writeLogToDisk();

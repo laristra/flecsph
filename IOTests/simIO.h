@@ -33,6 +33,12 @@ enum OutputType
 };
 
 
+enum Operation
+{
+	READING = 0,
+	WRITING = 1
+};
+
 
 enum TreeType
 {
