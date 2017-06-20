@@ -1,4 +1,9 @@
-#include <iostream>
+/*~--------------------------------------------------------------------------~*
+ * Copyright (c) 2017 Los Alamos National Security, LLC
+ * All rights reserved.
+ *~--------------------------------------------------------------------------~*\
+
+ #include <iostream>
 #include <algorithm>
 #include <cmath>
 

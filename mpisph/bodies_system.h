@@ -1,4 +1,9 @@
+/*~--------------------------------------------------------------------------~*
+ * Copyright (c) 2017 Los Alamos National Security, LLC
+ * All rights reserved.
+ *~--------------------------------------------------------------------------~*/
 
+ 
 #ifndef _mpisph_body_system_h_
 #define _mpisph_body_system_h_
 
