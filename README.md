@@ -3,6 +3,7 @@
 
 <aside class="warning">
 The distributed version of gravitation with FMM is not working yet
+Working on it
 </aside>
 
 # SPH on FleCSI 
