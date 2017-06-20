@@ -145,6 +145,12 @@ struct Variable
 };
 
 
+struct Timestep
+{
+	std::vector<Attribute> attributes;
+	std::vector<Variable> vars;
+};
+
 
 class SimIO
 {
@@ -163,6 +169,9 @@ class SimIO
 
   	std::vector<Variable> vars;
   	std::vector<Attribute> timestepAttributes;
+  	
+  	std::vector<Attribute> datasetAttributes;
+  	std::vector<Timestep> timesteps;
   	
 
   	SimIO(){ endian=little; }

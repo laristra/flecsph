@@ -190,6 +190,11 @@ inline void ScalingTest::runWriteTest(int timeStep, size_t _numParticles)
 }
 
 
+inline void ScalingTest::readDatasetTest(std::string filename)
+{
+	Flecsi_Sim_IO::HDF5ParticleIO testDataSet( filename.c_str(), Flecsi_Sim_IO::READING, mpiComm );
+}
+
 
 inline void ScalingTest::readDatasetTest(std::string filename)
 {
@@ -198,7 +203,9 @@ inline void ScalingTest::readDatasetTest(std::string filename)
 
 
 	// Get information about file
-	if (myRank == numRanks-1)
+	//if (myRank == numRanks-1)
+  
+	if (myRank == 0)
 	{
 		// Dataset Attributes
 		std::cout << myRank << " ~ #attributes: " << testDataSet.getNumDatasetAttributes() << std::endl;
@@ -251,20 +258,51 @@ inline void ScalingTest::readDatasetTest(std::string filename)
 					_attrib = new char[numElements];
 					testDataSet.readDatasetAttributeArray(varname, type, (char *)_attrib);
 					std::cout << "value: " << ((char *)_attrib) << std::endl;
-				
 				}
-
 			}
 		}
 
 		std::cout << myRank << " ~ #timesteps: "  << testDataSet.getNumTimesteps() << std::endl;
-
+		
 		for (int i=0; i<testDataSet.getNumTimesteps(); i++ )
 		{
-			std::cout << myRank << " ~ timestep: " << i << ", #attributes: "  << testDataSet.getNumTimestepAttributes(i) 
-								<< ", #variables: " <<  testDataSet.getNumVariables(i) << std::endl;
+			std::cout << myRank << " ~ timestep: "    << i 
+								<< " : #attributes: " << testDataSet.getNumTimestepAttributes(i) 
+								<< ", #variables: "   << testDataSet.getNumVariables(i) 
+								<< ", #particles: "   << testDataSet.getNumPartcles(i) << std::endl;
+
+			for (int j=0; j<testDataSet.getNumVariables(i); j++)
+			{
+				std::string varname, type;
+				int numElements;
+				testDataSet.getTimestepVariableInfo(j, varname, type, numElements);
+				std::cout << j << " : " << varname << ", " << type << ", " << numElements << std::endl;
+			}
 		}
-		//testDataSet.displayFileAttributes();
+	}
+  
+	MPI_Barrier(mpiComm);
+
+	for (int i=0; i<testDataSet.getNumTimesteps(); i++ )
+	{
+		for (int j=0; j<testDataSet.getNumVariables(i); j++)
+		{
+			std::string varname, type;
+			int numElements;
+			testDataSet.getTimestepVariableInfo(j, varname, type, numElements);
+			std::cout << j << " : " << varname << ", " << type << ", " << numElements << std::endl;
+
+			if (i == 0 && j == 0)
+			{
+				//double *_data = new double[numElements/numRanks];
+				double *_data = new double[numElements];
+				testDataSet.readVariable(varname, type, _data);
+				for (int k=0; k<numElements/numRanks; k++)
+				{
+					std::cout << myRank << " ~ " << k << ": " << ((double *)_data)[k] << std::endl;
+				}
+			}
+		}
 	}
 }
 

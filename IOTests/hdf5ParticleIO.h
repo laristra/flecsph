@@ -16,7 +16,7 @@ namespace Flecsi_Sim_IO
 class HDF5ParticleIO: public SimIO
 {
     h5_file_t *dataFile;
-    int myRank;
+    int myRank, numRanks;
 
   public:
     HDF5ParticleIO():SimIO(){ dataFile=NULL; }
@@ -33,11 +33,7 @@ class HDF5ParticleIO: public SimIO
 
 
     // Reading
-    int getNumTimesteps();
-    int getNumPartcles();
-
-    // Dataset: Attributes
-    int getNumDatasetAttributes();
+    void readDatasetAttributes();
     void getDatasetAttributeInfo(int _index, std::string &_varName, std::string &_type, int &numElems);
     
     template <class T>
@@ -45,20 +41,24 @@ class HDF5ParticleIO: public SimIO
     void readDatasetAttributeArray(std::string _name, std::string _dataType, void *_data);
 
     
-    // Timestep: Attributes
+    int getNumParticles(int ts);
     int getNumTimestepAttributes(int ts);
+    int getNumVariables(int ts);
+
+
     void getTimestepAttributeInfo(int _index, std::string &_varName, std::string &_type, int &numElems);
 
     template <class T>
     T readTimestepAttribute(std::string _name, std::string _dataType);
     void readTimestepAttributeArray(std::string _name, std::string _dataType, void *_data);
     
-    // Timestep: Variables
-    int getNumVariables(int ts);
+
+    void getTimestepVariableInfo(int _index, std::string &_varName, std::string &_type, int &numElems);
 
     int readVariables(int ts, std::string _name);
     int readAllVariables(int ts);
     int readVariable(std::string & _name, std::string type, void *_data);
+
 
 
 
@@ -83,9 +83,22 @@ class HDF5ParticleIO: public SimIO
     int writeVariables();
 };
 
+inline HDF5ParticleIO():SimIO(){ dataFile=NULL; }
 
+inline void HDF5ParticleIO::readDatasetAttributes()
+{
+    if (numDatasetAttributes == 0)      // in case that didn't happen before
+        numDatasetAttributes = H5GetNumFileAttribs(dataFile);
 
-HDF5ParticleIO::HDF5ParticleIO(std::string _fileName, Operation op, MPI_Comm _comm):SimIO(_fileName)
+    for (int i=0; i<numDatasetAttributes; i++)
+}
+
+inline void HDF5ParticleIO::readTimestepAttributes()
+{
+    
+}
+
+inline HDF5ParticleIO::HDF5ParticleIO(std::string _fileName, Operation op, MPI_Comm _comm):SimIO(_fileName)
 { 
     if (op == WRITING)
         createDataset(_fileName, _comm); 
@@ -96,9 +109,10 @@ HDF5ParticleIO::HDF5ParticleIO(std::string _fileName, Operation op, MPI_Comm _co
 
 
 
-int HDF5ParticleIO::createDataset(std::string _outputFileName, MPI_Comm _comm)
+inline int HDF5ParticleIO::createDataset(std::string _outputFileName, MPI_Comm _comm)
 { 
     MPI_Comm_rank(_comm, &myRank);
+    MPI_Comm_size(_comm, &numRanks);
 
     outputFileName = _outputFileName;
     dataFile = H5OpenFile(outputFileName.c_str(), H5_O_RDWR, _comm);
@@ -108,8 +122,11 @@ int HDF5ParticleIO::createDataset(std::string _outputFileName, MPI_Comm _comm)
     return 0;
 }
 
-int HDF5ParticleIO::readFile(std::string inputFileName, MPI_Comm _comm)
+inline int HDF5ParticleIO::readFile(std::string inputFileName, MPI_Comm _comm)
 {
+    MPI_Comm_rank(_comm, &myRank);
+    MPI_Comm_size(_comm, &numRanks);
+
     dataFile = H5OpenFile(inputFileName.c_str(), H5_O_RDONLY, _comm);
     if (!dataFile)
         return -1;
@@ -121,7 +138,7 @@ int HDF5ParticleIO::readFile(std::string inputFileName, MPI_Comm _comm)
 }
 
 
-int HDF5ParticleIO::openFile(MPI_Comm  _comm)
+inline int HDF5ParticleIO::openFile(MPI_Comm  _comm)
 {
     dataFile = H5OpenFile(outputFileName.c_str(), H5_O_RDWR, _comm);
     if (!dataFile)
@@ -130,7 +147,7 @@ int HDF5ParticleIO::openFile(MPI_Comm  _comm)
     return 0;
 }
 
-void HDF5ParticleIO::closeFile()
+inline void HDF5ParticleIO::closeFile()
 { 
     if (dataFile!=NULL)
     {
@@ -142,27 +159,24 @@ void HDF5ParticleIO::closeFile()
 
 
 
-int HDF5ParticleIO::getNumDatasetAttributes()
+
+inline int HDF5ParticleIO::getNumParticles(int ts)
 {
-    return H5GetNumFileAttribs(dataFile);
+    H5SetStep(dataFile, ts);
+    return H5PartGetNumParticles(dataFile);
 }
 
-int HDF5ParticleIO::getNumTimesteps()
-{
-    return H5GetNumSteps(dataFile);
-}
 
-int HDF5ParticleIO::getNumTimestepAttributes(int ts)
+inline int HDF5ParticleIO::getNumTimestepAttributes(int ts)
 {
     H5SetStep(dataFile, ts);
     return H5GetNumStepAttribs(dataFile);
-
 }
 
 
 
 
-int HDF5ParticleIO::getNumVariables(int ts)
+inline int HDF5ParticleIO::getNumVariables(int ts)
 {
     H5SetStep(dataFile, ts);
     return H5PartGetNumDatasets(dataFile);
@@ -170,7 +184,7 @@ int HDF5ParticleIO::getNumVariables(int ts)
 
 
 template <class T>
-T HDF5ParticleIO::readDatasetAttribute(std::string _name, std::string _dataType)
+inline T HDF5ParticleIO::readDatasetAttribute(std::string _name, std::string _dataType)
 {
 
     if ( _dataType == "int32_t" )
@@ -199,7 +213,7 @@ T HDF5ParticleIO::readDatasetAttribute(std::string _name, std::string _dataType)
     }
 }
 
-void HDF5ParticleIO::readDatasetAttributeArray(std::string _name, std::string _dataType, void *_data)
+inline void HDF5ParticleIO::readDatasetAttributeArray(std::string _name, std::string _dataType, void *_data)
 {
     if ( _dataType == "int32_t" )
     {
@@ -227,7 +241,7 @@ void HDF5ParticleIO::readDatasetAttributeArray(std::string _name, std::string _d
 
 
 template <class T>
-T HDF5ParticleIO::readTimestepAttribute(std::string _name, std::string _dataType)
+inline T HDF5ParticleIO::readTimestepAttribute(std::string _name, std::string _dataType)
 {
 
     if ( _dataType == "int32_t" )
@@ -256,7 +270,7 @@ T HDF5ParticleIO::readTimestepAttribute(std::string _name, std::string _dataType
     }
 }
 
-void HDF5ParticleIO::readTimestepAttributeArray(std::string _name, std::string _dataType, void *_data)
+inline void HDF5ParticleIO::readTimestepAttributeArray(std::string _name, std::string _dataType, void *_data)
 {
     if ( _dataType == "int32_t" )
     {
@@ -278,6 +292,51 @@ void HDF5ParticleIO::readTimestepAttributeArray(std::string _name, std::string _
     {
         H5ReadStepAttribString(dataFile, _name.c_str(), (char *)_data);
     }
+}
+
+
+
+inline int HDF5ParticleIO::readVariable(std::string & _name, std::string type, void *_data)
+{
+    
+    int numParticles = H5PartGetNumParticles(dataFile);
+    int start = numParticles/numRanks * myRank;
+    H5PartSetView(dataFile, start, -1);
+    
+
+    if ( type == "float" )
+        H5PartReadDataFloat32(dataFile, (_name).c_str(), (float *)_data);
+    else if ( type == "double" )
+        H5PartReadDataFloat64(dataFile, (_name).c_str(), (double *)_data);
+    else if ( type == "int32_t" )
+        H5PartReadDataInt32(dataFile, (_name).c_str(), (int32_t *)_data);
+    else if ( type == "int64_t" )
+        H5PartReadDataInt64(dataFile, (_name).c_str(), (int64_t *)_data);
+    else
+        return -1;
+
+    return 0;
+}
+
+
+inline int HDF5ParticleIO::readAllVariables(int ts)
+{
+    int retValue;
+    for (size_t i=0; i<vars.size(); i++)
+        retValue = readVariable(vars[i].name, vars[i].dataType, vars[i].data);
+
+    return retValue;
+}
+
+
+inline int HDF5ParticleIO::readVariables(int ts, std::string _name)
+{
+    int retValue;
+    for (size_t i=0; i<vars.size(); i++)
+        if (vars[i].name == _name)
+            retValue = readVariable(vars[i].name, vars[i].dataType, vars[i].data);
+
+    return retValue;
 }
 
 
@@ -425,6 +484,34 @@ void HDF5ParticleIO::getTimestepAttributeInfo(int _index, std::string &_varName,
 
     numElems = (int)numElem;
 }
+
+
+void HDF5ParticleIO::getTimestepVariableInfo(int _index, std::string &_varName, std::string &_type, int &numElems)
+{
+    const int MAX_LEN = 256;
+    char varName[MAX_LEN];
+    h5_int64_t type;
+    h5_size_t numElem;
+
+    H5PartGetDatasetInfo(dataFile, _index, varName, MAX_LEN, &type, &numElem);
+    _varName = std::string (varName);
+
+    if (type == H5_INT64_T)
+        _type = "int64_t";
+    else if (type == H5_INT32_T)
+        _type = "int32_t";
+    else if (type == H5_FLOAT64_T)
+        _type = "double";
+    else if (type == H5_FLOAT32_T)
+        _type = "float";
+    else if (type == H5_STRING_T)
+        _type = "string";
+    else
+        _type = "";
+
+    numElems = (int)numElem;
+}
+
 
 
 template <class T>
@@ -583,42 +670,7 @@ inline int HDF5ParticleIO::writeVariables()
 }
 
 
-inline int HDF5ParticleIO::readVariable(std::string & _name, std::string type, void *_data)
-{
-    if ( type == "float" )
-        H5PartReadDataFloat32(dataFile, (_name).c_str(), (float *)_data);
-    else if ( type == "double" )
-        H5PartReadDataFloat64(dataFile, (_name).c_str(), (double *)_data);
-    else if ( type == "int32_t" )
-        H5PartReadDataInt32(dataFile, (_name).c_str(), (int32_t *)_data);
-    else if ( type == "int64_t" )
-        H5PartReadDataInt64(dataFile, (_name).c_str(), (int64_t *)_data);
-    else
-        return -1;
 
-    return 0;
-}
-
-
-inline int HDF5ParticleIO::readAllVariables(int ts)
-{
-    int retValue;
-    for (size_t i=0; i<vars.size(); i++)
-        retValue = readVariable(vars[i].name, vars[i].dataType, vars[i].data);
-
-    return retValue;
-}
-
-
-inline int HDF5ParticleIO::readVariables(int ts, std::string _name)
-{
-    int retValue;
-    for (size_t i=0; i<vars.size(); i++)
-        if (vars[i].name == _name)
-            retValue = readVariable(vars[i].name, vars[i].dataType, vars[i].data);
-
-    return retValue;
-}
 
 } // end Flecsi_Sim_IO namespace
 
