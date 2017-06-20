@@ -43,9 +43,10 @@ public:
 
   void write_bodies(
       const char * filename, 
-      int iter)
+      int iter,
+      bool do_diff_files = false)
   {
-    io::outputDataHDF5(localbodies_,filename,iter);
+    io::outputDataHDF5(localbodies_,filename,iter,do_diff_files);
   }
 
   double getSmoothinglength()

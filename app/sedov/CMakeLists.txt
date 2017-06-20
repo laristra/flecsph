@@ -33,7 +33,7 @@ add_executable(sedov_generator
 
 target_link_libraries(sedov_generator ${MPI_LIBRARIES} 
   ${HDF5_LIBRARIES} ${H5HUT_LIBRARIES})
-target_link_libraries(sedov ${FleCSPH_LIBRARIES} mpisph)
+target_link_libraries(sedov ${FleCSPH_LIBRARIES})
 
-add_definitions(-DFLECSI_ENABLE_SPECIALIZATION_DRIVER)
+add_definitions(-DFLECSI_ENABLE_SPECIALIZATION_TLT_INIT)
 add_definitions(-DFLECSI_OVERRIDE_DEFAULT_SPECIALIZATION_DRIVER)

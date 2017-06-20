@@ -10,7 +10,7 @@ const double m_ = 1.0e-4;
 const double rho_ = 0.0;
 const double u_ = 2.0; 
 const double smoothing_length = 5e-2;
-const char* filename = "hdf5_fluid.h5part";
+const char* fileprefix = "hdf5_fluid";
 const double timestep = 1e-3;
 int32_t dimension = 3;
 
@@ -129,8 +129,9 @@ int main(int argc, char * argv[]){
     }
     //std::cout<<x[part]<<": "<<h[part]<<std::endl;
   }
- 
- 
+  
+  char filename[128];
+  sprintf(filename,"%s_%d.h5part",fileprefix,nparticles);
 
   Flecsi_Sim_IO::HDF5ParticleIO testDataSet; 
   testDataSet.createDataset(filename,MPI_COMM_WORLD);

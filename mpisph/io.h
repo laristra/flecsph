@@ -29,7 +29,7 @@
 #include <hdf5ParticleIO.h>
 
 //#include "tree.h"
-#include "physics.h"
+#include "physics/physics.h"
 
 namespace io{
 
@@ -371,8 +371,9 @@ void inputDataHDF5(
 // Generate the associate XDMF file 
 void outputDataHDF5(
     std::vector<std::pair<entity_key_t,body>>& bodies,
-    const char* filename,
-    int step)
+    const char* fileprefix,
+    int step,
+    bool do_diff_files = false)
 {
 
   int size, rank;
@@ -385,6 +386,13 @@ void outputDataHDF5(
   }
 
   int64_t nparticlesproc = bodies.size();
+
+  char filename[128];
+  if(do_diff_files){
+    sprintf(filename,"%s_%d.h5part",fileprefix,step);
+  }else{
+    sprintf(filename,"%s.h5part",fileprefix);
+  }  
 
   // open the file 
   // auto dataFile = H5OpenFile(filename,H5_O_RDWR,MPI_COMM_WORLD);
@@ -424,8 +432,16 @@ void outputDataHDF5(
   // Extract data from bodies 
   for(auto bi: bodies){
     b1[pos] = bi.second.getPosition()[0];
-    b2[pos] = bi.second.getPosition()[1];
-    b3[pos++] = bi.second.getPosition()[2];
+    if(gdimension<3){
+      b2[pos] = bi.second.getPosition()[1];
+    }else{
+      b2[pos] = 0.;
+    }
+    if(gdimension<4){
+      b3[pos++] = bi.second.getPosition()[2];
+    }else{
+      b3[pos++] = 0.;
+    }
   }
 
   // Add variable  

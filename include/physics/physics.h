@@ -18,8 +18,8 @@
  * @brief Basic physics implementation
  */
 
-#ifndef _physics_h_
-#define _physics_h_
+#ifndef _physics_physics_h_
+#define _physics_physics_h_
 
 #include <vector>
 
@@ -103,12 +103,10 @@ namespace physics{
       body_holder* srch)
   {
     body* source = srch->getBody();
-    double soundspeed = pow((gamma-1.0)
-        *source->getInternalenergy(),1./2.);
-    //double soundspeed = pow(gamma*
-    //    source->getPressure()/source->getDensity(),1./2.)
+    //double soundspeed = pow(source->getPressure()/source->getDensity(),1./2.);
+    double soundspeed = pow(gamma*
+        source->getPressure()/source->getDensity(),1./2.);
     source->setSoundspeed(soundspeed);
-    //assert(source->getSoundspeed() >= 0.0);
   } // computeSoundspeed
 
   // mu used in artificial viscosity 
@@ -134,7 +132,7 @@ namespace physics{
       return result;
     // Should add norm to space_vector
     double dist = flecsi::distance(source->getPosition(),nb->getPosition());
-    result = h_ij * dotproduct / (dist*dist + epsilon*epsilon);
+    result = h_ij * dotproduct / (dist*dist + epsilon*h_ij*h_ij);
     assert(result < 0.0);
     return result; 
   } // mu
@@ -189,6 +187,7 @@ namespace physics{
 
       hydro += nb->getMass()*(pressureDensity+viscosity)
         *resultkernelgradient;
+
     }
     hydro = -1.0*hydro;
     acceleration += hydro;
@@ -297,6 +296,45 @@ namespace physics{
     source->setAcceleration(acceleration);
   }
 
+  void dudt_integration(
+      body_holder* srch)
+  {
+    body* source = srch->getBody(); 
+    source->setInternalenergy(source->getInternalenergy()+
+        dt*source->getDudt());
+  }
+
+  void 
+  leapfrog_integration_first_step(
+      body_holder* srch)
+  {
+    body* source = srch->getBody();
+    
+    point_t velocityHalf = source->getVelocity() + 
+        dt/2.*source->getAcceleration();
+    point_t position = source->getPosition()+velocityHalf*dt;
+    point_t velocity = 1./2.*(source->getVelocityhalf()+velocityHalf);
+
+    source->setVelocityhalf(velocityHalf);
+    source->setPosition(position);
+    source->setVelocity(velocity);
+  }
+
+  void 
+  leapfrog_integration(
+      body_holder* srch)
+  {
+    body* source = srch->getBody();
+    
+    point_t velocityHalf = source->getVelocityhalf() + 
+        dt*source->getAcceleration();
+    point_t position = source->getPosition()+velocityHalf*dt;
+    point_t velocity = 1./2.*(source->getVelocityhalf()+velocityHalf);
+
+    source->setVelocityhalf(velocityHalf);
+    source->setPosition(position);
+    source->setVelocity(velocity);
+  }
 
   // Leapfrog integration to move the particles 
   // velHalf = vel+dt/2*acc
@@ -351,7 +389,6 @@ namespace physics{
           position > max_boundary){
         velocity = point_t{};
         velocityHalf = point_t{};
-        return;
       }
     }else if(reflect_boundaries){
       for(size_t dim=0;dim < gdimension ; ++dim){
@@ -416,4 +453,4 @@ namespace physics{
 
 }; // physics
 
-#endif // _physics_h_
+#endif // _physics_physics_h_

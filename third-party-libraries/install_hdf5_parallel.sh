@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="hdf5-1.8.18.tar"
+VERSION="hdf5-1.8.19.tar"
 
 echo "Downloading HDF5 code..."
 wget https://support.hdfgroup.org/ftp/HDF5/current18/src/${VERSION}

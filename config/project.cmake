@@ -93,5 +93,5 @@ list(APPEND FleCSPH_LIBRARIES ${H5HUT_LIBRARIES})
 #------------------------------------------------------------------------------#
 # Add application targets
 #------------------------------------------------------------------------------#
-cinch_add_application_directory("app/fluid")
-#cinch_add_application_directory("app/sodtube")
+cinch_add_application_directory("app/sedov")
+cinch_add_application_directory("app/sodtube")

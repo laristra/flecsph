@@ -12,17 +12,40 @@
  *~--------------------------------------------------------------------------~*/
 
 /**
- * @file user.h
+ * @file eos_analytics.h
  * @author Julien Loiseau
- * @date April 2017
- * @brief User define for dimension and type 
+ * @date June 2017
+ * @brief Implementation of analytics EOS
  */
 
-#ifndef _user_h_
-#define _user_h_
+#ifndef _physics_eos_analytics_h_
+#define _physics_eos_analytics_h_
 
-#define OUTPUT
-static const size_t gdimension = 2;
-using type_t = double;
+#include <vector>
 
-#endif // _user_h_
+#include "eos.h"
+
+class eos_analytics:
+ public eos{
+  
+public:
+  eos_analytics(){};
+  ~eos_analytics(){};
+  
+  eos_analytics(double gamma): eos(gamma){};
+
+  //static
+  double compute_pressure(
+    body_holder* srch
+  ){
+    body* source = srch->getBody(); 
+    double pressure = (gamma_-1.0)*
+      (source->getDensity())*(source->getInternalenergy());
+    source->setPressure(pressure); 
+  };
+
+private: 
+
+};
+
+#endif // _physics_eos_analytics_h_

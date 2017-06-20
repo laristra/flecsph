@@ -2,16 +2,23 @@
 #include <algorithm>
 
 #include "hdf5ParticleIO.h"
+#include "physics/kernel.h"
 
-const double distance = 0.003;  // Distance between the particles 
-const double m_1 = 2.65e-3;
-const double m_2 = 3.3125e-4;
+
+const double ldistance = 0.001;  // Distance between the particles 
+const double localgamma = 5./3.;
 const double rho_1 = 1;
 const double rho_2 = 0.125;
+const double pressure_1 = 1;
+const double pressure_2 = 0.1;
 const double u_1 = 2.5;
 const double u_2 = 2;
+const double m_1 = 1.0e-4;
+const double m_2 = 1.0e-5;
 const double smoothing_length = 1.0e-2;
-const char* filename = "hdf5_sodtube.h5part";
+const char* fileprefix = "hdf5_sodtube";
+
+
 
 int main(int argc, char * argv[]){
 
@@ -67,9 +74,9 @@ int main(int argc, char * argv[]){
   
   // Generate data
   // Find middle to switch m, u and rho  
-  double middle = nparticles*distance/2.;
+  double middle = nparticles*ldistance/2.;
   // Find my first particle position 
-  double position = distance*nparticlesproc*rank;
+  double lposition = ldistance*nparticlesproc*rank;
   // Id of my first particle 
   int64_t posid = nparticlesproc*rank;
 
@@ -81,29 +88,54 @@ int main(int argc, char * argv[]){
   
   
   for(int64_t part=0; part<nparticlesproc; ++part){
-    x[part] = position;
+    x[part] = lposition;
 
     if(x[part] > middle){
-      u[part] = u_2; 
-      rho[part] = rho_2;
-      m[part] = m_2; 
+      P[part] = pressure_2;
+      rho[part] = rho_2; 
+      u[part] = u_2;
+      m[part] = m_2;
     }else{
-      m[part] = m_1;
-      u[part] = u_1;
+      P[part] = pressure_1;
       rho[part] = rho_1;
+      u[part] = u_1;
+      m[part] = m_1;
     }
 
+    //m[part] = 0.;
     // Y and Z not used 
     // VX, VY, VZ and AX, AY, AZ stay to 0
     h[part] = smoothing_length;
+    
     // P stay to 0
     id[part] = posid++; 
     // Move to the next particle 
-    position += distance;
+    lposition += ldistance;
     //std::cout<<x[part]<<": "<<h[part]<<std::endl;
   }
- 
- 
+
+  // For each particle, search the neighbors to find the mass
+  //for(int64_t p1=0;p1<nparticlesproc; ++p1){
+  //  for(int64_t p2=0;p2<nparticlesproc;++p2){
+  //    if( fabs(x[p1]-x[p2]) < 2*smoothing_length ){
+         // Then consider it for my mass 
+  //      m[p1] += rho[p2]/kernel::cubic_spline_kernel
+  //        (fabs(x[p1]-x[p2]),smoothing_length);
+  //    }
+  //  }
+  //}
+
+  //double totalmass = 0.;
+  //for(int64_t p1=0;p1<nparticlesproc; ++p1){
+  //  totalmass += m[p1];  
+  //}
+  //for(int64_t p1=0;p1<nparticlesproc; ++p1){
+  //  m[p1] = m[p1]/totalmass;
+  //}
+
+  char filename[128];
+  //sprintf(filename,"%s_%d.h5part",fileprefix,nparticles);
+  sprintf(filename,"%s.h5part",fileprefix,nparticles);
 
   Flecsi_Sim_IO::HDF5ParticleIO testDataSet; 
   testDataSet.createDataset(filename,MPI_COMM_WORLD);

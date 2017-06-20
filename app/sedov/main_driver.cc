@@ -20,12 +20,6 @@
  * code is in the Driver.  
  */
 
-
-/* Jun.13.17
- * Hyun Lim
- * Starting Sedov project
- */
-
 #include <iostream>
 #include <numeric> // For accumulate
 #include <iostream>
@@ -39,6 +33,8 @@
 #include "flecsi/data/data.h"
 
 #include <bodies_system.h>
+
+#include "physics/eos_analytics.h"
 //#include "physics.h"
 
 namespace flecsi{
@@ -61,24 +57,26 @@ mpi_init_task(int startiteration){
 
   // Init if default values are not ok
   physics::dt = 0.0025;
-  physics::do_boundaries = true;
   physics::alpha = 1; 
   physics::beta = 2; 
   physics::stop_boundaries = true;
   physics::min_boundary = {0.1};
   physics::max_boundary = {1.0};
+  physics::gamma = 5./3.;
 
   body_system<double,gdimension> bs;
   bs.read_bodies("hdf5_sedov.h5part",startiteration);
-  //io::inputDataHDF5(rbodies,"hdf5_sedov.h5part",totalnbodies,nbodies);
+  //io::inputDataHDF5(rbodies,"hdf5_sodtube.h5part",totalnbodies,nbodies);
+
+  //eos_analytics eos(1.4);
 
   double h = bs.getSmoothinglength();
   physics::epsilon = 0.01*h*h;
 
 #ifdef OUTPUT
-  bs.write_bodies("output_sedov.h5part",iter);
-  //io::outputDataHDF5(rbodies,"output_sedov.h5part",0);
-  //tcolorer.mpi_output_txt(rbodies,iter,"output_sedov"); 
+  bs.write_bodies("output_sedov",iter);
+  //io::outputDataHDF5(rbodies,"output_sodtube.h5part",0);
+  //tcolorer.mpi_output_txt(rbodies,iter,"output_sodtube"); 
 #endif
 
   ++iter; 
@@ -132,22 +130,38 @@ mpi_init_task(int startiteration){
     bs.apply_in_smoothinglength(physics::compute_internalenergy);
     if(rank==0)
       std::cout<<".done"<<std::endl; 
-    
+   
+    if(iter==1){ 
+      if(rank==0)
+        std::cout<<"leapfrog"<<std::flush; 
+      bs.apply_all(physics::leapfrog_integration_first_step);
+      if(rank==0)
+        std::cout<<".done"<<std::endl;
+    }else{
+      if(rank==0)
+        std::cout<<"leapfrog"<<std::flush; 
+      bs.apply_all(physics::leapfrog_integration);
+      if(rank==0)
+        std::cout<<".done"<<std::endl;
+
+    }
+
     if(rank==0)
-      std::cout<<"MoveParticles"<<std::flush; 
-    bs.apply_all(physics::leapfrog_integration_1);
+      std::cout<<"dudt integration"<<std::flush; 
+    bs.apply_all(physics::dudt_integration);
     if(rank==0)
       std::cout<<".done"<<std::endl;
 
     if(rank==0)
-      std::cout<<"MoveParticles"<<std::flush; 
-    bs.apply_all(physics::leapfrog_integration_2);
+      std::cout<<"Boundaries"<<std::flush; 
+    bs.apply_all(physics::compute_boundaries);
     if(rank==0)
       std::cout<<".done"<<std::endl;
+
 
 #ifdef OUTPUT
     if(iter % iteroutput == 0){ 
-      bs.write_bodies("output_sedov.h5part",iter/iteroutput);
+      bs.write_bodies("output_sedov",iter/iteroutput);
     }
 #endif
     ++iter;
@@ -155,10 +169,10 @@ mpi_init_task(int startiteration){
   }while(iter<totaliters);
 }
 
-flecsi_register_task(mpi_init_task,mpi,index);
+flecsi_register_mpi_task(mpi_init_task);
 
 void 
-specialization_driver(int argc, char * argv[]){
+specialization_tlt_init(int argc, char * argv[]){
   
   // Default start at iteration 0
   int startiteration = 0;
@@ -170,7 +184,7 @@ specialization_driver(int argc, char * argv[]){
   /*const char * filename = argv[1];*/
   /*std::string  filename(argv[1]);
   std::cout<<filename<<std::endl;*/
-  flecsi_execute_task(mpi_init_task,mpi,index,startiteration); 
+  flecsi_execute_mpi_task(mpi_init_task,startiteration); 
 } // specialization driver
 
 void 
