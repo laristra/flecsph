@@ -97,6 +97,7 @@ Headers containts general informations like:
 Not implemented yet: 
 - Physics constants ? 
 - Different files for output ? See Oleg for that
+- Different types of EOS
 
 Then for each Step we save:
 
