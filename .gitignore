@@ -1,1 +1,5 @@
 build
+bld
+*.o
+*.aux
+*.log
