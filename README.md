@@ -47,6 +47,7 @@ On DARWIN supercomputer load the modules:
     % ccmake ../
 
 Let all the flags ON, make sure the conduit of GASNET is MPI. 
+
 If not administrator: set path for the CMAKE_INSTALL_PREFIX like /home/XXX/local/
 
     % make ; make install 
@@ -65,8 +66,11 @@ Here add:
 - ENABLE_MPI 
 - ENABLE_OPENMP 
 - FLECSI_RUNTIME_MODEL legion
+
 If not administrator:  
 - CMAKE_INSTALL_PREFIX like /home/XXX/local/
+
+Then, make and install: 
 
     % make ; make install 
 
@@ -90,4 +94,10 @@ Use the two script to install:
 - ENABLE_OPENMPI: ON
 - ENABLE_LEGION: ON
 
-    % make 
+Then make:
+
+    % make
+    
+ # Running test cases 
+ 
+ You can find each test case in the corresponding app/ directory. 
