@@ -193,6 +193,38 @@ inline void ScalingTest::runWriteTest(int timeStep, size_t _numParticles)
 inline void ScalingTest::readDatasetTest(std::string filename)
 {
 	Flecsi_Sim_IO::HDF5ParticleIO testDataSet( filename.c_str(), Flecsi_Sim_IO::READING, mpiComm );
+
+
+	std::cout << "# dataset attributes:" << testDataSet.getNumDatasetAttributes() << ", " << testDataSet.datasetAttributes.size() << std::endl;
+
+	for (int i=0; i<testDataSet.getNumDatasetAttributes(); i++)
+	{
+		std::cout << testDataSet.datasetAttributes[i].name;
+		std::string type = testDataSet.datasetAttributes[i].dataType;
+		if (type == "int32_t")
+		{
+			std::cout << " : " <<testDataSet. datasetAttributes[i].getAttributeValue<int32_t>() << std::endl;
+		}
+		else if (type == "int64_t")
+		{
+			std::cout << " : " << testDataSet.datasetAttributes[i].getAttributeValue<int64_t>() << std::endl;
+		}
+		else if (type == "float")
+		{
+			std::cout << " : " << testDataSet.datasetAttributes[i].getAttributeValue<float>() << std::endl;
+		}
+		else if (type == "double")
+		{
+			std::cout << " : " << testDataSet.datasetAttributes[i].getAttributeValue<double>() << std::endl;
+		}
+		else if (type == "string")
+		{
+			std::cout << " ::: "  << std::endl;
+			char * _temp = new char[ testDataSet.datasetAttributes[i].numElements ];
+			testDataSet.datasetAttributes[i].getAttributeArray<char>(_temp);
+			std::cout << " : " << _temp << std::endl;
+		}
+	}
 }
 
 

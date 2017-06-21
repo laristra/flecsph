@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <iostream>
 
 namespace Flecsi_Sim_IO
 {
@@ -100,6 +101,7 @@ struct Attribute
 		else { }
 	}
 
+
 	void createAttributeArray(std::string _name, AttributeType _attributeType, std::string _dataType, int _numElements, void *_data)
 	{
 		name = _name;
@@ -113,24 +115,29 @@ struct Attribute
 	template <class T>
 	T getAttributeValue()
 	{
-		if ( dataType == "float")       { return ((float *)  data)[0]; }
-		else if ( dataType == "double") { return ((double *) data)[0]; }
-		else if ( dataType == "int32_t"){ return ((int32_t *)data)[0]; }
-		else if ( dataType == "int64_t"){ return ((int64_t *)data)[0]; }
-		else if ( dataType == "string") { return ((char *)   data)[0]; }
-		else { return -1; }
+		if ( dataType != "string")
+			return static_cast<T *>(data)[0];
 	}
 
 
-	// void getAttributeArray(void *_data)
-	// {
-	// 	if ( dataType == "float")       { return ((float *)  data)[0]; }
-	// 	else if ( dataType == "double") { return ((double *) data)[0]; }
-	// 	else if ( dataType == "int32_t"){ return ((int32_t *)data)[0]; }
-	// 	else if ( dataType == "int64_t"){ return ((int64_t *)data)[0]; }
-	// 	else if ( dataType == "string") { return ((char *)   data)[0]; }
-	// 	else { return -1; }
-	// }
+	template <class T>
+	void getAttributeArray(T _data[])
+	{
+		std::cout << numElements << std::endl;
+		for (int i=0; i<numElements; i++)
+		{
+			std::cout << static_cast<T *>(data)[i] << std::endl;
+			_data[i] = static_cast<T *>(data)[i];
+		}
+		
+		/*
+		if ( dataType == "float")       { _data = ((float *)  data); }
+		else if ( dataType == "double") { _data = ((double *) data); }
+		else if ( dataType == "int32_t"){ _data = ((int32_t *)data); }
+		else if ( dataType == "int64_t"){ _data = ((int64_t *)data); }
+		else if ( dataType == "string") { (char *)_data = ((char *)   data); }
+		*/
+	}
 };
 
 					

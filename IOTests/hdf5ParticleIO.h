@@ -18,6 +18,11 @@ class HDF5ParticleIO: public SimIO
     h5_file_t *dataFile;
     int myRank, numRanks;
 
+
+    void readDatasetAttributeArray(std::string _name, std::string _dataType, void *_data);
+    void getDatasetAttributeInfo(int _index, std::string &_varName, std::string &_type, int &numElems);
+
+
   public:
     HDF5ParticleIO():SimIO(){ dataFile=NULL; }
     HDF5ParticleIO(std::string _fileName, Operation op, MPI_Comm _comm);
@@ -36,11 +41,7 @@ class HDF5ParticleIO: public SimIO
 
     // Reading
     void readDatasetAttributes();
-    void getDatasetAttributeInfo(int _index, std::string &_varName, std::string &_type, int &numElems);
     
-    template <class T>
-    T readDatasetAttribute(std::string _name, std::string _dataType);
-    void readDatasetAttributeArray(std::string _name, std::string _dataType, void *_data);
 
     
     int getNumParticles(int ts);
@@ -235,35 +236,6 @@ inline int HDF5ParticleIO::getNumVariables(int ts)
 }
 
 
-template <class T>
-inline T HDF5ParticleIO::readDatasetAttribute(std::string _name, std::string _dataType)
-{
-
-    if ( _dataType == "int32_t" )
-    {
-        int32_t _temp;
-        H5ReadFileAttribInt32(dataFile, _name.c_str(), &_temp);
-        return _temp;
-    }
-    else if ( _dataType == "int64_t" )
-    {
-        int64_t _temp;
-        H5ReadFileAttribInt64(dataFile, _name.c_str(), &_temp);
-        return _temp;
-    }
-    else if ( _dataType == "float" )
-    {
-        float _temp;
-        H5ReadFileAttribFloat32(dataFile, _name.c_str(), &_temp);
-        return _temp;
-    }
-    else if ( _dataType == "double" )
-    {
-        double _temp;
-        H5ReadFileAttribFloat64(dataFile, _name.c_str(), &_temp);
-        return _temp;
-    }
-}
 
 inline void HDF5ParticleIO::readDatasetAttributeArray(std::string _name, std::string _dataType, void *_data)
 {
