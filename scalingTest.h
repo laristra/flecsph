@@ -72,7 +72,7 @@ inline void ScalingTest::createPseudoData(size_t _numParticles, int numTimesteps
 
 	//
 	// Create Dataset
-	Flecsi_Sim_IO::HDF5ParticleIO testDataSet( filename.c_str(), Flecsi_Sim_IO::WRITING, mpiComm );;
+	Flecsi_Sim_IO::HDF5ParticleIO testDataSet( filename.c_str(), Flecsi_Sim_IO::WRITING, mpiComm );
 
 	testDataSet.writeDatasetAttribute("numParticles", "int64_t", 80);
 	testDataSet.writeDatasetAttribute("gravitational constant", "double", 6.67300E-11);
@@ -196,6 +196,7 @@ inline void ScalingTest::readDatasetTest(std::string filename)
 }
 
 
+/*
 inline void ScalingTest::readDatasetTest(std::string filename)
 {
 	// 
@@ -205,6 +206,7 @@ inline void ScalingTest::readDatasetTest(std::string filename)
 	// Get information about file
 	//if (myRank == numRanks-1)
   
+
 	if (myRank == 0)
 	{
 		// Dataset Attributes
@@ -305,5 +307,6 @@ inline void ScalingTest::readDatasetTest(std::string filename)
 		}
 	}
 }
+*/
 
 #endif

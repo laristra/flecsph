@@ -64,23 +64,24 @@ struct Attribute
 	void *data;						// the actual data	
 
 	Attribute(){ data = NULL; }
+
 	template <class T>
-	Attribute(std::string _name, AttributeType _attributeType, std::string _dataType, T _data){
+	Attribute(std::string _name, AttributeType _attributeType, std::string _dataType, T _data)
+	{
 		name = _name;
 		attributeType = _attributeType;
 		dataType = _dataType;
 		numElements = 1;
 
-		if ( dataType == "float") {			data = new float[numElements];		((float *)data)[0]=_data; }
-		else if ( dataType == "double") {	data = new double[numElements];		((double *)data)[0]=_data; }
-		else if ( dataType == "int32_t"){	data = new int32_t[numElements];	((int32_t *)data)[0]=_data; }
-		else if ( dataType == "int64_t"){	data = new int64_t[numElements];	((int64_t *)data)[0]=_data; }
+		if ( dataType == "float")       { data = new float[numElements];	((float *)  data)[0] = _data; }
+		else if ( dataType == "double") { data = new double[numElements];	((double *) data)[0] = _data; }
+		else if ( dataType == "int32_t"){ data = new int32_t[numElements];	((int32_t *)data)[0] = _data; }
+		else if ( dataType == "int64_t"){ data = new int64_t[numElements];	((int64_t *)data)[0] = _data; }
+		else if ( dataType == "string") { data = new char[numElements];		((char *)   data)[0] = _data; }
 		else { }
 	}
-	~Attribute()
-	{
-		numElements = 0;
-	}
+
+	~Attribute(){ numElements = 0; }
 
 
 	template <class T>
@@ -91,10 +92,11 @@ struct Attribute
 		dataType = _dataType;
 		numElements = 1;
 
-		if ( dataType == "float") {			data = new float[numElements];		((float *)data)[0]=_data; }
-		else if ( dataType == "double") {	data = new double[numElements];		((double *)data)[0]=_data; }
-		else if ( dataType == "int32_t"){	data = new int32_t[numElements];	((int32_t *)data)[0]=_data; }
-		else if ( dataType == "int64_t"){	data = new int64_t[numElements];	((int64_t *)data)[0]=_data; }
+		if ( dataType == "float")       { data = new float[numElements];	((float *)  data)[0] = _data; }
+		else if ( dataType == "double") { data = new double[numElements];	((double *) data)[0] = _data; }
+		else if ( dataType == "int32_t"){ data = new int32_t[numElements];	((int32_t *)data)[0] = _data; }
+		else if ( dataType == "int64_t"){ data = new int64_t[numElements];	((int64_t *)data)[0] = _data; }
+		else if ( dataType == "string") { data = new char[numElements];		((char *)   data)[0] = _data; }
 		else { }
 	}
 
@@ -106,6 +108,29 @@ struct Attribute
 		numElements = _numElements;
 		data = _data;
 	}
+
+
+	template <class T>
+	T getAttributeValue()
+	{
+		if ( dataType == "float")       { return ((float *)  data)[0]; }
+		else if ( dataType == "double") { return ((double *) data)[0]; }
+		else if ( dataType == "int32_t"){ return ((int32_t *)data)[0]; }
+		else if ( dataType == "int64_t"){ return ((int64_t *)data)[0]; }
+		else if ( dataType == "string") { return ((char *)   data)[0]; }
+		else { return -1; }
+	}
+
+
+	// void getAttributeArray(void *_data)
+	// {
+	// 	if ( dataType == "float")       { return ((float *)  data)[0]; }
+	// 	else if ( dataType == "double") { return ((double *) data)[0]; }
+	// 	else if ( dataType == "int32_t"){ return ((int32_t *)data)[0]; }
+	// 	else if ( dataType == "int64_t"){ return ((int64_t *)data)[0]; }
+	// 	else if ( dataType == "string") { return ((char *)   data)[0]; }
+	// 	else { return -1; }
+	// }
 };
 
 					
@@ -169,14 +194,16 @@ class SimIO
 
   	std::vector<Variable> vars;
   	std::vector<Attribute> timestepAttributes;
-  	
+
   	std::vector<Attribute> datasetAttributes;
   	std::vector<Timestep> timesteps;
   	
 
-  	SimIO(){ endian=little; }
-	SimIO(std::string _outputFileName):outputFileName(_outputFileName){ endian=little; }
+  	SimIO(){ init(); }
+	SimIO(std::string _outputFileName):outputFileName(_outputFileName){ init(); }
 	~SimIO(){};
+
+	void init();
 
 	void setFilename(std::string _name){ outputFileName=_name; }
 	void setEndianness(Endianness _en){ endian=_en; }
@@ -197,6 +224,17 @@ class SimIO
 	void clearTimestepVariables() { vars.clear();  }
 	void clearTimestepData()	  { vars.clear(); timestepAttributes.clear(); }
 };
+
+
+inline void SimIO::init()
+{ 
+	numDims = 0;
+	endian = little; 
+	numTimesteps = 0;
+	numDatasetAttributes = 0;
+	
+}
+
 
 
 } // end Flecsi_Sim_IO namespace

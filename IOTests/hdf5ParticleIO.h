@@ -26,10 +26,12 @@ class HDF5ParticleIO: public SimIO
 
     // Open / Close
     int createDataset(std::string _outputFileName, MPI_Comm _comm);
-    int readFile(std::string inputFileName, MPI_Comm _comm);
+    int openFile(std::string inputFileName, MPI_Comm _comm);
 
     int openFile(MPI_Comm _comm);
     void closeFile();
+
+    void initMPI(MPI_Comm _comm);
 
 
     // Reading
@@ -83,29 +85,17 @@ class HDF5ParticleIO: public SimIO
     int writeVariables();
 };
 
-inline HDF5ParticleIO():SimIO(){ dataFile=NULL; }
 
-inline void HDF5ParticleIO::readDatasetAttributes()
-{
-    if (numDatasetAttributes == 0)      // in case that didn't happen before
-        numDatasetAttributes = H5GetNumFileAttribs(dataFile);
 
-    for (int i=0; i<numDatasetAttributes; i++)
-}
 
-inline void HDF5ParticleIO::readTimestepAttributes()
-{
-    
-}
 
 inline HDF5ParticleIO::HDF5ParticleIO(std::string _fileName, Operation op, MPI_Comm _comm):SimIO(_fileName)
 { 
     if (op == WRITING)
         createDataset(_fileName, _comm); 
     else
-        readFile(_fileName, _comm); 
+        openFile(_fileName, _comm); 
 }
-
 
 
 
@@ -122,7 +112,8 @@ inline int HDF5ParticleIO::createDataset(std::string _outputFileName, MPI_Comm _
     return 0;
 }
 
-inline int HDF5ParticleIO::readFile(std::string inputFileName, MPI_Comm _comm)
+
+inline int HDF5ParticleIO::openFile(std::string inputFileName, MPI_Comm _comm)
 {
     MPI_Comm_rank(_comm, &myRank);
     MPI_Comm_size(_comm, &numRanks);
@@ -133,6 +124,7 @@ inline int HDF5ParticleIO::readFile(std::string inputFileName, MPI_Comm _comm)
 
     numTimesteps = H5GetNumSteps(dataFile);
     numDatasetAttributes = H5GetNumFileAttribs(dataFile);
+    readDatasetAttributes();
 
     return 0;
 }
@@ -146,6 +138,66 @@ inline int HDF5ParticleIO::openFile(MPI_Comm  _comm)
 
     return 0;
 }
+
+
+inline void HDF5ParticleIO::initMPI(MPI_Comm _comm)
+{
+    MPI_Comm_rank(_comm, &myRank);
+    MPI_Comm_size(_comm, &numRanks);
+}
+
+
+
+
+inline void HDF5ParticleIO::readDatasetAttributes()
+{
+    if (numDatasetAttributes == 0)      // in case that didn't happen before
+        numDatasetAttributes = H5GetNumFileAttribs(dataFile);
+
+
+    for (int i=0; i<numDatasetAttributes; i++)
+    {
+        Attribute _x;
+        getDatasetAttributeInfo(i, _x.name, _x.dataType, _x.numElements);
+
+        if (_x.dataType == "int32_t")
+        {
+            _x.data = new int32_t[_x.numElements];
+            readDatasetAttributeArray(_x.name, _x.dataType, (int32_t *)_x.data);
+        }
+        else if (_x.dataType == "int64_t")
+        {
+            _x.data = new int64_t[_x.numElements];
+            readDatasetAttributeArray(_x.name, _x.dataType, (int64_t *)_x.data);
+        }
+        else if (_x.dataType == "float")
+        {
+            _x.data = new float[_x.numElements];
+            readDatasetAttributeArray(_x.name, _x.dataType, (float *)_x.data);
+        }
+        else if (_x.dataType == "double")
+        {
+            _x.data = new double[_x.numElements];
+            readDatasetAttributeArray(_x.name, _x.dataType, (double *)_x.data);
+        }
+        else if (_x.dataType == "string")
+        {
+            _x.data = new char[_x.numElements];
+            readDatasetAttributeArray(_x.name, _x.dataType, (char *)_x.data);
+        }
+
+        datasetAttributes.push_back(_x);
+    }
+}
+
+
+
+// inline void HDF5ParticleIO::readTimestepAttributes(int ts)
+// {
+    
+// }
+
+
 
 inline void HDF5ParticleIO::closeFile()
 { 
