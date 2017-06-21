@@ -168,6 +168,7 @@ public:
 
     // Compute and refresh the ghosts 
     tcolorer_.mpi_compute_ghosts(*tree_,smoothinglength,range_);
+    //std::cout<<tree_->entities().size()<<std::endl;
     tcolorer_.mpi_refresh_ghosts(*tree_,range_);
   }
 
@@ -197,8 +198,18 @@ public:
   {
     for(auto& bi : bodies_){
       auto ents = tree_->find_in_radius(bi->getBody()->coordinates(),
-          2*bi->getBody()->getSmoothinglength());
+          2*bi->getBody()->getSmoothinglength()+epsilon_);
       auto vecents = ents.to_vec();
+      // Remove outside the h 
+      for(auto it = vecents.begin(); it != vecents.end() ; ){
+        if(flecsi::distance(bi->coordinates(),(*it)->coordinates())
+              > 2.*bi->getBody()->getSmoothinglength()){
+          it = vecents.erase(it);
+        }else{
+          ++it;
+        }
+        
+      }
       ef(bi,vecents,std::forward<ARGS>(args)...);
     } 
   }
@@ -227,6 +238,7 @@ private:
   tree_colorer<T,D> tcolorer_;
   tree_topology_t* tree_;
   std::vector<body_holder*> bodies_;
+  double epsilon_ = 1.0;
 };
 
 #endif

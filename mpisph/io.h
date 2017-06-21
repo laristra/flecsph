@@ -437,12 +437,12 @@ void outputDataHDF5(
   // Extract data from bodies 
   for(auto bi: bodies){
     b1[pos] = bi.second.getPosition()[0];
-    if(gdimension<3){
+    if(gdimension>1){
       b2[pos] = bi.second.getPosition()[1];
     }else{
       b2[pos] = 0.;
     }
-    if(gdimension<4){
+    if(gdimension>2){
       b3[pos++] = bi.second.getPosition()[2];
     }else{
       b3[pos++] = 0.;
@@ -464,8 +464,16 @@ void outputDataHDF5(
   // Extract data from bodies 
   for(auto bi: bodies){
     b1[pos] = bi.second.getVelocity()[0];
-    b2[pos] = bi.second.getVelocity()[1];
-    b3[pos++] = bi.second.getVelocity()[2];
+    if(gdimension>1){
+      b2[pos] = bi.second.getVelocity()[1];
+    }else{
+      b2[pos] = 0;
+    }
+    if(gdimension>2){
+      b3[pos++] = bi.second.getVelocity()[2];
+    }else{
+      b3[pos++] = 0.;
+    }
   }
 
   simio.addVariable( Flecsi_Sim_IO::Variable("vx",Flecsi_Sim_IO::point, 
@@ -486,8 +494,16 @@ void outputDataHDF5(
   // Extract data from bodies 
   for(auto bi: bodies){
     b1[pos] = bi.second.getAcceleration()[0];
-    b2[pos] = bi.second.getAcceleration()[1];
-    b3[pos++] = bi.second.getAcceleration()[2];
+    if(gdimension>1){
+      b2[pos] = bi.second.getAcceleration()[1];
+    }else{
+      b2[pos] = 0.;
+    }
+    if(gdimension>2){
+      b3[pos++] = bi.second.getAcceleration()[2]; 
+    }else{
+      b3[pos++] = 0.;
+    }
   }
 
   simio.addVariable( Flecsi_Sim_IO::Variable("ax",Flecsi_Sim_IO::point, 

@@ -110,6 +110,7 @@ public:
     }
 
     friend std::ostream& operator<<(std::ostream& os, const body_holder& b){
+      os << std::setprecision(10);
       os << "Holder. Pos: " <<b.position_ << " Mass: "<< b.mass_ << " "; 
       if(b.locality_ == LOCAL || b.locality_ == EXCL || b.locality_ == SHARED)
       {
@@ -117,6 +118,7 @@ public:
       }else{
         os << "NONLOCAL";
       }
+      os << " owner: " << b.owner_;
       return os;
     }  
 

@@ -61,12 +61,12 @@ mpi_init_task(int startiteration){
   int iter = startiteration; 
 
   // Init if default values are not ok
-  physics::dt = 0.0025;
+  physics::dt = 1.0e-10;
   physics::alpha = 1; 
   physics::beta = 2; 
-  physics::stop_boundaries = true;
-  physics::min_boundary = {0.1};
-  physics::max_boundary = {1.0};
+  //physics::stop_boundaries = true;
+  //physics::min_boundary = {0.1};
+  //physics::max_boundary = {1.0};
   physics::gamma = 5./3.;
 
   body_system<double,gdimension> bs;
@@ -148,7 +148,6 @@ mpi_init_task(int startiteration){
       bs.apply_all(physics::leapfrog_integration);
       if(rank==0)
         std::cout<<".done"<<std::endl;
-
     }
 
     if(rank==0)
@@ -157,13 +156,7 @@ mpi_init_task(int startiteration){
     if(rank==0)
       std::cout<<".done"<<std::endl;
 
-    if(rank==0)
-      std::cout<<"Boundaries"<<std::flush; 
-    bs.apply_all(physics::compute_boundaries);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
-
-
+   
 #ifdef OUTPUT
     if(iter % iteroutput == 0){ 
       bs.write_bodies("output_sedov",iter/iteroutput);

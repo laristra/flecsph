@@ -1165,11 +1165,28 @@ public:
     range.first = rbodies.front().second.getPosition();
     range.second = rbodies.front().second.getPosition();
 
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //if(rank==0){ 
+    //  std::cout<<std::endl<<std::flush;
+    //} 
+    //MPI_Barrier(MPI_COMM_WORLD);
+
+    // Tree content 
+    //auto test = tree.entities().to_vec(); 
+    //for(auto t: test){
+    //  std::cout<<rank<<" "<<*t<<std::endl<<std::flush;
+    //}
+
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //if(rank==0){ 
+    //  std::cout<<std::endl<<std::flush;
+    //} 
+    //MPI_Barrier(MPI_COMM_WORLD);
+
     // Lowest position:
-    for(auto bi: rbodies)
-    {
-      for(size_t dim=0;dim<dimension;++dim)
-      {
+    for(auto bi: rbodies){
+      //std::cout<<rank<<bi.second<<std::endl<<std::flush;
+      for(size_t dim=0;dim<dimension;++dim){
         if(range.first[dim]>bi.second.getPosition()[dim])
           range.first[dim] = bi.second.getPosition()[dim];
         if(range.second[dim]<bi.second.getPosition()[dim])
@@ -1180,11 +1197,21 @@ public:
     // Add the smoothing length to the max and min to find the real boundaries
     range.first = range.first-2*smoothinglength;
     range.second = range.second+2*smoothinglength;
-  
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //if(rank==0){ 
+    //  std::cout<<std::endl;
+    //} 
+    //MPI_Barrier(MPI_COMM_WORLD);
+
+
+    //std::cout<<rank<<range.first<<range.second<<std::endl;
+
     // Gather the keys of everyone 
     // If it is the first time, allocate the ranges 
-    if(ranges.size() == 0)
+    if(ranges.size() == 0){
       ranges.resize(size);
+    }
     
     MPI_Allgather(&range,sizeof(std::pair<point_t,point_t>),
       MPI_BYTE,&ranges[0],sizeof(std::pair<point_t,point_t>),
@@ -1195,34 +1222,47 @@ public:
     reset_buffers();
     std::vector<body_holder_mpi_t> sendbuffer;
     scount[rank]=0;
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //if(rank==0){ 
+    //  std::cout<<std::endl;
+    //} 
+    //MPI_Barrier(MPI_COMM_WORLD);
+
 
     // Search in the tree for each processes 
     for(int i=0;i<size;++i)
     {
+      //if(rank==0){
+      //  std::cout<<rank<<" for "<<i<<"="<<ranges[i].first<<
+      //    ranges[i].second<<std::endl;
+      //}
       if(i==rank)
         continue;
       auto ents = tree.find_in_box(ranges[i].first,ranges[i].second);
       scount[i] = ents.size();
-      for(auto ent: ents)
-      {
+      //std::cout<<rank<<" send to "<<i<<"="<<scount[i]<<std::endl;
+      for(auto ent: ents){
         sendbuffer.push_back(body_holder_mpi_t{
             ent->getPosition(),
             rank,
             ent->getMass()});
       }
     }
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //if(rank==0){ 
+    //  std::cout<<std::endl;
+    //} 
+    //MPI_Barrier(MPI_COMM_WORLD);
 
     MPI_Alltoall(&scount[0],1,MPI_INT,
       &rcount[0],1,MPI_INT,MPI_COMM_WORLD);
 
     int totalrecv = 0;
-    for(int i=0;i<size;++i)
-    {
+    for(int i=0;i<size;++i){
       totalrecv += rcount[i];
       scount[i]*=sizeof(body_holder_mpi_t);
       rcount[i]*=sizeof(body_holder_mpi_t);
-      if(i<size-1)
-      {
+      if(i<size-1){
         soffset[i+1]=soffset[i]+scount[i];
         roffset[i+1]=roffset[i]+rcount[i];
       }
@@ -1409,39 +1449,84 @@ public:
 
     // 1. for each processes, bucket of send, bucket of receiv 
     ghosts_data.sendholders.resize(size);
+
     std::vector<std::set<body_holder*>> recvholders(size);
+
+    //std::cout<<rank<<" tree="<<tree.entities().size()<<std::endl;
+
+
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //if(rank==0){ 
+    //  std::cout<<std::endl<<std::flush;
+    //} 
+    //MPI_Barrier(MPI_COMM_WORLD);
+
+    // Tree content 
+    //auto test = tree.entities().to_vec(); 
+    //for(auto t: test){
+    //  std::cout<<rank<<" "<<*t<<std::endl<<std::flush;
+    //}
+
+    //for(auto t: test){
+    //  for(auto tt: test){
+    //    std::cout<<rank<<" "<<t->coordinates()<<
+    //      "  "<<tt->coordinates()<<" d="<<flecsi::distance(t->coordinates(),
+    //          tt->coordinates())
+    //      <<std::endl<<std::flush;
+    //  }
+    //}
+    //
+    double epsilon = 1.0;
+
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //if(rank==0){ 
+    //  std::cout<<std::endl<<std::flush;
+    //} 
+    //MPI_Barrier(MPI_COMM_WORLD);
+
+    //std::cout<<"H====="<<smoothinglength<<std::endl;
 
     // Considering the biggest h
     // TODO add a reduction over h 
     int totalrecvbodies = 0;
     int totalsendbodies = 0;
-    auto treeents = tree.entities();
+    auto treeents = tree.entities().to_vec();
     for(auto bi: treeents)
     {  
       if(bi->is_local())
       {
+        //std::cout<<rank<<" For "<<*bi<<std::endl;
         assert(bi->getOwner() == rank);
         auto bodiesneighbs = tree.find_in_radius(bi->coordinates(),
-           2*smoothinglength);
-        for(auto nb: bodiesneighbs)
-        {
-          if(!nb->is_local())
-          {
+           2.*smoothinglength+epsilon);
+        for(auto nb: bodiesneighbs){
+          if(!nb->is_local() && flecsi::distance(nb->coordinates(),
+                bi->coordinates()) < 2*smoothinglength){
+            //std::cout<<rank<<" "<<*bi<<" in radius: "<<*nb<<std::endl;
             // THIS IS TRUE BECAUSE WE CONSIDER THE BIGGEST SMOOTHING LENGTH
             // The distant particle will need mine
             ghosts_data.sendholders[nb->getOwner()].insert(bi);
             // I will also need the distant particle 
             recvholders[nb->getOwner()].insert(nb);
+          //}else{
+          //  std::cout<<rank<<" not added: "<<*nb<<std::endl;
           }
         }
       } 
     }
+
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //if(rank==0){ 
+    //  std::cout<<std::endl<<std::flush;
+    //} 
+    //MPI_Barrier(MPI_COMM_WORLD);
 
     for(int i=0;i<size;++i)
     {
       ghosts_data.sholders[i] = ghosts_data.sendholders[i].size();
       assert(ghosts_data.sholders[i]>=0);
       totalsendbodies += ghosts_data.sholders[i];
+      //std::cout<<rank<<" sto "<<i<<"="<<ghosts_data.sholders[i]<<std::endl;
     }
   
     for(int i=0;i<size;++i)
@@ -1449,6 +1534,8 @@ public:
       ghosts_data.rholders[i] = recvholders[i].size();
       assert(ghosts_data.rholders[i]>=0);
       totalrecvbodies += ghosts_data.rholders[i];
+      //std::cout<<rank<<" rto "<<i<<"="<<ghosts_data.rholders[i]<<std::endl;
+
     }
   
     // Make a vector with the recvholsters to be able to connect the pointer
@@ -1476,6 +1563,8 @@ public:
     }
 
     ghosts_data.rbodies.resize(totalrecvbodies);
+
+    //std::cout<<rank<<"= Send:"<<totalsendbodies<<" Recv:"<<totalrecvbodies<<std::endl;
 
     // Convert the offsets to byte
     for(int i=0;i<size;++i)

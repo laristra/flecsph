@@ -18,7 +18,7 @@ const double pressure_1 = 10e-5;
 //const double pressure_2 = 0.1;
 const double u_1 = 1;
 //const double u_2 = 2;
-const double m_1 = 1;
+const double m_1 = 1.0e-4;
 //const double m_2 = 1.0e-5;
 const double smoothing_length = 1.0e-2;
 const char* fileprefix = "hdf5_sedov";
@@ -49,21 +49,23 @@ int main(int argc, char * argv[]){
   int64_t sparticles = atoll(argv[1]);
   int64_t nparticles = sparticles*sparticles;
 
-  double radius = ldistance*sparticles/2.; 
-  double x_c = sparticles*ldistance/2.;
-  double y_c = sparticles*ldistance/2.;
+  double radius = (ldistance*(sparticles-1))/2.; 
+  double x_c = (sparticles-1)*ldistance/2.;
+  double y_c = x_c;//(sparticles-1)*ldistance/2.;
+
+  std::cout<<"Sphere: r="<<radius<<" pos=["<<x_c<<";"<<y_c<<"]"<<std::endl;
 
   if(rank==0){
     printf("Generating %ld particles by %ldx%ld in sphere r=%.4f\n",
         nparticles,sparticles,sparticles,radius);
   }
 
-  // Start on  0 0 
-  double x_topproc = 0;
-  double y_topproc = 0;
+  // Start on  0 0
+  double x_topproc = x_c-radius;
+  double y_topproc = y_c-radius;
 
-  double maxxposition = ldistance*sparticles;
-  double maxyposition = ldistance*sparticles;
+  double maxxposition = x_c+radius;
+  double maxyposition = y_c+radius;
   
   // Position
   double* x = new double[nparticles]();
@@ -142,14 +144,34 @@ int main(int argc, char * argv[]){
 
     P[part] = pressure_1;
     rho[part] = rho_1; 
-    u[part] = u_1;
+    //u[part] = u_1;
     m[part] = m_1;
+    
+    u[part] = u_1;///m[part];
+
+    if(sqrt((x[part]-x_c)*(x[part]-x_c)+(y[part]-y_c)*(y[part]-y_c)
+          < (2.*ldistance)*(2.*ldistance))){
+      u[part] *= 3.;
+    }
+
     // Y and Z not used 
     // VX, VY, VZ and AX, AY, AZ stay to 0
     h[part] = smoothing_length;
     // P stay to 0
     id[part] = posid++; 
     //std::cout<<x[part]<<": "<<h[part]<<std::endl;
+  }
+
+  // Check for duplicate 
+  for(int64_t p1=0;p1<tparticles;++p1){
+    for(int64_t p2=0;p2<tparticles;++p2){
+      if(p1 == p2)
+        continue;
+      if(x[p1]==x[p2]&&y[p1]==y[p2]){
+        std::cout<<"Particle on same position"<<std::endl;
+        exit(-1);
+      }
+    }
   }
 
   std::cout<<"Real number of particles: "<<tparticles<<std::endl;
