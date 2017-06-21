@@ -9,21 +9,29 @@ Working on it
 # SPH on FleCSI 
 
 This project is an implementation of SPH problem using FleCSI framework.
+This code intent to provide distributed and parallel implementation of the octree data structure provide by FleCSI. 
+The Binary, Quad and Oct tree respectively for 1, 2 and 3 dimensions is developed here for Smoothed Particle Hydrodynamics problems.
+
+For the first version of the code we intent to provide several basic physics problems: 
+
+- Sod Shock Tube in 1D
+- Sedov Blast Wave 2D
+- Binary Neutron Star Merger 3D  
 
 # Getting the Code 
 
-    % git clone --recursive git@gitlab.lanl.gov:laristra/flecsph.git
+    % git clone --recursive git@github.com:laristra/flecsph.git
 
 # Requirements
 
-Before trying to compile you need to install on your system: 
+The code requires:
 
-- FleCSI thrird party
-- FleCSI = compile legion
+- FleCSI third part library 
+- FleCSI 
 
-The installation steps are the followings: 
+## Install the dependencies 
 
-On DARWIN load the modules: 
+On DARWIN supercomputer load the modules: 
 
     % module load gcc/6.2.0
     % module load openmpi/2.0.1-gcc_6.2.0
@@ -32,102 +40,54 @@ On DARWIN load the modules:
     % module load cmake/3.7.1
     % module load boost/1.59.0_gcc-6.2.0
 
-Then install the flecsi third libraries
+### FleCSI third part libraries
 
     % git clone --recursive https://github.com/laristra/flecsi-third-party.git
     % mkdir build ; cd build
     % ccmake ../
 
-Here have all ON except: 
-- ENABLE_EXODUS OFF 
-- ENABLE_SCOTCH OFF
-- METIS_INT64 OFF
-- USE_SYSTEM_LIBS OFF
-- GASnet_CONDUIT mpi
-and set a path for the CMAKE_INSTALL_PREFIX like /home/XXX/local/
-
-And
+Let all the flags ON, make sure the conduit of GASNET is MPI. 
+If not administrator: set path for the CMAKE_INSTALL_PREFIX like /home/XXX/local/
 
     % make ; make install 
 
-Then you will have to install FleCSI. 
+### FleCSI 
 
     % git clone --recursive https://github.com/laristra/flecsi.git
 
-here we need to change to the flecsph branch 
+Here we need to change to the FleCSPH branch 
 
     % git checkout flecsph 
     % mkdir build ; cd build 
     % ccmake ../
 
 Here add:
-- ENABLE_MPI and ENABLE_OPENMP 
-- Set FLECSI_RUNTIME_MODEL legion
-and set a path for 
+- ENABLE_MPI 
+- ENABLE_OPENMP 
+- FLECSI_RUNTIME_MODEL legion
+If not administrator:  
 - CMAKE_INSTALL_PREFIX like /home/XXX/local/
 
     % make ; make install 
 
-Then download and build FleCSPH.
-
-
 # Build 
+
+## Dependencies
+
+In order to build flecsph some other dependencies can be found in the third-party-libraries/ directory. 
+Use the two script to install:
+- hdf5 parallel
+- h5hut
+- ScalingFramework is available in LANL property right now, soon open-source
+
+## Build FleCSPH
 
     % mkdir build
     % cd build 
     % ccmake ../ 
-Here the settings are: 
-- 
+
 - ENABLE_MPI: ON
 - ENABLE_OPENMPI: ON
-- FLECSI_RUNTIME_MODEL: legion
+- ENABLE_LEGION: ON
+
     % make 
-
-
-# Input File structure 
-
-For the input file we are using the H5hut format. 
-Headers containts general informations like: 
-
-- Number of particles: "nparticles"
-- Dimension: "dimension"
-- Timestep: "timestep"
-- Is fixed timestep used ? "used_fixed_timestep"
-
-Not implemented yet: 
-- Physics constants ? 
-- Different files for output ? See Oleg for that
-- Different types of EOS
-
-Then for each Step we save:
-
-Header:
-- Timestep "timestep"
-- ???
-
-Particles:
-- Position X: "x"
-- Position Y: "y" 
-- Position Z: "z" 
-- Velocity X: "vx"
-- Velocity Y: "vy" 
-- Velocity Z: "vz"
-- Acceleration X: "ax"
-- Acceleration Y: "ay"
-- Acceleration Z: "az"
-- Smoothing Length: "h"
-- Density: "rho"
-- Internal Energy: "u"
-- Pressure: "P"
-- Mass: "m"
-- Id: "id" 
-- Time step: "dt"
- 
-Not implemented yet:
-- Particle type: "type"
-- Electron fraction: "Ye"
-
-Types are all double except for:
-
-- id = int64_t
-- nparticles = int64_t 
