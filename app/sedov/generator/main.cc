@@ -16,11 +16,11 @@ const double rho_1 = 1;
 //const double rho_2 = 0.125;
 const double pressure_1 = 10e-5;
 //const double pressure_2 = 0.1;
-const double u_1 = 1;
+const double u_1 = .5;
 //const double u_2 = 2;
-const double m_1 = 1.0e-3;
+const double m_1 = 1.0e-5;
 //const double m_2 = 1.0e-5;
-const double smoothing_length = ldistance/4.+2.0e-4;//1.0e-2;
+const double smoothing_length = 4.*ldistance;
 const char* fileprefix = "hdf5_sedov";
 
 bool 
@@ -64,8 +64,8 @@ int main(int argc, char * argv[]){
   double x_topproc = x_c-radius;
   double y_topproc = y_c-radius;
 
-  double maxxposition = (sparticles-1)*ldistance;//x_c+radius;
-  double maxyposition = (sparticles-1)*ldistance;//y_c+radius;
+  double maxxposition = /*(sparticles-1)*ldistance;*/x_c+radius;
+  double maxyposition = /*(sparticles-1)*ldistance;*/y_c+radius;
   
   // Position
   double* x = new double[nparticles]();
@@ -106,41 +106,39 @@ int main(int argc, char * argv[]){
   std::cout<<"top_X="<<x_topproc<<" top_Y="<<y_topproc<<
     " maxX="<<maxxposition<<" maxY="<<maxyposition<<std::endl;
 
-  double xposition = 0;//x_topproc; 
+  double xposition = /*0;*/x_topproc; 
   int64_t tparticles = 0;
-  double yposition = 0;//y_topproc;
-  int xpos = 0;
+  double yposition = /*0;*/y_topproc;
+  //int xpos = 0;
   for(int64_t part=0; part<nparticles; ++part){
     
-    //while(!in_radius(xposition,yposition,x_c,y_c,radius)){
-    //  xposition+= ldistance; 
-    //  if(xposition > maxxposition){
-    //    if(yposition > maxyposition){
-    //      break;
-    //    }
-    //    xposition=x_topproc;
-    //    yposition+=ldistance;
-    //  }
-    //}
+    while(!in_radius(xposition,yposition,x_c,y_c,radius)){
+      xposition+= ldistance; 
+      if(xposition > maxxposition){
+        if(yposition > maxyposition){
+          break;
+        }
+        xposition=x_topproc;
+        yposition+=ldistance;
+      }
+    }
 
-    //if(xposition > maxxposition){
-    //  if(yposition > maxyposition){
-    //      break;
-    //  }
-    //}
+    if(xposition > maxxposition){
+      if(yposition > maxyposition){
+          break;
+      }
+    }
 
-    //tparticles++;
+    tparticles++;
     x[part] = xposition;
     y[part] = yposition;
          
-    xpos++;
     xposition+=ldistance;
-    if(xpos%sparticles==0){
-      //if(yposition > maxyposition){
-      //  break;
-      //}
-      xpos = 0;
-      xposition=0;//x_topproc;
+    if(xposition > maxxposition){
+      if(yposition > maxyposition){
+        break;
+      }
+      xposition=x_topproc;
       yposition+=ldistance;
     }
 
@@ -156,21 +154,23 @@ int main(int argc, char * argv[]){
     //      < (ldistance)*(ldistance))){
     //  u[part] *= 3.;
     //}
-    //
-    if(part == nparticles/2.-1.-sparticles/2.){
-      u[part] += .00001;
-      printf("Middle particle = %ld\n",part);
-    }
+    h[part] = smoothing_length;
+
+    //if(part == nparticles/2.-1.-sparticles/2.){
+    //  u[part] += 1.;
+    //  //h[part] += 10.*ldistance;
+    //  printf("Middle particle = %ld\n",part);
+    //}
 
     // Y and Z not used 
     // VX, VY, VZ and AX, AY, AZ stay to 0
-    h[part] = smoothing_length;
+    //h[part] = smoothing_length;
     // P stay to 0
     id[part] = posid++; 
     //std::cout<<x[part]<<": "<<h[part]<<std::endl;
   }
 
-  tparticles = nparticles;
+  //tparticles = nparticles;
   // Check for duplicate 
   for(int64_t p1=0;p1<tparticles;++p1){
     for(int64_t p2=0;p2<tparticles;++p2){

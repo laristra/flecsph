@@ -394,7 +394,7 @@ void outputDataHDF5(
 
   char filename[128];
   if(do_diff_files){
-    sprintf(filename,"%s_%d.h5part",fileprefix,step);
+    sprintf(filename,"%s_%05d.h5part",fileprefix,step);
   }else{
     sprintf(filename,"%s.h5part",fileprefix);
   }  
@@ -411,18 +411,32 @@ void outputDataHDF5(
 
   //-------------------GLOBAL HEADER-------------------------------------------
   // Only for the first output
+  if(do_diff_files){
+  }else{
+    if(step == 0){
+      // output dimension 
+      simio.writeDatasetAttribute("ndim","int32_t",gdimension);
+    }
+  }
+
 
   //------------------STEP HEADER----------------------------------------------
   // Put the step header
   simio.setTimeStep(step);
+  
+  //Flecsi_Sim_IO::Attribute timeValue("time",Flecsi_Sim_IO::timestep,"float",
+  //    physics::totaltime);
+  //simio.timestepAttributes.push_back(timeValue);
+  
   simio.addTimeStepAttribute(
       Flecsi_Sim_IO::Attribute(
-        "dt",
-        Flecsi_Sim_IO::timestep,
+        "time",
+       Flecsi_Sim_IO::timestep,
         "double",
         physics::totaltime)
       );
 
+  simio.writeTimestepAttributes();
 
   //------------------STEP DATA------------------------------------------------
 
@@ -450,11 +464,11 @@ void outputDataHDF5(
   }
 
   // Add variable  
-  simio.addVariable( Flecsi_Sim_IO::Variable("x",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("coords_x",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b1));
-  simio.addVariable( Flecsi_Sim_IO::Variable("y",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("coords_y",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b2));
-  simio.addVariable( Flecsi_Sim_IO::Variable("z",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("coords_z",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b3));
   // Push to file 
   simio.writeVariables();
@@ -476,11 +490,11 @@ void outputDataHDF5(
     }
   }
 
-  simio.addVariable( Flecsi_Sim_IO::Variable("vx",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("vel_x",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b1));
-  simio.addVariable( Flecsi_Sim_IO::Variable("vy",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("vel_y",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b2));
-  simio.addVariable( Flecsi_Sim_IO::Variable("vz",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("vel_z",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b3));
 
   //H5PartWriteDataFloat64(dataFile,"vx",dataX);
@@ -528,9 +542,9 @@ void outputDataHDF5(
     b3[pos++] = bi.second.getInternalenergy();
   }
 
-  simio.addVariable( Flecsi_Sim_IO::Variable("h",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("smoothing",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b1));
-  simio.addVariable( Flecsi_Sim_IO::Variable("rho",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("dens",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b2));
   simio.addVariable( Flecsi_Sim_IO::Variable("u",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b3));
@@ -551,9 +565,9 @@ void outputDataHDF5(
     bi[pos++] = bid.second.getId();
   }
   
-  simio.addVariable( Flecsi_Sim_IO::Variable("P",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("ipr",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b1));
-  simio.addVariable( Flecsi_Sim_IO::Variable("m",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("mass",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b2));
   simio.addVariable( Flecsi_Sim_IO::Variable("dt",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b3));
