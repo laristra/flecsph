@@ -164,7 +164,7 @@ public:
 
     // Exchnage usefull body_holder from my tree to other processes
     tcolorer_.mpi_branches_exchange(*tree_,localbodies_,rangeposproc_,
-        smoothinglength);
+        range_,smoothinglength);
 
     // Compute and refresh the ghosts 
     tcolorer_.mpi_compute_ghosts(*tree_,smoothinglength,range_);
@@ -198,18 +198,18 @@ public:
   {
     for(auto& bi : bodies_){
       auto ents = tree_->find_in_radius(bi->getBody()->coordinates(),
-          2*bi->getBody()->getSmoothinglength()+epsilon_);
+          2*bi->getBody()->getSmoothinglength()/*+epsilon_*/);
       auto vecents = ents.to_vec();
       // Remove outside the h 
-      for(auto it = vecents.begin(); it != vecents.end() ; ){
-        if(flecsi::distance(bi->coordinates(),(*it)->coordinates())
-              > 2.*bi->getBody()->getSmoothinglength()){
-          it = vecents.erase(it);
-        }else{
-          ++it;
-        }
+      //for(auto it = vecents.begin(); it != vecents.end() ; ){
+        //if(flecsi::distance(bi->coordinates(),(*it)->coordinates())
+        //      > 2.*bi->getBody()->getSmoothinglength()){
+        //  it = vecents.erase(it);
+        //}else{
+        //  ++it;
+        //}
         
-      }
+      //}
       ef(bi,vecents,std::forward<ARGS>(args)...);
     } 
   }
@@ -238,7 +238,7 @@ private:
   tree_colorer<T,D> tcolorer_;
   tree_topology_t* tree_;
   std::vector<body_holder*> bodies_;
-  double epsilon_ = 1.0;
+  //double epsilon_ = 1.0;
 };
 
 #endif

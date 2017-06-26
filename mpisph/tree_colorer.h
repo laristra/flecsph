@@ -1148,6 +1148,7 @@ public:
     tree_topology_t& tree,
     std::vector<std::pair<entity_key_t,body>>& rbodies,
     std::vector<std::pair<point_t,point_t>>& ranges,
+    std::array<point_t,2>& range_total,
     double smoothinglength)
   {
     int rank,size;
@@ -1281,6 +1282,8 @@ public:
       tree.insert(nbi);
     }
 
+    //tree.update_all(range_total[0],range_total[1]);
+
 #ifdef OUTPUT
     if(rank==0)
       std::cout<<".done"<<std::endl;
@@ -1396,20 +1399,22 @@ public:
       auto bh = tree.get(bi->id());
       bh->setBody(&(*it));
 
-      if(entity_key_t(range,bh->coordinates()) != 
-          entity_key_t(range,bh->getBody()->coordinates())){
-            std::cout<<rank<<": "<<std::endl<<*bh<<"\n---"<<*it<<std::endl<<
-            "diff ="<<bh->getPosition()-it->getPosition()<<std::endl;
+      //if(entity_key_t(range,bh->coordinates()) != 
+      //    entity_key_t(range,bh->getBody()->coordinates())){
+      //      std::cout<<rank<<": "<<std::endl<<*bh<<"\n---"<<*it<<std::endl<<
+      //      "diff ="<<bh->getPosition()-it->getPosition()<<std::endl;
         // Replace the body_holder by the received
         //bh->getBody()->setPosition(bh->getPosition());
-        bh->setPosition(bh->getBody()->getPosition());
+      //  bh->setPosition(bh->getBody()->getPosition());
+      //}
 
-      }
-
-      assert(bh->getLocality()==NONLOCAL||bh->getLocality()==GHOST);
+      assert(bh->getLocality()==NONLOCAL||bh->getLocality()==GHOST
+          && "Non local particle");
       assert(entity_key_t(range,bh->coordinates()) == 
-          entity_key_t(range,bh->getBody()->coordinates()));
-      assert(bh->coordinates()==bh->getBody()->coordinates());
+          entity_key_t(range,bh->getBody()->coordinates()) && 
+          "Key different than holder");
+      assert(bh->coordinates()==bh->getBody()->coordinates() &&
+          "Position different than holder");
       // Replace the body_holder by the received
       bh->getBody()->setPosition(bh->getPosition());
       bh->setPosition(bh->getBody()->getPosition());
@@ -1455,17 +1460,17 @@ public:
     //std::cout<<rank<<" tree="<<tree.entities().size()<<std::endl;
 
 
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //if(rank==0){ 
-    //  std::cout<<std::endl<<std::flush;
-    //} 
-    //MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){ 
+      std::cout<<std::endl<<std::flush;
+    } 
+    MPI_Barrier(MPI_COMM_WORLD);
 
     // Tree content 
-    //auto test = tree.entities().to_vec(); 
-    //for(auto t: test){
-    //  std::cout<<rank<<" "<<*t<<std::endl<<std::flush;
-    //}
+    auto test = tree.entities().to_vec(); 
+    for(auto t: test){
+      std::cout<<rank<<" "<<*t<<std::endl<<std::flush;
+    }
 
     //for(auto t: test){
     //  for(auto tt: test){
@@ -1476,13 +1481,13 @@ public:
     //  }
     //}
     //
-    double epsilon = 1.0;
+    //double epsilon = 1.0;
 
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //if(rank==0){ 
-    //  std::cout<<std::endl<<std::flush;
-    //} 
-    //MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){ 
+      std::cout<<std::endl<<std::flush;
+    } 
+    MPI_Barrier(MPI_COMM_WORLD);
 
     //std::cout<<"H====="<<smoothinglength<<std::endl;
 
@@ -1495,14 +1500,15 @@ public:
     {  
       if(bi->is_local())
       {
-        //std::cout<<rank<<" For "<<*bi<<std::endl;
+        std::cout<<rank<<" For "<<*bi<<std::endl;
         assert(bi->getOwner() == rank);
         auto bodiesneighbs = tree.find_in_radius(bi->coordinates(),
-           2.*smoothinglength+epsilon);
+           2.*smoothinglength/*+epsilon*/);
         for(auto nb: bodiesneighbs){
-          if(!nb->is_local() && flecsi::distance(nb->coordinates(),
-                bi->coordinates()) < 2*smoothinglength){
-            //std::cout<<rank<<" "<<*bi<<" in radius: "<<*nb<<std::endl;
+          if(!nb->is_local() //&& flecsi::distance(nb->coordinates(),
+          //      bi->coordinates()) < 2*smoothinglength
+          ){
+            std::cout<<rank<<" "<<*bi<<" in radius: "<<*nb<<std::endl;
             // THIS IS TRUE BECAUSE WE CONSIDER THE BIGGEST SMOOTHING LENGTH
             // The distant particle will need mine
             ghosts_data.sendholders[nb->getOwner()].insert(bi);
@@ -1515,11 +1521,11 @@ public:
       } 
     }
 
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //if(rank==0){ 
-    //  std::cout<<std::endl<<std::flush;
-    //} 
-    //MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){ 
+      std::cout<<std::endl<<std::flush;
+    } 
+    MPI_Barrier(MPI_COMM_WORLD);
 
     for(int i=0;i<size;++i)
     {
@@ -1535,9 +1541,26 @@ public:
       assert(ghosts_data.rholders[i]>=0);
       totalrecvbodies += ghosts_data.rholders[i];
       //std::cout<<rank<<" rto "<<i<<"="<<ghosts_data.rholders[i]<<std::endl;
-
     }
-  
+
+    // Check for symetric sends 
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){ 
+      std::cout<<std::endl<<std::flush;
+    } 
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    for(int i=0;i<size;++i){
+      std::cout<<rank<<"<->"<<i<<": s"<<ghosts_data.sholders[i]<<";r"
+        <<ghosts_data.rholders[i]<<std::endl;
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){ 
+      std::cout<<std::endl<<std::flush;
+    } 
+    MPI_Barrier(MPI_COMM_WORLD);
+
     // Make a vector with the recvholsters to be able to connect the pointer
     // at the end of the communication
     for(auto proc: recvholders)

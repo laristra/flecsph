@@ -323,6 +323,9 @@ namespace physics{
     source->setVelocityhalf(velocityHalf);
     source->setPosition(position);
     source->setVelocity(velocity);
+  
+    totaltime += dt;
+
   }
 
   void 
@@ -339,6 +342,8 @@ namespace physics{
     source->setVelocityhalf(velocityHalf);
     source->setPosition(position);
     source->setVelocity(velocity);
+
+    totaltime += dt;
   }
 
   // Leapfrog integration to move the particles 
