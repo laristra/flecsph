@@ -83,12 +83,6 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
-    // Destroy the previous tree
-    if(tree_ !=  nullptr){
-      delete tree_;
-    }
-    
-  
     // Choose the smoothing length to be the biggest from everyone 
     double smoothinglength = 0;
     for(auto bi: localbodies_){
@@ -226,6 +220,12 @@ public:
       ef(bi,std::forward<ARGS>(args)...);
     }
   }
+
+
+  std::vector<std::pair<entity_key_t,body>>& 
+    getLocalbodies(){
+    return localbodies_;
+  };
 
 private:
   int64_t totalnbodies_; 
