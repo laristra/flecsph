@@ -1384,7 +1384,8 @@ public:
         }
         if(entity_key_t(range,left.coordinates())==
           entity_key_t(range,right.coordinates())){
-          std::cout<<"Key collision"<<std::endl;
+          std::cout<<"Key collision: "<<left.coordinates()
+          <<" and " << right.coordinates()<<std::endl;
           return left.coordinates()>right.coordinates();
         }
         return false;
