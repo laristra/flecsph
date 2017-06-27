@@ -18,12 +18,13 @@ class HDF5ParticleIO: public SimIO
     h5_file_t *dataFile;
     int myRank, numRanks;
 
-
-    void readDatasetAttributeArray(std::string _name, std::string _dataType, void *_data);
-    void getDatasetAttributeInfo(int _index, std::string &_varName, std::string &_type, int &numElems);
+    
 
 
   public:
+    void readDatasetAttributeArray(std::string _name, std::string _dataType, void *_data);
+    void getDatasetAttributeInfo(int _index, std::string &_varName, std::string &_type, int &numElems);
+
     HDF5ParticleIO():SimIO(){ dataFile=NULL; }
     HDF5ParticleIO(std::string _fileName, Operation op, MPI_Comm _comm);
     ~HDF5ParticleIO(){ closeFile(); }
@@ -41,6 +42,8 @@ class HDF5ParticleIO: public SimIO
 
     // Reading
     void readDatasetAttributes();
+    void readTimestepInfo(int ts, Timestep &_ts);
+
     
 
     
@@ -193,10 +196,57 @@ inline void HDF5ParticleIO::readDatasetAttributes()
 
 
 
-// inline void HDF5ParticleIO::readTimestepAttributes(int ts)
-// {
-    
-// }
+inline void HDF5ParticleIO::readTimestepInfo(int ts, Timestep &_ts)
+{
+    // Set timestep
+    H5SetStep(dataFile, ts);
+    _ts.numAttributes = H5GetNumStepAttribs(dataFile);
+
+
+    // Read attributes of timestep
+    for (int i=0; i<_ts.numAttributes; i++)
+    {
+        Attribute _x;
+        getTimestepAttributeInfo(i, _x.name, _x.dataType, _x.numElements);
+
+        if (_x.dataType == "int32_t")
+        {
+            _x.data = new int32_t[_x.numElements];
+            readTimestepAttributeArray(_x.name, _x.dataType, (int32_t *)_x.data);
+        }
+        else if (_x.dataType == "int64_t")
+        {
+            _x.data = new int64_t[_x.numElements];
+            readTimestepAttributeArray(_x.name, _x.dataType, (int64_t *)_x.data);
+        }
+        else if (_x.dataType == "float")
+        {
+            _x.data = new float[_x.numElements];
+            readTimestepAttributeArray(_x.name, _x.dataType, (float *)_x.data);
+        }
+        else if (_x.dataType == "double")
+        {
+            _x.data = new double[_x.numElements];
+            readTimestepAttributeArray(_x.name, _x.dataType, (double *)_x.data);
+        }
+        else if (_x.dataType == "string")
+        {
+            _x.data = new char[_x.numElements];
+            readTimestepAttributeArray(_x.name, _x.dataType, (char *)_x.data);
+        }
+
+        _ts.attributes.push_back(_x);
+    }
+
+    // Read 
+    _ts.numVariables = H5PartGetNumDatasets(dataFile); 
+    for (int i=0; i<_ts.numVariables; i++) 
+    {
+        Variable _v;
+        getTimestepVariableInfo(i, _v.name, _v.dataType, _v.numElements);
+        _ts.vars.push_back(_v);
+    }
+}
 
 
 
@@ -322,11 +372,9 @@ inline void HDF5ParticleIO::readTimestepAttributeArray(std::string _name, std::s
 
 inline int HDF5ParticleIO::readVariable(std::string & _name, std::string type, void *_data)
 {
-    
     int numParticles = H5PartGetNumParticles(dataFile);
     int start = numParticles/numRanks * myRank;
     H5PartSetView(dataFile, start, -1);
-    
 
     if ( type == "float" )
         H5PartReadDataFloat32(dataFile, (_name).c_str(), (float *)_data);

@@ -179,9 +179,13 @@ struct Variable
 
 struct Timestep
 {
+	int numAttributes;
 	std::vector<Attribute> attributes;
+
+	int numVariables;
 	std::vector<Variable> vars;
 };
+
 
 
 class SimIO
@@ -239,7 +243,6 @@ inline void SimIO::init()
 	endian = little; 
 	numTimesteps = 0;
 	numDatasetAttributes = 0;
-	
 }
 
 
