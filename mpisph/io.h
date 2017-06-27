@@ -235,8 +235,6 @@ void inputDataHDF5(
   totalnbodies = nparticles;
   nbodies = nparticlesproc;
 
-  std::cout<<rank<<": "<<nparticlesproc<<std::endl;
-
   //--------------- READ GLOBAL ATTRIBUTES ------------------------------------
   // read the number of dimension 
   int32_t dimension;
@@ -259,8 +257,6 @@ void inputDataHDF5(
   double* dataZ = new double[nparticlesproc];
   int64_t* dataInt = new int64_t[nparticlesproc];
 
-  std::cout<<rank<<": array allocated"<<std::endl;
-
   // Positions
   H5PartReadDataFloat64(dataFile,"x",dataX);
   H5PartReadDataFloat64(dataFile,"y",dataY);
@@ -276,8 +272,6 @@ void inputDataHDF5(
     }
     bodies[i].second.setPosition(position);
   }
-
-  std::cout<<rank<<": position read"<<std::endl;
 
   // Velocity
   H5PartReadDataFloat64(dataFile,"vx",dataX);
@@ -352,10 +346,6 @@ void inputDataHDF5(
   for(int64_t i=0; i<nparticlesproc; ++i){
     bodies[i].second.setDt(dataX[i]);
   }
-
-  std::cout<<rank<<": done last"<<std::endl;
-  MPI_Barrier(MPI_COMM_WORLD);
-
 
   delete[] dataX;
   delete[] dataY;

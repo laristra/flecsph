@@ -309,83 +309,8 @@ namespace physics{
         dt*source->getDudt());
   }
 
-  void 
-  leapfrog_integration_first_step(
-      body_holder* srch)
-  {
-    body* source = srch->getBody();
-    
-    point_t velocityHalf = source->getVelocity() + 
-        dt/2.*source->getAcceleration();
-    point_t position = source->getPosition()+velocityHalf*dt;
-    point_t velocity = 1./2.*(source->getVelocityhalf()+velocityHalf);
-
-    source->setVelocityhalf(velocityHalf);
-    source->setPosition(position);
-    source->setVelocity(velocity);
-  
-    totaltime += dt;
-
-  }
-
-  void 
-  leapfrog_integration(
-      body_holder* srch)
-  {
-    body* source = srch->getBody();
-    
-    point_t velocityHalf = source->getVelocityhalf() + 
-        dt*source->getAcceleration();
-    point_t position = source->getPosition()+velocityHalf*dt;
-    point_t velocity = 1./2.*(source->getVelocityhalf()+velocityHalf);
-
-    source->setVelocityhalf(velocityHalf);
-    source->setPosition(position);
-    source->setVelocity(velocity);
-
-    totaltime += dt;
-  }
-
-  // Leapfrog integration to move the particles 
-  // velHalf = vel+dt/2*acc
-  // pos = pos + dt*velHalf
-  //static
-  void 
-  leapfrog_integration_1(
-    body_holder* srch)
-  {
-    body* source = srch->getBody();
-    
-    point_t velocity = source->getVelocityhalf() + 
-      dt/2.0*source->getAcceleration();
-    source->setVelocity(velocity);
-  } // leapfrog_integration  
-
-  // Leapfrog integration to move the particles 
-  // velHalf = vel+dt/2*acc
-  // pos = pos + dt*velHalf
-  //static
-  void 
-  leapfrog_integration_2(
-    body_holder* srch)
-  {
-    body* source = srch->getBody();
-
-    // Compute possible position 
-    // If too much, invert velocity
-    point_t velocityhalf = source->getVelocity()+
-      dt/2.0*source->getAcceleration();
-    point_t position = source->getPosition() + dt*velocityhalf;
-
-    source->setInternalenergy(source->getInternalenergy()+
-        source->getDudt()*dt);
-
-    source->setPosition(position);
-    source->setVelocityhalf(velocityhalf);  
-  } // leapfrog_integration  
-
   // Apply boundaries 
-  void
+  bool
   compute_boundaries(
       body_holder* srch)
   {
@@ -394,11 +319,14 @@ namespace physics{
     point_t position = source->getPosition();
     point_t velocityHalf = source->getVelocityhalf();
 
+    bool considered = false;
+
     if(stop_boundaries){
       if(position < min_boundary || 
           position > max_boundary){
         velocity = point_t{};
         velocityHalf = point_t{};
+        considered = true;
       }
     }else if(reflect_boundaries){
       for(size_t dim=0;dim < gdimension ; ++dim){
@@ -419,12 +347,64 @@ namespace physics{
 
           velocity *= damp;
           velocityHalf *= damp;
+          considered = true;
         }
       }
     }
     source->setPosition(position);
     source->setVelocity(velocity);
     source->setVelocityhalf(velocityHalf);
+    return considered;
+  }
+
+
+  void 
+  leapfrog_integration_first_step(
+      body_holder* srch)
+  {
+    body* source = srch->getBody();
+    
+    point_t velocityHalf = source->getVelocity() + 
+        dt/2.*source->getAcceleration();
+    point_t position = source->getPosition()+velocityHalf*dt;
+    point_t velocity = 1./2.*(source->getVelocityhalf()+velocityHalf);
+
+    if(do_boundaries){
+      if(physics::compute_boundaries(srch)){
+        return;
+      }
+    }
+
+    source->setVelocityhalf(velocityHalf);
+    source->setPosition(position);
+    source->setVelocity(velocity);
+  
+    totaltime += dt;
+
+  }
+
+  void 
+  leapfrog_integration(
+      body_holder* srch)
+  {
+    body* source = srch->getBody();
+    
+    point_t velocityHalf = source->getVelocityhalf() + 
+        dt*source->getAcceleration();
+    point_t position = source->getPosition()+velocityHalf*dt;
+    point_t velocity = 1./2.*(source->getVelocityhalf()+velocityHalf);
+
+    if(do_boundaries){
+      if(physics::compute_boundaries(srch)){
+        return;
+      }
+    }
+
+    source->setVelocityhalf(velocityHalf);
+    source->setPosition(position);
+    source->setVelocity(velocity);
+
+    totaltime += dt;
   }
 
   void 
