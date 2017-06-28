@@ -87,12 +87,13 @@ include_directories(${H5HUT_INCLUDE_DIR})
 list(APPEND FleCSPH_LIBRARIES ${H5HUT_LIBRARIES})
 
 #------------------------------------------------------------------------------#
-# Add library target
+# Add mpisph tests
 #------------------------------------------------------------------------------#
-#cinch_add_library_target(mpisph mpisph)
+cinch_add_application_directory("mpisph/")
 
 #------------------------------------------------------------------------------#
 # Add application targets
 #------------------------------------------------------------------------------#
 cinch_add_application_directory("app/sedov")
+cinch_add_application_directory("app/fluid")
 cinch_add_application_directory("app/sodtube")

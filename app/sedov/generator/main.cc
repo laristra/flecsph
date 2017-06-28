@@ -14,13 +14,13 @@ const double ldistance = 0.001;  // Distance between the particles
 const double localgamma = 5./3.;
 const double rho_1 = 1;
 //const double rho_2 = 0.125;
-const double pressure_1 = 10e-5;
+const double pressure_1 = 10e-7;
 //const double pressure_2 = 0.1;
 const double u_1 = .5;
 //const double u_2 = 2;
-const double m_1 = 1.0e-5;
+const double m_1 = 1.0e-7;
 //const double m_2 = 1.0e-5;
-const double smoothing_length = 4.*ldistance;
+const double smoothing_length = 10.*ldistance;
 const char* fileprefix = "hdf5_sedov";
 
 bool 
@@ -36,9 +36,14 @@ in_radius(
 
 int main(int argc, char * argv[]){
 
+
+  int64_t sparticles = 100;
   if(argc!=2){
     printf("./sedov_generator [square nParticles]\n");
-    exit(-1);
+    fprintf(stderr,"Generating default number of particles=%ld*%ld=%ld",
+        sparticles,sparticles,sparticles*sparticles);
+  }else{
+    sparticles = atoll(argv[1]);
   }
 
   int rank, size; 
@@ -46,7 +51,6 @@ int main(int argc, char * argv[]){
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
 
-  int64_t sparticles = atoll(argv[1]);
   int64_t nparticles = sparticles*sparticles;
 
   double radius = (ldistance*(sparticles-1))/2.; 
@@ -55,10 +59,10 @@ int main(int argc, char * argv[]){
 
   std::cout<<"Sphere: r="<<radius<<" pos=["<<x_c<<";"<<y_c<<"]"<<std::endl;
 
-  if(rank==0){
+  //if(rank==0){
     printf("Generating %ld particles by %ldx%ld in sphere r=%.4f\n",
         nparticles,sparticles,sparticles,radius);
-  }
+  //}
 
   // Start on  0 0
   double x_topproc = x_c-radius;
@@ -187,7 +191,10 @@ int main(int argc, char * argv[]){
 
   char filename[128];
   //sprintf(filename,"%s_%d.h5part",fileprefix,nparticles);
-  sprintf(filename,"%s.h5part",fileprefix,tparticles);
+  sprintf(filename,"%s.h5part",fileprefix);
+  // Remove the previous file 
+  remove(filename); 
+
 
   Flecsi_Sim_IO::HDF5ParticleIO testDataSet; 
   testDataSet.createDataset(filename,MPI_COMM_WORLD);
@@ -198,8 +205,8 @@ int main(int argc, char * argv[]){
   testDataSet.writeDatasetAttribute("dimension","int32_t",dimension);
   testDataSet.writeDatasetAttribute("use_fixed_timestep","int32_t",1);
 
-  char * simName = "sodtube_1D";
-  testDataSet.writeDatasetAttributeArray("name","string",simName);
+  //const char * simName = "sodtube_1D";
+  //testDataSet.writeDatasetAttributeArray("name","string",simName);
   testDataSet.closeFile();
 
   testDataSet.openFile(MPI_COMM_WORLD);
