@@ -11,29 +11,6 @@ namespace Flecsi_Sim_IO
 
 //
 // Enums
-enum VariableType
-{ 
-	point               = 0,
-	grid_cellCentered   = 1,
-	grid_vertexCentered = 2,
-	grid_faceCentered   = 3
-};
-
-
-enum AttributeType
-{ 
-	global   = 0,
-	timestep = 1
-};
-
-
-enum OutputType
-{
-	structuredGrid 	 = 0,
-	unStructuredGrid = 1
-};
-
-
 enum Operation
 {
 	READING = 0,
@@ -41,25 +18,12 @@ enum Operation
 };
 
 
-enum TreeType
-{
-	octree = 0,
-	kdtree = 1
-};
 
-
-enum Endianness
-{
-	little  = 0,
-	big = 1
-};
-
-
-
+//
+// Structures
 struct Attribute
 {
 	std::string name;				// Variable name
-	AttributeType attributeType;	// global or timestep
 	std::string dataType;			// datatype: int, char, float, ...
 	int numElements;
 	void *data;						// the actual data	
@@ -67,29 +31,24 @@ struct Attribute
 	Attribute(){ data = NULL; }
 
 	template <class T>
-	Attribute(std::string _name, AttributeType _attributeType, std::string _dataType, T _data)
+	Attribute(std::string _name, std::string _dataType, T _data)
 	{
-		name = _name;
-		attributeType = _attributeType;
-		dataType = _dataType;
-		numElements = 1;
+		createAttribute(_name, _dataType, _data);
+	}
 
-		if ( dataType == "float")       { data = new float[numElements];	((float *)  data)[0] = _data; }
-		else if ( dataType == "double") { data = new double[numElements];	((double *) data)[0] = _data; }
-		else if ( dataType == "int32_t"){ data = new int32_t[numElements];	((int32_t *)data)[0] = _data; }
-		else if ( dataType == "int64_t"){ data = new int64_t[numElements];	((int64_t *)data)[0] = _data; }
-		else if ( dataType == "string") { data = new char[numElements];		((char *)   data)[0] = _data; }
-		else { }
+
+	Attribute(std::string _name, std::string _dataType, int _numElements, void *_data)
+	{
+		createAttributeArray(_name, _dataType, _numElements, _data);
 	}
 
 	~Attribute(){ numElements = 0; }
 
 
 	template <class T>
-	void createAttribute(std::string _name, AttributeType _attributeType, std::string _dataType, T _data)
+	void createAttribute(std::string _name, std::string _dataType, T _data)
 	{
 		name = _name;
-		attributeType = _attributeType;
 		dataType = _dataType;
 		numElements = 1;
 
@@ -102,10 +61,9 @@ struct Attribute
 	}
 
 
-	void createAttributeArray(std::string _name, AttributeType _attributeType, std::string _dataType, int _numElements, void *_data)
+	void createAttributeArray(std::string _name, std::string _dataType, int _numElements, void *_data)
 	{
 		name = _name;
-		attributeType = _attributeType;
 		dataType = _dataType;
 		numElements = _numElements;
 		data = _data;
@@ -129,33 +87,28 @@ struct Attribute
 			std::cout << static_cast<T *>(data)[i] << std::endl;
 			_data[i] = static_cast<T *>(data)[i];
 		}
-		
-		/*
-		if ( dataType == "float")       { _data = ((float *)  data); }
-		else if ( dataType == "double") { _data = ((double *) data); }
-		else if ( dataType == "int32_t"){ _data = ((int32_t *)data); }
-		else if ( dataType == "int64_t"){ _data = ((int64_t *)data); }
-		else if ( dataType == "string") { (char *)_data = ((char *)   data); }
-		*/
+	}
+
+
+	void deleteData()
+	{
+
 	}
 };
-
 					
 
 struct Variable
 {
 	std::string name;				// Variable name
-	VariableType varType;			// point or ...
 	std::string dataType;			// datatype: int, char, float, ...
 	int numElements;
 	void *data;						// the actual data
 				
 
 	Variable(){ data = NULL; }
-	Variable(std::string _name, VariableType _varType, std::string _dataType, int _numElements, void *_data)
+	Variable(std::string _name, std::string _dataType, int _numElements, void *_data)
 	{ 
 		name = _name;
-		varType = _varType;
 		dataType = _dataType;
 		numElements = _numElements;
 		data = _data;
@@ -166,85 +119,88 @@ struct Variable
 		numElements = 0;
 	}
 
-	void createVariable(std::string _name, VariableType _varType, std::string _dataType, int _numElements, void *_data)
+	void createVariable(std::string _name, std::string _dataType, int _numElements, void *_data)
 	{
 		name = _name;
-		varType = _varType;
 		dataType = _dataType;
 		numElements = _numElements;
 		data = _data;
+	}
+
+	void deleteData()
+	{
+
 	}
 };
 
 
 struct Timestep
 {
+	int timeStep;
+
 	int numAttributes;
 	std::vector<Attribute> attributes;
 
 	int numVariables;
 	std::vector<Variable> vars;
+
+	Timestep(){ timeStep=0; numAttributes=0; numVariables=0;}
+	Timestep(int _ts){ timeStep = _ts; }
+	void addAttribute(Attribute _a){ attributes.push_back(_a); numAttributes = attributes.size(); }
+	void addVariable(Variable _v){ vars.push_back(_v); numVariables = vars.size(); }
 };
 
 
 
 class SimIO
 {
-  public:  
-	std::string outputFileName;
-	Endianness endian;
-	OutputType datasetType;
+  public:
+	//std::string outputFileName;
+	std::string fileName;
 	int numTimesteps;
 	int numDatasetAttributes;
-	int numVars;
-	int numDims;					// 1 or 2 or 3 ...
-	
+
   public:
-  	std::vector<int> gridDims;		// Size of each dimension
-	std::vector<double> extents;	// (min, max) pair for each dimension
-
-  	std::vector<Variable> vars;
-  	std::vector<Attribute> timestepAttributes;
-
   	std::vector<Attribute> datasetAttributes;
   	std::vector<Timestep> timesteps;
-  	
+
+  	std::vector<Variable> vars;					// To remove
+  	std::vector<Attribute> timestepAttributes;	// To remove
+
+  		
 
   	SimIO(){ init(); }
-	SimIO(std::string _outputFileName):outputFileName(_outputFileName){ init(); }
+	SimIO(std::string _fileName):fileName(_fileName){ init(); }
 	~SimIO(){};
 
 	void init();
 
-	void setFilename(std::string _name){ outputFileName=_name; }
-	void setEndianness(Endianness _en){ endian=_en; }
-	void setDatasetType(OutputType _datasetType){ datasetType=_datasetType; }
-	void setNumVars(int _numVars){ numVars=_numVars; }
-	void setNumDims(int _numDims){ numDims=_numDims; }
+	void addDatasetAttribute(Attribute _a){  datasetAttributes.push_back(_a); }
+	void addTimestep(Timestep _t){ timesteps.push_back(_t); }
 
-	std::string getFilename(){ return outputFileName; }
 
+	void setFilename(std::string _name){ fileName=_name; }
+
+	std::string getFilename(){ return fileName; }
 	int getNumTimesteps(){ return numTimesteps; }
 	int getNumDatasetAttributes(){ return numDatasetAttributes; }
 
-	
+
+
+	// To remove
 	void addTimeStepAttribute(Attribute _a){ timestepAttributes.push_back(_a); }
 	void addVariable(Variable _v){  vars.push_back(_v); }
-	
-	void clearTimestepAttributes(){ timestepAttributes.clear(); }
-	void clearTimestepVariables() { vars.clear();  }
-	void clearTimestepData()	  { vars.clear(); timestepAttributes.clear(); }
 };
 
 
 inline void SimIO::init()
 { 
-	numDims = 0;
-	endian = little; 
 	numTimesteps = 0;
 	numDatasetAttributes = 0;
+	
+	datasetAttributes.clear();
+	timesteps.clear();
 }
-
 
 
 } // end Flecsi_Sim_IO namespace
