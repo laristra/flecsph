@@ -1,9 +1,3 @@
 [submodule "cinch"]
   path = cinch
   url = ../../laristra/cinch.git
-[submodule "third-party-libraries/build_hdf5"]
-	path = third-party-libraries/build_hdf5
-	url = ../../HDFGroup/build_hdf5
-[submodule "third-party-libraries/ScalingFramework"]
-	path = third-party-libraries/ScalingFramework
-	url = git@gitlab.lanl.gov:FrAnViz/ScalingFramework.git
