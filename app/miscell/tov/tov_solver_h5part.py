@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 # Author : Hyun Lim
-# Date : May.26.2017
+# Date : June.26.2017
 # This is a python script that solves the TOV equation (in Newtonian sense)
-# with piecewise polytrope EOS and generates data for SPH
+# with piecewise polytrope EOS and generates data for SPH. 
+# It generates h5part format
 
 # Here is the packages that I use normally for this
 import numpy as np
