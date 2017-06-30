@@ -21,7 +21,6 @@ ARG TRAVIS_REPO_SLUG
 ARG TRAVIS_COMMIT
 ARG TRAVIS_OS_NAME
 
-
 RUN rm -rf /home/flecsi/.ccache
 COPY flecsph /home/flecsi/flecsph
 COPY ccache/ /home/flecsi/.ccache
@@ -48,20 +47,21 @@ WORKDIR build
 RUN ccache -z
 RUN cmake -DENABLE_MPI=$MPI \
           -DENABLE_UNIT_TESTS=ON \
-          -DENABLE_DOXYGEN=ON \
+          -DENABLE_OPENMP=ON\
+          -DENABLE_LEGION=ON\
           ${COVERAGE:+-DENABLE_COVERAGE_BUILD=ON} ..
 
 RUN ${SONARQUBE:+build-wrapper-linux-x86-64 --out-dir bw-output} make VERBOSE=1 -j2
 RUN ccache -s
-RUN make doxygen
-RUN if [ ${COVERAGE} ]; then \
-      python -m coverxygen --xml-dir doc/doxygen/xml/ --src-dir .. --output doxygen.coverage.info; \
-      wget -O codecov.sh https://codecov.io/bash; \
-      bash codecov.sh -X gcov -f doxygen.coverage.info -F documentation; \
-      doxy-coverage --threshold 64 doc/doxygen/xml/; \
-    fi
-RUN ctest --verbose
-RUN make install DESTDIR=${PWD}/install && rm -rf ${PWD}/install
+#RUN make doxygen
+#RUN if [ ${COVERAGE} ]; then \
+#      python -m coverxygen --xml-dir doc/doxygen/xml/ --src-dir .. --output doxygen.coverage.info; \
+#      wget -O codecov.sh https://codecov.io/bash; \
+#      bash codecov.sh -X gcov -f doxygen.coverage.info -F documentation; \
+#      doxy-coverage --threshold 64 doc/doxygen/xml/; \
+#    fi
+#RUN ctest --verbose
+#RUN make install DESTDIR=${PWD}/install && rm -rf ${PWD}/install
 RUN cd .. && if [ ${COVERAGE} ]; then \
   if [ ${CC} = clang ]; then \
     $HOME/.local/bin/codecov -F "${CC}" --gcov-exec "llvm-cov gcov"; \
