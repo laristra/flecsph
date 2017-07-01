@@ -45,7 +45,7 @@ WORKDIR /home/flecsi
 ENV H5Hut H5hut-1.99.13
 RUN wget --no-check-certificate https://amas.psi.ch/H5hut/raw-attachment/wiki/DownloadSources/${H5Hut}.tar.gz
 RUN tar -xzf ${H5Hut}.tar.gz
-RUN rm ${H5Hut}/ltmain.sh && wget -O ${H5Hut}/ltmain.sh https://github.com/google/glog/blob/master/ltmain.sh && chmod +x ${H5Hut}/ltmain.sh
+RUN cd ${H5Hut} && autoreconf -i -f
 RUN cd ${H5Hut} && ./configure && make -j2
 WORKDIR ${H5Hut}
 USER root
