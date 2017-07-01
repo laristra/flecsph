@@ -46,7 +46,7 @@ ENV H5Hut H5hut-1.99.13
 RUN wget --no-check-certificate https://amas.psi.ch/H5hut/raw-attachment/wiki/DownloadSources/${H5Hut}.tar.gz
 RUN tar -xzf ${H5Hut}.tar.gz
 RUN cd ${H5Hut} && autoreconf -i -f
-RUN cd ${H5Hut} && ./configure --disable-static  --prefix=/usr/local && make
+RUN cd ${H5Hut} && ./configure --disable-static  --enable-parallel --prefix=/usr/local && make
 WORKDIR ${H5Hut}
 USER root
 RUN make install
