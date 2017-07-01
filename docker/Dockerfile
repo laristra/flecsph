@@ -33,7 +33,7 @@ USER flecsi
 WORKDIR /home/flecsi
 RUN git clone --depth 1 --recursive https://github.com/laristra/flecsi flecsi && \
     cd flecsi && mkdir build && cd build && \
-    cmake -DENABLE_UNIT_TESTS=ON -DFLECSI_RUNTIME_MODEL=legion .. && \
+    cmake -DFLECSI_RUNTIME_MODEL=legion .. && \
     make -j2
 WORKDIR flecsi/build
 USER root
@@ -46,7 +46,7 @@ ENV H5Hut H5hut-1.99.13
 RUN wget --no-check-certificate https://amas.psi.ch/H5hut/raw-attachment/wiki/DownloadSources/${H5Hut}.tar.gz
 RUN tar -xzf ${H5Hut}.tar.gz
 RUN cd ${H5Hut} && autoreconf -i -f
-RUN cd ${H5Hut} && ./configure && make -j2
+RUN cd ${H5Hut} && ./configure --disable-shared && make
 WORKDIR ${H5Hut}
 USER root
 RUN make install
