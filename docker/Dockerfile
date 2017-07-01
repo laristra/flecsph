@@ -43,7 +43,7 @@ USER flecsi
 # build H5hut
 WORKDIR /home/flecsi
 ENV H5Hut H5hut-1.99.13
-RUN wget https://amas.psi.ch/H5hut/raw-attachment/wiki/DownloadSources/${H5Hut}.tar.gz
+RUN wget --no-check-certificate https://amas.psi.ch/H5hut/raw-attachment/wiki/DownloadSources/${H5Hut}.tar.gz
 RUN tar -xzf ${H5Hut}.tar.gz
 RUN cd ${H5Hut} && ./configure && make -j2
 WORKDIR ${H5Hut}
