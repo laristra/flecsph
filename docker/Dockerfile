@@ -47,6 +47,7 @@ RUN wget --no-check-certificate https://amas.psi.ch/H5hut/raw-attachment/wiki/Do
 RUN tar -xzf ${H5Hut}.tar.gz
 WORKDIR ${H5Hut}
 RUN sed -i 's/H5Pset_fapl_mpiposix/H5Pset_fapl_mpio/g' src/h5core/h5_hdf5_private.h
+RUN sed -i -e '/INSTALL.*755/s/^/#/' -e '/INSTALL.*644/s@.*@$(LN_S) -f $(abs_builddir)/.libs $(top_builddir)/src/lib@' src/h5core/Makefile.am
 RUN autoreconf -i -f
 RUN ./configure --disable-static --enable-shared --enable-parallel --prefix=/usr/local CC=mpicc && make
 USER root
