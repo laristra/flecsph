@@ -83,12 +83,6 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
-    // Destroy the previous tree
-    if(tree_ !=  nullptr){
-      delete tree_;
-    }
-    
-  
     // Choose the smoothing length to be the biggest from everyone 
     double smoothinglength = 0;
     for(auto bi: localbodies_){
@@ -164,10 +158,11 @@ public:
 
     // Exchnage usefull body_holder from my tree to other processes
     tcolorer_.mpi_branches_exchange(*tree_,localbodies_,rangeposproc_,
-        smoothinglength);
+        range_,smoothinglength);
 
     // Compute and refresh the ghosts 
     tcolorer_.mpi_compute_ghosts(*tree_,smoothinglength,range_);
+    //std::cout<<tree_->entities().size()<<std::endl;
     tcolorer_.mpi_refresh_ghosts(*tree_,range_);
   }
 
@@ -197,8 +192,18 @@ public:
   {
     for(auto& bi : bodies_){
       auto ents = tree_->find_in_radius(bi->getBody()->coordinates(),
-          2*bi->getBody()->getSmoothinglength());
+          2*bi->getBody()->getSmoothinglength()/*+epsilon_*/);
       auto vecents = ents.to_vec();
+      // Remove outside the h 
+      //for(auto it = vecents.begin(); it != vecents.end() ; ){
+        //if(flecsi::distance(bi->coordinates(),(*it)->coordinates())
+        //      > 2.*bi->getBody()->getSmoothinglength()){
+        //  it = vecents.erase(it);
+        //}else{
+        //  ++it;
+        //}
+        
+      //}
       ef(bi,vecents,std::forward<ARGS>(args)...);
     } 
   }
@@ -216,6 +221,12 @@ public:
     }
   }
 
+
+  std::vector<std::pair<entity_key_t,body>>& 
+    getLocalbodies(){
+    return localbodies_;
+  };
+
 private:
   int64_t totalnbodies_; 
   int64_t localnbodies_;
@@ -227,6 +238,7 @@ private:
   tree_colorer<T,D> tcolorer_;
   tree_topology_t* tree_;
   std::vector<body_holder*> bodies_;
+  //double epsilon_ = 1.0;
 };
 
 #endif

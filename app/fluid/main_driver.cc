@@ -81,8 +81,10 @@ mpi_init_task(int startiteration){
   physics::min_boundary = range[0] - 1.0;
   physics::max_boundary = range[1] + 1.0;
 
+  remove("output_fluid.h5part");
+
 #ifdef OUTPUT
-  bs.write_bodies("output_fluid.h5part",iter);
+  bs.write_bodies("output_fluid",iter);
   //io::outputDataHDF5(rbodies,"output_sodtube.h5part",0);
   //tcolorer.mpi_output_txt(rbodies,iter,"output_sodtube"); 
 #endif
@@ -144,29 +146,22 @@ mpi_init_task(int startiteration){
     bs.apply_in_smoothinglength(physics::compute_internalenergy);
     if(rank==0)
       std::cout<<".done"<<std::endl; 
+     
     
     if(rank==0)
-      std::cout<<"MoveParticles"<<std::flush; 
-    bs.apply_all(physics::leapfrog_integration_1);
+        std::cout<<"MoveParticles"<<std::flush; 
+
+    if(iter == 1){
+      bs.apply_all(physics::leapfrog_integration_first_step);
+    }else{
+      bs.apply_all(physics::leapfrog_integration);
+    }
     if(rank==0)
       std::cout<<".done"<<std::endl;
-
-    if(rank==0)
-      std::cout<<"MoveParticles"<<std::flush; 
-    bs.apply_all(physics::leapfrog_integration_2);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
-
-    if(rank==0)
-      std::cout<<"MoveParticles"<<std::flush; 
-    bs.apply_all(physics::compute_boundaries);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
-
 
 #ifdef OUTPUT
     if(iter % iteroutput == 0){ 
-      bs.write_bodies("output_fluid.h5part",iter/iteroutput);
+      bs.write_bodies("output_fluid",iter/iteroutput);
     }
 #endif
     ++iter;
