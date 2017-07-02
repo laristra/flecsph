@@ -27,17 +27,22 @@ const char* fileprefix = "hdf5_sodtube";
 
 int main(int argc, char * argv[]){
 
-  if(argc!=2){
-    printf("./sodtube_generator [nParticles]\n");
-    exit(-1);
-  }
-
+  int64_t nparticles = 1000;
+  
   int rank, size; 
   MPI_Init(&argc,&argv);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
 
-  int64_t nparticles = atoll(argv[1]);
+  if(argc!=2){
+    if(rank==0){
+      printf("./sodtube_generator [nParticles]\n");
+      fprintf(stderr,"Running with default number of particles=1000\n");
+    }
+  }else{
+    nparticles = atoll(argv[1]);
+  }
+
   int64_t nparticlesproc = nparticles/size;
   if(rank==size-1){
     nparticlesproc = nparticles - nparticlesproc*(size-1);
@@ -49,7 +54,6 @@ int main(int argc, char * argv[]){
         nparticles-nparticlesproc*(size-1));
   }
 
-  
   // Position
   double* x = new double[nparticlesproc]();
   double* y = new double[nparticlesproc]();
@@ -124,6 +128,9 @@ int main(int argc, char * argv[]){
   char filename[128];
   //sprintf(filename,"%s_%d.h5part",fileprefix,nparticles);
   sprintf(filename,"%s.h5part",fileprefix,nparticles);
+
+  // Destroy the file if exists 
+  remove(filename);
 
   Flecsi_Sim_IO::HDF5ParticleIO testDataSet; 
   testDataSet.createDataset(filename,MPI_COMM_WORLD);

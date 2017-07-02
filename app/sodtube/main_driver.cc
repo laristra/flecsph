@@ -54,8 +54,8 @@ mpi_init_task(int startiteration){
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   
-  int totaliters = 200;
-  int iteroutput = 1;
+  int totaliters = 1000;
+  int iteroutput = 10;
   double totaltime = 0.0;
   double maxtime = 10.0;
   int iter = startiteration; 
@@ -64,10 +64,14 @@ mpi_init_task(int startiteration){
   physics::dt = 0.0025;
   physics::alpha = 1; 
   physics::beta = 2; 
+  physics::do_boundaries = true;
   physics::stop_boundaries = true;
-  physics::min_boundary = {0.1};
-  physics::max_boundary = {1.0};
   physics::gamma = 5./3.;
+
+  const char * inputFile = "hdf5_sodtube.h5part";
+  const char * outputFile = "output_sodtube.h5part"; 
+  // Remove output file 
+  remove(outputFile); 
 
   body_system<double,gdimension> bs;
   bs.read_bodies("hdf5_sodtube.h5part",startiteration);
@@ -77,6 +81,17 @@ mpi_init_task(int startiteration){
 
   double h = bs.getSmoothinglength();
   physics::epsilon = 0.01*h*h;
+
+  // Set the boundaries to be at 10% of the total range
+  auto range_boundaries = bs.getRange(); 
+  double distance = fabs(range_boundaries[1][0]-range_boundaries[0][0]);
+  physics::min_boundary = {range_boundaries[0][0]+distance*0.1+2*h};
+  physics::max_boundary = {range_boundaries[1][0]-distance*0.1-2*h};
+
+  if(rank==0){
+    std::cout<<"Boundaries="<<physics::min_boundary<<";"<<
+      physics::max_boundary<<std::endl;
+  }
 
 #ifdef OUTPUT
   bs.write_bodies("output_sodtube",iter);
@@ -157,11 +172,11 @@ mpi_init_task(int startiteration){
     if(rank==0)
       std::cout<<".done"<<std::endl;
 
-    if(rank==0)
-      std::cout<<"Boundaries"<<std::flush; 
-    bs.apply_all(physics::compute_boundaries);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
+    //if(rank==0)
+    //  std::cout<<"Boundaries"<<std::flush; 
+    //bs.apply_all(physics::compute_boundaries);
+    //if(rank==0)
+    //  std::cout<<".done"<<std::endl;
 
 
 #ifdef OUTPUT

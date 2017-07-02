@@ -235,8 +235,6 @@ void inputDataHDF5(
   totalnbodies = nparticles;
   nbodies = nparticlesproc;
 
-  std::cout<<rank<<": "<<nparticlesproc<<std::endl;
-
   //--------------- READ GLOBAL ATTRIBUTES ------------------------------------
   // read the number of dimension 
   int32_t dimension;
@@ -259,8 +257,6 @@ void inputDataHDF5(
   double* dataZ = new double[nparticlesproc];
   int64_t* dataInt = new int64_t[nparticlesproc];
 
-  std::cout<<rank<<": array allocated"<<std::endl;
-
   // Positions
   H5PartReadDataFloat64(dataFile,"x",dataX);
   H5PartReadDataFloat64(dataFile,"y",dataY);
@@ -276,8 +272,6 @@ void inputDataHDF5(
     }
     bodies[i].second.setPosition(position);
   }
-
-  std::cout<<rank<<": position read"<<std::endl;
 
   // Velocity
   H5PartReadDataFloat64(dataFile,"vx",dataX);
@@ -353,10 +347,6 @@ void inputDataHDF5(
     bodies[i].second.setDt(dataX[i]);
   }
 
-  std::cout<<rank<<": done last"<<std::endl;
-  MPI_Barrier(MPI_COMM_WORLD);
-
-
   delete[] dataX;
   delete[] dataY;
   delete[] dataZ;
@@ -394,7 +384,7 @@ void outputDataHDF5(
 
   char filename[128];
   if(do_diff_files){
-    sprintf(filename,"%s_%d.h5part",fileprefix,step);
+    sprintf(filename,"%s_%05d.h5part",fileprefix,step);
   }else{
     sprintf(filename,"%s.h5part",fileprefix);
   }  
@@ -411,18 +401,32 @@ void outputDataHDF5(
 
   //-------------------GLOBAL HEADER-------------------------------------------
   // Only for the first output
+  if(do_diff_files){
+  }else{
+    if(step == 0){
+      // output dimension 
+      simio.writeDatasetAttribute("ndim","int32_t",gdimension);
+    }
+  }
+
 
   //------------------STEP HEADER----------------------------------------------
   // Put the step header
   simio.setTimeStep(step);
+  
+  //Flecsi_Sim_IO::Attribute timeValue("time",Flecsi_Sim_IO::timestep,"float",
+  //    physics::totaltime);
+  //simio.timestepAttributes.push_back(timeValue);
+  
   simio.addTimeStepAttribute(
       Flecsi_Sim_IO::Attribute(
-        "dt",
-        Flecsi_Sim_IO::timestep,
+        "time",
+       Flecsi_Sim_IO::timestep,
         "double",
         physics::totaltime)
       );
 
+  simio.writeTimestepAttributes();
 
   //------------------STEP DATA------------------------------------------------
 
@@ -437,12 +441,12 @@ void outputDataHDF5(
   // Extract data from bodies 
   for(auto bi: bodies){
     b1[pos] = bi.second.getPosition()[0];
-    if(gdimension<3){
+    if(gdimension>1){
       b2[pos] = bi.second.getPosition()[1];
     }else{
       b2[pos] = 0.;
     }
-    if(gdimension<4){
+    if(gdimension>2){
       b3[pos++] = bi.second.getPosition()[2];
     }else{
       b3[pos++] = 0.;
@@ -450,11 +454,11 @@ void outputDataHDF5(
   }
 
   // Add variable  
-  simio.addVariable( Flecsi_Sim_IO::Variable("x",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("coords_x",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b1));
-  simio.addVariable( Flecsi_Sim_IO::Variable("y",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("coords_y",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b2));
-  simio.addVariable( Flecsi_Sim_IO::Variable("z",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("coords_z",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b3));
   // Push to file 
   simio.writeVariables();
@@ -464,15 +468,23 @@ void outputDataHDF5(
   // Extract data from bodies 
   for(auto bi: bodies){
     b1[pos] = bi.second.getVelocity()[0];
-    b2[pos] = bi.second.getVelocity()[1];
-    b3[pos++] = bi.second.getVelocity()[2];
+    if(gdimension>1){
+      b2[pos] = bi.second.getVelocity()[1];
+    }else{
+      b2[pos] = 0;
+    }
+    if(gdimension>2){
+      b3[pos++] = bi.second.getVelocity()[2];
+    }else{
+      b3[pos++] = 0.;
+    }
   }
 
-  simio.addVariable( Flecsi_Sim_IO::Variable("vx",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("vel_x",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b1));
-  simio.addVariable( Flecsi_Sim_IO::Variable("vy",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("vel_y",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b2));
-  simio.addVariable( Flecsi_Sim_IO::Variable("vz",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("vel_z",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b3));
 
   //H5PartWriteDataFloat64(dataFile,"vx",dataX);
@@ -486,8 +498,16 @@ void outputDataHDF5(
   // Extract data from bodies 
   for(auto bi: bodies){
     b1[pos] = bi.second.getAcceleration()[0];
-    b2[pos] = bi.second.getAcceleration()[1];
-    b3[pos++] = bi.second.getAcceleration()[2];
+    if(gdimension>1){
+      b2[pos] = bi.second.getAcceleration()[1];
+    }else{
+      b2[pos] = 0.;
+    }
+    if(gdimension>2){
+      b3[pos++] = bi.second.getAcceleration()[2]; 
+    }else{
+      b3[pos++] = 0.;
+    }
   }
 
   simio.addVariable( Flecsi_Sim_IO::Variable("ax",Flecsi_Sim_IO::point, 
@@ -512,9 +532,9 @@ void outputDataHDF5(
     b3[pos++] = bi.second.getInternalenergy();
   }
 
-  simio.addVariable( Flecsi_Sim_IO::Variable("h",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("smoothing",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b1));
-  simio.addVariable( Flecsi_Sim_IO::Variable("rho",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("dens",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b2));
   simio.addVariable( Flecsi_Sim_IO::Variable("u",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b3));
@@ -535,9 +555,9 @@ void outputDataHDF5(
     bi[pos++] = bid.second.getId();
   }
   
-  simio.addVariable( Flecsi_Sim_IO::Variable("P",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("ipr",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b1));
-  simio.addVariable( Flecsi_Sim_IO::Variable("m",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("mass",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b2));
   simio.addVariable( Flecsi_Sim_IO::Variable("dt",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b3));

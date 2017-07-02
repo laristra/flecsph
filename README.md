@@ -1,5 +1,6 @@
 ![logo](doc/flecsph_logo_bg.png)
 
+[![Build Status](https://travis-ci.org/laristra/flecsph.svg?branch=master)](https://travis-ci.org/laristra/flecsph)
 
 <aside class="warning">
 The distributed version of gravitation with FMM is not working yet
