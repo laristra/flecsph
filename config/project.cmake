@@ -38,6 +38,7 @@ find_package(FleCSI REQUIRED)
 include_directories(${FleCSI_INCLUDE_DIR})
 message(STATUS ${FleCSI_INCLUDE_DIR})
 set(FleCSPH_LIBRARIES ${FleCSI_LIBRARIES})
+message(STATUS ${FleCSPH_LIBRARIES})
 
 #------------------------------------------------------------------------------#
 # MPI
@@ -62,9 +63,9 @@ list(APPEND FleCSPH_LIBRARIES ${Legion_LIBRARY} ${REALM_LIBRARY})
 #------------------------------------------------------------------------------#
 # HDF5
 #------------------------------------------------------------------------------#
-#find_package(HDF5)
-set(HDF5_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/third-party-libraries/local/include")
-set(HDF5_LIBRARIES "${CMAKE_SOURCE_DIR}/third-party-libraries/local/lib/libhdf5.so")
+find_package(HDF5 REQUIRED)
+#set(HDF5_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/third-party-libraries/local/include")
+#set(HDF5_LIBRARIES "${CMAKE_SOURCE_DIR}/third-party-libraries/local/lib/libhdf5.so")
 include_directories(${HDF5_INCLUDE_DIR})
 list(APPEND FleCSPH_LIBRARIES ${HDF5_LIBRARIES})
 
@@ -79,19 +80,21 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 # H5HUT
 #------------------------------------------------------------------------------#
 # Set by hand right now
-set(H5HUT_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/third-party-libraries/local/include")
-set(H5HUT_LIBRARIES "${CMAKE_SOURCE_DIR}/third-party-libraries/local/lib/libH5hut.so")
+find_package(H5hut REQUIRED)
 
-include_directories(${H5HUT_INCLUDE_DIR})
-list(APPEND FleCSPH_LIBRARIES ${H5HUT_LIBRARIES})
+message(STATUS ${H5hut_INCLUDE_DIRS})
+include_directories(${H5hut_INCLUDE_DIRS})
+message(STATUS ${H5hut_LIBRARIES})
+list(APPEND FleCSPH_LIBRARIES ${H5hut_LIBRARIES})
 
 #------------------------------------------------------------------------------#
-# Add library target
+# Add mpisph tests
 #------------------------------------------------------------------------------#
-#cinch_add_library_target(mpisph mpisph)
+cinch_add_application_directory("mpisph/")
 
 #------------------------------------------------------------------------------#
 # Add application targets
 #------------------------------------------------------------------------------#
 cinch_add_application_directory("app/sedov")
+cinch_add_application_directory("app/fluid")
 cinch_add_application_directory("app/sodtube")

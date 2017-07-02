@@ -32,6 +32,7 @@
 
 namespace kernel{
 
+
   // Standard spline kernel
   // for 1-2-3D
   //static 
@@ -43,6 +44,9 @@ namespace kernel{
     double rh = r/h;
     // Default 1D case
     double sigma = 2./3.;
+    if(gdimension == 2){
+      sigma = 10./(7.*M_PI);
+    }
     double result = sigma/pow(h,gdimension);
     if (0.0 <= rh && rh < 1.0) {
       result *= 1.0 - (3.0/2.0) * pow(rh,2) + (3.0/4.0) * pow(rh,3); 
@@ -64,10 +68,13 @@ namespace kernel{
   {
     // Default 1D case
     double sigma = 2./3.;
+    if(gdimension == 2){
+      sigma = 10./(7.*M_PI);
+    }
     double coeff = sigma/pow(h,1+gdimension);
     double r = 0;
-    for(int i=0;i<gdimension;++i){
-      r+= vecP[i]*vecP[i];
+    for(size_t i=0;i<gdimension;++i){
+      r += vecP[i]*vecP[i];
     }
     r = sqrt(r);
     double rh = r/h;

@@ -14,13 +14,13 @@ const double ldistance = 0.001;  // Distance between the particles
 const double localgamma = 5./3.;
 const double rho_1 = 1;
 //const double rho_2 = 0.125;
-const double pressure_1 = 10e-5;
+const double pressure_1 = 10e-7;
 //const double pressure_2 = 0.1;
-const double u_1 = 1;
+const double u_1 = .5;
 //const double u_2 = 2;
-const double m_1 = 1;
+const double m_1 = 1.0e-7;
 //const double m_2 = 1.0e-5;
-const double smoothing_length = 1.0e-2;
+const double smoothing_length = 10.*ldistance;
 const char* fileprefix = "hdf5_sedov";
 
 bool 
@@ -36,9 +36,14 @@ in_radius(
 
 int main(int argc, char * argv[]){
 
+
+  int64_t sparticles = 100;
   if(argc!=2){
     printf("./sedov_generator [square nParticles]\n");
-    exit(-1);
+    fprintf(stderr,"Generating default number of particles=%ld*%ld=%ld",
+        sparticles,sparticles,sparticles*sparticles);
+  }else{
+    sparticles = atoll(argv[1]);
   }
 
   int rank, size; 
@@ -46,24 +51,25 @@ int main(int argc, char * argv[]){
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
 
-  int64_t sparticles = atoll(argv[1]);
   int64_t nparticles = sparticles*sparticles;
 
-  double radius = ldistance*sparticles/2.; 
-  double x_c = sparticles*ldistance/2.;
-  double y_c = sparticles*ldistance/2.;
+  double radius = (ldistance*(sparticles-1))/2.; 
+  double x_c = (sparticles-1)*ldistance/2.;
+  double y_c = x_c;//(sparticles-1)*ldistance/2.;
 
-  if(rank==0){
+  std::cout<<"Sphere: r="<<radius<<" pos=["<<x_c<<";"<<y_c<<"]"<<std::endl;
+
+  //if(rank==0){
     printf("Generating %ld particles by %ldx%ld in sphere r=%.4f\n",
         nparticles,sparticles,sparticles,radius);
-  }
+  //}
 
-  // Start on  0 0 
-  double x_topproc = 0;
-  double y_topproc = 0;
+  // Start on  0 0
+  double x_topproc = x_c-radius;
+  double y_topproc = y_c-radius;
 
-  double maxxposition = ldistance*sparticles;
-  double maxyposition = ldistance*sparticles;
+  double maxxposition = /*(sparticles-1)*ldistance;*/x_c+radius;
+  double maxyposition = /*(sparticles-1)*ldistance;*/y_c+radius;
   
   // Position
   double* x = new double[nparticles]();
@@ -104,9 +110,10 @@ int main(int argc, char * argv[]){
   std::cout<<"top_X="<<x_topproc<<" top_Y="<<y_topproc<<
     " maxX="<<maxxposition<<" maxY="<<maxyposition<<std::endl;
 
-  double xposition = x_topproc; 
+  double xposition = /*0;*/x_topproc; 
   int64_t tparticles = 0;
-  double yposition = y_topproc;
+  double yposition = /*0;*/y_topproc;
+  //int xpos = 0;
   for(int64_t part=0; part<nparticles; ++part){
     
     while(!in_radius(xposition,yposition,x_c,y_c,radius)){
@@ -142,21 +149,52 @@ int main(int argc, char * argv[]){
 
     P[part] = pressure_1;
     rho[part] = rho_1; 
-    u[part] = u_1;
+    //u[part] = u_1;
     m[part] = m_1;
+    
+    u[part] = u_1;///m[part];
+
+    //if(sqrt((x[part]-x_c)*(x[part]-x_c)+(y[part]-y_c)*(y[part]-y_c)
+    //      < (ldistance)*(ldistance))){
+    //  u[part] *= 3.;
+    //}
+    h[part] = smoothing_length;
+
+    //if(part == nparticles/2.-1.-sparticles/2.){
+    //  u[part] += 1.;
+    //  //h[part] += 10.*ldistance;
+    //  printf("Middle particle = %ld\n",part);
+    //}
+
     // Y and Z not used 
     // VX, VY, VZ and AX, AY, AZ stay to 0
-    h[part] = smoothing_length;
+    //h[part] = smoothing_length;
     // P stay to 0
     id[part] = posid++; 
     //std::cout<<x[part]<<": "<<h[part]<<std::endl;
+  }
+
+  //tparticles = nparticles;
+  // Check for duplicate 
+  for(int64_t p1=0;p1<tparticles;++p1){
+    for(int64_t p2=0;p2<tparticles;++p2){
+      if(p1 == p2)
+        continue;
+      if(x[p1]==x[p2]&&y[p1]==y[p2]){
+        std::cout<<"Particle on same position"<<std::endl;
+        exit(-1);
+      }
+    }
   }
 
   std::cout<<"Real number of particles: "<<tparticles<<std::endl;
 
   char filename[128];
   //sprintf(filename,"%s_%d.h5part",fileprefix,nparticles);
-  sprintf(filename,"%s.h5part",fileprefix,tparticles);
+  sprintf(filename,"%s.h5part",fileprefix);
+  // Remove the previous file 
+  remove(filename); 
+
 
   Flecsi_Sim_IO::HDF5ParticleIO testDataSet; 
   testDataSet.createDataset(filename,MPI_COMM_WORLD);
@@ -167,8 +205,8 @@ int main(int argc, char * argv[]){
   testDataSet.writeDatasetAttribute("dimension","int32_t",dimension);
   testDataSet.writeDatasetAttribute("use_fixed_timestep","int32_t",1);
 
-  char * simName = "sodtube_1D";
-  testDataSet.writeDatasetAttributeArray("name","string",simName);
+  //const char * simName = "sodtube_1D";
+  //testDataSet.writeDatasetAttributeArray("name","string",simName);
   testDataSet.closeFile();
 
   testDataSet.openFile(MPI_COMM_WORLD);

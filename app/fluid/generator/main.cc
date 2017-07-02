@@ -1,7 +1,7 @@
 /*~--------------------------------------------------------------------------~*
  * Copyright (c) 2017 Los Alamos National Security, LLC
  * All rights reserved.
- *~--------------------------------------------------------------------------~*\
+ *~--------------------------------------------------------------------------~*/
 
  #include <iostream>
 #include <algorithm>
@@ -20,10 +20,19 @@ const double timestep = 1e-3;
 int32_t dimension = 3;
 
 int main(int argc, char * argv[]){
+ 
+  int nx = 10;//atoi(argv[1]);
+  int ny = 10;//atoi(argv[2]);
+  int nz = 10;//atoi(argv[3]);
+
 
   if(argc!=4){
     printf("./fluid_generator nx ny nz\n");
-    exit(-1);
+    fprintf(stderr,"Generation with default values= 10*10*10=1000 particles");
+  }else{
+    nx = atoi(argv[1]);
+    ny = atoi(argv[2]);
+    nz = atoi(argv[3]);
   }
 
   int rank, size; 
@@ -31,11 +40,7 @@ int main(int argc, char * argv[]){
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
 
-  int nx = atoi(argv[1]);
-  int ny = atoi(argv[2]);
-  int nz = atoi(argv[3]);
-
-  int64_t nparticles = nx*ny*nz;
+   int64_t nparticles = nx*ny*nz;
   int64_t nparticlesproc = nparticles/size;
   if(rank==size-1){
     nparticlesproc = nparticles - nparticlesproc*(size-1);
@@ -136,19 +141,20 @@ int main(int argc, char * argv[]){
   }
   
   char filename[128];
-  sprintf(filename,"%s_%d.h5part",fileprefix,nparticles);
+  sprintf(filename,"%s.h5part",fileprefix);
+  remove(filename);
 
   Flecsi_Sim_IO::HDF5ParticleIO testDataSet; 
   testDataSet.createDataset(filename,MPI_COMM_WORLD);
-
+    
   // add the global attributes
   testDataSet.writeDatasetAttribute("nparticles","int64_t",nparticles);
   testDataSet.writeDatasetAttribute("timestep","double",timestep);
   testDataSet.writeDatasetAttribute("dimension","int32_t",dimension);
   testDataSet.writeDatasetAttribute("use_fixed_timestep","int32_t",1);
 
-  char * simName = "fluid_2D";
-  testDataSet.writeDatasetAttributeArray("name","string",simName);
+  //char * simName = "fluid_2D";
+  //testDataSet.writeDatasetAttributeArray("name","string",simName);
   testDataSet.closeFile();
 
   testDataSet.openFile(MPI_COMM_WORLD);
