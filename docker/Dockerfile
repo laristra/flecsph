@@ -53,6 +53,7 @@ RUN ./configure --disable-static --enable-shared --enable-parallel --prefix=/usr
 USER root
 RUN make install
 USER flecsi
+RUN ldd /usr/local/lib/libH5hut.so
 
 WORKDIR /home/flecsi/flecsph
 RUN mkdir build
