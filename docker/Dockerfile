@@ -45,11 +45,11 @@ WORKDIR /home/flecsi
 ENV H5Hut H5hut-1.99.13
 RUN wget --no-check-certificate https://amas.psi.ch/H5hut/raw-attachment/wiki/DownloadSources/${H5Hut}.tar.gz
 RUN tar -xzf ${H5Hut}.tar.gz
+RUN wget -O- https://raw.githubusercontent.com/gentoo/gentoo/e8827415e767b1252f3851edef8e000980b7f2a1/sci-libs/h5hut/files/h5hut-1.99.13-autotools.patch | patch -p0
 WORKDIR ${H5Hut}
 RUN sed -i 's/H5Pset_fapl_mpiposix/H5Pset_fapl_mpio/g' src/h5core/h5_hdf5_private.h
-RUN sed -i -e '/INSTALL.*755/s/^/#/' -e '/INSTALL.*644/s@INSTALL.*@LN_S) -f $(abs_builddir)/.libs $(top_builddir)/src/lib@' src/h5core/Makefile.am
 RUN autoreconf -i -f
-RUN ./configure --disable-static --enable-shared --enable-parallel --prefix=/usr/local CC=mpicc && make
+RUN ./configure --disable-static --enable-shared --enable-parallel --prefix=/usr/local CC=mpicc CXX=mpicxx && make
 USER root
 RUN make install
 USER flecsi
