@@ -91,7 +91,7 @@ if(NOT H5hut_LIBRARIES MATCHES ".*so$")
   list(APPEND FleCSPH_LIBRARIES ${HDF5_LIBRARIES})
 else()
   set(HDF5_LIBRARIES)
-endif
+endif()
 
 #------------------------------------------------------------------------------#
 # Add mpisph tests
