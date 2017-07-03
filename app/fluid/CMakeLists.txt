@@ -37,7 +37,7 @@ add_executable(fluid_generator
 )
 
 target_link_libraries(fluid_generator ${MPI_LIBRARIES} 
-  ${HDF5_LIBRARIES} ${H5hut_LIBRARIES})
+  ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 target_link_libraries(fluid ${FleCSPH_LIBRARIES})
 
 add_definitions(-DFLECSI_ENABLE_SPECIALIZATION_TLT_INIT)
