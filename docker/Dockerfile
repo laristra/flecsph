@@ -71,12 +71,12 @@ RUN cmake -DENABLE_MPI=$MPI \
 RUN HDF5_USE_SHLIB=yes ${SONARQUBE:+build-wrapper-linux-x86-64 --out-dir bw-output} make VERBOSE=1 -j2
 RUN ccache -s
 RUN make doxygen
-#RUN if [ ${COVERAGE} ]; then \
-#      python -m coverxygen --xml-dir doc/doxygen/xml/ --src-dir .. --output doxygen.coverage.info; \
-#      wget -O codecov.sh https://codecov.io/bash; \
-#      bash codecov.sh -X gcov -f doxygen.coverage.info -F documentation; \
+RUN if [ ${COVERAGE} ]; then \
+      python -m coverxygen --xml-dir doc/doxygen/xml/ --src-dir .. --output doxygen.coverage.info; \
+      wget -O codecov.sh https://codecov.io/bash; \
+      bash codecov.sh -X gcov -f doxygen.coverage.info -F documentation; \
 #      doxy-coverage --threshold 64 doc/doxygen/xml/; \
-#    fi
+    fi
 RUN make test ARGS="-V" || true
 RUN make install DESTDIR=${PWD}/install && rm -rf ${PWD}/install
 RUN cd .. && if [ ${COVERAGE} ]; then \
