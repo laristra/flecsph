@@ -49,7 +49,7 @@ RUN wget -O- https://raw.githubusercontent.com/gentoo/gentoo/e8827415e767b1252f3
 WORKDIR ${H5Hut}
 RUN sed -i 's/H5Pset_fapl_mpiposix/H5Pset_fapl_mpio/g' src/h5core/h5_hdf5_private.h
 RUN autoreconf -i -f
-RUN ./configure --disable-static --enable-shared --enable-parallel --prefix=/usr/local CC="h5pcc -shlib" && make
+RUN ./configure --disable-static --enable-shared --enable-parallel --prefix=/usr/local CC=h5pcc && HDF5_USE_SHLIB=yes make
 USER root
 RUN make install
 USER flecsi
