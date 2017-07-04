@@ -77,7 +77,7 @@ RUN make doxygen
 #      bash codecov.sh -X gcov -f doxygen.coverage.info -F documentation; \
 #      doxy-coverage --threshold 64 doc/doxygen/xml/; \
 #    fi
-RUN make test
+RUN make test ARGS="-V" || true
 RUN make install DESTDIR=${PWD}/install && rm -rf ${PWD}/install
 RUN cd .. && if [ ${COVERAGE} ]; then \
   if [ ${CC} = clang ]; then \
