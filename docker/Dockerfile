@@ -61,12 +61,13 @@ RUN mkdir build
 WORKDIR build
 RUN ccache -z
 RUN cmake -DENABLE_MPI=$MPI \
+          -DCMAKE_CXX_COMPILER=$(type -p h5c++) \
           -DENABLE_UNIT_TESTS=ON \
           -DENABLE_OPENMP=ON\
           -DENABLE_LEGION=ON\
           ${COVERAGE:+-DENABLE_COVERAGE_BUILD=ON} ..
 
-RUN ${SONARQUBE:+build-wrapper-linux-x86-64 --out-dir bw-output} make VERBOSE=1 -j2
+RUN HDF5_USE_SHLIB=yes ${SONARQUBE:+build-wrapper-linux-x86-64 --out-dir bw-output} make VERBOSE=1 -j2
 RUN ccache -s
 #RUN make doxygen
 #RUN if [ ${COVERAGE} ]; then \
