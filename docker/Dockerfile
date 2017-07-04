@@ -63,13 +63,14 @@ WORKDIR build
 RUN ccache -z
 RUN cmake -DENABLE_MPI=$MPI \
           -DENABLE_UNIT_TESTS=ON \
-          -DENABLE_OPENMP=ON\
-          -DENABLE_LEGION=ON\
+          -DENABLE_OPENMP=ON \
+          -DENABLE_LEGION=ON \
+          -DENABLE_DOXYGEN=ON \
           ${COVERAGE:+-DENABLE_COVERAGE_BUILD=ON} ..
 
 RUN HDF5_USE_SHLIB=yes ${SONARQUBE:+build-wrapper-linux-x86-64 --out-dir bw-output} make VERBOSE=1 -j2
 RUN ccache -s
-#RUN make doxygen
+RUN make doxygen
 #RUN if [ ${COVERAGE} ]; then \
 #      python -m coverxygen --xml-dir doc/doxygen/xml/ --src-dir .. --output doxygen.coverage.info; \
 #      wget -O codecov.sh https://codecov.io/bash; \
