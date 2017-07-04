@@ -49,7 +49,8 @@ RUN wget -O- https://raw.githubusercontent.com/gentoo/gentoo/e8827415e767b1252f3
 WORKDIR ${H5Hut}
 RUN sed -i 's/H5Pset_fapl_mpiposix/H5Pset_fapl_mpio/g' src/h5core/h5_hdf5_private.h
 RUN autoreconf -i -f
-RUN ./configure --disable-static --enable-shared --enable-parallel --prefix=/usr/local CC=h5pcc && HDF5_USE_SHLIB=yes make
+#RUN ./configure --disable-static --enable-shared --enable-parallel --prefix=/usr/local CC=h5pcc && HDF5_USE_SHLIB=yes make
+RUN ./configure --disable-static --enable-shared --enable-parallel --prefix=/usr/local && make
 USER root
 RUN make install
 USER flecsi
@@ -75,8 +76,8 @@ RUN ccache -s
 #      bash codecov.sh -X gcov -f doxygen.coverage.info -F documentation; \
 #      doxy-coverage --threshold 64 doc/doxygen/xml/; \
 #    fi
-#RUN ctest --verbose
-#RUN make install DESTDIR=${PWD}/install && rm -rf ${PWD}/install
+RUN make test
+RUN make install DESTDIR=${PWD}/install && rm -rf ${PWD}/install
 RUN cd .. && if [ ${COVERAGE} ]; then \
   if [ ${CC} = clang ]; then \
     $HOME/.local/bin/codecov -F "${CC}" --gcov-exec "llvm-cov gcov"; \
