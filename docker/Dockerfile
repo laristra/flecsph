@@ -60,7 +60,7 @@ RUN mkdir build
 
 WORKDIR build
 RUN ccache -z
-RUN CXX=h5c++ cmake -DENABLE_MPI=$MPI \
+RUN cmake -DENABLE_MPI=$MPI \
           -DENABLE_UNIT_TESTS=ON \
           -DENABLE_OPENMP=ON\
           -DENABLE_LEGION=ON\

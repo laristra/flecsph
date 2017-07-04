@@ -83,15 +83,12 @@ list(APPEND FleCSPH_LIBRARIES ${H5hut_LIBRARIES})
 # HDF5
 #------------------------------------------------------------------------------#
 #for static libH4hut
-if(NOT H5hut_LIBRARIES MATCHES ".*so$")
-  find_package(HDF5 REQUIRED)
-  #set(HDF5_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/third-party-libraries/local/include")
-  #set(HDF5_LIBRARIES "${CMAKE_SOURCE_DIR}/third-party-libraries/local/lib/libhdf5.so")
-  include_directories(${HDF5_INCLUDE_DIR})
-  list(APPEND FleCSPH_LIBRARIES ${HDF5_LIBRARIES})
-else()
-  set(HDF5_LIBRARIES)
-endif()
+set(HDF5_PREFER_PARALLEL ON)
+find_package(HDF5 REQUIRED)
+#set(HDF5_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/third-party-libraries/local/include")
+#set(HDF5_LIBRARIES "${CMAKE_SOURCE_DIR}/third-party-libraries/local/lib/libhdf5.so")
+include_directories(${HDF5_INCLUDE_DIR})
+list(APPEND FleCSPH_LIBRARIES ${HDF5_LIBRARIES})
 
 #------------------------------------------------------------------------------#
 # Add mpisph tests
