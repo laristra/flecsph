@@ -13,23 +13,32 @@ set(CMAKE_CXX_FLAGS_RELEASE
   "-O3 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses") 
 
 # includes 
+
 include_directories(${CMAKE_SOURCE_DIR}/include)
-include_directories(${CMAKE_SOURCE_DIR}/app/bns/include)
+include_directories(${CMAKE_SOURCE_DIR}/app/bwd/include)
 include_directories(${CMAKE_SOURCE_DIR}/mpisph)
 include_directories(${CMAKE_SOURCE_DIR}/third-party-libraries/ScalingFramework/IOTests)
+#include_directories(${CMAKE_SOURCE_DIR}/third-party-libraries/local/include)
 
 #------------------------------------------------------------------------------#
 # Executables    
 #------------------------------------------------------------------------------#
 
 # MPILEGION version
-add_executable(bns 
+add_executable(bwd
   main.cc 
   main_driver.cc 
   ${FleCSI_RUNTIME}/runtime_driver.cc
 )
 
-target_link_libraries(bns ${FleCSPH_LIBRARIES} mpisph)
+# MPILEGION version
+add_executable(bwd_generator 
+  generator/main.cc 
+)
 
-add_definitions(-DFLECSI_ENABLE_SPECIALIZATION_DRIVER)
+target_link_libraries(bwd_generator ${MPI_LIBRARIES} 
+  ${HDF5_LIBRARIES} ${H5HUT_LIBRARIES})
+target_link_libraries(bwd ${FleCSPH_LIBRARIES})
+
+add_definitions(-DFLECSI_ENABLE_SPECIALIZATION_TLT_INIT)
 add_definitions(-DFLECSI_OVERRIDE_DEFAULT_SPECIALIZATION_DRIVER)

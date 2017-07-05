@@ -96,3 +96,4 @@ list(APPEND FleCSPH_LIBRARIES ${H5HUT_LIBRARIES})
 #------------------------------------------------------------------------------#
 cinch_add_application_directory("app/sedov")
 cinch_add_application_directory("app/sodtube")
+cinch_add_application_directory("app/bwd")

@@ -37,164 +37,156 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/data/data.h"
 
-#include "bodies_system.h"
-#include "tree_colorer.h"
-#include "physics.h"
-#include "io.h"
+#include <bodies_system.h>
 
+#include "physics/eos_analytics.h"
+//#include "physics.h"
 
 namespace flecsi{
- namespace execution{
+namespace execution{
 
 void
 mpi_init_task(int startiteration){
-  const char * filename = "../data/data_bns_4169.txt";
-  //const char * filename = "../data/data_binary_rdy_16288.txt";
+  // TODO find a way to use the file name from the specialiszation_driver
   
   int rank;
   int size;
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   
-  int totaliters = 100000;
-  int iteroutput = 10;
+  int totaliters = 100;
+  int iteroutput = 1;
   double totaltime = 0.0;
-  double maxtime = 100.0;
-  int iter = startiteration;
-  
-  physics::K = 0.63662;  
+  double maxtime = 10.0;
+  int iter = startiteration; 
+
+  // Init if default values are not ok
+  physics::dt = 1.0e-10;
+  physics::alpha = 1; 
+  physics::beta = 2; 
+  //physics::stop_boundaries = true;
+  //physics::min_boundary = {0.1};
+  //physics::max_boundary = {1.0};
+  physics::gamma = 5./3.;
 
   body_system<double,gdimension> bs;
-  bs.setMaxmasscell(1.0e-5);
-  bs.setMacangle(0.7);
-  
-  bs.read_bodies_txt(filename); 
-  //io::inputDataTxtRange(rbodies,nbodies,totalnbodies,rank,size,filename); 
+  bs.read_bodies("hdf5_sedov.h5part",startiteration);
+  //io::inputDataHDF5(rbodies,"hdf5_sodtube.h5part",totalnbodies,nbodies);
+
+  //eos_analytics eos(1.4);
+
+  double h = bs.getSmoothinglength();
+  physics::epsilon = 0.01*h*h;
 
 #ifdef OUTPUT
-  bs.write_bodies("output_bns.h5part",iter); 
+  bs.write_bodies("output_sedov",iter);
+  //io::outputDataHDF5(rbodies,"output_sodtube.h5part",0);
+  //tcolorer.mpi_output_txt(rbodies,iter,"output_sodtube"); 
 #endif
 
   ++iter; 
   do
-  {  
+  { 
     MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0)
       std::cout<<std::endl<<"#### Iteration "<<iter<<std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
-    
+
+    // Compute and prepare the tree for this iteration 
+    // - Compute the Max smoothing length 
+    // - Compute the range of the system using the smoothinglength
+    // - Cmopute the keys 
+    // - Distributed qsort and sharing 
+    // - Generate and feed the tree
+    // - Exchange branches for smoothing length 
+    // - Compute and exchange ghosts in real smoothing length 
     bs.update_iteration();
-     
-    // Compute Density
-    if(rank == 0) 
-      std::cout<<"Density"<<std::flush;
+   
+    // Do the Sod Tube physics
+    if(rank==0)
+      std::cout<<"Density"<<std::flush; 
     bs.apply_in_smoothinglength(physics::compute_density);
-    if(rank == 0)
-      std::cout<<".done"<<std::endl<<std::flush;
-  
-    // Compute Pressure and SoundSpeed
-    if(rank == 0)
-      std::cout<<"Pressure"<<std::flush;
+    if(rank==0)
+      std::cout<<".done"<<std::endl;
+
+    if(rank==0)
+      std::cout<<"Pressure"<<std::flush; 
     bs.apply_all(physics::compute_pressure);
     if(rank==0)
-      std::cout<<".done"<<std::endl<<std::flush;
+      std::cout<<".done"<<std::endl;
 
-    if(rank == 0)
-      std::cout<<"Soundspeed"<<std::flush;
+    if(rank==0)
+      std::cout<<"Soundspeed"<<std::flush; 
     bs.apply_all(physics::compute_soundspeed);
     if(rank==0)
-      std::cout<<".done"<<std::endl<<std::flush;
-
-    bs.update_neighbors();
+      std::cout<<".done"<<std::endl;
     
-    // Compute Hydro 
+    // Refresh the neighbors within the smoothing length 
+    bs.update_neighbors(); 
+
     if(rank==0)
-      std::cout<<"Hydro acceleration"<<std::flush;
+      std::cout<<"Hydro acceleration"<<std::flush; 
     bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
     if(rank==0)
-      std::cout<<".done"<<std::endl<<std::flush;
-     
-    // Compute and exchange the aggregate  
-    // Then compute gravitational acceleration
-    if(rank==0)
-      std::cout<<"Grav acceleration"<<std::flush;
-    bs.gravitation_fmm();
-    if(rank==0)
-      std::cout<<".done"<<std::endl<<std::flush;
-
-
-    // Compute internal energy 
-    if(rank==0)
-      std::cout<<"Hydro acceleration"<<std::flush;
-    bs.apply_in_smoothinglength(physics::compute_internalenergy);
-    if(rank==0)
-      std::cout<<".done"<<std::endl<<std::flush;
-
-    
-    // Leapfrog part one 
-    if(rank==0)
-      std::cout<<"MoveParticles"<<std::flush;    
-    bs.apply_all(physics::leapfrog_integration_1);
-    if(rank==0)
-      std::cout<<".done"<<std::endl<<std::flush;
-
-    // Compute the new DT
-    physics::dt = 1;
-    if(rank==0)
-      std::cout<<"Dt"<<std::flush;
-    bs.apply_in_smoothinglength(physics::compute_dt);
-    
-    // Do a reduction for dt
-    MPI_Allreduce(MPI_IN_PLACE,&physics::dt,1,MPI_DOUBLE,
-        MPI_MIN,MPI_COMM_WORLD);
+      std::cout<<".done"<<std::endl;
  
     if(rank==0)
-      std::cout<<".done"<<std::endl<<std::flush;
-    assert(physics::dt<1&&physics::dt>0);
+      std::cout<<"Internalenergy"<<std::flush; 
+    bs.apply_in_smoothinglength(physics::compute_internalenergy);
+    if(rank==0)
+      std::cout<<".done"<<std::endl; 
+   
+    if(iter==1){ 
+      if(rank==0)
+        std::cout<<"leapfrog"<<std::flush; 
+      bs.apply_all(physics::leapfrog_integration_first_step);
+      if(rank==0)
+        std::cout<<".done"<<std::endl;
+    }else{
+      if(rank==0)
+        std::cout<<"leapfrog"<<std::flush; 
+      bs.apply_all(physics::leapfrog_integration);
+      if(rank==0)
+        std::cout<<".done"<<std::endl;
+    }
 
     if(rank==0)
-      std::cout<<"dt="<<physics::dt<<std::endl<<std::flush;
-
-    // Move the particles 
+      std::cout<<"dudt integration"<<std::flush; 
+    bs.apply_all(physics::dudt_integration);
     if(rank==0)
-      std::cout<<"MoveParticles"<<std::flush;    
-    bs.apply_all(physics::leapfrog_integration_2);
-    if(rank==0)
-      std::cout<<".done"<<std::endl<<std::flush;
+      std::cout<<".done"<<std::endl;
 
-    // Add rotation 
-
-
+   
 #ifdef OUTPUT
-    if(iter % iteroutput == 0)
-    {
-      bs.write_bodies("output_bns.h5part",iter/iteroutput);
+    if(iter % iteroutput == 0){ 
+      bs.write_bodies("output_sedov",iter/iteroutput);
     }
 #endif
     ++iter;
-    totaltime += physics::dt; 
-    if(rank==0)
-      std::cout<<"Time: "<<totaltime<<std::endl;
+    
+  }while(iter<totaliters);
+}
 
-  }while(totaltime<maxtime);
-} 
-
-flecsi_register_task(mpi_init_task,mpi,index);
+flecsi_register_mpi_task(mpi_init_task);
 
 void 
-specialization_driver(int argc, char * argv[]){
- 
+specialization_tlt_init(int argc, char * argv[]){
+  
+  // Default start at iteration 0
   int startiteration = 0;
+  if(argc == 2){
+    startiteration = atoi(argv[1]);
+  }
 
   std::cout << "In user specialization_driver" << std::endl;
   /*const char * filename = argv[1];*/
-  /*std::string filename(argv[1]);
+  /*std::string  filename(argv[1]);
   std::cout<<filename<<std::endl;*/
-  flecsi_execute_task(mpi_init_task,mpi,index,startiteration); 
+  flecsi_execute_mpi_task(mpi_init_task,startiteration); 
 } // specialization driver
 
 void 
-driver(int argc, char * argv[]){
+driver(int argc,  char * argv[]){
   std::cout << "In user driver" << std::endl;
 } // driver
 
