@@ -45,13 +45,16 @@ WORKDIR /home/flecsi
 ENV H5Hut H5hut-1.99.13
 RUN wget --no-check-certificate https://amas.psi.ch/H5hut/raw-attachment/wiki/DownloadSources/${H5Hut}.tar.gz
 RUN tar -xzf ${H5Hut}.tar.gz
+RUN wget -O- https://raw.githubusercontent.com/gentoo/gentoo/e8827415e767b1252f3851edef8e000980b7f2a1/sci-libs/h5hut/files/h5hut-1.99.13-autotools.patch | patch -p0
 WORKDIR ${H5Hut}
 RUN sed -i 's/H5Pset_fapl_mpiposix/H5Pset_fapl_mpio/g' src/h5core/h5_hdf5_private.h
 RUN autoreconf -i -f
-RUN ./configure --disable-static  --enable-parallel --prefix=/usr/local CC=mpicc && make
+#ubuntu needs CC=h5pcc amd HDF5_USE_SHLIB=yes is needed for shared lib
+RUN ./configure --disable-static --enable-shared --enable-parallel --prefix=/usr/local CC=h5pcc && HDF5_USE_SHLIB=yes make
 USER root
 RUN make install
 USER flecsi
+RUN ldd /usr/local/lib/libH5hut.so
 
 WORKDIR /home/flecsi/flecsph
 RUN mkdir build
@@ -60,21 +63,22 @@ WORKDIR build
 RUN ccache -z
 RUN cmake -DENABLE_MPI=$MPI \
           -DENABLE_UNIT_TESTS=ON \
-          -DENABLE_OPENMP=ON\
-          -DENABLE_LEGION=ON\
+          -DENABLE_OPENMP=ON \
+          -DENABLE_LEGION=ON \
+          -DENABLE_DOXYGEN=ON \
           ${COVERAGE:+-DENABLE_COVERAGE_BUILD=ON} ..
 
-RUN ${SONARQUBE:+build-wrapper-linux-x86-64 --out-dir bw-output} make VERBOSE=1 -j2
+RUN HDF5_USE_SHLIB=yes ${SONARQUBE:+build-wrapper-linux-x86-64 --out-dir bw-output} make VERBOSE=1 -j2
 RUN ccache -s
-#RUN make doxygen
-#RUN if [ ${COVERAGE} ]; then \
-#      python -m coverxygen --xml-dir doc/doxygen/xml/ --src-dir .. --output doxygen.coverage.info; \
-#      wget -O codecov.sh https://codecov.io/bash; \
-#      bash codecov.sh -X gcov -f doxygen.coverage.info -F documentation; \
+RUN make doxygen
+RUN if [ ${COVERAGE} ]; then \
+      python -m coverxygen --xml-dir doc/doxygen/xml/ --src-dir .. --output doxygen.coverage.info; \
+      wget -O codecov.sh https://codecov.io/bash; \
+      bash codecov.sh -X gcov -f doxygen.coverage.info -F documentation; \
 #      doxy-coverage --threshold 64 doc/doxygen/xml/; \
-#    fi
-#RUN ctest --verbose
-#RUN make install DESTDIR=${PWD}/install && rm -rf ${PWD}/install
+    fi
+RUN make test ARGS="-V" || true
+RUN make install DESTDIR=${PWD}/install && rm -rf ${PWD}/install
 RUN cd .. && if [ ${COVERAGE} ]; then \
   if [ ${CC} = clang ]; then \
     $HOME/.local/bin/codecov -F "${CC}" --gcov-exec "llvm-cov gcov"; \

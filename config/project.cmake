@@ -61,15 +61,6 @@ list(APPEND FleCSPH_LIBRARIES ${Legion_LIBRARY} ${REALM_LIBRARY})
 #include_directories(${THREADS_INCLUDE_PATH})
 
 #------------------------------------------------------------------------------#
-# HDF5
-#------------------------------------------------------------------------------#
-find_package(HDF5 REQUIRED)
-#set(HDF5_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/third-party-libraries/local/include")
-#set(HDF5_LIBRARIES "${CMAKE_SOURCE_DIR}/third-party-libraries/local/lib/libhdf5.so")
-include_directories(${HDF5_INCLUDE_DIR})
-list(APPEND FleCSPH_LIBRARIES ${HDF5_LIBRARIES})
-
-#------------------------------------------------------------------------------#
 # Add OpenMP
 #------------------------------------------------------------------------------#
 find_package(OpenMP REQUIRED)
@@ -86,6 +77,18 @@ message(STATUS ${H5hut_INCLUDE_DIRS})
 include_directories(${H5hut_INCLUDE_DIRS})
 message(STATUS ${H5hut_LIBRARIES})
 list(APPEND FleCSPH_LIBRARIES ${H5hut_LIBRARIES})
+
+
+#------------------------------------------------------------------------------#
+# HDF5
+#------------------------------------------------------------------------------#
+#for static libH4hut
+set(HDF5_PREFER_PARALLEL ON)
+find_package(HDF5 REQUIRED)
+#set(HDF5_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/third-party-libraries/local/include")
+#set(HDF5_LIBRARIES "${CMAKE_SOURCE_DIR}/third-party-libraries/local/lib/libhdf5.so")
+include_directories(${HDF5_INCLUDE_DIR})
+list(APPEND FleCSPH_LIBRARIES ${HDF5_LIBRARIES})
 
 #------------------------------------------------------------------------------#
 # Add mpisph tests
