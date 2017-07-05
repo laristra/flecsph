@@ -106,10 +106,10 @@ Then make:
  
  You can find each test case in the corresponding app/ directory. Currently, we have below cases:
  
- -sodtube : 1D Sod shock tube problem
- -sedov : 2D circular Sedov blast wave expansion
- -bns : 3D binary neutron star merger with piecewise polytrope equations of state (EOS) with Newtonian gravity
- -bwd : 3D binary white dwarf merger with analytic zero temperature EOS
+ - sodtube : 1D Sod shock tube problem
+ - sedov : 2D circular Sedov blast wave expansion
+ - bns : 3D binary neutron star merger with piecewise polytrope equations of state (EOS) with Newtonian gravity
+ - bwd : 3D binary white dwarf merger with analytic zero temperature EOS
  
  Also, app/miscell directory contains python script that generates initial data for neutron star and its binary generator. It will add more features such as initial data generator for white dwarfs and some input/output converter
  
