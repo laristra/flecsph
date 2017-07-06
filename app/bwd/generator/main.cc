@@ -101,7 +101,7 @@ int main(int argc, char * argv[]){
   // the number of particles = nparticles 
   // The value for constant timestep 
   double timestep = 0.001;
-  int dimension = 2;
+  int dimension = 3;
   
   std::cout<<"top_X="<<x_topproc<<" top_Y="<<y_topproc<<
     " maxX="<<maxxposition<<" maxY="<<maxyposition<<std::endl;
