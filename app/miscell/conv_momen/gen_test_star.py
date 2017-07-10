@@ -83,7 +83,7 @@ vypart = vrpart*np.sin(thetapart)*np.sin(phipart)
 vzpart = vrpart*np.cos(thetapart)
 hpart = approximate_h(nparticles)*np.ones_like(xpart)
 
-print("Generating initial data for testing code")
+print("Generating initial data for testing conservation of momentum")
 with h5py.File(filename,'w') as g:
     f = g.create_group("Step#0")
     xdset = f.create_dataset('x',data=xpart)
