@@ -49,7 +49,7 @@ int main(int argc, char * argv[]){
   MPI_Comm_size(MPI_COMM_WORLD,&size);
 
   int64_t sparticles = atoll(argv[1]);
-  int64_t nparticles = sparticles*sparticles*sparticle;
+  int64_t nparticles = sparticles*sparticles*sparticles;
 
   double radius = (ldistance*(sparticles-1))/2.; 
   double x_c = (sparticles-1)*ldistance/2.;
@@ -59,8 +59,8 @@ int main(int argc, char * argv[]){
   std::cout<<"Sphere: r="<<radius<<" pos=["<<x_c<<";"<<y_c<<";"<<z_c<<"]"<<std::endl;
 
   if(rank==0){
-    printf("Generating %ld particles by %ldx%ld in sphere r=%.4f\n",
-        nparticles,sparticles,sparticles,radius);
+    printf("Generating %ld particles by %ldx%ldx%ld in sphere r=%.4f\n",
+        nparticles,sparticles,sparticles,sparticles,radius);
   }
 
   // Start on  0 0
