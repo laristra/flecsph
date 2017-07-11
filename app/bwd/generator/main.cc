@@ -27,17 +27,19 @@ bool
 in_radius(
     double x,
     double y,
+    double z,
     double x0,
-    double y0, 
+    double y0,
+    double z0, 
     double r)
 {
-  return (x-x0)*(x-x0)+(y-y0)*(y-y0)<r*r;
+  return (x-x0)*(x-x0)+(y-y0)*(y-y0)+(z-z0)*(z-z0)<r*r;
 }
 
 int main(int argc, char * argv[]){
 
   if(argc!=2){
-    printf("./sedov_generator [square nParticles]\n");
+    printf("./wd_generator [square nParticles]\n");
     exit(-1);
   }
 
@@ -47,13 +49,14 @@ int main(int argc, char * argv[]){
   MPI_Comm_size(MPI_COMM_WORLD,&size);
 
   int64_t sparticles = atoll(argv[1]);
-  int64_t nparticles = sparticles*sparticles;
+  int64_t nparticles = sparticles*sparticles*sparticle;
 
   double radius = (ldistance*(sparticles-1))/2.; 
   double x_c = (sparticles-1)*ldistance/2.;
   double y_c = x_c;//(sparticles-1)*ldistance/2.;
+  double z_c = x_c;
 
-  std::cout<<"Sphere: r="<<radius<<" pos=["<<x_c<<";"<<y_c<<"]"<<std::endl;
+  std::cout<<"Sphere: r="<<radius<<" pos=["<<x_c<<";"<<y_c<<";"<<z_c<<"]"<<std::endl;
 
   if(rank==0){
     printf("Generating %ld particles by %ldx%ld in sphere r=%.4f\n",
@@ -63,9 +66,11 @@ int main(int argc, char * argv[]){
   // Start on  0 0
   double x_topproc = x_c-radius;
   double y_topproc = y_c-radius;
+  double z_topproc = z_c-radius;
 
   double maxxposition = /*(sparticles-1)*ldistance;*/x_c+radius;
   double maxyposition = /*(sparticles-1)*ldistance;*/y_c+radius;
+  double maxzposition = z_c + radius;
   
   // Position
   double* x = new double[nparticles]();
@@ -103,23 +108,27 @@ int main(int argc, char * argv[]){
   double timestep = 0.001;
   int dimension = 3;
   
-  std::cout<<"top_X="<<x_topproc<<" top_Y="<<y_topproc<<
-    " maxX="<<maxxposition<<" maxY="<<maxyposition<<std::endl;
+  std::cout<<"top_X="<<x_topproc<<" top_Y="<<y_topproc<<" top_X="<<z_topproc<<
+    " maxX="<<maxxposition<<" maxY="<<maxyposition<<" maxZ="<<maxzposition<<std::endl;
 
   double xposition = /*0;*/x_topproc; 
   int64_t tparticles = 0;
   double yposition = /*0;*/y_topproc;
+  double zposition = z_topproc;
   //int xpos = 0;
   for(int64_t part=0; part<nparticles; ++part){
     
-    while(!in_radius(xposition,yposition,x_c,y_c,radius)){
+    while(!in_radius(xposition,yposition,zposition,x_c,y_c,z_c,radius)){
       xposition+= ldistance; 
       if(xposition > maxxposition){
         if(yposition > maxyposition){
-          break;
-        }
-        xposition=x_topproc;
-        yposition+=ldistance;
+	  if(zposition > maxzposition){
+              break;
+           }
+              xposition=x_topproc;
+              yposition+=ldistance;
+	      zposition+=ldistance;
+	}
       }
     }
 
@@ -132,6 +141,7 @@ int main(int argc, char * argv[]){
     tparticles++;
     x[part] = xposition;
     y[part] = yposition;
+    z[part] = zposition;
          
     xposition+=ldistance;
     if(xposition > maxxposition){
@@ -198,7 +208,7 @@ int main(int argc, char * argv[]){
   testDataSet.writeDatasetAttribute("dimension","int32_t",dimension);
   testDataSet.writeDatasetAttribute("use_fixed_timestep","int32_t",1);
 
-  char * simName = "sodtube_1D";
+  char * simName = "bwd";
   testDataSet.writeDatasetAttributeArray("name","string",simName);
   testDataSet.closeFile();
 
