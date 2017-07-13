@@ -10,8 +10,8 @@ import sys
 
 filename = 'dwd_id.h5part'
 
-print("Reading in files:\n\t{}".format(file1))
-f1 = np.loadtxt(file1)
+print("Reading in files:\n\t{}".format(sys.argv[1]))
+f1 = np.loadtxt(sys.argv[1])
 
 # Read the data
 x = np.array(f1['x'])
@@ -26,7 +26,7 @@ rho = np.array(f1['rho'])
 
 # Right the output
 print("Generating data...")
-   with h5py.File(filename,'w') as g:
+with h5py.File(filename,'w') as g:
       f = g.create_group("Step#0")
       xdset = f.create_dataset('x', data = x)
       ydset = f.create_dataset('y', data = x)
