@@ -3,7 +3,7 @@
 
 #include "json.hpp"
 #include "octree.h"
-#include "ioTest.h"
+#include "scalingTest.h"
 #include "log.h"
 
 
@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
 
 
 	Octree testOctree;
-	IOTest ioTesting;
+	ScalingTest ioTesting;
 
 	testOctree.buildTree( jsonInput["data"]["num-octree-levels"] );
 
@@ -36,11 +36,12 @@ int main(int argc, char *argv[])
 	Log debugLog( std::to_string(myRank) + "_of_" + std::to_string(numRanks) + ".log" );
 
 
-	ioTesting.initMPI( MPI_COMM_WORLD );
-
+	ioTesting.initMPIScaling( MPI_COMM_WORLD );
 	
 	// Writing
-	ioTesting.writeDatasetTest( jsonInput["data"]["num-particles"], jsonInput["data"]["num-timesteps"], testOctree, jsonInput["output"]["filename"] );
+	// ioTesting.setIterationCount( jsonInput["output"]["repeats"] );
+	// ioTesting.runScalingTest( jsonInput["data"]["num-particles"], jsonInput["data"]["num-timesteps"], testOctree, jsonInput["output"]["filename"] );
+
 
 	// Reading
 	ioTesting.readDatasetTest( jsonInput["output"]["filename"] );
