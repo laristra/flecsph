@@ -1,8 +1,13 @@
+# Copyright (c) 2017 Los Alamos National Security, LLc
+# All rights reserved.
+
 #!/usr/bin/env python
 
-#This is a python script for generating initial data that is a unit
-#sphere with unit density and pressure. This is a diagnostic tool for
-#checking conservation of momentum.
+# Author : Hyun Lim
+# Date : Jul.14.2017
+# This is a python script for generating initial data that is a unit
+# sphere with unit density and pressure. This is a diagnostic tool for
+# checking conservation of momentum.
 
 import sys
 import numpy as np
