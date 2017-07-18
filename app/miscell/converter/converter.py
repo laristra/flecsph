@@ -5,7 +5,7 @@
 
 # Author : Hyun Lim
 # Date : Jul.13.2017
-# Script that converts ASCII file to h5part
+# Script that converts ASCII file to h5part file
 
 import numpy as np
 import h5py

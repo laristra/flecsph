@@ -70,7 +70,7 @@ mpi_init_task(int startiteration){
   physics::gamma = 5./3.;
 
   body_system<double,gdimension> bs;
-  bs.read_bodies("hdf5_sedov.h5part",startiteration);
+  bs.read_bodies("dwd_id.h5part",startiteration);
   //io::inputDataHDF5(rbodies,"hdf5_sodtube.h5part",totalnbodies,nbodies);
 
   //eos_analytics eos(1.4);
@@ -79,7 +79,7 @@ mpi_init_task(int startiteration){
   physics::epsilon = 0.01*h*h;
 
 #ifdef OUTPUT
-  bs.write_bodies("output_sedov",iter);
+  bs.write_bodies("output_dwd",iter);
   //io::outputDataHDF5(rbodies,"output_sodtube.h5part",0);
   //tcolorer.mpi_output_txt(rbodies,iter,"output_sodtube"); 
 #endif
@@ -159,7 +159,7 @@ mpi_init_task(int startiteration){
    
 #ifdef OUTPUT
     if(iter % iteroutput == 0){ 
-      bs.write_bodies("output_sedov",iter/iteroutput);
+      bs.write_bodies("output_dwd",iter/iteroutput);
     }
 #endif
     ++iter;
