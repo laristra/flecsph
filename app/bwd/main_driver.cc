@@ -102,7 +102,7 @@ mpi_init_task(int startiteration){
     // - Compute and exchange ghosts in real smoothing length 
     bs.update_iteration();
    
-    // Do the Sod Tube physics
+    // Do the DWD Tube physics
     if(rank==0)
       std::cout<<"Density"<<std::flush; 
     bs.apply_in_smoothinglength(physics::compute_density);
