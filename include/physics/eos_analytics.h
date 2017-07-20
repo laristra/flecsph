@@ -18,8 +18,8 @@
 
 /**
  * @file eos_analytics.h
- * @author Julien Loiseau
- * @date June 2017
+ * @author Julien Loiseau, Hyun Lim
+ * @date June 2017 , Jul 2017 (for more analytic EOS)
  * @brief Implementation of analytics EOS
  */
 
@@ -46,6 +46,19 @@ public:
     body* source = srch->getBody(); 
     double pressure = (gamma_-1.0)*
       (source->getDensity())*(source->getInternalenergy());
+    source->setPressure(pressure); 
+  };
+  //Zero temperature EOS for double white dwarf
+  double compute_pressure_wd(//HL : Need to merge as one function
+    body_holder* srch
+  ){
+    body* source = srch->getBody();
+    double A_dwd = 6.00288e22; 
+    double B_dwd = 9.81011e5;
+
+    double x_dwd = pow((source->getDensity())/B_dwd,1.0/3.0); 
+    double pressure = A_dwd*(x_dwd*(2*x_dwd*x_dwd-3)*pow(x_dwd*x_dwd+1,1.0/2.0)
+      		      + 3*asinh(x_dwd));
     source->setPressure(pressure); 
   };
 
