@@ -821,6 +821,25 @@ public:
  * Function for sorting and distribution 
  *~---------------------------------------------------------------------------*/
 
+  /**
+  * @brief      Sorting of the input particles or current particles using MPI. 
+  * This method is composed of several steps to implement the quick sort:
+  * - Each process sorts its local particles 
+  * - Each process generate a subset of particles to fit the byte size limit 
+  * to send 
+  * - Each subset if send to the master (Here 0) who generates the pivot for 
+  * quick sort 
+  * - Pivot are send to each processes and they create buckets based on the 
+  * pivot 
+  * - Each bucket is send to the owner
+  * - Each process sorts its local particles again 
+  * This is the first implementation, it can be long for the first sorting but
+  * but then as the particles does not move very fast, the particles on the
+  * edge are the only ones shared 
+  *
+  * @param      rbodies       The rbodies, local bodies of this process. 
+  * @param[in]  totalnbodies  The totalnbodies on the overall simulation. 
+  */
   void mpi_qsort(
     std::vector<std::pair<entity_key_t,body>>& rbodies,
     int totalnbodies
