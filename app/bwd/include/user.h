@@ -27,7 +27,7 @@
 #define _user_h_
 
 #define OUTPUT
-static const size_t gdimension = 2;
+static const size_t gdimension = 3;
 using type_t = double;
 
 #endif // _user_h_
