@@ -16,6 +16,10 @@ filename = 'dwd_id.h5part'
 print("Reading in file:\n\t{}".format(sys.argv[1]))
 f1 = np.loadtxt(sys.argv[1])
 
+# Global variables
+global dim
+dim = 3 # Depend on the problem
+
 # Extract data by cols
 def column(matrix, i):
   return [row[i] for row in matrix]
@@ -34,6 +38,7 @@ rho = column(f1,8)
 print("Generating data...")
 with h5py.File(filename,'w') as g:
       f = g.create_group("Step#0")
+      f.attrs['dimension'] = 'dim'
       xdset = f.create_dataset('x', data = x)
       ydset = f.create_dataset('y', data = y)
       zdset = f.create_dataset('z', data = z)
