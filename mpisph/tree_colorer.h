@@ -1009,7 +1009,13 @@ public:
 #endif
   } // mpi_qsort
 
-
+  /**
+   * @brief      Export to a file the current tree in memory 
+   * This is useful for small number of particles to help representing the tree 
+   *
+   * @param      tree   The tree to output
+   * @param      range  The range of the particles, use to construct entity_keys
+   */
   void mpi_tree_traversal_graphviz(
     tree_topology_t & tree,
     std::array<point_t,2>& range)
@@ -1160,8 +1166,22 @@ public:
     }
   }
 
-  // Exchange the usefull body_holder based on the bounding box of this process
-  // This will be used to find the ghosts 
+  /**
+   * @brief      Exchange the useful branches of the current tree of the procs. 
+   * There is several ways to share. Here we look for the particles in the 
+   * global bounding box and share them. The branches are constructed directly 
+   * by the FleCSI tree structure. A better way should be to share branches 
+   * instead. But we need to change the tree structure in FleCSI for that. 
+   * 
+   * This function provide the non local particles that are use to find the 
+   * ghosts. 
+   *
+   * @param      tree             The tree 
+   * @param      rbodies          The rbodies, local bodies of this process
+   * @param      ranges           The ranges, the key range of all the processes
+   * @param      range_total      The range total of all the particles 
+   * @param[in]  smoothinglength  The smoothinglength, the max value of everyone
+   */
   void
   mpi_branches_exchange(
     tree_topology_t& tree,
@@ -1310,7 +1330,13 @@ public:
 
   }
 
-  // compute the range, minposition and maxposition from a group of bodies
+  /**
+   * @brief      Compute the global range of all the particle system 
+   *
+   * @param      bodies           The bodies, local of this process
+   * @param      range            The range computed in that function  
+   * @param[in]  smoothinglength  The smoothinglength, the biggest of the system
+   */
   void 
   mpi_compute_range(
     std::vector<std::pair<entity_key_t,body>>& bodies,
@@ -1362,6 +1388,17 @@ public:
     range[1] = maxposition;
   }
 
+  /**
+   * @brief      Update the local ghosts data. This function is always use 
+   * after one call of mpi_compute_ghosts. It can be use several time like:
+   * mpi_compute_ghosts 
+   * mpi_refresh_ghosts 
+   * mpi_refresh_ghosts 
+   * As long as the particles did not move. 
+   *
+   * @param      tree   The tree
+   * @param      range  The range
+   */
   void mpi_refresh_ghosts(
     tree_topology_t& tree, 
     std::array<point_t,2>& range)
@@ -1448,6 +1485,17 @@ public:
 #endif
   }
 
+  /**
+   * @brief      Prepare the buffer for the ghost transfer function. 
+   * Based on the non local particles shared in the mpi_branches_exchange, 
+   * this function extract the really needed particles and find the ghosts. 
+   * Then, as those ghosts can be requested several times in an iteration, 
+   * the buffer are set and can bne use in mpi_refresh_ghosts. 
+   *
+   * @param      tree             The tree
+   * @param[in]  smoothinglength  The smoothinglength
+   * @param      range            The range
+   */
   void 
   mpi_compute_ghosts(
     tree_topology_t& tree,
