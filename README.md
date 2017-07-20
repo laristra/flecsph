@@ -54,7 +54,7 @@ Let all the flags ON, make sure the conduit of GASNET is MPI.
 
 If not administrator: set path for the CMAKE_INSTALL_PREFIX like /home/XXX/local/
 
-    % make ; make install 
+    % make 
 
 ### FleCSI 
 
@@ -69,6 +69,7 @@ Here we need to change to the FleCSPH branch
 Here add:
 - ENABLE_MPI 
 - ENABLE_OPENMP 
+- ENABLE_LEGION
 - FLECSI_RUNTIME_MODEL legion
 
 If not administrator:  
