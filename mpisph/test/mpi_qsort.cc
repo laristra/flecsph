@@ -1,12 +1,63 @@
-TEST(){
+
+#include <cinchdevel.h>
+#include <cinchtest.h>
+
+#include <iostream>
+#include <cmath>
+#include <mpi.h>
+
+#include "tree_colorer.h"
+
+using namespace ::testing;
+
+
+// Rule for body equals == same position
+inline 
+bool 
+operator== (
+  const body& b1, 
+  const body& b2)
+{
+  return b1.getPosition()==b2.getPosition();    
+};
+
+namespace flecsi{
+  namespace execution{
+    void driver(int argc, char* argv[]){
+    }
+  }
+}
+
+class TestEnvironment : public Environment {
+  protected:
+   virtual void SetUp() {
+     char** argv;
+     int argc = 0;
+     int mpiError = MPI_Init(&argc, &argv);
+     ASSERT_FALSE(mpiError);
+  }
+
+  virtual void TearDown() {
+    int mpiError = MPI_Finalize();
+    ASSERT_FALSE(mpiError);
+  }
+
+  virtual ~TestEnvironment() {};
+};
+
+Environment* const foo_env = AddGlobalTestEnvironment(new TestEnvironment);
+
+
+TEST(tree_colorer, mpi_qsort){
   int rank;
   int size;
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   srand(time(NULL)*rank);
+  tree_colorer<double,gdimension> tc;
 
   // Generating the particles randomly on each process
-  size_t nparticles = 2000;
+  size_t nparticles = 100000;
   size_t nparticlesperproc = nparticles/size; 
   double maxbound = 1.0; // Particles positions between [0,1]
   // Adjust for last one 
@@ -16,18 +67,20 @@ TEST(){
   if(rank==0){
     std::cout<<"Generating "<<nparticles<<std::endl;
   }
-  std::cout<<"Rank "<<rank<<nparticlesperproc<<" particles"<<std::endl;
+  std::cout<<"Rank "<<rank<<": "<<nparticlesperproc<<" particles"<<std::endl;
 
   // Range to compute the keys 
-  
-	std::vector<std::pair<entity_key_t,body>> bodies(nparticlesperproc);
+  std::array<point_t,2> range;
+  range[0] = point_t{};
+  range[1] = point_t{maxbound,maxbound,maxbound};
+  std::vector<std::pair<entity_key_t,body>> bodies(nparticlesperproc);
   // Create the bodies and keys 
   for(size_t i=0;i<nparticlesperproc;++i){
     // Random x, y and z
     bodies[i].second.setPosition(
+      point_t{(double)rand()/(double)RAND_MAX*(maxbound),
       (double)rand()/(double)RAND_MAX*(maxbound),
-      (double)rand()/(double)RAND_MAX*(maxbound),
-      (double)rand()/(double)RAND_MAX*(maxbound)
+      (double)rand()/(double)RAND_MAX*(maxbound)}
     );
  
     // Compute the key 
@@ -56,9 +109,9 @@ TEST(){
     checking.begin()+rank*(nparticles/size),
     checking.begin()+rank*nparticlesperproc+nparticlesperproc);
 
-	// Use the mpi_qsort
-  mpi_qsort(bodies,nparticles); 
+  // Use the mpi_qsort
+  tc.mpi_qsort(bodies,nparticles); 
 	
 	// Compare the results with all processes particles subset 
-  CINCH_ASSERT(my_checking == bodies);
+  ASSERT_TRUE(my_checking == bodies);
 }
