@@ -98,6 +98,21 @@ namespace physics{
     source->setPressure(pressure);
   } // compute_pressure
 
+  //For zero temperature white dwarf EOS
+  void 
+  compute_pressure_wd(
+      body_holder* srch)
+  { 
+    body* source = srch->getBody();
+    double A_dwd = 6.00288e22;
+    double B_dwd = 9.81011e5;
+
+    double x_dwd = pow((source->getDensity())/B_dwd,1.0/3.0);
+    double pressure = A_dwd*(x_dwd*(2.0*x_dwd*x_dwd-3.0)*
+ 		      pow(x_dwd*x_dwd+1.0,1.0/2.0)+3.0*asinh(x_dwd));
+    source->setPressure(pressure);
+  } // compute_pressure_wd
+
   // Compute the sound speed on a body 
   // This function does not need the neighbors
   // Formula is:

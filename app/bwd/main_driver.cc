@@ -111,7 +111,7 @@ mpi_init_task(int startiteration){
 
     if(rank==0)
       std::cout<<"Pressure"<<std::flush; 
-    bs.apply_all(physics::compute_pressure);
+    bs.apply_all(physics::compute_pressure_wd);
     if(rank==0)
       std::cout<<".done"<<std::endl;
 

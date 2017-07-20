@@ -57,8 +57,8 @@ public:
     double B_dwd = 9.81011e5;
 
     double x_dwd = pow((source->getDensity())/B_dwd,1.0/3.0); 
-    double pressure = A_dwd*(x_dwd*(2*x_dwd*x_dwd-3)*pow(x_dwd*x_dwd+1,1.0/2.0)
-      		      + 3*asinh(x_dwd));
+    double pressure = A_dwd*(x_dwd*(2.0*x_dwd*x_dwd-3.0)*
+                      pow(x_dwd*x_dwd+1.0,1.0/2.0)+3.0*asinh(x_dwd));
     source->setPressure(pressure); 
   };
 

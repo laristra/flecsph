@@ -45,6 +45,10 @@ public:
       body_holder*, 
       std::vector<body_holder*>&); 
 
+  virtual double compute_pressure_wd(
+      body_holder*, 
+      std::vector<body_holder*>&); 
+
 protected:
   double gamma_;
 };
