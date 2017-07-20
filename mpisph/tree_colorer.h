@@ -17,7 +17,7 @@
  *~--------------------------------------------------------------------------~*/
 
 /**
- * @file mpi_partition.cc
+ * @file tree_colorer.h
  * @author Julien Loiseau
  * @date April 2017
  * @brief Function needed for MPI distribution of the bodies 
@@ -127,9 +127,10 @@ operator*(
   return r;
 }
 
-
-// Structure for COM communication during the gravitation computation 
-// process
+/**
+ * @brief      Structure for COM communication during the gravitation
+ *             computation process
+ */
 struct mpi_cell_t{
   point_t position;
   point_t fc = {};
@@ -154,11 +155,11 @@ struct mpi_cell_t{
   mpi_cell_t(){};
 };
 
-
-
-// Structure to keep the data during the ghosts sharing. 
-// Fill the structure during compute_ghosts and then exchange during
-// exchange_ghosts 
+/**
+ * @brief       Structure to keep the data during the ghosts sharing.
+ * Fill the structure during compute_ghosts and then exchange during
+ * refresh_ghosts ''
+ */
 struct mpi_ghosts_t{
   std::vector<body> sbodies;
   std::vector<body> rbodies;
@@ -170,6 +171,13 @@ struct mpi_ghosts_t{
   std::vector<std::set<body_holder*>> sendholders;
 };
 
+/**
+ * @brief      All the function and buffers for the tree_colorer.
+ *
+ * @tparam     T     Type of the class
+ * @tparam     D     Dimension for the problem
+ * @todo fix it for type 
+ */
 template<
   typename T,
   size_t D
