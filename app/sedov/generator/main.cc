@@ -20,7 +20,7 @@ const double u_1 = .5;
 //const double u_2 = 2;
 const double m_1 = 1.0e-7;
 //const double m_2 = 1.0e-5;
-const double smoothing_length = 10.*ldistance;
+const double smoothing_length = 4*ldistance;
 const char* fileprefix = "hdf5_sedov";
 
 bool 
@@ -32,6 +32,20 @@ in_radius(
     double r)
 {
   return (x-x0)*(x-x0)+(y-y0)*(y-y0)<r*r;
+}
+
+double 
+density(
+    double x,
+    double y,
+    double x0,
+    double y0)
+{
+  double radius = sqrt(pow(x-x0,2.)+pow(y-y0,2.)); 
+  if(radius==0.){
+    return 100.;
+  }
+  return (100.-radius)/(radius); 
 }
 
 int main(int argc, char * argv[]){
@@ -150,7 +164,7 @@ int main(int argc, char * argv[]){
     P[part] = pressure_1;
     rho[part] = rho_1; 
     //u[part] = u_1;
-    m[part] = m_1;
+    m[part] = density(x[part],y[part],x_c,y_c);
     
     u[part] = u_1;///m[part];
 
