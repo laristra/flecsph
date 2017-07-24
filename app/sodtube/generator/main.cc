@@ -137,7 +137,7 @@ int main(int argc, char * argv[]){
 
   // add the global attributes
   testDataSet.writeDatasetAttribute("nparticles","int64_t",nparticles);
-  testDataSet.writeDatasetAttribute("timestep","double",timestep);
+  //testDataSet.writeDatasetAttribute("timestep","double",timestep);
   testDataSet.writeDatasetAttribute("dimension","int32_t",1);
   testDataSet.writeDatasetAttribute("use_fixed_timestep","int32_t",1);
 
@@ -160,25 +160,25 @@ int main(int argc, char * argv[]){
 
   testDataSet.writeVariables();
 
-  _d1.createVariable("vx",Flecsi_Sim_IO::point,"double",nparticlesproc,vx);
-  _d2.createVariable("vy",Flecsi_Sim_IO::point,"double",nparticlesproc,vy);
-  _d3.createVariable("vz",Flecsi_Sim_IO::point,"double",nparticlesproc,vz);
+  //_d1.createVariable("vx",Flecsi_Sim_IO::point,"double",nparticlesproc,vx);
+  //_d2.createVariable("vy",Flecsi_Sim_IO::point,"double",nparticlesproc,vy);
+  //_d3.createVariable("vz",Flecsi_Sim_IO::point,"double",nparticlesproc,vz);
 
-  testDataSet.vars.push_back(_d1);
-  testDataSet.vars.push_back(_d2);
-  testDataSet.vars.push_back(_d3);
+  //testDataSet.vars.push_back(_d1);
+  //testDataSet.vars.push_back(_d2);
+  //testDataSet.vars.push_back(_d3);
 
-  testDataSet.writeVariables();
+  //testDataSet.writeVariables();
 
-  _d1.createVariable("ax",Flecsi_Sim_IO::point,"double",nparticlesproc,ax);
-  _d2.createVariable("ay",Flecsi_Sim_IO::point,"double",nparticlesproc,ay);
-  _d3.createVariable("az",Flecsi_Sim_IO::point,"double",nparticlesproc,az);
+  //_d1.createVariable("ax",Flecsi_Sim_IO::point,"double",nparticlesproc,ax);
+  //_d2.createVariable("ay",Flecsi_Sim_IO::point,"double",nparticlesproc,ay);
+  //_d3.createVariable("az",Flecsi_Sim_IO::point,"double",nparticlesproc,az);
 
-  testDataSet.vars.push_back(_d1);
-  testDataSet.vars.push_back(_d2);
-  testDataSet.vars.push_back(_d3);
+  //testDataSet.vars.push_back(_d1);
+  //testDataSet.vars.push_back(_d2);
+  //testDataSet.vars.push_back(_d3);
 
-  testDataSet.writeVariables();
+  //testDataSet.writeVariables();
 
 
   _d1.createVariable("h",Flecsi_Sim_IO::point,"double",nparticlesproc,h);

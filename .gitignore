@@ -3,3 +3,4 @@ bld
 *.o
 *.aux
 *.log
+*~

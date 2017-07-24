@@ -17,7 +17,7 @@
  *~--------------------------------------------------------------------------~*/
 
 /**
- * @file mpi_partition.cc
+ * @file tree_colorer.h
  * @author Julien Loiseau
  * @date April 2017
  * @brief Function needed for MPI distribution of the bodies 
@@ -127,9 +127,10 @@ operator*(
   return r;
 }
 
-
-// Structure for COM communication during the gravitation computation 
-// process
+/**
+ * @brief      Structure for COM communication during the gravitation
+ *             computation process
+ */
 struct mpi_cell_t{
   point_t position;
   point_t fc = {};
@@ -154,11 +155,11 @@ struct mpi_cell_t{
   mpi_cell_t(){};
 };
 
-
-
-// Structure to keep the data during the ghosts sharing. 
-// Fill the structure during compute_ghosts and then exchange during
-// exchange_ghosts 
+/**
+ * @brief       Structure to keep the data during the ghosts sharing.
+ * Fill the structure during compute_ghosts and then exchange during
+ * refresh_ghosts ''
+ */
 struct mpi_ghosts_t{
   std::vector<body> sbodies;
   std::vector<body> rbodies;
@@ -170,6 +171,13 @@ struct mpi_ghosts_t{
   std::vector<std::set<body_holder*>> sendholders;
 };
 
+/**
+ * @brief      All the function and buffers for the tree_colorer.
+ *
+ * @tparam     T     Type of the class
+ * @tparam     D     Dimension for the problem
+ * @todo fix it for type 
+ */
 template<
   typename T,
   size_t D
@@ -821,6 +829,25 @@ public:
  * Function for sorting and distribution 
  *~---------------------------------------------------------------------------*/
 
+  /**
+  * @brief      Sorting of the input particles or current particles using MPI. 
+  * This method is composed of several steps to implement the quick sort:
+  * - Each process sorts its local particles 
+  * - Each process generate a subset of particles to fit the byte size limit 
+  * to send 
+  * - Each subset if send to the master (Here 0) who generates the pivot for 
+  * quick sort 
+  * - Pivot are send to each processes and they create buckets based on the 
+  * pivot 
+  * - Each bucket is send to the owner
+  * - Each process sorts its local particles again 
+  * This is the first implementation, it can be long for the first sorting but
+  * but then as the particles does not move very fast, the particles on the
+  * edge are the only ones shared 
+  *
+  * @param      rbodies       The rbodies, local bodies of this process. 
+  * @param[in]  totalnbodies  The totalnbodies on the overall simulation. 
+  */
   void mpi_qsort(
     std::vector<std::pair<entity_key_t,body>>& rbodies,
     int totalnbodies
@@ -990,7 +1017,13 @@ public:
 #endif
   } // mpi_qsort
 
-
+  /**
+   * @brief      Export to a file the current tree in memory 
+   * This is useful for small number of particles to help representing the tree 
+   *
+   * @param      tree   The tree to output
+   * @param      range  The range of the particles, use to construct entity_keys
+   */
   void mpi_tree_traversal_graphviz(
     tree_topology_t & tree,
     std::array<point_t,2>& range)
@@ -1141,8 +1174,22 @@ public:
     }
   }
 
-  // Exchange the usefull body_holder based on the bounding box of this process
-  // This will be used to find the ghosts 
+  /**
+   * @brief      Exchange the useful branches of the current tree of the procs. 
+   * There is several ways to share. Here we look for the particles in the 
+   * global bounding box and share them. The branches are constructed directly 
+   * by the FleCSI tree structure. A better way should be to share branches 
+   * instead. But we need to change the tree structure in FleCSI for that. 
+   * 
+   * This function provide the non local particles that are use to find the 
+   * ghosts. 
+   *
+   * @param      tree             The tree 
+   * @param      rbodies          The rbodies, local bodies of this process
+   * @param      ranges           The ranges, the key range of all the processes
+   * @param      range_total      The range total of all the particles 
+   * @param[in]  smoothinglength  The smoothinglength, the max value of everyone
+   */
   void
   mpi_branches_exchange(
     tree_topology_t& tree,
@@ -1291,7 +1338,13 @@ public:
 
   }
 
-  // compute the range, minposition and maxposition from a group of bodies
+  /**
+   * @brief      Compute the global range of all the particle system 
+   *
+   * @param      bodies           The bodies, local of this process
+   * @param      range            The range computed in that function  
+   * @param[in]  smoothinglength  The smoothinglength, the biggest of the system
+   */
   void 
   mpi_compute_range(
     std::vector<std::pair<entity_key_t,body>>& bodies,
@@ -1343,6 +1396,17 @@ public:
     range[1] = maxposition;
   }
 
+  /**
+   * @brief      Update the local ghosts data. This function is always use 
+   * after one call of mpi_compute_ghosts. It can be use several time like:
+   * mpi_compute_ghosts 
+   * mpi_refresh_ghosts 
+   * mpi_refresh_ghosts 
+   * As long as the particles did not move. 
+   *
+   * @param      tree   The tree
+   * @param      range  The range
+   */
   void mpi_refresh_ghosts(
     tree_topology_t& tree, 
     std::array<point_t,2>& range)
@@ -1429,6 +1493,17 @@ public:
 #endif
   }
 
+  /**
+   * @brief      Prepare the buffer for the ghost transfer function. 
+   * Based on the non local particles shared in the mpi_branches_exchange, 
+   * this function extract the really needed particles and find the ghosts. 
+   * Then, as those ghosts can be requested several times in an iteration, 
+   * the buffer are set and can bne use in mpi_refresh_ghosts. 
+   *
+   * @param      tree             The tree
+   * @param[in]  smoothinglength  The smoothinglength
+   * @param      range            The range
+   */
   void 
   mpi_compute_ghosts(
     tree_topology_t& tree,

@@ -238,11 +238,19 @@ void inputDataHDF5(
   //--------------- READ GLOBAL ATTRIBUTES ------------------------------------
   // read the number of dimension 
   int32_t dimension;
-  H5ReadFileAttribInt32(dataFile,"dimension",&dimension);
-  assert(gdimension == dimension);
+  if(H5_SUCCESS == H5ReadFileAttribInt32(dataFile,"dimension",&dimension)){
+    assert(gdimension == dimension);
+  }else{
+    std::cerr<<"No dimension value: setting to default 3"<<std::endl;
+    dimension = 3;
+  }
 
   // timestep 
-  H5ReadFileAttribFloat64(dataFile,"timestep",&physics::dt);
+  if(H5_SUCCESS != 
+      H5ReadFileAttribFloat64(dataFile,"timestep",&physics::dt)){
+    std::cerr<<"No timestep value: setting to default 0.001"<<std::endl;
+    physics::dt = 0.001;
+  }
 
   //--------------- READ DATA FROM STEP ---------------------------------------
   // Set the number of particles read by each process
@@ -273,6 +281,11 @@ void inputDataHDF5(
     bodies[i].second.setPosition(position);
   }
 
+  // Reset buffer to 0, if next value not present 
+  std::fill(dataX,dataX+nparticlesproc,0.);
+  std::fill(dataY,dataY+nparticlesproc,0.);
+  std::fill(dataZ,dataZ+nparticlesproc,0.); 
+
   // Velocity
   H5PartReadDataFloat64(dataFile,"vx",dataX);
   H5PartReadDataFloat64(dataFile,"vy",dataY);
@@ -288,6 +301,11 @@ void inputDataHDF5(
     }
     bodies[i].second.setVelocity(velocity);
   }
+ 
+  // Reset buffer to 0, if next value not present 
+  std::fill(dataX,dataX+nparticlesproc,0.);
+  std::fill(dataY,dataY+nparticlesproc,0.);
+  std::fill(dataZ,dataZ+nparticlesproc,0.); 
 
   // Acceleration
   H5PartReadDataFloat64(dataFile,"ax",dataX);
@@ -304,6 +322,9 @@ void inputDataHDF5(
     }
     bodies[i].second.setAcceleration(acceleration);
   }
+ 
+  // Reset buffer to 0, if next value not present 
+  std::fill(dataX,dataX+nparticlesproc,0.);
 
   // Smoothing Length 
   H5PartReadDataFloat64(dataFile,"h",dataX);
@@ -311,11 +332,17 @@ void inputDataHDF5(
     bodies[i].second.setSmoothinglength(dataX[i]);
   }
 
+  // Reset buffer to 0, if next value not present 
+  std::fill(dataX,dataX+nparticlesproc,0.);
+
   // Density   
   H5PartReadDataFloat64(dataFile,"rho",dataX);
   for(int64_t i=0; i<nparticlesproc; ++i){
     bodies[i].second.setDensity(dataX[i]);
   }
+
+  // Reset buffer to 0, if next value not present 
+  std::fill(dataX,dataX+nparticlesproc,0.);
 
   // Internal Energy   
   H5PartReadDataFloat64(dataFile,"u",dataX);
@@ -323,12 +350,18 @@ void inputDataHDF5(
     bodies[i].second.setInternalenergy(dataX[i]);
   }
 
+  // Reset buffer to 0, if next value not present 
+  std::fill(dataX,dataX+nparticlesproc,0.);
+
   // Pressure  
   H5PartReadDataFloat64(dataFile,"P",dataX);
   for(int64_t i=0; i<nparticlesproc; ++i){
     bodies[i].second.setPressure(dataX[i]);
   }
  
+  // Reset buffer to 0, if next value not present 
+  std::fill(dataX,dataX+nparticlesproc,0.);
+
  // Mass  
   H5PartReadDataFloat64(dataFile,"m",dataX);
   for(int64_t i=0; i<nparticlesproc; ++i){
@@ -340,7 +373,10 @@ void inputDataHDF5(
   for(int64_t i=0; i<nparticlesproc; ++i){
     bodies[i].second.setId(dataInt[i]);
   }
- 
+  
+  // Reset buffer to 0, if next value not present 
+  std::fill(dataX,dataX+nparticlesproc,0.);
+
   // delta T   
   H5PartReadDataFloat64(dataFile,"dt",dataX);
   for(int64_t i=0; i<nparticlesproc; ++i){
@@ -454,11 +490,11 @@ void outputDataHDF5(
   }
 
   // Add variable  
-  simio.addVariable( Flecsi_Sim_IO::Variable("coords_x",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("x",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b1));
-  simio.addVariable( Flecsi_Sim_IO::Variable("coords_y",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("y",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b2));
-  simio.addVariable( Flecsi_Sim_IO::Variable("coords_z",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("z",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b3));
   // Push to file 
   simio.writeVariables();
@@ -480,11 +516,11 @@ void outputDataHDF5(
     }
   }
 
-  simio.addVariable( Flecsi_Sim_IO::Variable("vel_x",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("vx",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b1));
-  simio.addVariable( Flecsi_Sim_IO::Variable("vel_y",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("vy",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b2));
-  simio.addVariable( Flecsi_Sim_IO::Variable("vel_z",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("vz",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b3));
 
   //H5PartWriteDataFloat64(dataFile,"vx",dataX);
@@ -532,9 +568,9 @@ void outputDataHDF5(
     b3[pos++] = bi.second.getInternalenergy();
   }
 
-  simio.addVariable( Flecsi_Sim_IO::Variable("smoothing",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("h",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b1));
-  simio.addVariable( Flecsi_Sim_IO::Variable("dens",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("rho",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b2));
   simio.addVariable( Flecsi_Sim_IO::Variable("u",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b3));
@@ -555,9 +591,9 @@ void outputDataHDF5(
     bi[pos++] = bid.second.getId();
   }
   
-  simio.addVariable( Flecsi_Sim_IO::Variable("ipr",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("P",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b1));
-  simio.addVariable( Flecsi_Sim_IO::Variable("mass",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("m",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b2));
   simio.addVariable( Flecsi_Sim_IO::Variable("dt",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b3));

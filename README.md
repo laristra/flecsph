@@ -1,5 +1,9 @@
 ![logo](doc/flecsph_logo_bg.png)
 
+[![Build Status](https://travis-ci.org/laristra/flecsph.svg?branch=master)](https://travis-ci.org/laristra/flecsph)
+[![codecov.io](https://codecov.io/github/laristra/flecsph/coverage.svg?branch=master)](https://codecov.io/github/laristra/flecsph?branch=master)
+[![Quality Gate](https://sonarqube.com/api/badges/gate?key=flecsph%3A%2Fmaster)](https://sonarqube.com/dashboard?id=flecsph%3A%2Fmaster)
+
 
 <aside class="warning">
 The distributed version of gravitation with FMM is not working yet
@@ -50,7 +54,7 @@ Let all the flags ON, make sure the conduit of GASNET is MPI.
 
 If not administrator: set path for the CMAKE_INSTALL_PREFIX like /home/XXX/local/
 
-    % make ; make install 
+    % make 
 
 ### FleCSI 
 
@@ -65,6 +69,7 @@ Here we need to change to the FleCSPH branch
 Here add:
 - ENABLE_MPI 
 - ENABLE_OPENMP 
+- ENABLE_LEGION
 - FLECSI_RUNTIME_MODEL legion
 
 If not administrator:  
@@ -100,4 +105,12 @@ Then make:
     
  # Running test cases 
  
- You can find each test case in the corresponding app/ directory. 
+ You can find each test case in the corresponding app/ directory. Currently, we have below cases:
+ 
+ - sodtube : 1D Sod shock tube problem
+ - sedov : 2D circular Sedov blast wave expansion
+ - bns : 3D binary neutron star merger with piecewise polytrope equations of state (EOS) with Newtonian gravity
+ - bwd : 3D binary white dwarf merger with analytic zero temperature EOS
+ 
+ Also, app/miscell directory contains python script that generates initial data for neutron star and its binary generator. It will add more features such as initial data generator for white dwarfs and some input/output converter
+ 

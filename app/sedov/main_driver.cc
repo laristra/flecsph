@@ -78,6 +78,8 @@ mpi_init_task(int startiteration){
   double h = bs.getSmoothinglength();
   physics::epsilon = 0.01*h*h;
 
+  remove("output_sedov.h5part"); 
+
 #ifdef OUTPUT
   bs.write_bodies("output_sedov",iter);
   //io::outputDataHDF5(rbodies,"output_sodtube.h5part",0);
