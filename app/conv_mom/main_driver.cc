@@ -54,7 +54,7 @@ mpi_init_task(int startiteration){
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   
-  int totaliters = 100;
+  int totaliters = 1000;
   int iteroutput = 1;
   double totaltime = 0.0;
   double maxtime = 10.0;
@@ -79,7 +79,7 @@ mpi_init_task(int startiteration){
   physics::epsilon = 0.01*h*h;
 
 #ifdef OUTPUT
-  bs.write_bodies("output_dwd",iter);
+  bs.write_bodies("output_conv_mom",iter);
   //io::outputDataHDF5(rbodies,"output_sodtube.h5part",0);
   //tcolorer.mpi_output_txt(rbodies,iter,"output_sodtube"); 
 #endif
@@ -159,7 +159,7 @@ mpi_init_task(int startiteration){
    
 #ifdef OUTPUT
     if(iter % iteroutput == 0){ 
-      bs.write_bodies("output_dwd",iter/iteroutput);
+      bs.write_bodies("output_conv_mom",iter/iteroutput);
     }
 #endif
     ++iter;

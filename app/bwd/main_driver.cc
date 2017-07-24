@@ -64,9 +64,9 @@ mpi_init_task(int startiteration){
   physics::dt = 1.0e-10;
   physics::alpha = 1; 
   physics::beta = 2; 
-  //physics::stop_boundaries = true;
-  //physics::min_boundary = {0.1};
-  //physics::max_boundary = {1.0};
+  physics::stop_boundaries = true;
+  physics::min_boundary = {0.1};
+  physics::max_boundary = {1.0};
   physics::gamma = 5./3.;
 
   body_system<double,gdimension> bs;
@@ -102,7 +102,7 @@ mpi_init_task(int startiteration){
     // - Compute and exchange ghosts in real smoothing length 
     bs.update_iteration();
    
-    // Do the DWD Tube physics
+    // Do the DWD physics
     if(rank==0)
       std::cout<<"Density"<<std::flush; 
     bs.apply_in_smoothinglength(physics::compute_density);

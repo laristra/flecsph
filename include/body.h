@@ -98,6 +98,7 @@ public:
   void setPressure(double pressure){pressure_ = pressure;}
   void setDensity(double density){density_ = density;}
   void setMass(double mass){mass_ = mass;};
+  void setLinMomentum(double lin_momentum){lin_momentum_ = lin_momentum;}
   void setInternalenergy(double internalenergy)
     {internalenergy_=internalenergy;};
   void setSmoothinglength(double smoothinglength)
@@ -134,6 +135,7 @@ private:
   double smoothinglength_; 
   double soundspeed_;
   double internalenergy_;
+  double lin_momentum_;
   //double dudt_;
   //point_t gravforce_;
   //point_t hydroforce_;

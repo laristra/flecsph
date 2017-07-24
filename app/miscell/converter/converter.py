@@ -20,19 +20,44 @@ f1 = np.loadtxt(sys.argv[1])
 global dim
 dim = 3 # Depend on the problem
 
+# Code units
+p_cgs_to_cu = 1.0e-22
+p_cu_to_cgs = 1.0e-22
+rho_cgs_to_cu = 1.0e-12
+rho_cu_to_cgs = 1.0e12
+u_cgs_to_cu = 1.0e-10
+u_cu_to_cgs = 1.0e10
+distance_cu_to_cgs = 1.0e5
+distance_cgs_to_cu = 1.0e-5
+v_cu_to_cgs = 1.0e5
+v_cgs_to_cu = 1.0e-5
+mass_cu_to_cgs = 1.0e27
+mass_cgs_to_cu = 1.0e-27
+
 # Extract data by cols
 def column(matrix, i):
   return [row[i] for row in matrix]
 
-x = column(f1,0)
-y = column(f1,1)
-z = column(f1,2)
-m = column(f1,3)
-vx = column(f1,4)
-vy = column(f1,5)
-vz = column(f1,6)
-u = column(f1,7)
-rho = column(f1,8)
+x_col = column(f1,0)
+y_col = column(f1,1)
+z_col = column(f1,2)
+m_col = column(f1,3)
+vx_col = column(f1,4)
+vy_col = column(f1,5)
+vz_col = column(f1,6)
+u_col = column(f1,7)
+rho_col = column(f1,8)
+
+x = np.array(x_col)*distance_cgs_to_cu
+y = np.array(y_col)*distance_cgs_to_cu
+z = np.array(z_col)*distance_cgs_to_cu
+m = np.array(m_col)*mass_cgs_to_cu
+vx = np.array(vx_col)*v_cgs_to_cu
+vy = np.array(vy_col)*v_cgs_to_cu
+vz = np.array(vz_col)*v_cgs_to_cu
+u = np.array(u_col)*u_cgs_to_cu
+rho = np.array(rho_col)*rho_cgs_to_cu
+
 
 # Write the output
 print("Generating data...")

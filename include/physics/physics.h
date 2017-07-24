@@ -456,6 +456,23 @@ namespace physics{
     //return std::min(physics::dt,dt1); 
   }
 
+  // Calculate simple linear momentum for checking momentum conservation
+  void 
+  compute_lin_momentum(
+      body_holder* srch, 
+      std::vector<body_holder*>& nbsh)
+  {
+    body* source = srch->getBody();
+    double lin_momentum = 0;
+
+    for(auto nbh: nbsh) {
+      body* nb = nbh->getBody();
+      point_t velocity = source->getVelocity();
+      //lin_momentum = velocity*nb->getMass(); 
+    }
+    source->setLinMomentum(lin_momentum);   
+  }
+
 }; // physics
 
 #endif // _physics_physics_h_
