@@ -463,12 +463,12 @@ namespace physics{
       std::vector<body_holder*>& nbsh)
   {
     body* source = srch->getBody();
-    double lin_momentum = 0;
+    point_t lin_momentum = 0;
 
     for(auto nbh: nbsh) {
       body* nb = nbh->getBody();
       point_t velocity = source->getVelocity();
-      //lin_momentum = velocity*nb->getMass(); 
+      lin_momentum = velocity*nb->getMass(); 
     }
     source->setLinMomentum(lin_momentum);   
   }

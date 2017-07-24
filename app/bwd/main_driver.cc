@@ -116,6 +116,12 @@ mpi_init_task(int startiteration){
       std::cout<<".done"<<std::endl;
 
     if(rank==0)
+      std::cout<<"Linear Momentum"<<std::flush; 
+    //bs.apply_all(physics::compute_lin_momentum);
+    if(rank==0)
+      std::cout<<".done"<<std::endl;
+
+    if(rank==0)
       std::cout<<"Soundspeed"<<std::flush; 
     bs.apply_all(physics::compute_soundspeed);
     if(rank==0)
