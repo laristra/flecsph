@@ -127,7 +127,7 @@ int main(int argc, char * argv[]){
 
   char filename[128];
   //sprintf(filename,"%s_%d.h5part",fileprefix,nparticles);
-  sprintf(filename,"%s.h5part",fileprefix,nparticles);
+  sprintf(filename,"%s.h5part",fileprefix);
 
   // Destroy the file if exists 
   remove(filename);
@@ -141,8 +141,7 @@ int main(int argc, char * argv[]){
   testDataSet.writeDatasetAttribute("dimension","int32_t",1);
   testDataSet.writeDatasetAttribute("use_fixed_timestep","int32_t",1);
 
-  char * simName = "sodtube_1D";
-  testDataSet.writeDatasetAttributeArray("name","string",simName);
+  //testDataSet.writeDatasetAttributeArray("name","string",simName);
   testDataSet.closeFile();
 
   testDataSet.openFile(MPI_COMM_WORLD);
