@@ -152,6 +152,7 @@ public:
     }
 
     tree_->update_branches(2*smoothinglength_); 
+    //std::cout<<rank<<": "<<tree_->root()->getMass()<<std::endl;
 
     // Exchnage usefull body_holder from my tree to other processes
     tcolorer_.mpi_branches_exchange(*tree_,localbodies_,rangeposproc_,
@@ -159,6 +160,7 @@ public:
 
     // Update the tree 
     tree_->update_branches(2*smoothinglength_); 
+   // std::cout<<rank<<": "<<tree_->root()->getMass()<<std::endl;
 
     // Compute and refresh the ghosts 
     tcolorer_.mpi_compute_ghosts(*tree_,smoothinglength_,range_);

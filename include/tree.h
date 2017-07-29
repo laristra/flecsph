@@ -43,8 +43,6 @@ void driver(int argc, char*argv[]);
 } // namespace execution
 } // namespace flecsi 
 
-enum locality {LOCAL,NONLOCAL,EXCL,SHARED,GHOST};
-
 struct body_holder_mpi_t{
   static const size_t dimension = gdimension;
   using element_t = type_t; 
@@ -85,16 +83,16 @@ public:
     body_holder()
       :position_(point_t{0,0,0}),
        bodyptr_(nullptr),
-       locality_(NONLOCAL),
        owner_(-1),
        mass_(0.0)
-    {};
+    {
+      locality_ = NONLOCAL;
+    };
 
     // Function used in the tree structure 
     const point_t& coordinates() const {return position_;}
     const point_t& getPosition() const {return position_;}
     body* getBody(){return bodyptr_;};
-    int getLocality(){return locality_;};
     int getOwner(){return owner_;};
     element_t getMass(){return mass_;};
 
@@ -118,7 +116,6 @@ public:
     // Should be replace by the key corresponding to the entity 
     point_t position_;
     body * bodyptr_; 
-    int locality_;
     int owner_;
 
     // Add this for COM in the current version

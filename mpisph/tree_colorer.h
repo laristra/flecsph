@@ -1069,15 +1069,15 @@ public:
             "->"<<key<<std::endl;
           switch (ent->getLocality())
           {
-            case SHARED:
+            case 2:
               output<<key<<"[shape=box,color=blue]"<<std::endl;
               break;
-            case EXCL:
+            case 3:
               output<<key<<" [shape=box,color=red]"<<std::endl;
               //fprintf(output,"\"%lo\" [shape=box,color=red]\n",
               //  key.truncate_value(17));
               break;
-            case GHOST:
+            case 1:
               output<<key<<" [shape=box,color=green]"<<std::endl;
               //fprintf(output,"\"%lo\" [shape=box,color=green]\n",
               //  key.truncate_value(17));
@@ -1317,20 +1317,21 @@ public:
       MPI_COMM_WORLD);
 
     // Sort the bodies based on key and or position
-    std::sort(ghosts_data.recvholders.begin(),
-            ghosts_data.recvholders.end(),
+    std::sort(ghosts_data.rbodies.begin(),
+            ghosts_data.rbodies.end(),
       [range](auto& left, auto& right){
-        if(entity_key_t(range,left->coordinates())<
-          entity_key_t(range,right->coordinates())){
+        if(entity_key_t(range,left.coordinates())<
+          entity_key_t(range,right.coordinates())){
           return true;
         }
-        if(entity_key_t(range,left->coordinates())==
-          entity_key_t(range,right->coordinates())){
+        if(entity_key_t(range,left.coordinates())==
+          entity_key_t(range,right.coordinates())){
           std::cout<<"Key collision"<<std::endl;
-          return left->coordinates()<right->coordinates();
+          return left.coordinates()<right.coordinates();
         }
         return false;
       });
+ 
  
     // Then link the holders with these bodies
     auto it = ghosts_data.rbodies.begin();
@@ -1338,11 +1339,13 @@ public:
       assert(ghosts_data.recvholders.size() == 0); 
     for(auto& bi: ghosts_data.recvholders)
     {
+      //std::cout<<rank<<": want: "<<*bi<<std::endl<<std::flush;
+      
       auto bh = tree.get(bi->id());
       bh->setBody(&(*it));
-
-      assert(bh->getLocality()==NONLOCAL||bh->getLocality()==GHOST
-          && "Non local particle");
+      //std::cout<<rank<<": get: "<<*it<<std::endl<<std::flush;
+      
+      assert(!bh->is_local() && "Non local particle");
       assert(entity_key_t(range,bh->coordinates()) == 
           entity_key_t(range,bh->getBody()->coordinates()) && 
           "Key different than holder");
@@ -1352,6 +1355,7 @@ public:
       bh->getBody()->setPosition(bh->getPosition());
       bh->setPosition(bh->getBody()->getPosition());
       ++it;
+      //std::cout<<rank<<": OUT"<<std::endl<<std::flush;
     }   
   
 #ifdef OUTPUT
@@ -1409,6 +1413,8 @@ public:
     {  
       if(bi->is_local())
       {
+        //std::cout<<rank<<": for "<<*bi<<std::endl;
+        
         assert(bi->getOwner() == rank);
         auto bodiesneighbs = tree.find_in_radius_b(
             bi->coordinates(),
@@ -1416,6 +1422,7 @@ public:
         for(auto nb: bodiesneighbs){
           if(!nb->is_local())
           {
+            //std::cout<<rank<<": need: "<<*nb<<std::endl;
             ghosts_data.sendholders[nb->getOwner()].insert(bi);
             recvholders[nb->getOwner()].insert(nb);
           }
@@ -1442,7 +1449,9 @@ public:
     for(auto proc: recvholders)
     {
       ghosts_data.recvholders.insert(
-        ghosts_data.recvholders.end(),proc.begin(),proc.end());
+        ghosts_data.recvholders.end(),
+        proc.begin(),
+        proc.end());
     }
 
     // Now gather the bodies data to send in a vector 
@@ -1493,6 +1502,8 @@ public:
         }
         return false;
       });
+      
+      
 
 #ifdef OUTPUT 
     MPI_Barrier(MPI_COMM_WORLD);
