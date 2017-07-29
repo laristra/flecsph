@@ -98,16 +98,8 @@ public:
     int getOwner(){return owner_;};
     element_t getMass(){return mass_;};
 
-    void setLocality(locality loc){locality_ = loc;};
     void setBody(body * bodyptr){bodyptr_ = bodyptr;};
     void setPosition(point_t position){position_ = position;};
-
-    bool
-    is_local()
-    {
-      return locality_ == LOCAL || locality_ == EXCL
-        || locality_ == SHARED;
-    }
 
     friend std::ostream& operator<<(std::ostream& os, const body_holder& b){
       os << std::setprecision(10);
@@ -135,7 +127,8 @@ public:
     
   using entity_t = body_holder;
 
-  class branch : public flecsi::topology::tree_branch<branch_int_t,dimension>{
+  class branch : public flecsi::topology::tree_branch<branch_int_t,dimension,
+  double>{
   public:
     branch(){}
 
@@ -167,7 +160,6 @@ public:
       } 
     }
 
-
     point_t 
     coordinates(
         const std::array<flecsi::point<element_t, dimension>,2>& range) const{
@@ -177,12 +169,12 @@ public:
       return p;
     }
 
-    point_t getPosition(){return position_;};
+    point_t getPosition(){return coordinates_;};
     element_t getMass(){return mass_;};
     element_t getRadius(){return radius_;};
     point_t getBMin(){return bmin_;};
     point_t getBMax(){return bmax_;};
-    void setPosition(point_t position){position_ = position;};
+    void setPosition(point_t position){coordinates_ = position;};
     void setMass(element_t mass){mass_ = mass;};
     //void setRadius(element_t radius){radius_ = radius;};
     void setBMax(point_t bmax){bmax_ = bmax;};
@@ -190,11 +182,8 @@ public:
 
    private:
     std::vector<body_holder*> ents_;
-    point_t position_;
     point_t bmax_;
     point_t bmin_;
-    element_t mass_;
-    element_t radius_; 
   }; // class branch 
 
   bool should_coarsen(branch* parent){

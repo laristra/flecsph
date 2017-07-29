@@ -37,10 +37,21 @@ cinch_add_unit(mpi_qsort
   SOURCES
     test/mpi_qsort.cc
     ${FleCSI_RUNTIME}/runtime_driver.cc  
-  LIBRARIES 
-    ${FleCSPH_LIBRARIES}
+  LIBRARIES ${FleCSPH_LIBRARIES}
+  POLICY MPI 
+  THREADS 4 
 )
 
+cinch_add_unit(io
+  SOURCES
+    test/io.cc
+    ${FleCSI_RUNTIME}/runtime_driver.cc  
+  INPUTS
+    test/io_test.h5part
+  LIBRARIES ${FleCSPH_LIBRARIES}
+  POLICY MPI 
+  THREADS 4 
+)
 
 
 #~---------------------------------------------------------------------------~-#

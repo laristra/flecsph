@@ -17,11 +17,11 @@ echo "done."
 
 cd h5hut/
 
-CC=mpicc ./configure --enable-parallel --with-hdf5="$PWD/../local" --prefix="$PWD/../local/" --enable-shared=yes
+CC=mpicc CXX=mpicxx ./configure --enable-parallel --with-hdf5="$PWD/../local" --prefix="$PWD/../local/" --enable-shared=yes
 
 echo "Replace the non valid function to be able to compile"
 sed -e 's/if ( H5Pset_fapl_mpiposix (/if ( H5Pset_fapl_mpio (/g' ./src/h5core/h5_hdf5_private.h -i
 
 
-make 
+make -j
 make install 

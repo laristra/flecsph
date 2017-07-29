@@ -20,7 +20,7 @@ const double u_1 = .5;
 //const double u_2 = 2;
 const double m_1 = 1.0e-7;
 //const double m_2 = 1.0e-5;
-const double smoothing_length = 4*ldistance;
+const double smoothing_length = 2*ldistance;
 const char* fileprefix = "hdf5_sedov";
 
 bool 

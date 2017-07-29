@@ -14,7 +14,8 @@ echo "done."
 cd hdf5_parallel/
 
 echo "Configure..."
-CC=mpicc ./configure --enable-parallel --prefix="$PWD/../local/"
-make 
-make check 
+CC=mpicc CXX=mpicxx ./configure --enable-parallel --prefix="$PWD/../local/"
+
+make -j 
+make -j check 
 make install

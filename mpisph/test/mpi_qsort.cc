@@ -28,26 +28,6 @@ namespace flecsi{
   }
 }
 
-class TestEnvironment : public Environment {
-  protected:
-   virtual void SetUp() {
-     char** argv;
-     int argc = 0;
-     int mpiError = MPI_Init(&argc, &argv);
-     ASSERT_FALSE(mpiError);
-  }
-
-  virtual void TearDown() {
-    int mpiError = MPI_Finalize();
-    ASSERT_FALSE(mpiError);
-  }
-
-  virtual ~TestEnvironment() {};
-};
-
-Environment* const foo_env = AddGlobalTestEnvironment(new TestEnvironment);
-
-
 TEST(tree_colorer, mpi_qsort){
   int rank;
   int size;

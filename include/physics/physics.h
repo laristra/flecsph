@@ -63,10 +63,14 @@ namespace physics{
       body_holder* srch, 
       std::vector<body_holder*>& nbsh)
   {
+    assert(srch!=nullptr);
+    assert(srch->getBody()!=nullptr);
     body* source = srch->getBody();
     double density = 0;
     assert(nbsh.size()>0);
     for(auto nbh : nbsh){
+      assert(nbh!=nullptr);
+      assert(nbh->getBody()!=nullptr);
       body* nb = nbh->getBody();
       double dist = flecsi::distance(source->getPosition(),nb->getPosition());
       assert(dist>=0.0);

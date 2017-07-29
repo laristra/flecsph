@@ -25,24 +25,29 @@ namespace execution{
 }
 }
 
-TEST(tree_topology, neighbors) {
+TEST(tree_topology, neighbors_sphere) {
   tree_topology_t t;
 
   vector<body_holder*> ents;
 
   size_t n = 5000;
+  double mass = 1.0;
 
   for(size_t i = 0; i < n; ++i){
     point_t p = {uniform(0, 1), uniform(0, 1), uniform(0, 1)};
-    auto e = t.make_entity(p,nullptr,0,0);
+    auto e = t.make_entity(p,nullptr,0,mass);
     t.insert(e);
     ents.push_back(e);
   }
 
+  t.update_branches(0.1);
+
+  ASSERT_TRUE(t.root()->getMass() == n*mass);
+
   for(size_t i = 0; i < n; ++i){
     auto ent = ents[i];
 
-    auto ns = t.find_in_radius(ent->coordinates(), 0.10);
+    auto ns = t.find_in_radius_b(ent->coordinates(), 0.10);
 
     set<body_holder*> s1;
     s1.insert(ns.begin(), ns.end());
@@ -57,6 +62,68 @@ TEST(tree_topology, neighbors) {
       }
     }
 
+    //std::cout<<s1.size()<<" && " << s2.size()<<std::endl;
+
+    ASSERT_TRUE(s1 == s2);
+  }
+}
+
+TEST(tree_topology, neighbors_box) {
+  tree_topology_t t;
+
+  vector<body_holder*> ents;
+
+  size_t n = 5000;
+  double mass = 1.0;
+  
+  point_t max;
+  point_t min;
+
+  for(size_t i = 0; i < n; ++i){
+    point_t p = {uniform(0, 1), uniform(0, 1), uniform(0, 1)};
+    auto e = t.make_entity(p,nullptr,0,mass);
+    t.insert(e);
+    ents.push_back(e);
+  }
+
+  t.update_branches(0.1);
+  
+  ASSERT_TRUE(t.root()->getMass() == n*mass);
+
+  for(size_t i = 0; i < n; ++i){
+    auto ent = ents[i];
+	
+	for(size_t d = 0; d < gdimension; ++d ){
+		max[d] = ent->coordinates()[d]+0.1;
+		min[d] = ent->coordinates()[d]-0.1;
+	}
+    auto ns = t.find_in_box_b(min,max);
+
+	//std::cout<<ns.size()<<std::endl;
+	
+    set<body_holder*> s1;
+    s1.insert(ns.begin(), ns.end());
+
+    set<body_holder*> s2;
+
+    for(size_t j = 0; j < n; ++j){
+      auto ej = ents[j];
+
+	  bool in_box = true;
+	  for(size_t d = 0; d < gdimension; ++d ){
+		if(ej->coordinates()[d] > max[d] || ej->coordinates()[d] < min[d]){
+			in_box = false; 
+			break;
+		}		
+	  }
+	  
+      if(in_box){
+        s2.insert(ej);
+      }
+    }
+
+    //std::cout<<s1.size()<<" && " << s2.size()<<std::endl;
+
     ASSERT_TRUE(s1 == s2);
   }
 }
@@ -70,18 +137,19 @@ TEST(tree_topology,smoothing){
 
   double h = distance/2.-10*epsilon;
 
-  std::cout<<"Distance="<<distance<<" H="<<h<<" Epsilon="<<epsilon<<std::endl;
+  //std::cout<<"Distance="<<distance<<" H="<<h<<" Epsilon="<<epsilon<<std::endl;
 
   // Generate the particles 
   vector<body_holder*> ents;
   double line =  0.;
   double col  =  0.;
   double depth = 0.;
+  double mass = 1.0;
   point_t min = {0.-distance,0.-distance,0.-distance};
   point_t max = { (nparticles_line-1)*distance+distance,
                   (nparticles_line-1)*distance+distance,
                   (nparticles_line-1)*distance+distance};
-  std::cout<<"range="<<min<<max<<std::endl;
+  //std::cout<<"range="<<min<<max<<std::endl;
   tree_topology_t t(min,max);
   for(size_t part_line=0; part_line<nparticles_line;++part_line){
       col = 0.;
@@ -89,23 +157,28 @@ TEST(tree_topology,smoothing){
       depth = 0.;
       for(size_t part_depth=0; part_depth<nparticles_line;++part_depth){
         point_t position = {line,col,depth};
-        auto e = t.make_entity(position,nullptr,0,0);
+        auto e = t.make_entity(position,nullptr,0,mass);
         t.insert(e);
         ents.push_back(e);
         depth += distance; 
-        std::cout<<*e<<std::endl;
+        //std::cout<<*e<<std::endl;
       }
       col += distance; 
     }
     line += distance; 
   }
 
+  t.update_branches(2*h);
+  //std::cout<<t.root()->getMass()<<" == "<<nparticles*mass<<std::endl; 
+  ASSERT_TRUE(t.root()->getMass() == nparticles*mass); 
+
+
   for(size_t iter=0;iter < niter ; ++iter){
-    std::cout<< iter <<" h="<<h<<std::endl;
+    //std::cout<< iter <<" h="<<h<<std::endl;
     // For each particle search in radius 
     for(size_t i = 0; i < nparticles; ++i){
       auto ent = ents[i];
-      auto ns = t.find_in_radius(ent->coordinates(), 2*h);
+      auto ns = t.find_in_radius_b(ent->coordinates(), 2*h);
       auto vec = ns.to_vec();
 
       vector<body_holder*> s1;
