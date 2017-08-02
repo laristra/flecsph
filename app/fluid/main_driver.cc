@@ -52,7 +52,7 @@ mpi_init_task(int startiteration){
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   
-  int totaliters = 4000;
+  int totaliters = 2000;
   int iteroutput = 10;
   double totaltime = 0.0;
   double maxtime = 10.0;
@@ -78,8 +78,8 @@ mpi_init_task(int startiteration){
 
   // Set the boundaries based on range 
   auto range = bs.getRange();
-  physics::min_boundary = range[0] - 1.0;
-  physics::max_boundary = range[1] + 1.0;
+  physics::min_boundary = point_t{range[0][0],range[0][1],range[0][2]};
+  physics::max_boundary = point_t{range[1][0] + 2.0, range[1][1],range[1][2]+0.5};
 
   remove("output_fluid.h5part");
 

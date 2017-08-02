@@ -198,7 +198,7 @@ private:
   std::vector<mpi_cell_t> recvCOM;
   std::vector<int> nrecvCOM;
 
-  const size_t noct = 256*1024; // Number of octets used for quicksort    
+  const size_t noct = 2048*1024; // Number of octets used for quicksort    
 
   void reset_buffers()
   {
@@ -1146,8 +1146,10 @@ public:
     }
 
     // Add the smoothing length to the max and min to find the real boundaries
-    range.first = range.first-2*smoothinglength;
-    range.second = range.second+2*smoothinglength;
+    // Consider that on the edge of the box, and the sphere radius. 
+    double dist_sphere_box = sqrt(2)*2*smoothinglength;
+    range.first = range.first-dist_sphere_box;
+    range.second = range.second+dist_sphere_box;
 
     // Gather the keys of everyone 
     // If it is the first time, allocate the ranges 
@@ -1413,21 +1415,20 @@ public:
     {  
       if(bi->is_local())
       {
-        //std::cout<<rank<<": for "<<*bi<<std::endl;
-        
         assert(bi->getOwner() == rank);
         auto bodiesneighbs = tree.find_in_radius_b(
             bi->coordinates(),
             2.*bi->getBody()->getSmoothinglength());
-        for(auto nb: bodiesneighbs){
+        for(auto nb: bodiesneighbs)
+	{
           if(!nb->is_local())
           {
-            //std::cout<<rank<<": need: "<<*nb<<std::endl;
+	    assert(nb->getOwner()!=rank && nb->getOwner() != -1); 
             ghosts_data.sendholders[nb->getOwner()].insert(bi);
             recvholders[nb->getOwner()].insert(nb);
           }
         }
-      } 
+      }  
     }
 
     for(int i=0;i<size;++i)
@@ -1472,7 +1473,6 @@ public:
 
     ghosts_data.rbodies.resize(totalrecvbodies);
 
-    //std::cout<<rank<<"= Send:"<<totalsendbodies<<" Recv:"<<totalrecvbodies<<std::endl;
 
     // Convert the offsets to byte
     for(int i=0;i<size;++i)

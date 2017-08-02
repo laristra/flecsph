@@ -11,7 +11,7 @@
 
 
 const double distance = 0.05;  // Distance between the particles 
-const double m_ = 1.0e-4;
+const double m_ = 1.0e-5;
 const double rho_ = 0.0;
 const double u_ = 2.0; 
 const double smoothing_length = 5e-2;
