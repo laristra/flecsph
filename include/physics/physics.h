@@ -102,6 +102,21 @@ namespace physics{
     source->setPressure(pressure);
   } // compute_pressure
 
+  //For zero temperature white dwarf EOS
+  void 
+  compute_pressure_wd(
+      body_holder* srch)
+  { 
+    body* source = srch->getBody();
+    double A_dwd = 6.00288e22;
+    double B_dwd = 9.81011e5;
+
+    double x_dwd = pow((source->getDensity())/B_dwd,1.0/3.0);
+    double pressure = A_dwd*(x_dwd*(2.0*x_dwd*x_dwd-3.0)*
+ 		      pow(x_dwd*x_dwd+1.0,1.0/2.0)+3.0*asinh(x_dwd));
+    source->setPressure(pressure);
+  } // compute_pressure_wd
+
   // Compute the sound speed on a body 
   // This function does not need the neighbors
   // Formula is:
@@ -443,6 +458,23 @@ namespace physics{
     double min = std::min(dt1,dt2);
     physics::dt = std::min(dt,min);
     //return std::min(physics::dt,dt1); 
+  }
+
+  // Calculate simple linear momentum for checking momentum conservation
+  void 
+  compute_lin_momentum(
+      body_holder* srch, 
+      std::vector<body_holder*>& nbsh)
+  {
+    body* source = srch->getBody();
+    point_t lin_momentum = 0;
+
+    for(auto nbh: nbsh) {
+      body* nb = nbh->getBody();
+      point_t velocity = source->getVelocity();
+      lin_momentum = velocity*nb->getMass(); 
+    }
+    source->setLinMomentum(lin_momentum);   
   }
 
 }; // physics

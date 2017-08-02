@@ -17,40 +17,17 @@
  *~--------------------------------------------------------------------------~*/
 
 /**
- * @file eos.h
+ * @file user.h
  * @author Julien Loiseau
- * @date June 2017
- * @brief Abstract EOS implementation
+ * @date April 2017
+ * @brief User define for dimension and type 
  */
 
-#ifndef _physics_eos_h_
-#define _physics_eos_h_
+#ifndef _user_h_
+#define _user_h_
 
-#define DEFAULT_GAMMA 1.4
+#define OUTPUT
+static const size_t gdimension = 3;
+using type_t = double;
 
-#include <vector>
-
-#include "tree.h"
-
-class eos{
-
-public:
-  eos(double gamma):gamma_(gamma){};
-  eos():gamma_(DEFAULT_GAMMA){};
-
-  ~eos(){};
-
-  // Generic eos function to compute the pressure 
-  virtual double compute_pressure(
-      body_holder*, 
-      std::vector<body_holder*>&); 
-
-  virtual double compute_pressure_wd(
-      body_holder*, 
-      std::vector<body_holder*>&); 
-
-protected:
-  double gamma_;
-};
-
-#endif // _physics_kernel_h_
+#endif // _user_h_
