@@ -62,7 +62,7 @@ If not administrator: set path for the CMAKE_INSTALL_PREFIX like /home/XXX/local
 
 Here we need to change to the FleCSPH branch 
 
-    % git checkout flecsph 
+    % git checkout FleCSPH 
     % mkdir build ; cd build 
     % ccmake ../
 
