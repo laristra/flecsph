@@ -33,7 +33,7 @@ USER flecsi
 WORKDIR /home/flecsi
 RUN git clone --depth 1 --recursive https://github.com/laristra/flecsi flecsi && \
     cd flecsi && \
-    git fetch origin/FleCSPH && git checkout FleCSPH && git spull && \
+    git checkout FleCSPH && git spull && \
     mkdir build && cd build && \
     cmake -DFLECSI_RUNTIME_MODEL=legion .. && \
     make -j2

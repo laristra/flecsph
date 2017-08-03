@@ -1,0 +1,78 @@
+FROM laristra/flecsi-third-party:fedora
+
+ARG MPI
+ARG CC
+ARG CXX
+ARG CXXFLAGS
+
+
+#Enable SSH
+USER root
+RUN yum install -y openssh-server
+RUN mkdir /var/run/sshd
+RUN echo 'root:screencast' | chpasswd
+RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+# SSH login fix. Otherwise user is kicked off after login
+RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
+
+ENV NOTVISIBLE "in users profile"
+RUN echo "export VISIBLE=now" >> /etc/profile
+
+EXPOSE 22
+CMD ["/usr/sbin/sshd", "-D"]
+
+# Prepare FleCSPH
+RUN rm -rf /home/flecsi/.ccache
+workdir /home/flecsi
+USER root
+RUN git clone --recursive https://github.com/laristra/flecsph flecsph 
+RUN chown -R flecsi:flecsi /home/flecsi/flecsph 
+RUN cd flecsph/ && git pull origin refactor && git checkout refactor && git spull
+USER flecsi
+
+#build flecsi
+workdir /home/flecsi
+RUN git clone --recursive https://github.com/laristra/flecsi flecsi
+WORKDIR flecsi/
+RUN git checkout FleCSPH && git spull
+RUN mkdir build 
+WORKDIR build/
+RUN cmake -DFLECSI_RUNTIME_MODEL=legion -DENABLE_OPENMP=ON .. && make -j2
+USER root
+RUN make install
+USER flecsi
+
+# build H5hut
+WORKDIR /home/flecsi
+ENV H5Hut H5hut-1.99.13
+RUN wget --no-check-certificate https://amas.psi.ch/H5hut/raw-attachment/wiki/DownloadSources/${H5Hut}.tar.gz
+RUN tar -xzf ${H5Hut}.tar.gz
+RUN wget -O- https://raw.githubusercontent.com/gentoo/gentoo/e8827415e767b1252f3851edef8e000980b7f2a1/sci-libs/h5hut/files/h5hut-1.99.13-autotools.patch | patch -p0
+WORKDIR ${H5Hut}
+RUN sed -i 's/H5Pset_fapl_mpiposix/H5Pset_fapl_mpio/g' src/h5core/h5_hdf5_private.h
+RUN autoreconf -i -f
+#ubuntu needs CC=h5pcc amd HDF5_USE_SHLIB=yes is needed for shared lib
+RUN ./configure --disable-static --enable-shared --enable-parallel --prefix=/usr/local CC=h5pcc && HDF5_USE_SHLIB=yes make
+USER root
+RUN make install
+USER flecsi
+RUN ldd /usr/local/lib/libH5hut.so
+
+WORKDIR /home/flecsi/flecsph
+RUN mkdir build
+
+WORKDIR build
+RUN ccache -z
+RUN cmake -DENABLE_MPI=ON \
+          -DENABLE_UNIT_TESTS=ON \
+          -DENABLE_OPENMP=ON \
+          -DENABLE_LEGION=ON \
+          -DENABLE_DOXYGEN=ON ..
+
+RUN make install DESTDIR=${PWD}/install && rm -rf ${PWD}/install
+USER root
+RUN make install
+RUN make test ARGS="-V" || true
+USER flecsi
+WORKDIR /home/flecsi
