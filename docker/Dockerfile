@@ -31,7 +31,7 @@ USER flecsi
 
 #build flecsi
 WORKDIR /home/flecsi
-RUN git clone --depth 1 --recursive https://github.com/laristra/flecsi flecsi && \
+RUN git clone --depth 1 --recursive https://github.com/laristra/flecsi flecsi 
 WORKDIR flecsi/
 RUN git checkout origin/FleCSPH 
 RUN git spull 
