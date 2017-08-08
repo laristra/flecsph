@@ -332,25 +332,89 @@ void inputDataHDF5(
     bodies[i].second.setAcceleration(acceleration);
   }
  
+  // Density Mass and H 
+  bool b_m, b_rho, b_h;
   // Reset buffer to 0, if next value not present 
   std::fill(dataX,dataX+nparticlesproc,0.);
+  std::fill(dataY,dataY+nparticlesproc,0.);
+  std::fill(dataZ,dataZ+nparticlesproc,0.); 
 
-  // Smoothing Length 
-  H5PartReadDataFloat64(dataFile,"h",dataX);
+  b_m = H5_SUCCESS == H5PartReadDataFloat64(dataFile,"m",dataX);
   for(int64_t i=0; i<nparticlesproc; ++i){
-    bodies[i].second.setSmoothinglength(dataX[i]);
+    bodies[i].second.setMass(dataX[i]);
+  }
+  b_rho = H5_SUCCESS == H5PartReadDataFloat64(dataFile,"rho",dataY);
+  for(int64_t i=0; i<nparticlesproc; ++i){
+    bodies[i].second.setDensity(dataY[i]);
+  }
+  b_h = H5_SUCCESS == H5PartReadDataFloat64(dataFile,"h",dataZ);
+  for(int64_t i=0; i<nparticlesproc; ++i){
+    bodies[i].second.setSmoothinglength(dataZ[i]);
   }
 
-  // Reset buffer to 0, if next value not present 
-  std::fill(dataX,dataX+nparticlesproc,0.);
+  // Construct the remaining from the others
+  if(b_m && b_h){
+    // Nothing to do in that case  
+  }else if(b_m && !b_h && b_rho){
+    std::cerr<<"Missing initial data "<<
+      "mass="<<b_m<<
+      " density="<<b_rho<<
+      " h="<<b_h<<std::endl;
 
-  // Density   
-  H5PartReadDataFloat64(dataFile,"rho",dataX);
-  for(int64_t i=0; i<nparticlesproc; ++i){
-    bodies[i].second.setDensity(dataX[i]);
+    // Computing h with density and mass
+    for(int64_t i=0; i<nparticlesproc; ++i){
+      double h = 0.;
+      if(gdimension == 3){
+        h = pow(bodies[i].second.getMass()*3./
+            (bodies[i].second.getDensity()*32.*M_PI),1./3.);
+      }
+      if(gdimension == 2){
+        h =  pow(bodies[i].second.getMass()/
+            (bodies[i].second.getDensity()*4.*M_PI),1./3.);
+      }
+      if(gdimension == 1){
+        h = bodies[i].second.getMass()/
+            (bodies[i].second.getDensity()*4.);
+      }
+      bodies[i].second.setSmoothinglength(h);
+    }
+
+  }else if(!b_m && b_h && b_rho ){
+    std::cerr<<"Missing initial data "<<
+      "mass="<<b_m<<
+      " density="<<b_rho<<
+      " h="<<b_h<<std::endl;
+
+    
+    for(int64_t i=0; i<nparticlesproc; ++i){
+      double m = 0.;
+      if(gdimension == 3){
+        m = pow(bodies[i].second.getSmoothinglength(),3.)*
+            bodies[i].second.getDensity()*32.*M_PI/3.;
+      }
+      if(gdimension == 2){
+        m =  pow(bodies[i].second.getSmoothinglength(),2.)*
+            bodies[i].second.getDensity()*4.*M_PI;
+      }
+      if(gdimension == 1){
+        m = bodies[i].second.getSmoothinglength()*
+            bodies[i].second.getDensity()*4.;
+      }
+      bodies[i].second.setMass(m);
+    }
+
+
+  }else{
+    std::cerr<<"Missing initial data "<<
+      "mass="<<b_m<<
+      " density="<<b_rho<<
+      " h="<<b_h<<std::endl;
+    MPI_Finalize(); 
+    exit(EXIT_FAILURE); 
   }
 
-  // Reset buffer to 0, if next value not present 
+
+ // Reset buffer to 0, if next value not present 
   std::fill(dataX,dataX+nparticlesproc,0.);
 
   // Internal Energy   
@@ -366,15 +430,6 @@ void inputDataHDF5(
   H5PartReadDataFloat64(dataFile,"P",dataX);
   for(int64_t i=0; i<nparticlesproc; ++i){
     bodies[i].second.setPressure(dataX[i]);
-  }
- 
-  // Reset buffer to 0, if next value not present 
-  std::fill(dataX,dataX+nparticlesproc,0.);
-
- // Mass  
-  H5PartReadDataFloat64(dataFile,"m",dataX);
-  for(int64_t i=0; i<nparticlesproc; ++i){
-    bodies[i].second.setMass(dataX[i]);
   }
 
   // Id   
