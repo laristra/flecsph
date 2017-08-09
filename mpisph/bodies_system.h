@@ -192,13 +192,17 @@ public:
       ARGS&&... args)
   {
     for(auto& bi : bodies_){
-      auto ents = tree_->find_in_radius_b(
-          bi->getBody()->coordinates(),
-          2*bi->getBody()->getSmoothinglength());
-      auto vecents = ents.to_vec();
-      assert(vecents.size()>0);
-     
-      ef(bi,vecents,std::forward<ARGS>(args)...);
+      if(bi->getBody()->getType() == 0){
+        assert(!std::isnan(bi->getBody()->coordinates()[0])); 
+        assert(bi->getBody()->getSmoothinglength() != 0.); 
+        auto ents = tree_->find_in_radius_b(
+            bi->getBody()->coordinates(),
+            2*bi->getBody()->getSmoothinglength());
+        auto vecents = ents.to_vec();
+        assert(vecents.size()>0);
+
+        ef(bi,vecents,std::forward<ARGS>(args)...);
+      }
     } 
   }
 
@@ -211,7 +215,9 @@ public:
       ARGS&&... args)
   {
     for(auto& bi: bodies_){
-      ef(bi,std::forward<ARGS>(args)...);
+      if(bi->getBody()->getType() == 0){
+        ef(bi,std::forward<ARGS>(args)...);
+      }
     }
   }
 

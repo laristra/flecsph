@@ -400,6 +400,7 @@ namespace physics{
   
     totaltime += dt;
 
+    assert(!std::isnan(position[0])); 
   }
 
   void 
@@ -424,6 +425,8 @@ namespace physics{
     source->setVelocity(velocity);
 
     totaltime += dt;
+    
+    assert(!std::isnan(position[0])); 
   }
 
   void 

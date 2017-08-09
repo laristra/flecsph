@@ -273,6 +273,7 @@ void inputDataHDF5(
   double* dataY = new double[nparticlesproc];
   double* dataZ = new double[nparticlesproc];
   int64_t* dataInt = new int64_t[nparticlesproc];
+  int * dataInt32 = new int[nparticlesproc]; 
 
   // Positions
   H5PartReadDataFloat64(dataFile,"x",dataX);
@@ -446,6 +447,16 @@ void inputDataHDF5(
   for(int64_t i=0; i<nparticlesproc; ++i){
     bodies[i].second.setDt(dataX[i]);
   }
+  
+  // Reset buffer to 0, if next value not present 
+  std::fill(dataInt32,dataInt32+nparticlesproc,0.);
+
+  // delta T   
+  H5PartReadDataInt32(dataFile,"type",dataInt32);
+  for(int64_t i=0; i<nparticlesproc; ++i){
+    bodies[i].second.setType(dataInt32[i]);
+  }
+
 
   delete[] dataX;
   delete[] dataY;

@@ -231,7 +231,10 @@ int main(int argc, char * argv[]){
   delete[] m;
   delete[] id;
   delete[] dt;
- 
+
+  // Generate wall particles 
+
+
   MPI_Finalize();
   return 0;
 }
