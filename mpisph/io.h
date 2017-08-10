@@ -364,6 +364,8 @@ void inputDataHDF5(
     // Computing h with density and mass
     for(int64_t i=0; i<nparticlesproc; ++i){
       double h = 0.;
+      //double h_fake = 0.01;
+      #if 1
       if(gdimension == 3){
         h = pow(bodies[i].second.getMass()*3./
             (bodies[i].second.getDensity()*32.*M_PI),1./3.);
@@ -377,8 +379,18 @@ void inputDataHDF5(
             (bodies[i].second.getDensity()*4.);
       }
       bodies[i].second.setSmoothinglength(h);
+      //assert(!std::isinf(h));
+      #if 1
+      if(std::isinf(h)){
+ 	std::cout<<"mass = "<<bodies[i].second.getMass()<<std::endl
+	<<"density = "<<bodies[i].second.getDensity()<<std::endl;
+        exit(0);
+      }
+      #endif
+      #endif
+      //bodies[i].second.setSmoothinglength(h_fake);
     }
-
+  //Compute m with h and rho
   }else if(!b_m && b_h && b_rho ){
     std::cerr<<"Missing initial data "<<
       "mass="<<b_m<<
@@ -401,8 +413,30 @@ void inputDataHDF5(
             bodies[i].second.getDensity()*4.;
       }
       bodies[i].second.setMass(m);
-    }
+    } 
+  //Compute rho with h and m
+  }else if( b_m && b_h && !b_rho ){
+    std::cerr<<"Missing initial data "<<
+      "mass="<<b_m<<
+      " density="<<b_rho<<
+      " h="<<b_h<<std::endl;
 
+     for(int64_t i=0; i<nparticlesproc; ++i){
+      double rho = 0.;
+      if(gdimension == 3){
+        rho = bodies[i].second.getMass()/
+            (4./3.*M_PI*pow(bodies[i].second.getSmoothinglength(),3));
+      }
+      if(gdimension == 2){
+        rho = bodies[i].second.getMass()/
+            (M_PI*pow(bodies[i].second.getSmoothinglength(),2));
+      }
+      if(gdimension == 1){
+        rho = bodies[i].second.getMass()/
+            (2*bodies[i].second.getSmoothinglength());
+      }
+       bodies[i].second.setDensity(rho);
+     } 
 
   }else{
     std::cerr<<"Missing initial data "<<
