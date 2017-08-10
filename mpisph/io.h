@@ -370,7 +370,7 @@ void inputDataHDF5(
       }
       if(gdimension == 2){
         h =  pow(bodies[i].second.getMass()/
-            (bodies[i].second.getDensity()*4.*M_PI),1./3.);
+            (bodies[i].second.getDensity()*4.*M_PI),1./2.);
       }
       if(gdimension == 1){
         h = bodies[i].second.getMass()/
