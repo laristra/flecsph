@@ -546,6 +546,8 @@ void outputDataHDF5(
   double* b2 = new double[nparticlesproc];
   double* b3 = new double[nparticlesproc];
   int64_t* bi = new int64_t[nparticlesproc];
+  int32_t* bint = new int32_t[nparticlesproc];  
+
 
   // Position
   int64_t pos = 0L;
@@ -598,10 +600,6 @@ void outputDataHDF5(
   simio.addVariable( Flecsi_Sim_IO::Variable("vz",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b3));
 
-  //H5PartWriteDataFloat64(dataFile,"vx",dataX);
-  //H5PartWriteDataFloat64(dataFile,"vy",dataY);
-  //H5PartWriteDataFloat64(dataFile,"vz",dataZ);
-
   simio.writeVariables();
 
   // Acceleration 
@@ -630,10 +628,6 @@ void outputDataHDF5(
 
   simio.writeVariables();
 
-  // H5PartWriteDataFloat64(dataFile,"vx",dataX);
-  // H5PartWriteDataFloat64(dataFile,"vy",dataY);
-  // H5PartWriteDataFloat64(dataFile,"vz",dataZ);
-
   // Smoothing length, Density, Internal Energy 
   pos = 0L;
   // Extract data from bodies 
@@ -652,10 +646,6 @@ void outputDataHDF5(
 
   simio.writeVariables();
 
-  // H5PartWriteDataFloat64(dataFile,"h",dataX);
-  // H5PartWriteDataFloat64(dataFile,"rho",dataY);
-  // H5PartWriteDataFloat64(dataFile,"u",dataZ);
-
  // Pressure, Mass, Id, timestep
   pos = 0L;
   // Extract data from bodies 
@@ -663,7 +653,8 @@ void outputDataHDF5(
     b1[pos] = bid.second.getPressure();
     b2[pos] = bid.second.getMass();
     b3[pos] = bid.second.getDt();
-    bi[pos++] = bid.second.getId();
+    bi[pos] = bid.second.getId();
+    bint[pos++] = bid.second.getType(); 
   }
   
   simio.addVariable( Flecsi_Sim_IO::Variable("P",Flecsi_Sim_IO::point, 
@@ -673,27 +664,19 @@ void outputDataHDF5(
   simio.addVariable( Flecsi_Sim_IO::Variable("dt",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b3));
   simio.addVariable( Flecsi_Sim_IO::Variable("id",Flecsi_Sim_IO::point, 
-        "double", nparticlesproc,bi));
+        "int64_t", nparticlesproc,bi));
+  simio.addVariable( Flecsi_Sim_IO::Variable("type",Flecsi_Sim_IO::point, 
+        "int32_t", nparticlesproc,bint));
+
 
   simio.writeVariables();
   simio.closeFile();
-  // H5PartWriteDataFloat64(dataFile,"P",dataX);
-  // H5PartWriteDataFloat64(dataFile,"m",dataY);
-  // H5PartWriteDataFloat64(dataFile,"dt",dataZ);
-  // H5PartWriteDataInt64(dataFile,"id",dataInt);
-
-  //int64_t nparticles;
-  //MPI_Allreduce(&nparticles,&nparticlesproc,1,MPI_INT64_T,MPI_COMM_WORLD);
-
-  // Also output nparticles and timestep 
-  //H5PartWriteDataInt64(dataFile,"nparticles",&nparticles);
-
-  // H5CloseFile(dataFile);
 
   delete[] b1;
   delete[] b2;
   delete[] b3;
   delete[] bi;
+  delete[] bint;
 
   MPI_Barrier(MPI_COMM_WORLD);
   if(rank == 0){

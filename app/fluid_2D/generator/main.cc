@@ -12,13 +12,13 @@
 
 enum type {WALL=1, SIMPLE=0};
 
-const double distance = 0.03;  // Distance between the particles 
-const double m_ = 1.0;
-const double rho_ = 0.0;
-const double u_ = 0.5; 
-const double smoothing_length = 0.02;
+const double distance = 0.04;  // Distance between the particles 
+const double m_ = 0.02;
+const double rho_ = 998.29;
+const double u_ = 1.0; 
+const double smoothing_length = 0.0457;
 const char* fileprefix = "hdf5_fluid_2D";
-const double timestep = 1e-3;
+const double timestep = 0.01;
 int32_t dimension = 2;
 
 int main(int argc, char * argv[]){
@@ -58,10 +58,10 @@ int main(int argc, char * argv[]){
   double ncols = ny;
   double linestart = rank * nlinesproc * distance;
 
-  double minX = -10.*distance;
-  double minY = -10.*distance;
-  double maxX = -2.*distance + (4.+nx)*distance; 
-  double maxY = -2.*distance + (4.+ny)*distance;
+  double minX = -100.*distance;
+  double minY = -1.*distance;
+  double maxX = -2.*distance + nx*distance + 100.*distance; 
+  double maxY = -2.*distance + ny*distance + 100.*distance;
   
 
   // Generate wall particles position 
@@ -74,44 +74,45 @@ int main(int argc, char * argv[]){
   //   o   o   o   o   o
   // Spaces by the smoothing length (not 2) 
     
+  double div = 2.;
   // First left line 
   double val_x = minX - 10.*distance; 
-  for(double i = minY-5.*distance; i < maxY+5.*distance ; i+=smoothing_length){
+  for(double i = minY-5.*distance; i < maxY+5.*distance ; i+=smoothing_length/div){
     vec_x.push_back(val_x);
     vec_y.push_back(i);  
     // Add the second particle 
-    vec_x.push_back(val_x-sqrt(2)*smoothing_length); 
-    vec_y.push_back(i-sqrt(2)*smoothing_length);
+    vec_x.push_back(val_x-sqrt(3./4.)*smoothing_length/div); 
+    vec_y.push_back(i-1./2.*smoothing_length/div);
   }
 
   // Right line 
   val_x = maxX + 10.*distance; 
-  for(double i = maxY+5.*distance ; i > minY-5.*distance ; i-=smoothing_length){
+  for(double i = maxY+5.*distance ; i > minY-5.*distance ; i-=smoothing_length/div){
     vec_x.push_back(val_x);
     vec_y.push_back(i);  
     // Add the second particle 
-    vec_x.push_back(val_x+sqrt(2)*smoothing_length); 
-    vec_y.push_back(i+sqrt(2)*smoothing_length);
+    vec_x.push_back(val_x+sqrt(3./4.)*smoothing_length/div); 
+    vec_y.push_back(i+1./2.*smoothing_length/div);
   }
 
   // Bottom line
   double val_y = minY - 5.*distance; 
-  for(double i = maxX+10.*distance ; i>minX-10.*distance;i-=smoothing_length){
+  for(double i = maxX+10.*distance ; i>minX-10.*distance;i-=smoothing_length/div){
     vec_x.push_back(i);
     vec_y.push_back(val_y);  
     // Add the second particle 
-    vec_x.push_back(i-sqrt(2)*smoothing_length); 
-    vec_y.push_back(val_y-sqrt(2)*smoothing_length);
+    vec_x.push_back(i-1./2.*smoothing_length/div); 
+    vec_y.push_back(val_y-sqrt(3./4.)*smoothing_length/div);
   }
 
   // Top line
   val_y = maxY + 5.*distance; 
-  for(double i = minX-10.*distance; i<maxX+10.*distance;i+=smoothing_length){
+  for(double i = minX-10.*distance; i<maxX+10.*distance;i+=smoothing_length/div){
     vec_x.push_back(i);
     vec_y.push_back(val_y);  
     // Add the second particle 
-    vec_x.push_back(i+sqrt(2)*smoothing_length); 
-    vec_y.push_back(val_y+sqrt(2)*smoothing_length);
+    vec_x.push_back(i+1./2.*smoothing_length/div); 
+    vec_y.push_back(val_y+sqrt(3./4.)*smoothing_length/div);
   }
 
   int64_t nwall = vec_x.size(); 
@@ -206,7 +207,7 @@ int main(int argc, char * argv[]){
     h[pos+nparticlesproc] = smoothing_length; 
     u[pos+nparticlesproc] = u_; 
     type[pos+nparticlesproc] = WALL; 
-    rho[pos+nparticlesproc] = 100.*m_ / 
+    rho[pos+nparticlesproc] = m[pos+nparticlesproc] / 
       (M_PI*4.*smoothing_length*smoothing_length);
     pos++;
   }

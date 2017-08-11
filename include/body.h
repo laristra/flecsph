@@ -89,6 +89,8 @@ public:
   double getDudt(){return dudt_;};
   int getType(){return type_;}; 
 
+  bool is_wall(){return type_ == 1;};
+
   void setPosition(point_t position){position_ = position;}
   void setAcceleration(point_t acceleration){acceleration_ = acceleration;}
   void setVelocity(point_t velocity){velocity_ = velocity;}

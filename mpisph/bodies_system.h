@@ -192,17 +192,22 @@ public:
       ARGS&&... args)
   {
     for(auto& bi : bodies_){
-      if(bi->getBody()->getType() == 0){
-        assert(!std::isnan(bi->getBody()->coordinates()[0])); 
-        assert(bi->getBody()->getSmoothinglength() != 0.); 
+//      if(bi->getBody()->getType() == 0){
+	for(size_t d=0; d<gdimension; ++d){
+          assert(!std::isnan(bi->getBody()->coordinates()[d])); 
+	}
+	assert(bi->getBody()->getSmoothinglength() > 0.); 
         auto ents = tree_->find_in_radius_b(
             bi->getBody()->coordinates(),
             2*bi->getBody()->getSmoothinglength());
         auto vecents = ents.to_vec();
-        assert(vecents.size()>0);
+        if(vecents.size() == 0){
+	  std::cout<< "Particle:" << *(bi->getBody()) << std::endl << "Holder:"<< *bi <<std::endl;
+	}
+	assert(vecents.size()>0);
 
         ef(bi,vecents,std::forward<ARGS>(args)...);
-      }
+//      }
     } 
   }
 
@@ -215,9 +220,9 @@ public:
       ARGS&&... args)
   {
     for(auto& bi: bodies_){
-      if(bi->getBody()->getType() == 0){
+ //     if(bi->getBody()->getType() == 0){
         ef(bi,std::forward<ARGS>(args)...);
-      }
+ //     }
     }
   }
 

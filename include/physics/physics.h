@@ -382,7 +382,14 @@ namespace physics{
       body_holder* srch)
   {
     body* source = srch->getBody();
-    
+
+    // If wall, reset velocity and dont move 
+    if(source->is_wall()){
+      source->setVelocity(point_t{});
+      source->setVelocityhalf(point_t{}); 
+      return; 
+    }
+
     point_t velocityHalf = source->getVelocity() + 
         dt/2.*source->getAcceleration();
     point_t position = source->getPosition()+velocityHalf*dt;
@@ -395,8 +402,8 @@ namespace physics{
     }
 
     source->setVelocityhalf(velocityHalf);
-    source->setPosition(position);
     source->setVelocity(velocity);
+    source->setPosition(position);
   
     totaltime += dt;
 
@@ -408,6 +415,13 @@ namespace physics{
       body_holder* srch)
   {
     body* source = srch->getBody();
+    
+    // If wall, reset velocity and dont move 
+    if(source->is_wall()){
+      source->setVelocity(point_t{});
+      source->setVelocityhalf(point_t{}); 
+      return; 
+    }
     
     point_t velocityHalf = source->getVelocityhalf() + 
         dt*source->getAcceleration();
@@ -421,9 +435,9 @@ namespace physics{
     }
 
     source->setVelocityhalf(velocityHalf);
-    source->setPosition(position);
     source->setVelocity(velocity);
-
+    source->setPosition(position);
+    
     totaltime += dt;
     
     assert(!std::isnan(position[0])); 

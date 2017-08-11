@@ -52,7 +52,7 @@ mpi_init_task(int startiteration){
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   
-  int totaliters = 2000;
+  int totaliters = 5000;
   int iteroutput = 10;
   double totaltime = 0.0;
   double maxtime = 10.0;
@@ -65,7 +65,7 @@ mpi_init_task(int startiteration){
   //physics::reflect_boundaries = true;
   //physics::min_boundary = point_t{-1.0,-1.0};
   //physics::max_boundary = point_t{6.0,1000.0};
-  physics::g_strength = 4.0;
+  physics::g_strength = 0.5;
   physics::K = 1;
   //physics::damp = 0.80;
 
