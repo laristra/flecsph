@@ -38,12 +38,29 @@ public:
   {
     io::inputDataHDF5(localbodies_,filename,totalnbodies_,localnbodies_,
         startiteration);
+    minmass_ = 1.0e50;
+    totalmass_ = 0.;
+    // Also compute the total mass 
+    for(auto bi: localbodies_){
+      totalmass_ += bi.second.getMass(); 
+      if(bi.second.getMass() < minmass_){
+        minmass_ = bi.second.getMass(); 
+      }
+    }
+    MPI_Allreduce(MPI_IN_PLACE,&minmass_,1,MPI_DOUBLE,MPI_MIN,MPI_COMM_WORLD); 
+    MPI_Allreduce(MPI_IN_PLACE,&totalmass_,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD); 
   }
 
   void read_bodies_txt(
       const char* filename)
   {
     io::inputDataTxtRange(localbodies_,localnbodies_,totalnbodies_,filename);
+    totalmass_ = 0.;
+    // Also compute the total mass 
+    for(auto bi: localbodies_){
+      totalmass_ += bi.second.getMass(); 
+    }
+    MPI_Allreduce(MPI_IN_PLACE,&totalmass_,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD); 
   }
 
   void write_bodies(
@@ -112,8 +129,7 @@ public:
     if(tree_ !=  nullptr){
       delete tree_;
     }
-    
-  
+     
     // Choose the smoothing length to be the biggest from everyone 
     smoothinglength_ = getSmoothinglength();
 
@@ -129,15 +145,41 @@ public:
       bi.first = entity_key_t(range_,bi.second.coordinates());
     }
 
+/*#ifdef DEBUG
+    double checkmassnt = 0.;
+    for(auto bi: localbodies_){
+      checkmassnt += bi.second.getMass(); 
+    }
+    MPI_Allreduce(MPI_IN_PLACE,&checkmassnt,1,
+    MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+    std::cout<<rank<<": "<< std::setprecision(10) <<
+    checkmassnt<<" == "<<totalmass_<<" diff:"<<totalmass_-checkmassnt
+    <<" min:"<<1.0e-5*minmass_<<std::endl<<std::flush;
+    assert(fabs(checkmassnt-totalmass_) < 1.0e-5*minmass_); 
+#endif*/   
+ 
     // Distributed qsort and bodies exchange 
     tcolorer_.mpi_qsort(localbodies_,totalnbodies_);
     // Check for duplicates 
-    assert(localbodies_.end() == std::unique(localbodies_.begin(),
-          localbodies_.end(),[](const auto& left, const auto& right){
-            return left.second.coordinates()==right.second.coordinates() &&
-              left.first == right.first;
-          }));
-    
+    //assert(localbodies_.end() == std::unique(localbodies_.begin(),
+    //      localbodies_.end(),[](const auto& left, const auto& right){
+    //        return left.second.coordinates()==right.second.coordinates() &&
+    //          left.first == right.first;
+    //      }));
+ 
+#ifdef DEBUG
+    double checkmassnt = 0.;
+    for(auto bi: localbodies_){
+      checkmassnt += bi.second.getMass(); 
+    }
+    MPI_Allreduce(MPI_IN_PLACE,&checkmassnt,1,
+    MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+    std::cout<<rank<<": "<< std::setprecision(10) <<
+    checkmassnt<<" == "<<totalmass_<<" diff:"<<totalmass_-checkmassnt
+    <<" min:"<<1.0e-5*minmass_<<std::endl<<std::flush;
+    assert(fabs(checkmassnt-totalmass_) < 1.0e-5*minmass_); 
+#endif   
+ 
     // Generate the tree 
     tree_ = new tree_topology_t(range_[0],range_[1]);
 
@@ -146,13 +188,28 @@ public:
     bodies_.clear();
     for(auto& bi:  localbodies_){
       auto nbi = tree_->make_entity(bi.second.getPosition(),&(bi.second),rank,
-          bi.second.getMass());
+          bi.second.getMass(),bi.second.getId());
       tree_->insert(nbi);
       bodies_.push_back(nbi);
     }
 
+    // Check the total number of bodies 
+    int64_t checknparticles = bodies_.size();
+    MPI_Allreduce(MPI_IN_PLACE,&checknparticles,1,MPI_INT64_T,
+    MPI_SUM,MPI_COMM_WORLD); 
+    assert(checknparticles==totalnbodies_);
+
     tree_->update_branches(2*smoothinglength_); 
-    //std::cout<<rank<<": "<<tree_->root()->getMass()<<std::endl;
+    // Check the total mass of system 
+
+#ifdef DEBUG
+    double checkmass = tree_->root()->getMass(); 
+    MPI_Allreduce(MPI_IN_PLACE,&checkmass,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+    //std::cout<<rank<<": "<< std::setprecision(10) <<
+    //checkmass<<" == "<<totalmass_<<" diff:"<<totalmass_-checkmass<<
+    //std::endl<<std::flush;
+    assert(fabs(checkmass-totalmass_) < 1.0e-10); 
+#endif
 
     // Exchnage usefull body_holder from my tree to other processes
     tcolorer_.mpi_branches_exchange(*tree_,localbodies_,rangeposproc_,
@@ -160,7 +217,7 @@ public:
 
     // Update the tree 
     tree_->update_branches(2*smoothinglength_); 
-   // std::cout<<rank<<": "<<tree_->root()->getMass()<<std::endl;
+    //std::cout<<"TWO=="<<rank<<": "<<tree_->root()->getMass()<<std::endl;
 
     // Compute and refresh the ghosts 
     tcolorer_.mpi_compute_ghosts(*tree_,smoothinglength_,range_);
@@ -192,22 +249,21 @@ public:
       ARGS&&... args)
   {
     for(auto& bi : bodies_){
-//      if(bi->getBody()->getType() == 0){
-	for(size_t d=0; d<gdimension; ++d){
-          assert(!std::isnan(bi->getBody()->coordinates()[d])); 
-	}
-	assert(bi->getBody()->getSmoothinglength() > 0.); 
-        auto ents = tree_->find_in_radius_b(
-            bi->getBody()->coordinates(),
-            2*bi->getBody()->getSmoothinglength());
-        auto vecents = ents.to_vec();
-        if(vecents.size() == 0){
-	  std::cout<< "Particle:" << *(bi->getBody()) << std::endl << "Holder:"<< *bi <<std::endl;
-	}
-	assert(vecents.size()>0);
+      for(size_t d=0; d<gdimension; ++d){
+        assert(!std::isnan(bi->getBody()->coordinates()[d])); 
+      }
+      assert(bi->getBody()->getSmoothinglength() > 0.); 
+      auto ents = tree_->find_in_radius_b(
+        bi->getBody()->coordinates(),
+        2*bi->getBody()->getSmoothinglength());
+      auto vecents = ents.to_vec();
+      if(vecents.size() == 0){
+        std::cout<< "Particle:" << *(bi->getBody()) << std::endl 
+        << "Holder:"<< *bi <<std::endl;
+      }   
+      assert(vecents.size()>0);
 
-        ef(bi,vecents,std::forward<ARGS>(args)...);
-//      }
+      ef(bi,vecents,std::forward<ARGS>(args)...);
     } 
   }
 
@@ -244,6 +300,8 @@ private:
   tree_topology_t* tree_;
   std::vector<body_holder*> bodies_;
   double smoothinglength_;
+  double totalmass_;
+  double minmass_;
   //double epsilon_ = 1.0;
 };
 

@@ -433,11 +433,28 @@ void inputDataHDF5(
     bodies[i].second.setPressure(dataX[i]);
   }
 
-  // Id   
+  //bool b_index = false; 
+  // Id, if the same id, reindex the particles 
+  //b_index = H5_SUCCESS == 
   H5PartReadDataInt64(dataFile,"id",dataInt);
-  for(int64_t i=0; i<nparticlesproc; ++i){
-    bodies[i].second.setId(dataInt[i]);
-  }
+  // Check if array uniq 
+  //if(b_index){
+  //	  std::uniq(dataInt,dataInt+nparticlesproc); 
+  //} 
+  // Do a reduction over the processes 
+  //
+  // If ok dont change, otherwise reindex
+  //if(b_index){
+  //  for(int64_t i=0; i<nparticlesproc; ++i){
+  //    bodies[i].second.setId(dataInt[i]);
+  //  }
+  //}else{
+    int64_t start = nparticlesproc*rank;
+    for(int64_t i=0; i<nparticlesproc; ++i){
+      bodies[i].second.setId(start+i); 
+    }
+  //}
+  
   
   // Reset buffer to 0, if next value not present 
   std::fill(dataX,dataX+nparticlesproc,0.);

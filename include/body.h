@@ -114,6 +114,7 @@ public:
 
   friend std::ostream& operator<<(std::ostream& os, const body& b){
     // TODO change regarding to dimension 
+    os << std::setprecision(10); 
     os << "Particle: Pos: " <<b.position_ << " rho: " << b.density_; 
     os << " h: " << b.smoothinglength_;
     os << " P: " << b.pressure_;
@@ -124,6 +125,7 @@ public:
     //os << " Force: hyd: " << b.hydroforce_;
     //os << " grav: " << b.gravforce_;
     os << " a: " << b.acceleration_;
+    os << " id: " << b.id_; 
     return os;
   }      
 

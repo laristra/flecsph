@@ -35,7 +35,7 @@ TEST(tree_topology, neighbors_sphere) {
 
   for(size_t i = 0; i < n; ++i){
     point_t p = {uniform(0, 1), uniform(0, 1), uniform(0, 1)};
-    auto e = t.make_entity(p,nullptr,0,mass);
+    auto e = t.make_entity(p,nullptr,0,mass,0);
     t.insert(e);
     ents.push_back(e);
   }
@@ -81,7 +81,7 @@ TEST(tree_topology, neighbors_box) {
 
   for(size_t i = 0; i < n; ++i){
     point_t p = {uniform(0, 1), uniform(0, 1), uniform(0, 1)};
-    auto e = t.make_entity(p,nullptr,0,mass);
+    auto e = t.make_entity(p,nullptr,0,mass,0);
     t.insert(e);
     ents.push_back(e);
   }
@@ -157,7 +157,7 @@ TEST(tree_topology,smoothing){
       depth = 0.;
       for(size_t part_depth=0; part_depth<nparticles_line;++part_depth){
         point_t position = {line,col,depth};
-        auto e = t.make_entity(position,nullptr,0,mass);
+        auto e = t.make_entity(position,nullptr,0,mass,0);
         t.insert(e);
         ents.push_back(e);
         depth += distance; 

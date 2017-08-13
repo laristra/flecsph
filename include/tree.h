@@ -51,6 +51,7 @@ struct body_holder_mpi_t{
   point_t position; 
   int owner; 
   double mass;
+  int64_t id; 
 };
 
 class tree_policy{
@@ -70,9 +71,11 @@ public:
     body_holder(point_t position,
         body * bodyptr,
         int owner,
-        element_t mass
+        element_t mass,
+	int64_t id
         )
-      :position_(position),bodyptr_(bodyptr),owner_(owner),mass_(mass)
+      :position_(position),bodyptr_(bodyptr),owner_(owner),mass_(mass),
+	id_(id)
     {
       if(bodyptr_==nullptr)
         locality_ = NONLOCAL;
@@ -84,7 +87,8 @@ public:
       :position_(point_t{0,0,0}),
        bodyptr_(nullptr),
        owner_(-1),
-       mass_(0.0)
+       mass_(0.0),
+       id_(int64_t(0))
     {
       locality_ = NONLOCAL;
     };
@@ -95,9 +99,11 @@ public:
     body* getBody(){return bodyptr_;};
     int getOwner(){return owner_;};
     element_t getMass(){return mass_;};
+    int64_t getId(){return id_;}; 
 
     void setBody(body * bodyptr){bodyptr_ = bodyptr;};
     void setPosition(point_t position){position_ = position;};
+    void setId(int64_t id){id_ = id;}; 
 
     friend std::ostream& operator<<(std::ostream& os, const body_holder& b){
       os << std::setprecision(10);
@@ -109,6 +115,7 @@ public:
         os << "NONLOCAL";
       }
       os << " owner: " << b.owner_;
+      os << " id: " << b.id_; 
       return os;
     }  
 
@@ -120,6 +127,8 @@ public:
 
     // Add this for COM in the current version
     element_t mass_;
+    // Id of the particle behind
+    int64_t id_;
   };
     
   using entity_t = body_holder;
