@@ -125,6 +125,14 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
+    // Check for duplicate in the local bodies 
+    if(!(localbodies_.end() == std::unique(localbodies_.begin(),localbodies_.end(),
+      [](const auto& left, const auto& right){
+        return left.first == right.first; 
+      }))){
+      std::cout<<rank<<": DOUBLE KEY BEGINNING"<<std::endl;
+    }
+
     // Destroy the previous tree
     if(tree_ !=  nullptr){
       delete tree_;
@@ -145,7 +153,7 @@ public:
       bi.first = entity_key_t(range_,bi.second.coordinates());
     }
 
-/*#ifdef DEBUG
+#ifdef DEBUG
     double checkmassnt = 0.;
     for(auto bi: localbodies_){
       checkmassnt += bi.second.getMass(); 
@@ -156,7 +164,7 @@ public:
     checkmassnt<<" == "<<totalmass_<<" diff:"<<totalmass_-checkmassnt
     <<" min:"<<1.0e-5*minmass_<<std::endl<<std::flush;
     assert(fabs(checkmassnt-totalmass_) < 1.0e-5*minmass_); 
-#endif*/   
+#endif   
  
     // Distributed qsort and bodies exchange 
     tcolorer_.mpi_qsort(localbodies_,totalnbodies_);
@@ -168,7 +176,7 @@ public:
     //      }));
  
 #ifdef DEBUG
-    double checkmassnt = 0.;
+    checkmassnt = 0.;
     for(auto bi: localbodies_){
       checkmassnt += bi.second.getMass(); 
     }

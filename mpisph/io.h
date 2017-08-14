@@ -449,11 +449,15 @@ void inputDataHDF5(
   //    bodies[i].second.setId(dataInt[i]);
   //  }
   //}else{
-    int64_t start = nparticlesproc*rank;
+    int64_t start = (totalnbodies/size)*rank+1;
+    std::cout<<rank<<": start:"<<start<<"npart="<<nparticlesproc<<std::endl;
     for(int64_t i=0; i<nparticlesproc; ++i){
       bodies[i].second.setId(start+i); 
     }
   //}
+  if(size-1 == rank){
+    assert(totalnbodies==bodies.back().second.getId()); 
+  }
   
   
   // Reset buffer to 0, if next value not present 
