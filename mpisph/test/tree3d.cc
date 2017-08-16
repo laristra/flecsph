@@ -234,6 +234,7 @@ TEST(tree_topology,same_key){
   point_t max = {space,space,space};
   std::array<point_t,2> range = {min,max}; 
   tree_topology_t t(min,max);
+  entity_key_t::set_range(range); 
   for(size_t part_line=0; part_line<nparticles_line;++part_line){
       col = 0.;
     for(size_t part_col=0; part_col<nparticles_line;++part_col){
@@ -243,7 +244,7 @@ TEST(tree_topology,same_key){
         auto e = t.make_entity(position,nullptr,0,mass,0);
         t.insert(e);
         ents.push_back(e);
-        entity_key_t tmp = entity_key_t(range,position);
+        entity_key_t tmp = entity_key_t(/*range,*/position);
         keys.push_back(tmp);
         depth += distance; 
         std::cout<<position<<" key="<<tmp<<std::endl;

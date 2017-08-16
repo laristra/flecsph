@@ -148,22 +148,22 @@ public:
       static const size_t dimension = gdimension;
       static constexpr size_t bits = sizeof(int_t) * 8;
       static constexpr size_t max_depth = (bits - 1)/dimension;
-      using element_t = type_t;
+      using element_t = type_t; 
 
       entity_key_t()
       : id_(0)
       {}
 
       entity_key_t(
-        const std::array<point_t, 2>& range,
+        //const std::array<point_t, 2>& range_,
         const point_t& p)
       : id_(int_t(1) << ((max_depth * dimension) + ((bits - 1) % dimension)))
       {
         std::array<int_t, dimension> coords;
         for(size_t i = 0; i < dimension; ++i)
         {
-          element_t min = range[0][i];
-          element_t scale = range[1][i] - min;
+          element_t min = range_[0][i];
+          element_t scale = range_[1][i] - min;
           coords[i] = (p[i] - min)/scale * (int_t(1) << (bits - 1)/dimension);
         }
         size_t k = 0;
@@ -177,6 +177,15 @@ public:
           ++k;
         }
       }
+      
+      //static 
+      //std::array<point_t,2> range_;
+
+      static
+      void  
+      set_range(std::array<point_t,2>& range){
+        range_ = range; 
+      } 
 
       constexpr entity_key_t(const entity_key_t& bid)
       : id_(bid.id_)
@@ -346,6 +355,8 @@ public:
   
   private:
     int_t id_;
+    static std::array<point_t,2> range_;
+
     constexpr
     entity_key_t(
       int_t id
@@ -363,32 +374,55 @@ public:
 
     void insert(body_holder* ent){
       // Check if same id in the branch 
-      //entity_key_t nkey = entity_key_t(range_,ent->coordinates()); 
-      //for()
+      entity_key_t nkey = entity_key_t(ent->coordinates()); 
+      for(auto& e: ents_)
+      { 
+        if(nkey == entity_key_t(e.front()->coordinates())){
+          //std::cout<<"SAME KEY DETECTED"<<std::endl;
+          // Add it to the vector, and finish 
+          e.push_back(ent); 
+          // Also add to contiguous vector
+          ents_contiguous_.push_back(ent);    
+          return;  
+        }
+      }
       // If yes, add in a vector of bodies 
-      ents_.push_back(ent);
+      std::vector<body_holder*> nvent; 
+      nvent.push_back(ent); 
+      ents_.push_back(nvent);
+      ents_contiguous_.push_back(ent); 
       if(ents_.size() > (1<<dimension)){
         refine();
       }
     } // insert
     
     auto begin(){
-      return ents_.begin();
+      return ents_contiguous_.begin();
     }
 
     auto end(){
-      return ents_.end();
+      return ents_contiguous_.end();
     }
 
     auto clear(){
-      ents_double_.clear(); 
+      ents_contiguous_.clear(); 
       ents_.clear();
     }
 
     void remove(body_holder* ent){
-      auto itr = find(ents_.begin(), ents_.end(), ent); 
-      assert(itr!=ents_.end());
-      ents_.erase(itr);
+      
+      for(auto e = ents_.begin(); e < ents_.end(); ++e){
+        //std::vector<body_holder*> elem = *e; 
+        auto itr = find(e->begin(), e->end(), ent); 
+        if(itr!=e->end()){
+          e->erase(itr);
+          ents_.erase(e);  
+          break; 
+        }
+      }
+      auto itr_contiguous = find(ents_contiguous_.begin(),
+        ents_contiguous_.end(),ent); 
+      ents_contiguous_.clear(); 
       if(ents_.empty()){
         coarsen();
       } 
@@ -415,8 +449,8 @@ public:
     void setBMin(point_t bmin){bmin_ = bmin;};
 
    private:
-    std::vector<body_holder*> ents_;
-    std::vector<body_holder*> ents_double_;
+    std::vector<std::vector<body_holder*>> ents_;
+    std::vector<body_holder*> ents_contiguous_; 
     point_t bmax_;
     point_t bmin_;
   }; // class branch 
@@ -438,6 +472,7 @@ using space_vector_t = tree_topology_t::space_vector_t;
 using entity_key_t = tree_topology_t::entity_key_t;
 using entity_id_t = flecsi::topology::entity_id_t;
 
+std::array<point_t,2> entity_key_t::range_ = {point_t{},point_t{}};
 
 #endif // tree_h
 

@@ -125,7 +125,7 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
-#ifdef DEBUG
+/*#ifdef DEBUG
     // Check for duplicate in the local bodies 
     auto tmp1 = localbodies_;
     int64_t colision = 0L;
@@ -141,7 +141,7 @@ public:
       std::cout<<rank<<": #colisions="<<std::distance(tmpit,tmp1.end())
       <<std::endl;
     }
-#endif 
+#endif*/ 
 
     // Destroy the previous tree
     if(tree_ !=  nullptr){
@@ -158,12 +158,15 @@ public:
     // Then compute the range of the system 
     tcolorer_.mpi_compute_range(localbodies_,range_,smoothinglength_);
 
+
+    // Setup the keys range 
+    entity_key_t::set_range(range_); 
     // Compute the keys 
     for(auto& bi:  localbodies_){
-      bi.first = entity_key_t(range_,bi.second.coordinates());
+      bi.first = entity_key_t(/*range_,*/bi.second.coordinates());
     }
 
-#ifdef DEBUG
+/*#ifdef DEBUG
     double checkmassnt = 0.;
     for(auto bi: localbodies_){
       checkmassnt += bi.second.getMass(); 
@@ -174,12 +177,12 @@ public:
     checkmassnt<<" == "<<totalmass_<<" diff:"<<totalmass_-checkmassnt
     <<" min:"<<1.0e-2*minmass_<<std::endl<<std::flush;
     assert(fabs(checkmassnt-totalmass_) < 1.0e-2*minmass_); 
-#endif   
+#endif*/   
  
     // Distributed qsort and bodies exchange 
     tcolorer_.mpi_qsort(localbodies_,totalnbodies_);
  
-#ifdef DEBUG
+/*#ifdef DEBUG
     checkmassnt = 0.;
     for(auto bi: localbodies_){
       checkmassnt += bi.second.getMass(); 
@@ -190,7 +193,7 @@ public:
     checkmassnt<<" == "<<totalmass_<<" diff:"<<totalmass_-checkmassnt
     <<" min:"<<1.0e-2*minmass_<<std::endl<<std::flush;
     assert(fabs(checkmassnt-totalmass_) < 1.0e-2*minmass_); 
-#endif   
+#endif*/
  
     // Generate the tree 
     tree_ = new tree_topology_t(range_[0],range_[1]);
@@ -205,7 +208,7 @@ public:
       bodies_.push_back(nbi);
     }
 
-#ifdef DEBUG
+/*#ifdef DEBUG
     double checkmass = 0;
     auto vect= tree_->entities().to_vec();
     for(auto v: vect){
@@ -217,7 +220,7 @@ public:
     checkmass<<" == "<<totalmass_<<" diff:"<<totalmass_-checkmass<<
     std::endl<<std::flush;
     assert(fabs(checkmass-totalmass_) < 1.0e-2*minmass_); 
-#endif
+#endif*/
 
 
 
@@ -230,7 +233,7 @@ public:
     tree_->update_branches(2*smoothinglength_); 
     // Check the total mass of system 
 
-#ifdef DEBUG
+/*#ifdef DEBUG
     checkmass = tree_->root()->getMass(); 
     std::cout<<rank<<": local="<<checkmass<<std::endl;
     MPI_Allreduce(MPI_IN_PLACE,&checkmass,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
@@ -238,7 +241,7 @@ public:
     checkmass<<" == "<<totalmass_<<" diff:"<<totalmass_-checkmass<<
     std::endl<<std::flush;
     assert(fabs(checkmass-totalmass_) < 1.0e-2*minmass_); 
-#endif
+#endif*/
 
     // Exchnage usefull body_holder from my tree to other processes
     tcolorer_.mpi_branches_exchange(*tree_,localbodies_,rangeposproc_,
@@ -249,13 +252,13 @@ public:
     //std::cout<<"TWO=="<<rank<<": "<<tree_->root()->getMass()<<std::endl;
 
     // Compute and refresh the ghosts 
-    tcolorer_.mpi_compute_ghosts(*tree_,smoothinglength_,range_);
-    tcolorer_.mpi_refresh_ghosts(*tree_,range_); 
+    tcolorer_.mpi_compute_ghosts(*tree_,smoothinglength_/*,range_*/);
+    tcolorer_.mpi_refresh_ghosts(*tree_/*,range_*/); 
   }
 
   void update_neighbors()
   {
-    tcolorer_.mpi_refresh_ghosts(*tree_,range_);
+    tcolorer_.mpi_refresh_ghosts(*tree_/*,range_*/);
   }
 
   void gravitation_fmm(){

@@ -1006,7 +1006,7 @@ public:
       }
     }
   
-    assert(particlescheck == rbodies.size());  
+    //assert(particlescheck == rbodies.size());  
     
     // Share the bucket 
     // First send the sizes of each bucket 
@@ -1099,8 +1099,8 @@ public:
    * @param      range  The range of the particles, use to construct entity_keys
    */
   void mpi_tree_traversal_graphviz(
-    tree_topology_t & tree,
-    std::array<point_t,2>& range)
+    tree_topology_t & tree/*,*/
+    /*std::array<point_t,2>& range*/)
   {
     int rank = 0;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -1138,7 +1138,7 @@ public:
       }else{
         for(auto ent: *cur)
         {
-          entity_key_t key(range,ent->coordinates());
+          entity_key_t key(/*range,*/ent->coordinates());
           output<<std::bitset<64>(cur->id().value_())<<
             "->"<<key<<std::endl;
           switch (ent->getLocality())
@@ -1362,8 +1362,8 @@ public:
    * @param      range  The range
    */
   void mpi_refresh_ghosts(
-    tree_topology_t& tree, 
-    std::array<point_t,2>& range)
+    tree_topology_t& tree/*,*/ 
+    /*std::array<point_t,2>& range*/)
   {
     int rank,size;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -1409,16 +1409,16 @@ public:
     // Sort the bodies based on key and or position
     std::sort(ghosts_data.rbodies.begin(),
             ghosts_data.rbodies.end(),
-      [range](auto& left, auto& right){
-        if(entity_key_t(range,left.coordinates())<
-          entity_key_t(range,right.coordinates())){
+      [/*range*/](auto& left, auto& right){
+        if(entity_key_t(/*range,*/left.coordinates())<
+          entity_key_t(/*range,*/right.coordinates())){
           return true;
         }
-        if(entity_key_t(range,left.coordinates())==
-          entity_key_t(range,right.coordinates())){
-          std::cout<<"Key collision for:"<< 
-	        left.coordinates()<< " && " << right.coordinates()<<
-          " Ids: "<<left.getId()<< " && " << right.getId() <<std::endl;
+        if(entity_key_t(/*range,*/left.coordinates())==
+          entity_key_t(/*range,*/right.coordinates())){
+          //std::cout<<"Key collision for:"<< 
+	        //left.coordinates()<< " && " << right.coordinates()<<
+          //" Ids: "<<left.getId()<< " && " << right.getId() <<std::endl;
           return left.getId()<right.getId();
         }
         return false;
@@ -1441,8 +1441,8 @@ public:
       
       assert(!bh->is_local() && "Non local particle");
 
-      assert(entity_key_t(range,bh->coordinates()) == 
-          entity_key_t(range,bh->getBody()->coordinates()) && 
+      assert(entity_key_t(/*range,*/bh->coordinates()) == 
+          entity_key_t(/*range,*/bh->getBody()->coordinates()) && 
           "Key different than holder");
       assert(bh->coordinates()==bh->getBody()->coordinates() &&
           "Position different than holder");
@@ -1477,8 +1477,8 @@ public:
   void 
   mpi_compute_ghosts(
     tree_topology_t& tree,
-    double smoothinglength,
-    std::array<point_t,2>& range)
+    double smoothinglength/*,*/
+    /*std::array<point_t,2>& range*/)
   {    int rank,size;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
@@ -1489,13 +1489,13 @@ public:
       std::cout<<"Compute Ghosts" << std::flush;
 #endif
 
-    auto tmp = tree.entities().to_vec(); 
-    if(!(tmp.end() == std::unique(tmp.begin(),tmp.end(),
-        [&rank,&range](const auto& left, const auto& right ){ 
-          return left->getId() == right->getId(); 
-        }))){
-        std::cout<<rank<<": duplicated ID in compute"<<std::endl;
-    }
+    //auto tmp = tree.entities().to_vec(); 
+    //if(!(tmp.end() == std::unique(tmp.begin(),tmp.end(),
+    //    [&rank/*,&range*/](const auto& left, const auto& right ){ 
+    //      return left->getId() == right->getId(); 
+    //    }))){
+    //    std::cout<<rank<<": duplicated ID in compute"<<std::endl;
+    //}
 
 
 
@@ -1597,18 +1597,18 @@ public:
     // Sort the holders once
     std::sort(ghosts_data.recvholders.begin(),
             ghosts_data.recvholders.end(),
-      [range](auto& left, auto& right){
-        if(entity_key_t(range,left->coordinates())<
-          entity_key_t(range,right->coordinates())){
+      [/*range*/](auto& left, auto& right){
+        if(entity_key_t(/*range,*/left->coordinates())<
+          entity_key_t(/*range,*/right->coordinates())){
           return true;
         }
-        if(entity_key_t(range,left->coordinates())==
-          entity_key_t(range,right->coordinates())){
-          std::cout<<"Key collision for: "<<
-	        left->coordinates()<<" && "<<right->coordinates()
-	        << " Distance: "<< 
-	        flecsi::distance(left->coordinates(),right->coordinates()) 
-	        << std::endl;
+        if(entity_key_t(/*range,*/left->coordinates())==
+          entity_key_t(/*range,*/right->coordinates())){
+          //std::cout<<"Key collision for: "<<
+	        //left->coordinates()<<" && "<<right->coordinates()
+	        //<< " Distance: "<< 
+	        //flecsi::distance(left->coordinates(),right->coordinates()) 
+	        //<< std::endl;
           
  	        return left->getId()<right->getId();
         }
