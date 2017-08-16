@@ -133,12 +133,239 @@ public:
     
   using entity_t = body_holder;
 
+  /**
+   * Class entity_key_t used to represent the key of a body. 
+   * The right way should be to add this informations directly inside 
+   * the body_holder. 
+   * With this information we should avoid the positions of the holder.
+   * This is exactly the same representation as a branch but here 
+   * the max depth is always used. 
+   */
+  class entity_key_t
+  {
+    public:
+      using int_t = uint64_t;
+      static const size_t dimension = gdimension;
+      static constexpr size_t bits = sizeof(int_t) * 8;
+      static constexpr size_t max_depth = (bits - 1)/dimension;
+      using element_t = type_t;
+
+      entity_key_t()
+      : id_(0)
+      {}
+
+      entity_key_t(
+        const std::array<point_t, 2>& range,
+        const point_t& p)
+      : id_(int_t(1) << ((max_depth * dimension) + ((bits - 1) % dimension)))
+      {
+        std::array<int_t, dimension> coords;
+        for(size_t i = 0; i < dimension; ++i)
+        {
+          element_t min = range[0][i];
+          element_t scale = range[1][i] - min;
+          coords[i] = (p[i] - min)/scale * (int_t(1) << (bits - 1)/dimension);
+        }
+        size_t k = 0;
+        for(size_t i = 0; i < max_depth; ++i)
+        {
+          for(size_t j = 0; j < dimension; ++j)
+          {
+            int_t bit = (coords[j] & int_t(1) << i) >> i;
+            id_ |= bit << (k * dimension + j);
+          }
+          ++k;
+        }
+      }
+
+      constexpr entity_key_t(const entity_key_t& bid)
+      : id_(bid.id_)
+      {}
+
+      static 
+      constexpr
+      entity_key_t
+      null()
+      {
+        return entity_key_t(0);
+      }
+
+      int_t 
+      truncate_value(int depth)
+      {
+        return id_ >> dimension*depth;
+      }
+
+      constexpr
+      bool 
+      is_null() const
+      {
+        return id_ == int_t(0);
+      }
+
+      entity_key_t&
+      operator=(
+        const entity_key_t& ek) 
+      {
+        id_ = ek.id_; 
+        return *this;
+      }
+
+      constexpr
+      bool 
+      operator==(
+        const entity_key_t& ek
+      ) const 
+    {
+      return id_ == ek.id_; 
+    }
+
+    constexpr 
+    bool 
+    operator!=(
+      const entity_key_t& ek
+    ) const
+    {
+      return id_ != ek.id_; 
+    }
+
+    // Switch representation base on dimension 
+    void
+    output_(
+      std::ostream& ostr
+    ) const
+    {
+      // TODO change for others dimensions
+      if(dimension == 3){
+        ostr << std::oct << id_ << std::dec;
+      }else if(dimension == 1){
+        ostr << std::bitset<64>(id_);
+      }else{
+        // For dimension 2, display base 4
+        ostr << "Dimension not handled";
+      }
+      // Old display group of bits based on the dimension
+      //constexpr int_t mask = ((int_t(1) << dimension) - 1) << bits - dimension;
+      //size_t d = max_depth;
+      //int_t id = id_;
+      //
+      //while((id & mask) == int_t(0))
+      //{
+      //  --d;
+      //  id <<= dimension;
+      //}
+      //if(d == 0)
+      //{
+      //  ostr << "<root>";
+      //  return;
+      //}
+      //id <<= 1 + (bits - 1) % dimension;
+      //for(size_t i = 1; i <= d; ++i)
+      //{
+      //  int_t val = (id & mask) >> (bits - dimension);
+      //  ostr << std::oct << val << std::dec; 
+      //  //ostr << i << ":" << std::bitset<dimension>(val) << " ";
+      //  id <<= dimension;
+      //}
+    }
+
+    bool
+    operator<(
+      const entity_key_t& bid
+    ) const
+    {
+      return id_ < bid.id_;
+    }
+  
+    bool
+    operator>(
+      const entity_key_t& bid
+    ) const
+    {
+      return id_ > bid.id_;
+    }
+  
+    bool
+    operator<=(
+      const entity_key_t& bid
+    ) const
+    {
+      return id_ <= bid.id_;
+    }
+    
+    bool
+    operator>=(
+      const entity_key_t& bid
+    ) const
+    {
+      return id_ >= bid.id_;
+    }
+
+    entity_key_t 
+    operator/(const int div){
+      return entity_key_t(id_/div);
+    }
+
+    entity_key_t
+    operator+(const entity_key_t& oth )
+    {
+      return entity_key_t(id_+oth.id_);
+    }
+
+    entity_key_t 
+    operator-(const entity_key_t& oth)
+    {
+      return entity_key_t(id_-oth.id_);
+    }
+
+    // The first possible key 10000....
+    static 
+    constexpr
+    entity_key_t
+    first_key()
+    {
+      return entity_key_t(int_t(1) << 
+          ((max_depth*dimension)+((bits-1)%dimension)));
+    }
+
+    // The last key 1777..., should be modified using not bit operation
+    static
+    constexpr
+    entity_key_t
+    last_key()
+    {
+      return entity_key_t(~int_t(0) >> (bits-(1+max_depth)*dimension
+            +(gdimension-1)));      
+    }
+  
+    int_t 
+    value()
+    {
+      return id_;
+    }
+  
+  private:
+    int_t id_;
+    constexpr
+    entity_key_t(
+      int_t id
+    )
+    :id_(id)
+    {}
+  };
+
   class branch : public flecsi::topology::tree_branch<branch_int_t,dimension,
   double>{
   public:
     branch(){}
 
+    //void insert(body_holder* ent)
+
     void insert(body_holder* ent){
+      // Check if same id in the branch 
+      //entity_key_t nkey = entity_key_t(range_,ent->coordinates()); 
+      //for()
+      // If yes, add in a vector of bodies 
       ents_.push_back(ent);
       if(ents_.size() > (1<<dimension)){
         refine();
@@ -154,6 +381,7 @@ public:
     }
 
     auto clear(){
+      ents_double_.clear(); 
       ents_.clear();
     }
 
@@ -188,6 +416,7 @@ public:
 
    private:
     std::vector<body_holder*> ents_;
+    std::vector<body_holder*> ents_double_;
     point_t bmax_;
     point_t bmin_;
   }; // class branch 
@@ -206,229 +435,8 @@ using point_t = tree_topology_t::point_t;
 using branch_t = tree_topology_t::branch_t;
 using branch_id_t = tree_topology_t::branch_id_t;
 using space_vector_t = tree_topology_t::space_vector_t;
-
+using entity_key_t = tree_topology_t::entity_key_t;
 using entity_id_t = flecsi::topology::entity_id_t;
-
-/**
- * Class entity_key_t used to represent the key of a body. 
- * The right way should be to add this informations directly inside 
- * the body_holder. 
- * With this information we should avoid the positions of the holder.
- * This is exactly the same representation as a branch but here 
- * the max depth is always used. 
- */
-class entity_key_t
-{
-  public:
-    using int_t = uint64_t;
-    static const size_t dimension = gdimension;
-    static constexpr size_t bits = sizeof(int_t) * 8;
-    static constexpr size_t max_depth = (bits - 1)/dimension;
-    using element_t = type_t;
-
-    entity_key_t()
-    : id_(0)
-    {}
-
-    entity_key_t(
-      const std::array<point_t, 2>& range,
-      const point_t& p)
-    : id_(int_t(1) << ((max_depth * dimension) + ((bits - 1) % dimension)))
-    {
-      std::array<int_t, dimension> coords;
-      for(size_t i = 0; i < dimension; ++i)
-      {
-        element_t min = range[0][i];
-        element_t scale = range[1][i] - min;
-        coords[i] = (p[i] - min)/scale * (int_t(1) << (bits - 1)/dimension);
-      }
-      size_t k = 0;
-      for(size_t i = 0; i < max_depth; ++i)
-      {
-        for(size_t j = 0; j < dimension; ++j)
-        {
-          int_t bit = (coords[j] & int_t(1) << i) >> i;
-          id_ |= bit << (k * dimension + j);
-        }
-        ++k;
-      }
-    }
-
-  constexpr entity_key_t(const entity_key_t& bid)
-  : id_(bid.id_)
-  {}
-
-  static 
-  constexpr
-  entity_key_t
-  null()
-  {
-    return entity_key_t(0);
-  }
-
-  int_t 
-  truncate_value(int depth)
-  {
-    return id_ >> dimension*depth;
-  }
-
-  constexpr
-  bool 
-  is_null() const
-  {
-    return id_ == int_t(0);
-  }
-
-  entity_key_t&
-  operator=(
-      const entity_key_t& ek
-  ) 
-  {
-    id_ = ek.id_; 
-    return *this;
-  }
-
-  constexpr
-  bool 
-  operator==(
-      const entity_key_t& ek
-  ) const 
-  {
-    return id_ == ek.id_; 
-  }
-
-  constexpr 
-  bool 
-  operator!=(
-    const entity_key_t& ek
-  ) const
-  {
-    return id_ != ek.id_; 
-  }
-
-  // Switch representation base on dimension 
-  void
-  output_(
-    std::ostream& ostr
-  ) const
-  {
-    // TODO change for others dimensions
-    if(dimension == 3){
-      ostr << std::oct << id_ << std::dec;
-    }else if(dimension == 1){
-      ostr << std::bitset<64>(id_);
-    }else{
-      // For dimension 2, display base 4
-      ostr << "Dimension not handled";
-    }
-    // Old display group of bits based on the dimension
-    //constexpr int_t mask = ((int_t(1) << dimension) - 1) << bits - dimension;
-    //size_t d = max_depth;
-    //int_t id = id_;
-    //
-    //while((id & mask) == int_t(0))
-    //{
-    //  --d;
-    //  id <<= dimension;
-    //}
-    //if(d == 0)
-    //{
-    //  ostr << "<root>";
-    //  return;
-    //}
-    //id <<= 1 + (bits - 1) % dimension;
-    //for(size_t i = 1; i <= d; ++i)
-    //{
-    //  int_t val = (id & mask) >> (bits - dimension);
-    //  ostr << std::oct << val << std::dec; 
-    //  //ostr << i << ":" << std::bitset<dimension>(val) << " ";
-    //  id <<= dimension;
-    //}
-  }
-
-  bool
-  operator<(
-    const entity_key_t& bid
-  ) const
-  {
-    return id_ < bid.id_;
-  }
-  
-  bool
-  operator>(
-    const entity_key_t& bid
-  ) const
-  {
-    return id_ > bid.id_;
-  }
-
-  bool
-  operator<=(
-    const entity_key_t& bid
-  ) const
-  {
-    return id_ <= bid.id_;
-  }
-  
-  bool
-  operator>=(
-    const entity_key_t& bid
-  ) const
-  {
-    return id_ >= bid.id_;
-  }
-  entity_key_t 
-  operator/(const int div){
-    return entity_key_t(id_/div);
-  }
-
-  entity_key_t
-  operator+(const entity_key_t& oth )
-  {
-    return entity_key_t(id_+oth.id_);
-  }
-
-  entity_key_t 
-  operator-(const entity_key_t& oth)
-  {
-    return entity_key_t(id_-oth.id_);
-  }
-
-  // The first possible key 10000....
-  static 
-  constexpr
-  entity_key_t
-  first_key()
-  {
-    return entity_key_t(int_t(1) << 
-        ((max_depth*dimension)+((bits-1)%dimension)));
-  }
-
-  // The last key 1777..., should be modified using not bit operation
-  static
-  constexpr
-  entity_key_t
-  last_key()
-  {
-    return entity_key_t(~int_t(0) >> (bits-(1+max_depth)*dimension
-          +(gdimension-1)));      
-  }
-
-  int_t 
-  value()
-  {
-    return id_;
-  }
-
-private:
-  int_t id_;
-  constexpr
-  entity_key_t(
-    int_t id
-  )
-  :id_(id)
-  {}
-};
 
 
 #endif // tree_h

@@ -125,13 +125,23 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
+#ifdef DEBUG
     // Check for duplicate in the local bodies 
-    if(!(localbodies_.end() == std::unique(localbodies_.begin(),localbodies_.end(),
-      [](const auto& left, const auto& right){
-        return left.first == right.first; 
-      }))){
-      std::cout<<rank<<": DOUBLE KEY BEGINNING"<<std::endl;
+    auto tmp1 = localbodies_;
+    int64_t colision = 0L;
+    auto tmpit = std::unique(tmp1.begin(),tmp1.end(),
+      [&rank](const auto& left, const auto& right){
+        if(left.first == right.first){
+          std::cout<<rank<<": "<<left.second<<" && "<<right.second<<std::endl;
+          return true; 
+        }
+        return false; 
+      });
+    if(tmpit != tmp1.end()){
+      std::cout<<rank<<": #colisions="<<std::distance(tmpit,tmp1.end())
+      <<std::endl;
     }
+#endif 
 
     // Destroy the previous tree
     if(tree_ !=  nullptr){
@@ -162,18 +172,12 @@ public:
     MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
     std::cout<<rank<<": "<< std::setprecision(10) <<
     checkmassnt<<" == "<<totalmass_<<" diff:"<<totalmass_-checkmassnt
-    <<" min:"<<1.0e-5*minmass_<<std::endl<<std::flush;
-    assert(fabs(checkmassnt-totalmass_) < 1.0e-5*minmass_); 
+    <<" min:"<<1.0e-2*minmass_<<std::endl<<std::flush;
+    assert(fabs(checkmassnt-totalmass_) < 1.0e-2*minmass_); 
 #endif   
  
     // Distributed qsort and bodies exchange 
     tcolorer_.mpi_qsort(localbodies_,totalnbodies_);
-    // Check for duplicates 
-    //assert(localbodies_.end() == std::unique(localbodies_.begin(),
-    //      localbodies_.end(),[](const auto& left, const auto& right){
-    //        return left.second.coordinates()==right.second.coordinates() &&
-    //          left.first == right.first;
-    //      }));
  
 #ifdef DEBUG
     checkmassnt = 0.;
@@ -184,8 +188,8 @@ public:
     MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
     std::cout<<rank<<": "<< std::setprecision(10) <<
     checkmassnt<<" == "<<totalmass_<<" diff:"<<totalmass_-checkmassnt
-    <<" min:"<<1.0e-5*minmass_<<std::endl<<std::flush;
-    assert(fabs(checkmassnt-totalmass_) < 1.0e-5*minmass_); 
+    <<" min:"<<1.0e-2*minmass_<<std::endl<<std::flush;
+    assert(fabs(checkmassnt-totalmass_) < 1.0e-2*minmass_); 
 #endif   
  
     // Generate the tree 
@@ -201,6 +205,22 @@ public:
       bodies_.push_back(nbi);
     }
 
+#ifdef DEBUG
+    double checkmass = 0;
+    auto vect= tree_->entities().to_vec();
+    for(auto v: vect){
+      checkmass += v->getMass();
+    } 
+    std::cout<<rank<<": local="<<checkmass<<std::endl;
+    MPI_Allreduce(MPI_IN_PLACE,&checkmass,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+    std::cout<<rank<<": av update "<< std::setprecision(10) <<
+    checkmass<<" == "<<totalmass_<<" diff:"<<totalmass_-checkmass<<
+    std::endl<<std::flush;
+    assert(fabs(checkmass-totalmass_) < 1.0e-2*minmass_); 
+#endif
+
+
+
     // Check the total number of bodies 
     int64_t checknparticles = bodies_.size();
     MPI_Allreduce(MPI_IN_PLACE,&checknparticles,1,MPI_INT64_T,
@@ -211,12 +231,13 @@ public:
     // Check the total mass of system 
 
 #ifdef DEBUG
-    double checkmass = tree_->root()->getMass(); 
+    checkmass = tree_->root()->getMass(); 
+    std::cout<<rank<<": local="<<checkmass<<std::endl;
     MPI_Allreduce(MPI_IN_PLACE,&checkmass,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
-    //std::cout<<rank<<": "<< std::setprecision(10) <<
-    //checkmass<<" == "<<totalmass_<<" diff:"<<totalmass_-checkmass<<
-    //std::endl<<std::flush;
-    assert(fabs(checkmass-totalmass_) < 1.0e-10); 
+    std::cout<<rank<<": ap update "<< std::setprecision(10) <<
+    checkmass<<" == "<<totalmass_<<" diff:"<<totalmass_-checkmass<<
+    std::endl<<std::flush;
+    assert(fabs(checkmass-totalmass_) < 1.0e-2*minmass_); 
 #endif
 
     // Exchnage usefull body_holder from my tree to other processes

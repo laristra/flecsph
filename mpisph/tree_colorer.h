@@ -857,6 +857,16 @@ public:
     MPI_Comm_size(MPI_COMM_WORLD,&size);
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
+
+    // Go through and search parts 
+    //for(auto bi: rbodies){
+    //  if(bi.second.getId() == 10515){
+    //    std::cout<<rank<<" : FOUND BEFORE ALL"<<std::endl;    
+    //  }
+    //}
+
+
+
     // Sort the keys 
     std::sort(rbodies.begin(),rbodies.end(),
       [](auto& left, auto& right){
@@ -870,7 +880,8 @@ public:
       });
 
     // Check for duplicates
-    if(!(rbodies.end() == std::unique(rbodies.begin(),rbodies.end(),
+    /*auto tmp1 = rbodies; 
+    if(!(tmp1.end() == std::unique(tmp1.begin(),tmp1.end(),
         [&rank](auto& left, auto& right ){ 
           if( left.first == right.first ){
             std::cout<<rank<<": unique check: "<<left.second<<
@@ -881,7 +892,14 @@ public:
           return false; 
         }))){
         std::cout<<rank<<": duplicated keys in mpi_sort begin"<<std::endl;
-    }
+    }*/
+
+    // Go through and search parts 
+    //for(auto bi: rbodies){
+    //  if(bi.second.getId() == 10515){
+    //    std::cout<<rank<<" : FOUND PREVISOU"<<std::endl;    
+    //  }
+    //}
 
     // If one process, done 
     if(size==1){
@@ -971,35 +989,6 @@ public:
     reset_buffers();
     
     int64_t particlescheck = 0L;
-    /*for(auto bi: rbodies){
-      for(int i = 0; i< size;++i){
-        if(i == 0 && bi.first < splitters[i].first){
-          scount[i]++;
-          particlescheck++; 
-        }else if(i == size-1 && bi.first >= splitters[size-2].first){
-          if(bi.first == splitters[size-2].first){
-            if(bi.second.getId() >= splitters[size-2].second){
-              scount[i]++;
-              particlescheck++;
-            }
-          }else{
-            scount[i]++;
-            particlescheck++; 
-          }
-        }else if(bi.first < splitters[i].first && 
-          bi.first >= splitters[i-1].first){
-          if(bi.first == splitters[i-1].first){
-            if(bi.second.getId() >= splitters[i-1].second){
-              scount[i]++;
-              particlescheck++;
-            }
-          }else{
-            scount[i]++;
-            particlescheck++;
-          }
-        } // if
-      } // for
-    } // for*/
     int cur_proc = 0;
     for(auto bi: rbodies){
       if(cur_proc == size-1){
@@ -1067,8 +1056,12 @@ public:
         return false; 
       }); 
 
+    // Display last value 
+    //std::cout<<rank<<": LAST VALUE="<<rbodies.back().second<<std::endl;
+
     // Check for duplicates
-    if(!(rbodies.end() == std::unique(rbodies.begin(),rbodies.end(),
+    /*auto tmp2 = rbodies; 
+    if(!(tmp2.end() == std::unique(tmp2.begin(),tmp2.end(),
         [&rank](auto& left, auto& right ){ 
           if( left.first == right.first ){
             std::cout<<rank<<": unique check: "<<left.second<<
@@ -1079,9 +1072,7 @@ public:
           return false; 
         }))){
         std::cout<<rank<<": duplicated keys in mpi_sort"<<std::endl;
-    }
-
-
+    }*/
 
     std::vector<int> totalprocbodies;
     totalprocbodies.resize(size);
@@ -1402,27 +1393,9 @@ public:
         +ghosts_data.sholders[i]+ghosts_data.rholders[i]; 
     }
     
-    /*MPI_Barrier(MPI_COMM_WORLD);
-    std::cout<<rank<<" BEFORE COM"<<std::endl<<std::flush;
-    std::cout<<rank<<": "<<
-    "0:"<<ghosts_data.sholders[0]<<" "<<
-    "1:"<<ghosts_data.sholders[1]<<" "<<
-    "2:"<<ghosts_data.sholders[2]<<" "<<
-    "3:"<<ghosts_data.sholders[3]<<" "<<
-    "4:"<<ghosts_data.sholders[4]<<" "<<
-    "5:"<<ghosts_data.sholders[5]<<" "<<
-    "6:"<<ghosts_data.sholders[6]<<" "<<
-    "7:"<<ghosts_data.sholders[7]<<" "<<std::endl<<std::flush<<
-    "0:"<<ghosts_data.rholders[0]<<" "<<
-    "1:"<<ghosts_data.rholders[1]<<" "<<
-    "2:"<<ghosts_data.rholders[2]<<" "<<
-    "3:"<<ghosts_data.rholders[3]<<" "<<
-    "4:"<<ghosts_data.rholders[4]<<" "<<
-    "5:"<<ghosts_data.rholders[5]<<" "<<
-    "6:"<<ghosts_data.rholders[6]<<" "<<
-    "7:"<<ghosts_data.rholders[7]<<" "<<std::endl<<std::flush;*/
-
-    assert(total != 0); 
+    if(size > 1){
+      assert(total != 0); 
+    }
 
     MPI_Alltoallv(&ghosts_data.sbodies[0],&ghosts_data.sholders[0],
       &ghosts_data.soffsets[0],MPI_BYTE,
@@ -1516,8 +1489,8 @@ public:
       std::cout<<"Compute Ghosts" << std::flush;
 #endif
 
-    auto h = tree.entities().to_vec(); 
-    if(!(h.end() == std::unique(h.begin(),h.end(),
+    auto tmp = tree.entities().to_vec(); 
+    if(!(tmp.end() == std::unique(tmp.begin(),tmp.end(),
         [&rank,&range](const auto& left, const auto& right ){ 
           return left->getId() == right->getId(); 
         }))){
