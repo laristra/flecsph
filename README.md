@@ -109,6 +109,7 @@ Then make:
  
  - sodtube : 1D Sod shock tube problem
  - sedov : 2D circular Sedov blast wave expansion
+ - fluid : 3D simple fluid drop simulation
  - bwd : 3D binary white dwarf merger with analytic zero temperature EOS
  
  Also, app/miscell directory contains python scripts that perform different aspects for initial data generators and converter for h5part format. 
