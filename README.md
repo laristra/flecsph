@@ -20,7 +20,7 @@ For the first version of the code we intent to provide several basic physics pro
 
 - Sod Shock Tube in 1D
 - Sedov Blast Wave 2D
-- Binary Neutron Star Merger 3D  
+- Binary Compact Object Merger 3D  
 
 # Getting the Code 
 
@@ -109,8 +109,8 @@ Then make:
  
  - sodtube : 1D Sod shock tube problem
  - sedov : 2D circular Sedov blast wave expansion
- - bns : 3D binary neutron star merger with piecewise polytrope equations of state (EOS) with Newtonian gravity
+ - fluid : 3D simple fluid drop simulation
  - bwd : 3D binary white dwarf merger with analytic zero temperature EOS
  
- Also, app/miscell directory contains python script that generates initial data for neutron star and its binary generator. It will add more features such as initial data generator for white dwarfs and some input/output converter
+ Also, app/miscell directory contains python scripts that perform different aspects for initial data generators and converter for h5part format. 
  
