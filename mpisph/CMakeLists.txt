@@ -50,9 +50,19 @@ cinch_add_unit(io
     test/io_test.h5part
   LIBRARIES ${FleCSPH_LIBRARIES}
   POLICY MPI 
-  THREADS 4 
+  THREADS 1
 )
 
+cinch_add_unit(body_system
+  SOURCES
+    test/bs.cc
+    ${FleCSI_RUNTIME}/runtime_driver.cc  
+  INPUTS
+    test/io_test.h5part
+  LIBRARIES ${FleCSPH_LIBRARIES}
+  POLICY MPI 
+  THREADS 1
+)
 
 #~---------------------------------------------------------------------------~-#
 # Formatting options

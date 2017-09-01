@@ -51,6 +51,7 @@ public:
     MPI_Allreduce(MPI_IN_PLACE,&totalmass_,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD); 
   }
 
+#if 0
   void read_bodies_txt(
       const char* filename)
   {
@@ -62,6 +63,7 @@ public:
     }
     MPI_Allreduce(MPI_IN_PLACE,&totalmass_,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD); 
   }
+#endif 
 
   void write_bodies(
       const char * filename, 

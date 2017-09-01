@@ -38,6 +38,7 @@
 
 namespace io{
 
+#if 0
 // Read data from txt file with ranges
 // This is not the most beautiful way, but enough for testing
 void inputDataTxtRange(
@@ -181,6 +182,8 @@ void inputDataTxtRange(
   std::cout << rank<<"/"<<size<<" nbodies: "<<nbodies<<"/"<<totalnbodies<<std::endl; 
 
 } // inputDataTxtRange
+#endif 
+
 
 // Input data fro HDF5 File
 void inputDataHDF5(
