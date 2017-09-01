@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <cmath>
+#include <mpi.h>
 
 #include "tree_colorer.h"
 #include "io.h"

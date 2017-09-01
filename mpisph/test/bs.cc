@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <cmath>
+#include <mpi.h>
 
 #include "bodies_system.h"
 
