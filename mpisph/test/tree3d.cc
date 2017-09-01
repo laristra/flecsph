@@ -216,6 +216,7 @@ TEST(tree_topology,smoothing){
   }
 }
 
+#if 0
 TEST(tree_topology,same_key){
   size_t nparticles_line = 20;
   size_t nparticles = nparticles_line*nparticles_line*nparticles_line;
@@ -247,7 +248,7 @@ TEST(tree_topology,same_key){
         entity_key_t tmp = entity_key_t(/*range,*/position);
         keys.push_back(tmp);
         depth += distance; 
-        std::cout<<position<<" key="<<tmp<<std::endl;
+        //std::cout<<position<<" key="<<tmp<<std::endl;
       }
       col += distance; 
     }
@@ -290,3 +291,4 @@ TEST(tree_topology,same_key){
     ASSERT_TRUE(s1 == s2);
   } 
 }
+#endif 
