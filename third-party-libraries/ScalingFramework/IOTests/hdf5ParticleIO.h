@@ -602,7 +602,7 @@ inline int HDF5ParticleIO::readVariable(std::string & _name, std::string type, v
 
 inline int HDF5ParticleIO::readAllVariables(int ts)
 {
-    int retValue;
+    int retValue = 0;
     for (size_t i=0; i<vars.size(); i++)
         retValue = readVariable(vars[i].name, vars[i].dataType, vars[i].data);
 
@@ -612,7 +612,7 @@ inline int HDF5ParticleIO::readAllVariables(int ts)
 
 inline int HDF5ParticleIO::readVariables(int ts, std::string _name)
 {
-    int retValue;
+    int retValue = 0;
     for (size_t i=0; i<vars.size(); i++)
         if (vars[i].name == _name)
             retValue = readVariable(vars[i].name, vars[i].dataType, vars[i].data);
