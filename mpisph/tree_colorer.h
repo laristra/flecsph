@@ -31,6 +31,15 @@
 #include <vector>
 #include <numeric>
 
+#define __GNU__ 
+
+#ifdef __GNU__
+  #warning "GNU detected"
+  #include <parallel/algorithm>
+#else 
+  #warning "GNU not detected"
+#endif
+
 #include "tree.h"
 
 std::ostream&
@@ -857,16 +866,19 @@ public:
     MPI_Comm_size(MPI_COMM_WORLD,&size);
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
-
-    // Go through and search parts 
-    //for(auto bi: rbodies){
-    //  if(bi.second.getId() == 10515){
-    //    std::cout<<rank<<" : FOUND BEFORE ALL"<<std::endl;    
-    //  }
-    //}
-
-
-
+#ifdef __GNU__
+    // Sort the keys 
+    __gnu_parallel::sort(rbodies.begin(),rbodies.end(),
+      [](auto& left, auto& right){
+        if(left.first < right.first){
+          return true; 
+        }
+        if(left.first == right.first){
+          return left.second.getId() < right.second.getId(); 
+        }
+        return false; 
+      });
+#else
     // Sort the keys 
     std::sort(rbodies.begin(),rbodies.end(),
       [](auto& left, auto& right){
@@ -878,28 +890,7 @@ public:
         }
         return false; 
       });
-
-    // Check for duplicates
-    /*auto tmp1 = rbodies; 
-    if(!(tmp1.end() == std::unique(tmp1.begin(),tmp1.end(),
-        [&rank](auto& left, auto& right ){ 
-          if( left.first == right.first ){
-            std::cout<<rank<<": unique check: "<<left.second<<
-            " && "<<right.second<<std::endl;
-            assert(right.second.getId() != left.second.getId());
-            return true; 
-          } 
-          return false; 
-        }))){
-        std::cout<<rank<<": duplicated keys in mpi_sort begin"<<std::endl;
-    }*/
-
-    // Go through and search parts 
-    //for(auto bi: rbodies){
-    //  if(bi.second.getId() == 10515){
-    //    std::cout<<rank<<" : FOUND PREVISOU"<<std::endl;    
-    //  }
-    //}
+#endif 
 
     // If one process, done 
     if(size==1){
@@ -941,6 +932,7 @@ public:
       master_nkeys = noct/sizeof(std::pair<entity_key_t,int64_t>)*size;
       if(totalnbodies<master_nkeys){master_nkeys=totalnbodies;}
       // Number to receiv from each process
+#pragma omp parallel for 
       for(int i=0;i<size;++i){
         master_recvcounts[i]*=sizeof(std::pair<entity_key_t,int64_t>);
       } // for
@@ -958,6 +950,19 @@ public:
     std::vector<std::pair<entity_key_t,int64_t>> splitters; 
     splitters.resize(size-1);
     if(rank==0){
+
+#ifdef __GNU__
+      __gnu_parallel::sort(master_keys.begin(),master_keys.end(),
+        [](auto& left, auto& right){
+          if(left.first < right.first){
+            return true; 
+          }
+          if(left.first == right.first){
+            return left.second < right.second; 
+          }
+          return false; 
+        });
+#else 
       std::sort(master_keys.begin(),master_keys.end(),
         [](auto& left, auto& right){
           if(left.first < right.first){
@@ -968,15 +973,15 @@ public:
           }
           return false; 
         });
+#endif 
 
-      //std::cout<<entity_key_t::first_key()<<std::endl;
       chuncksize = master_nkeys/size;
+
+#pragma omp parallel for 
       for(int i=0;i<size-1;++i){
         splitters[i] = master_keys[(i+1)*chuncksize];
-        //std::cout<<splitters[i].first<<std::endl;
       } // for
       // Last key 
-      //std::cout<<entity_key_t::last_key()<<std::endl;
     } // if
 
     // Bradcast the splitters 
@@ -1030,6 +1035,7 @@ public:
       std::make_pair(entity_key_t::null(),body()));
     
     // Trnaform the offsets for bytes 
+#pragma omp parallel for 
     for(int i=0;i<size;++i){
       scount[i] *= sizeof(std::pair<entity_key_t,body>);
       rcount[i] *= sizeof(std::pair<entity_key_t,body>);
@@ -1043,9 +1049,11 @@ public:
     
     rbodies.clear();
     rbodies = recvbuffer; 
-    
+   
+
+#ifdef __GNU__ 
     // Sort the incoming buffer 
-    sort(rbodies.begin(),rbodies.end(),
+    std::sort(rbodies.begin(),rbodies.end(),
       [](auto& left, auto &right){
         if(left.first<right.first){
           return true; 
@@ -1055,24 +1063,19 @@ public:
         }
         return false; 
       }); 
-
-    // Display last value 
-    //std::cout<<rank<<": LAST VALUE="<<rbodies.back().second<<std::endl;
-
-    // Check for duplicates
-    /*auto tmp2 = rbodies; 
-    if(!(tmp2.end() == std::unique(tmp2.begin(),tmp2.end(),
-        [&rank](auto& left, auto& right ){ 
-          if( left.first == right.first ){
-            std::cout<<rank<<": unique check: "<<left.second<<
-            " && "<<right.second<<std::endl;
-            assert(left.second.getId() != right.second.getId()); 
-            return true; 
-          } 
-          return false; 
-        }))){
-        std::cout<<rank<<": duplicated keys in mpi_sort"<<std::endl;
-    }*/
+#else
+    // Sort the incoming buffer 
+    __gnu_parallel::sort(rbodies.begin(),rbodies.end(),
+      [](auto& left, auto &right){
+        if(left.first<right.first){
+          return true; 
+        }
+        if(left.first == right.first){
+          return left.second.getId()<right.second.getId(); 
+        }
+        return false; 
+      }); 
+#endif
 
     std::vector<int> totalprocbodies;
     totalprocbodies.resize(size);
@@ -1208,6 +1211,7 @@ public:
     range.first = rbodies.front().second.getPosition();
     range.second = rbodies.front().second.getPosition();
 
+    // \TODO parallel openMP 
     // Lowest position:
     for(auto bi: rbodies){
       //std::cout<<rank<<bi.second<<std::endl<<std::flush;
@@ -1388,6 +1392,7 @@ public:
     }  
 
     int total = 0;
+#pragma omp parallel for 
     for(int i = 0; i < size ; ++i){
         total += ghosts_data.soffsets[i]+ghosts_data.roffsets[i]
         +ghosts_data.sholders[i]+ghosts_data.rholders[i]; 
@@ -1407,6 +1412,24 @@ public:
     //std::cout<<rank<<" AFTER COM"<<std::endl<<std::flush;
 
     // Sort the bodies based on key and or position
+#ifdef __GNU__
+    __gnu_parallel::sort(ghosts_data.rbodies.begin(),
+            ghosts_data.rbodies.end(),
+      [/*range*/](auto& left, auto& right){
+        if(entity_key_t(/*range,*/left.coordinates())<
+          entity_key_t(/*range,*/right.coordinates())){
+          return true;
+        }
+        if(entity_key_t(/*range,*/left.coordinates())==
+          entity_key_t(/*range,*/right.coordinates())){
+          //std::cout<<"Key collision for:"<< 
+	        //left.coordinates()<< " && " << right.coordinates()<<
+          //" Ids: "<<left.getId()<< " && " << right.getId() <<std::endl;
+          return left.getId()<right.getId();
+        }
+        return false;
+      });
+#else
     std::sort(ghosts_data.rbodies.begin(),
             ghosts_data.rbodies.end(),
       [/*range*/](auto& left, auto& right){
@@ -1423,6 +1446,8 @@ public:
         }
         return false;
       });
+
+#endif
  
 
     assert(ghosts_data.rbodies.size() == ghosts_data.recvholders.size()); 
@@ -1489,16 +1514,6 @@ public:
       std::cout<<"Compute Ghosts" << std::flush;
 #endif
 
-    //auto tmp = tree.entities().to_vec(); 
-    //if(!(tmp.end() == std::unique(tmp.begin(),tmp.end(),
-    //    [&rank/*,&range*/](const auto& left, const auto& right ){ 
-    //      return left->getId() == right->getId(); 
-    //    }))){
-    //    std::cout<<rank<<": duplicated ID in compute"<<std::endl;
-    //}
-
-
-
     // Clean the structure 
     ghosts_data.sbodies.clear();
     ghosts_data.rbodies.clear();
@@ -1516,28 +1531,39 @@ public:
     int totalrecvbodies = 0;
     int totalsendbodies = 0;
     auto treeents = tree.entities().to_vec(); 
-    for(auto bi: treeents)
+    
+    int nelements = treeents.size();
+
+#pragma omp parallel for 
+    for(int i=0; i<nelements; ++i)
     {  
-      if(bi->is_local())
+      if(treeents[i]->is_local())
       {
-        assert(bi->getOwner() == rank);
-        assert(bi->getBody()->getSmoothinglength() > 0); 
+        assert(treeents[i]->getOwner() == rank);
+        assert(treeents[i]->getBody()->getSmoothinglength() > 0); 
+        
         auto bodiesneighbs = tree.find_in_radius_b(
-            bi->coordinates(),
-            2.*bi->getBody()->getSmoothinglength());
+            treeents[i]->coordinates(),
+            2.*treeents[i]->getBody()->getSmoothinglength());
+        
         assert(bodiesneighbs.size() > 0);
+
         for(auto nb: bodiesneighbs)
 	      {
           if(!nb->is_local())
           {
 	          assert(nb->getOwner()!=rank && nb->getOwner() != -1); 
-            ghosts_data.sendholders[nb->getOwner()].insert(bi);
+#pragma omp critical
+{
+            ghosts_data.sendholders[nb->getOwner()].insert(treeents[i]);
             recvholders[nb->getOwner()].insert(nb);
+}
           }
         }
       }  
     }
 
+#pragma omp parallel for
     for(int i=0;i<size;++i)
     {
       ghosts_data.sholders[i] = ghosts_data.sendholders[i].size();
@@ -1545,6 +1571,7 @@ public:
       totalsendbodies += ghosts_data.sholders[i];
     } 
   
+#pragma omp parallel for 
     for(int i=0;i<size;++i)
     {
       ghosts_data.rholders[i] = recvholders[i].size();
@@ -1570,6 +1597,7 @@ public:
     ghosts_data.roffsets[0]=0;
     ghosts_data.soffsets[0]=0;
 
+#pragma omp parallel for 
     for(int i=1;i<size;++i)
     {
       ghosts_data.roffsets[i] = ghosts_data.rholders[i-1]+
@@ -1582,6 +1610,7 @@ public:
 
 
     // Convert the offsets to byte
+#pragma omp parallel for
     for(int i=0;i<size;++i)
     {
       ghosts_data.sholders[i]*=sizeof(body);

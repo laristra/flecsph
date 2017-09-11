@@ -204,18 +204,18 @@ void inputDataHDF5(
   }
   MPI_Barrier(MPI_COMM_WORLD); 
 
-  std::cout<<rank<<": File Opening: "<<filename<<std::endl;
+  //std::cout<<rank<<": File Opening: "<<filename<<std::endl;
   
   //--------------- OPEN FILE AND READ NUMBER OF PARTICLES -------------------- 
   auto dataFile = H5OpenFile(filename,H5_O_RDONLY
       | H5_VFD_MPIIO_IND,// Flag to be not use mpiposix
       MPI_COMM_WORLD);
 
-  std::cout<<rank<<": File Open"<<std::endl;
+  //std::cout<<rank<<": File Open"<<std::endl;
   // Check if timestep exists
   
   int val = H5HasStep(dataFile,startiteration);
-  std::cout<<rank<<": Has Step"<<std::endl;
+  //std::cout<<rank<<": Has Step"<<std::endl;
   
   if(val != 1){
     MPI_Barrier(MPI_COMM_WORLD);
@@ -228,12 +228,12 @@ void inputDataHDF5(
   }
   // If yes, get into this step 
   H5SetStep(dataFile,startiteration);
-  std::cout<<rank<<": Set Step"<<std::endl;
+  //std::cout<<rank<<": Set Step"<<std::endl;
   
   // Get the number of particles 
   int64_t nparticles = 0UL; 
   nparticles = H5PartGetNumParticles(dataFile);
-  std::cout<<rank<<": nParticles"<<std::endl;
+  //std::cout<<rank<<": nParticles"<<std::endl;
   if(rank == 0){
     std::cout<<"Total of "<<nparticles<<" particles"<<std::endl;
   }
