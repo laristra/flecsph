@@ -49,13 +49,16 @@ public:
     totalmass_ = 0.;
 
     // Also compute the total mass 
-#pragma omp parallel for reduction(+:totalmass_) reduction(min: minmass_)
+    double totalmass = 0;
+    double minmass= 1.0e50;
+#pragma omp parallel for reduction(+:totalmass) reduction(min: minmass)
     for(int i = 0; i < localnbodies_; ++i){
-      totalmass_ += localbodies_[i].second.getMass(); 
-      if(localbodies_[i].second.getMass() < minmass_){
-        minmass_ = localbodies_[i].second.getMass(); 
+      totalmass += localbodies_[i].second.getMass(); 
+      if(localbodies_[i].second.getMass() < minmass){
+        minmass = localbodies_[i].second.getMass(); 
       }
     }
+    totalmass_ = totalmass;
 
     MPI_Allreduce(MPI_IN_PLACE,&minmass_,1,MPI_DOUBLE,MPI_MIN,MPI_COMM_WORLD); 
     MPI_Allreduce(MPI_IN_PLACE,&totalmass_,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD); 
@@ -78,12 +81,15 @@ public:
     // Choose the smoothing length to be the biggest from everyone 
     smoothinglength_ = 0;
 
-#pragma omp parallel for reduction(max: smoothinglength_)
+    double tmph = 0;
+#pragma omp parallel for reduction(max: tmph)
     for(int i=0; i < localnbodies_; ++i){
-      if(smoothinglength_ < localbodies_[i].second.getSmoothinglength()){
-        smoothinglength_ = localbodies_[i].second.getSmoothinglength();
+      if(tmph < localbodies_[i].second.getSmoothinglength()){
+        tmph = localbodies_[i].second.getSmoothinglength();
       }
     }
+    smoothinglength_ = tmph;
+
     MPI_Allreduce(MPI_IN_PLACE,&smoothinglength_,1,MPI_DOUBLE,MPI_MAX,
         MPI_COMM_WORLD);
 
