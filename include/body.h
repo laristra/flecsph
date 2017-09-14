@@ -84,7 +84,7 @@ public:
   point_t getAcceleration() const{return acceleration_;}
   double getInternalenergy() const{return internalenergy_;}
   //double getDudt(){return dudt_;};
-  int64_t getId() const{return id_;};
+  int64_t getId(){return id_;};
   double getDt(){return dt_;};
   double getDudt(){return dudt_;};
   int getType(){return type_;}; 

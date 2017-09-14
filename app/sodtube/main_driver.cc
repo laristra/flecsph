@@ -61,7 +61,7 @@ mpi_init_task(int startiteration){
   int iter = startiteration; 
 
   // Init if default values are not ok
-  physics::dt = 0.0001;
+  physics::dt = 0.0025;
   physics::alpha = 1; 
   physics::beta = 2; 
   physics::do_boundaries = true;
@@ -81,8 +81,6 @@ mpi_init_task(int startiteration){
 
   double h = bs.getSmoothinglength();
   physics::epsilon = 0.01*h*h;
-  physics::dt = 0.00015;
-
 
   // Set the boundaries to be at 10% of the total range
   auto range_boundaries = bs.getRange(); 
