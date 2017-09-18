@@ -37,7 +37,7 @@ int main(int argc, char * argv[]){
 //#ifdef GASNET_CONDUIT_MPI
   int provided;
  
-//#define ALLINEA 
+#undef ALLINEA 
 #ifdef ALLINEA
   // Use FUNNELED for debug and debug with allinea 
   MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);

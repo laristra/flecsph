@@ -537,8 +537,9 @@ void outputDataHDF5(
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
   MPI_Barrier(MPI_COMM_WORLD);
+
   if(rank == 0){
-    std::cout<<"Output particles";
+    std::cout<<"Output particles"<<std::flush;
   }
 
   int64_t nparticlesproc = bodies.size();
@@ -557,9 +558,12 @@ void outputDataHDF5(
   // Set the number of particles 
   // H5PartSetNumParticles(dataFile,nparticlesproc);
 
-  Flecsi_Sim_IO::HDF5ParticleIO simio;
+  Flecsi_Sim_IO::HDF5ParticleIO simio;//(
+  //    filename,
+  //    Flecsi_Sim_IO::WRITING,
+  //    MPI_COMM_WORLD);
   simio.createDataset(filename,MPI_COMM_WORLD);
-
+  
   //-------------------GLOBAL HEADER-------------------------------------------
   // Only for the first output
   if(do_diff_files){
@@ -569,7 +573,6 @@ void outputDataHDF5(
       simio.writeDatasetAttribute("ndim","int32_t",gdimension);
     }
   }
-
 
   //------------------STEP HEADER----------------------------------------------
   // Put the step header

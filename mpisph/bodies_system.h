@@ -99,8 +99,10 @@ public:
 
   /**
    * @brief      Write bodies to file in parallel 
+   * Caution provide the file name prefix, h5part will be added
+   * This is useful in case of multiple files output
    *
-   * @param[in]  filename       The outut filename
+   * @param[in]  filename       The outut file prefix 
    * @param[in]  iter           The iteration of output
    * @param[in]  do_diff_files  Generate a file for each steps 
    */

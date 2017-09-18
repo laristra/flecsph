@@ -101,16 +101,26 @@ int HDF5ParticleIO::createDataset(std::string _outputFileName, MPI_Comm _comm)
     MPI_Comm_rank(_comm, &myRank);
 
     outputFileName = _outputFileName;
-    dataFile = H5OpenFile(outputFileName.c_str(), H5_O_RDWR, _comm);
+
+    dataFile = H5OpenFile(
+        outputFileName.c_str(), 
+        H5_O_RDWR | H5_VFD_MPIIO_IND, 
+        _comm);
+
     if (!dataFile)
-        return -1;
+      return -1;
 
     return 0;
 }
 
 int HDF5ParticleIO::readFile(std::string inputFileName, MPI_Comm _comm)
 {
-    dataFile = H5OpenFile(inputFileName.c_str(), H5_O_RDONLY, _comm);
+    dataFile = H5OpenFile(
+        inputFileName.c_str(), 
+        H5_O_RDONLY
+        | H5_VFD_MPIIO_IND
+        , 
+        _comm);
     if (!dataFile)
         return -1;
 
@@ -123,7 +133,12 @@ int HDF5ParticleIO::readFile(std::string inputFileName, MPI_Comm _comm)
 
 int HDF5ParticleIO::openFile(MPI_Comm  _comm)
 {
-    dataFile = H5OpenFile(outputFileName.c_str(), H5_O_RDWR, _comm);
+    dataFile = H5OpenFile(
+        outputFileName.c_str(), 
+        H5_O_RDWR
+        | H5_VFD_MPIIO_IND
+        , 
+        _comm);
     if (!dataFile)
         return -1;
 

@@ -73,8 +73,6 @@ mpi_init_task(int startiteration){
   bs.read_bodies("hdf5_sedov.h5part",startiteration);
   //io::inputDataHDF5(rbodies,"hdf5_sodtube.h5part",totalnbodies,nbodies);
 
-  //eos_analytics eos(1.4);
-
   double h = bs.getSmoothinglength();
   physics::epsilon = 0.01*h*h;
 
