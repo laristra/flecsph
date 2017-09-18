@@ -7,6 +7,8 @@
 #ifndef _mpisph_body_system_h_
 #define _mpisph_body_system_h_
 
+#include <omp.h>
+
 #include "tree_colorer.h"
 #include "io.h"
 
@@ -21,23 +23,66 @@ using point_t = flecsi::point<T,D>;
 public:
   body_system():totalnbodies_(0L),localnbodies_(0L),macangle_(0.0),
   maxmasscell_(1.0e-40),tree_(nullptr)
-  {};
+  {
+    // Display the number of threads in DEBUG mode
+    #ifdef DEBUG
+    #pragma omp parallel 
+    #pragma omp single 
+    std::cout<<"OMP: "<<omp_get_num_threads()<<std::endl;
+    #endif 
+  };
+
+  /**
+   * @brief      Destroys the object.
+   */
   ~body_system(){
     if(tree_ != nullptr){
       delete tree_;
     }
   };
 
+  // 
+  
+  /**
+   * @brief      Max mass to stop the tree search during 
+   * the gravitation computation with FMM
+   *
+   * @param[in]  maxmasscell  The maximum mass for the cells
+   */
+  void setMaxmasscell(
+    double maxmasscell)
+  {
+    maxmasscell_ = maxmasscell;
+  };
+  
+  /**
+   * @brief      Sets the Multipole Acceptance Criterion for FMM
+   *
+   * @param[in]  macangle  Multipole Acceptance Criterion
+   */
+  void 
+  setMacangle(
+    double macangle)
+  {
+    macangle_ = macangle;
+  };
 
-  void setMaxmasscell(double maxmasscell){maxmasscell_ = maxmasscell;};
-  void setMacangle(double macangle){macangle_ = macangle;};
-
-  void read_bodies(
+  /**
+   * @brief      Read the bodies from H5part file
+   * Compute also the total to check for mass lost 
+   *
+   * @param[in]  filename        The filename
+   * @param[in]  startiteration  The iteration from which load the data
+   */
+  void 
+  read_bodies(
       const char * filename,
       int startiteration)
   {
     io::inputDataHDF5(localbodies_,filename,totalnbodies_,localnbodies_,
         startiteration);
+    
+    #ifdef DEBUG
     minmass_ = 1.0e50;
     totalmass_ = 0.;
     // Also compute the total mass 
@@ -49,23 +94,18 @@ public:
     }
     MPI_Allreduce(MPI_IN_PLACE,&minmass_,1,MPI_DOUBLE,MPI_MIN,MPI_COMM_WORLD); 
     MPI_Allreduce(MPI_IN_PLACE,&totalmass_,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD); 
+    #endif
   }
 
-#if 0
-  void read_bodies_txt(
-      const char* filename)
-  {
-    io::inputDataTxtRange(localbodies_,localnbodies_,totalnbodies_,filename);
-    totalmass_ = 0.;
-    // Also compute the total mass 
-    for(auto bi: localbodies_){
-      totalmass_ += bi.second.getMass(); 
-    }
-    MPI_Allreduce(MPI_IN_PLACE,&totalmass_,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD); 
-  }
-#endif 
-
-  void write_bodies(
+  /**
+   * @brief      Write bodies to file in parallel 
+   *
+   * @param[in]  filename       The outut filename
+   * @param[in]  iter           The iteration of output
+   * @param[in]  do_diff_files  Generate a file for each steps 
+   */
+  void 
+  write_bodies(
       const char * filename, 
       int iter,
       bool do_diff_files = false)
@@ -73,7 +113,15 @@ public:
     io::outputDataHDF5(localbodies_,filename,iter,do_diff_files);
   }
 
-  double getSmoothinglength()
+
+  /**
+   * @brief      Compute the largest smoothing length in the system 
+   * This is really useful for particles with differents smoothing length
+   *
+   * @return     The largest smoothinglength of the system.
+   */
+  double 
+  getSmoothinglength()
   {
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -89,13 +137,23 @@ public:
     MPI_Allreduce(MPI_IN_PLACE,&smoothinglength_,1,MPI_DOUBLE,MPI_MAX,
         MPI_COMM_WORLD);
 
+    #ifdef DEBUG
+    #ifdef OUTPUT
     if(rank==0){
       std::cout<<"H="<<smoothinglength_<<std::endl;
     }
+    #endif
+    #endif 
+
     return smoothinglength_;
 
   }
 
+  /**
+   * @brief      Compute the range of the total particles 
+   *
+   * @return     The range.
+   */
   std::array<point_t,2>& 
   getRange()
   {
@@ -113,9 +171,13 @@ public:
     MPI_Allreduce(MPI_IN_PLACE,&smoothinglength_,1,MPI_DOUBLE,MPI_MAX,
         MPI_COMM_WORLD);
 
+    #ifdef DEBUG
+    #ifdef OUTPUT
     if(rank==0){
       std::cout<<"H="<<smoothinglength_<<std::endl;
     }
+    #endif
+    #endif
     tcolorer_.mpi_compute_range(localbodies_,range_,smoothinglength_);
     return range_;
   }

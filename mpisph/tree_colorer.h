@@ -865,8 +865,6 @@ public:
     //  }
     //}
 
-
-
     // Sort the keys 
     std::sort(rbodies.begin(),rbodies.end(),
       [](auto& left, auto& right){

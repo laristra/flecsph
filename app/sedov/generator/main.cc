@@ -165,40 +165,9 @@ int main(int argc, char * argv[]){
     rho[part] = rho_1; 
     //u[part] = u_1;
     m[part] = density(x[part],y[part],x_c,y_c);
-    
     u[part] = u_1;///m[part];
-
-    //if(sqrt((x[part]-x_c)*(x[part]-x_c)+(y[part]-y_c)*(y[part]-y_c)
-    //      < (ldistance)*(ldistance))){
-    //  u[part] *= 3.;
-    //}
     h[part] = smoothing_length;
-
-    //if(part == nparticles/2.-1.-sparticles/2.){
-    //  u[part] += 1.;
-    //  //h[part] += 10.*ldistance;
-    //  printf("Middle particle = %ld\n",part);
-    //}
-
-    // Y and Z not used 
-    // VX, VY, VZ and AX, AY, AZ stay to 0
-    //h[part] = smoothing_length;
-    // P stay to 0
     id[part] = posid++; 
-    //std::cout<<x[part]<<": "<<h[part]<<std::endl;
-  }
-
-  //tparticles = nparticles;
-  // Check for duplicate 
-  for(int64_t p1=0;p1<tparticles;++p1){
-    for(int64_t p2=0;p2<tparticles;++p2){
-      if(p1 == p2)
-        continue;
-      if(x[p1]==x[p2]&&y[p1]==y[p2]){
-        std::cout<<"Particle on same position"<<std::endl;
-        exit(-1);
-      }
-    }
   }
 
   std::cout<<"Real number of particles: "<<tparticles<<std::endl;
