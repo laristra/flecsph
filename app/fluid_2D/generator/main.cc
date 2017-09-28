@@ -6,6 +6,7 @@
  #include <iostream>
 #include <algorithm>
 #include <cmath>
+#include <cassert>
 
 #include "hdf5ParticleIO.h"
 
@@ -23,8 +24,16 @@ int32_t dimension = 2;
 
 int main(int argc, char * argv[]){
   
-  int rank, size; 
-  MPI_Init(&argc,&argv);
+  int rank, size;
+
+  int provided; 
+  MPI_Init_thread(&argc,&argv,MPI_THREAD_MULTIPLE,&provided);
+  if(provided<MPI_THREAD_MULTIPLE){
+	fprintf(stderr,"Error MPI version: MPI_THREAD_MULTIPLE provided: %d",provided);
+       	MPI_Finalize(); 
+	exit(EXIT_FAILURE); 	
+  }
+ 
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   
