@@ -5,6 +5,7 @@
 
  #include <iostream>
 #include <algorithm>
+#include <cassert>
 
 #include "hdf5ParticleIO.h"
 #include "physics/kernel.h"
@@ -29,8 +30,10 @@ int main(int argc, char * argv[]){
 
   int64_t nparticles = 1000;
   
-  int rank, size; 
-  MPI_Init(&argc,&argv);
+  int rank, size;
+  int provided;  
+  MPI_Init_thread(&argc,&argv,MPI_THREAD_MULTIPLE,&provided);
+  assert(provided>=MPI_THREAD_MULTIPLE);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
 

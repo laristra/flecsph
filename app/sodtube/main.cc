@@ -36,12 +36,6 @@ int main(int argc, char * argv[]){
   
 //#ifdef GASNET_CONDUIT_MPI
   int provided;
- 
-#define ALLINEA 
-#ifdef ALLINEA
-  // Use FUNNELED for debug and debug with allinea 
-  MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
-#else
   // Normal way 
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
   if (provided < MPI_THREAD_MULTIPLE)
@@ -49,7 +43,6 @@ int main(int argc, char * argv[]){
      "MPI_THREAD_MULTIPLE which is required for use of the "
      "GASNet MPI conduit with the Legion-MPI Interop!\n");
   assert(provided == MPI_THREAD_MULTIPLE);
-#endif
 
   std::cout << "MPI_Init done, Initialize" << std::endl;
   auto retval = flecsi::execution::context_t::instance().initialize(argc,argv);
