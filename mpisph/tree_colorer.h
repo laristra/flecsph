@@ -1159,6 +1159,7 @@ public:
     // 1. for each processes, bucket of send, bucket of receiv 
     ghosts_data.sendholders.resize(size);
 
+    #if 0
     std::vector<std::set<body_holder*>> recvholders(size);
     
     // TODO add a reduction over h 
@@ -1186,7 +1187,31 @@ public:
         } // for
       } // if 
     } // for
+    #endif 
+    std::vector<std::set<body_holder*>> recvholders(size);
+    auto treeents = tree.entities().to_vec(); 
+    for(auto bi: treeents)
+    {  
+      if(!bi->is_local())
+      {
+        assert(bi->getOwner() != rank && bi->getOwner() != -1);
+        auto bodiesneighbs = tree.find_in_radius_b(bi->coordinates(),2.*smoothinglength);
+        assert(bodiesneighbs.size() > 0);
+        for(auto nb: bodiesneighbs)
+	    {
+          if(nb->is_local())
+          {
+	        assert(nb->getOwner()==rank); 
+            ghosts_data.sendholders[bi->getOwner()].insert(nb);
+            recvholders[bi->getOwner()].insert(bi);
+            //break;
+          } // if
+        } // for
+      } // if 
+    } // for
 
+    int64_t totalsendbodies = 0L; 
+    int64_t totalrecvbodies = 0L; 
     for(int i=0;i<size;++i){
       ghosts_data.sholders[i] = ghosts_data.sendholders[i].size();
       assert(ghosts_data.sholders[i]>=0);
