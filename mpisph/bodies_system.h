@@ -393,7 +393,7 @@ private:
   double maxmasscell_;
   std::vector<std::pair<entity_key_t,body>> localbodies_;
   std::array<point_t,2> range_;
-  std::vector<std::pair<point_t,point_t>> rangeposproc_;
+  std::vector<std::array<point_t,2>> rangeposproc_;
   tree_colorer<T,D> tcolorer_;
   tree_topology_t* tree_;
   std::vector<body_holder*> bodies_;
