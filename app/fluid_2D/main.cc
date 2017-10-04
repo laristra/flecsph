@@ -32,12 +32,14 @@
   #include <legion.h>
 #endif
 
+#include <unistd.h>
+
 int main(int argc, char * argv[]){
   
 //#ifdef GASNET_CONDUIT_MPI
   int provided;
 
-#if 0
+#if 1
 
 
   // Normal way 
@@ -51,6 +53,16 @@ int main(int argc, char * argv[]){
 #else
   MPI_Init_thread(&argc,&argv,MPI_THREAD_FUNNELED,&provided); 
 #endif
+
+  int rank, size; 
+  char hostname[256];
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  MPI_Comm_size(MPI_COMM_WORLD,&size);
+  gethostname(hostname,256);
+
+  std::cout<<"MPI "<<rank<<"/"<<size<<" Host="<<hostname<<std::endl;
+
+
   std::cout << "MPI_Init done, Initialize" << std::endl;
   auto retval = flecsi::execution::context_t::instance().initialize(argc,argv);
   //std::cout << "Initialize done" << std::endl;

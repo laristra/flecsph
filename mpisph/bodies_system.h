@@ -191,24 +191,6 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
-/*#ifdef DEBUG
-    // Check for duplicate in the local bodies 
-    auto tmp1 = localbodies_;
-    int64_t colision = 0L;
-    auto tmpit = std::unique(tmp1.begin(),tmp1.end(),
-      [&rank](const auto& left, const auto& right){
-        if(left.first == right.first){
-          std::cout<<rank<<": "<<left.second<<" && "<<right.second<<std::endl;
-          return true; 
-        }
-        return false; 
-      });
-    if(tmpit != tmp1.end()){
-      std::cout<<rank<<": #colisions="<<std::distance(tmpit,tmp1.end())
-      <<std::endl;
-    }
-#endif*/ 
-
     // Destroy the previous tree
     if(tree_ !=  nullptr){
       delete tree_;
@@ -232,34 +214,9 @@ public:
       bi.first = entity_key_t(/*range_,*/bi.second.coordinates());
     }
 
-/*#ifdef DEBUG
-    double checkmassnt = 0.;
-    for(auto bi: localbodies_){
-      checkmassnt += bi.second.getMass(); 
-    }
-    MPI_Allreduce(MPI_IN_PLACE,&checkmassnt,1,
-    MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
-    std::cout<<rank<<": "<< std::setprecision(10) <<
-    checkmassnt<<" == "<<totalmass_<<" diff:"<<totalmass_-checkmassnt
-    <<" min:"<<1.0e-2*minmass_<<std::endl<<std::flush;
-    assert(fabs(checkmassnt-totalmass_) < 1.0e-2*minmass_); 
-#endif*/   
  
     // Distributed qsort and bodies exchange 
     tcolorer_.mpi_qsort(localbodies_,totalnbodies_);
- 
-/*#ifdef DEBUG
-    checkmassnt = 0.;
-    for(auto bi: localbodies_){
-      checkmassnt += bi.second.getMass(); 
-    }
-    MPI_Allreduce(MPI_IN_PLACE,&checkmassnt,1,
-    MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
-    std::cout<<rank<<": "<< std::setprecision(10) <<
-    checkmassnt<<" == "<<totalmass_<<" diff:"<<totalmass_-checkmassnt
-    <<" min:"<<1.0e-2*minmass_<<std::endl<<std::flush;
-    assert(fabs(checkmassnt-totalmass_) < 1.0e-2*minmass_); 
-#endif*/
  
     // Generate the tree 
     tree_ = new tree_topology_t(range_[0],range_[1]);
@@ -274,22 +231,6 @@ public:
       bodies_.push_back(nbi);
     }
 
-/*#ifdef DEBUG
-    double checkmass = 0;
-    auto vect= tree_->entities().to_vec();
-    for(auto v: vect){
-      checkmass += v->getMass();
-    } 
-    std::cout<<rank<<": local="<<checkmass<<std::endl;
-    MPI_Allreduce(MPI_IN_PLACE,&checkmass,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
-    std::cout<<rank<<": av update "<< std::setprecision(10) <<
-    checkmass<<" == "<<totalmass_<<" diff:"<<totalmass_-checkmass<<
-    std::endl<<std::flush;
-    assert(fabs(checkmass-totalmass_) < 1.0e-2*minmass_); 
-#endif*/
-
-
-
     // Check the total number of bodies 
     int64_t checknparticles = bodies_.size();
     MPI_Allreduce(MPI_IN_PLACE,&checknparticles,1,MPI_INT64_T,
@@ -298,16 +239,6 @@ public:
 
     tree_->update_branches(2*smoothinglength_); 
     // Check the total mass of system 
-
-/*#ifdef DEBUG
-    checkmass = tree_->root()->getMass(); 
-    std::cout<<rank<<": local="<<checkmass<<std::endl;
-    MPI_Allreduce(MPI_IN_PLACE,&checkmass,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
-    std::cout<<rank<<": ap update "<< std::setprecision(10) <<
-    checkmass<<" == "<<totalmass_<<" diff:"<<totalmass_-checkmass<<
-    std::endl<<std::flush;
-    assert(fabs(checkmass-totalmass_) < 1.0e-2*minmass_); 
-#endif*/
 
     // Exchnage usefull body_holder from my tree to other processes
     tcolorer_.mpi_branches_exchange(*tree_,localbodies_,rangeposproc_,
@@ -346,22 +277,24 @@ public:
       EF&& ef,
       ARGS&&... args)
   {
-    for(auto& bi : bodies_){
+  int64_t nelem = bodies_.size(); 
+  #pragma omp parallel for 
+    for(int64_t i=0; i<nelem; ++i){
       for(size_t d=0; d<gdimension; ++d){
-        assert(!std::isnan(bi->getBody()->coordinates()[d])); 
+        assert(!std::isnan(bodies_[i]->getBody()->coordinates()[d])); 
       }
-      assert(bi->getBody()->getSmoothinglength() > 0.); 
+      assert(bodies_[i]->getBody()->getSmoothinglength() > 0.); 
       auto ents = tree_->find_in_radius_b(
-        bi->getBody()->coordinates(),
-        2*bi->getBody()->getSmoothinglength());
+        bodies_[i]->getBody()->coordinates(),
+        2*bodies_[i]->getBody()->getSmoothinglength());
       auto vecents = ents.to_vec();
       if(vecents.size() == 0){
-        std::cout<< "Particle:" << *(bi->getBody()) << std::endl 
-        << "Holder:"<< *bi <<std::endl;
+        std::cout<< "Particle:" << *(bodies_[i]->getBody()) << std::endl 
+        << "Holder:"<< *bodies_[i] <<std::endl;
       }   
       assert(vecents.size()>0);
 
-      ef(bi,vecents,std::forward<ARGS>(args)...);
+      ef(bodies_[i],vecents,std::forward<ARGS>(args)...);
     } 
   }
 
@@ -373,10 +306,10 @@ public:
       EF&& ef,
       ARGS&&... args)
   {
-    for(auto& bi: bodies_){
- //     if(bi->getBody()->getType() == 0){
-        ef(bi,std::forward<ARGS>(args)...);
- //     }
+    int64_t nelem = bodies_.size(); 
+    #pragma omp parallel for 
+    for(int64_t i=0; i<nelem; ++i){
+        ef(bodies_[i],std::forward<ARGS>(args)...);
     }
   }
 

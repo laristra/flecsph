@@ -1188,7 +1188,7 @@ public:
       } // if 
     } // for
     #endif 
-    std::vector<std::set<body_holder*>> recvholders(size);
+    std::vector<std::vector<body_holder*>> recvholders(size);
     auto treeents = tree.entities().to_vec(); 
     for(auto bi: treeents)
     {  
@@ -1197,13 +1197,17 @@ public:
         assert(bi->getOwner() != rank && bi->getOwner() != -1);
         auto bodiesneighbs = tree.find_in_radius_b(bi->coordinates(),2.*smoothinglength);
         assert(bodiesneighbs.size() > 0);
+        bool done = false;
         for(auto nb: bodiesneighbs)
-	    {
+	      {
           if(nb->is_local())
           {
-	        assert(nb->getOwner()==rank); 
+	          assert(nb->getOwner()==rank); 
             ghosts_data.sendholders[bi->getOwner()].insert(nb);
-            recvholders[bi->getOwner()].insert(bi);
+            if(!done){
+              recvholders[bi->getOwner()].push_back(bi);
+              done = true;
+            }
             //break;
           } // if
         } // for
