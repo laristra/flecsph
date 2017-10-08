@@ -30,6 +30,7 @@
 #include <iostream>
 #include <vector>
 #include <numeric>
+#include <omp.h>
 
 #include "tree.h"
 
@@ -198,7 +199,7 @@ private:
   std::vector<mpi_cell_t> recvCOM;
   std::vector<int> nrecvCOM;
 
-  const size_t noct = 2048*1024; // Number of octets used for quicksort    
+  const size_t noct = 256*1024; // Number of octets used for quicksort    
 
   void reset_buffers()
   {
@@ -856,6 +857,7 @@ public:
     int size, rank;
     MPI_Comm_size(MPI_COMM_WORLD,&size);
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    double start = omp_get_wtime();
 
     // Sort the keys 
     std::sort(rbodies.begin(),rbodies.end(),
@@ -877,7 +879,7 @@ public:
     MPI_Barrier(MPI_COMM_WORLD);
 
     std::vector<std::pair<entity_key_t,int64_t>> splitters;
-    generate_splitters(splitters,rbodies,totalnbodies); 
+    generate_splitters_samples_v2(splitters,rbodies,totalnbodies); 
 
     // The rbodies array is already sorted. We just need to determine the 
     // limits for each process
@@ -885,6 +887,7 @@ public:
     reset_buffers();
     
     int cur_proc = 0;
+
     for(auto bi: rbodies){
       if(cur_proc == size-1){
         // Last process reached, just copy 
@@ -928,7 +931,8 @@ public:
       std::cout<<"Repartition: ";
       for(auto num: totalprocbodies)
         std::cout<<num<<";";
-      std::cout<<std::endl;
+      double end = omp_get_wtime();
+      std::cout<< end-start << "s "<<std::endl;
     } // if
 #endif // OUTPUT
   } // mpi_qsort
@@ -963,6 +967,7 @@ public:
     
 #ifdef OUTPUT
     MPI_Barrier(MPI_COMM_WORLD);
+    double start = omp_get_wtime();
     if(rank==0)
       std::cout<<"Branches repartition" << std::flush;
 #endif
@@ -1023,8 +1028,9 @@ public:
     }
 
 #ifdef OUTPUT
+    double end = omp_get_wtime();
     if(rank==0)
-      std::cout<<".done"<<std::endl;
+      std::cout<<".done "<< end-start << "s" <<std::endl;
 #endif
 
   }
@@ -1050,8 +1056,10 @@ public:
   
 #ifdef OUTPUT
     MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0)
+    if(rank==0){
       std::cout<<"Refresh Ghosts" << std::flush;
+    }
+    double start = omp_get_wtime(); 
 #endif 
 
     // Refresh the sendbodies with new data
@@ -1116,8 +1124,10 @@ public:
   
 #ifdef OUTPUT
     MPI_Barrier(MPI_COMM_WORLD);
+    double end = omp_get_wtime();
     if(rank==0)
-      std::cout<<".done" << std::endl << std::flush;
+      std::cout<<".done "<< end-start << "s "<< std::endl << std::flush;
+
 #endif
   }
 
@@ -1146,6 +1156,7 @@ public:
     MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0)
       std::cout<<"Compute Ghosts" << std::flush;
+    double start = omp_get_wtime();
 #endif
 
     // Clean the structure 
@@ -1187,32 +1198,52 @@ public:
         } // for
       } // if 
     } // for
-    #endif 
+    #endif
     std::vector<std::vector<body_holder*>> recvholders(size);
-    auto treeents = tree.entities().to_vec(); 
-    for(auto bi: treeents)
-    {  
-      if(!bi->is_local())
+    auto tents = tree.entities().to_vec(); 
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    double start_loop = omp_get_wtime();
+    
+    // reset the visited of tree holders 
+    int64_t nelem = tents.size();
+    #pragma omp parallel for 
+    for(int64_t i=0; i<nelem; ++i){
+      tents[i]->reset_visited();
+    }
+
+    #pragma omp parallel for 
+    for(int64_t i=0; i<nelem; ++i){
+      body_holder * bi = tents[i]; 
+      if(bi->is_local())
       {
-        assert(bi->getOwner() != rank && bi->getOwner() != -1);
-        auto bodiesneighbs = tree.find_in_radius_b(bi->coordinates(),2.*smoothinglength);
+        assert(bi->getOwner() == rank);
+        auto bodiesneighbs = tree.find_in_radius_b(
+            bi->coordinates(),
+            2.*bi->getBody()->getSmoothinglength());
         assert(bodiesneighbs.size() > 0);
-        bool done = false;
         for(auto nb: bodiesneighbs)
 	      {
-          if(nb->is_local())
+          if(!nb->is_local())
           {
-	          assert(nb->getOwner()==rank); 
-            ghosts_data.sendholders[bi->getOwner()].insert(nb);
-            if(!done){
-              recvholders[bi->getOwner()].push_back(bi);
-              done = true;
+	          assert(nb->getOwner()!=rank && nb->getOwner() != -1);
+#pragma omp critical 
+{
+            ghosts_data.sendholders[nb->getOwner()].insert(bi);
+            if(!nb->is_visited()){
+              recvholders[nb->getOwner()].push_back(nb);
+              nb->visit();
             }
-            //break;
-          } // if
-        } // for
-      } // if 
-    } // for
+}
+          }// if
+        }// for
+      }// if 
+    }// for
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){
+      std::cout<<"TIME LOOP="<<omp_get_wtime()-start_loop<<std::endl;
+    }
 
     int64_t totalsendbodies = 0L; 
     int64_t totalrecvbodies = 0L; 
@@ -1271,11 +1302,12 @@ public:
         }
         return false;
       });
-      
+     
 #ifdef OUTPUT 
     MPI_Barrier(MPI_COMM_WORLD);
+    double end = omp_get_wtime();
     if(rank==0)
-      std::cout<<".done"<<std::endl;
+      std::cout<<".done "<< end-start << "s"<<std::endl;
 #endif
   }
 
@@ -1424,12 +1456,13 @@ public:
  * in the quick sort algorithm 
  * In this function we take some samplers of the total particles and the root 
  * determines the splitters
+ * This version is based on the sample splitter algorithm 
  *
  * @param      splitters  The splitters used in the qsort in mpi_qsort
  * @param[in]  rbodies  The local bodies of the process
  */
   void
-  generate_splitters(
+  generate_splitters_samples(
     std::vector<std::pair<entity_key_t,int64_t>>& splitters,
     std::vector<std::pair<entity_key_t,body>>& rbodies, 
     const int64_t totalnbodies
@@ -1443,13 +1476,14 @@ public:
     // Number of elements for sampling 
     // In this implementation we share up to 256KB to 
     // the master. 
-    size_t nsample = noct / sizeof(std::pair<entity_key_t,int64_t>);
-    if(rbodies.size()<nsample){nsample = rbodies.size();}
-    int chuncksize = rbodies.size()/nsample;
+    size_t nsample = size-1;
+    int64_t nvalues = rbodies.size();
+    if(nvalues<(int64_t)nsample){nsample = nvalues;}
     
     for(size_t i=0;i<nsample;++i){
-      keys_sample.push_back(std::make_pair(rbodies[chuncksize*i].first,
-      rbodies[chuncksize*i].second.getId()));
+      int64_t position = nvalues*((i+1.)/(double)size);
+      keys_sample.push_back(std::make_pair(rbodies[position].first,
+      rbodies[position].second.getId()));
     } // for
     assert(keys_sample.size()==nsample);
 
@@ -1470,7 +1504,7 @@ public:
     // Sort the received keys and create the pivots
     if(rank == 0){
       master_offsets.resize(size); 
-      master_nkeys = noct/sizeof(std::pair<entity_key_t,int64_t>)*size;
+      master_nkeys = size*(size-1);
       if(totalnbodies<master_nkeys){master_nkeys=totalnbodies;}
       // Number to receiv from each process
       for(int i=0;i<size;++i){
@@ -1501,9 +1535,9 @@ public:
         });
 
       //std::cout<<entity_key_t::first_key()<<std::endl;
-      chuncksize = master_nkeys/size;
       for(int i=0;i<size-1;++i){
-        splitters[i] = master_keys[(i+1)*chuncksize];
+        int64_t position = size*(i+1./2.);
+        splitters[i] = master_keys[position];
         //std::cout<<splitters[i].first<<std::endl;
       } // for
       // Last key 
@@ -1513,6 +1547,128 @@ public:
     // Bradcast the splitters 
     MPI_Bcast(&splitters[0],(size-1)*sizeof(std::pair<entity_key_t,int64_t>)
     ,MPI_BYTE,0,MPI_COMM_WORLD);
+  }
+
+/**
+ * @brief      Use in mpi_qsort to generate the splitters to sort the particles 
+ * in the quick sort algorithm 
+ * In this function we take some samplers of the total particles and the root 
+ * determines the splitters
+ * This version is based on the sample splitter algorithm but we generate more
+ * samples on each process 
+ *
+ * @param      splitters  The splitters used in the qsort in mpi_qsort
+ * @param[in]  rbodies  The local bodies of the process
+ */
+  void
+  generate_splitters_samples_v2(
+    std::vector<std::pair<entity_key_t,int64_t>>& splitters,
+    std::vector<std::pair<entity_key_t,body>>& rbodies, 
+    const int64_t totalnbodies
+  ){ 
+    int rank, size; 
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Comm_size(MPI_COMM_WORLD,&size); 
+
+    // Create a vector for the samplers 
+    std::vector<std::pair<entity_key_t,int64_t>> keys_sample;
+    // Number of elements for sampling 
+    // In this implementation we share up to 256KB to 
+    // the master. 
+    size_t maxnsamples = 1024;
+    int64_t nvalues = rbodies.size();
+    size_t nsample = maxnsamples*((double)nvalues/(double)totalnbodies);
+  
+    if(nvalues<(int64_t)nsample){nsample = nvalues;}
+    
+    for(size_t i=0;i<nsample;++i){
+      int64_t position = (nvalues/(nsample+1.))*(i+1.);
+      keys_sample.push_back(std::make_pair(rbodies[position].first,
+      rbodies[position].second.getId()));
+    } // for
+    assert(keys_sample.size()==(size_t)nsample);
+
+    std::vector<std::pair<entity_key_t,int64_t>> master_keys;
+    std::vector<int> master_recvcounts;
+    std::vector<int> master_offsets;
+    int master_nkeys = 0; 
+
+    if(rank==0){
+      master_recvcounts.resize(size);
+    } // if
+
+    // Echange the number of samples
+    MPI_Gather(&nsample,1,MPI_INT,
+      &master_recvcounts[0],1,MPI_INT,0,MPI_COMM_WORLD);
+
+    // Master 
+    // Sort the received keys and create the pivots
+    if(rank == 0){
+      master_offsets.resize(size); 
+      master_nkeys = std::accumulate(
+        master_recvcounts.begin(),master_recvcounts.end(),0);
+      if(totalnbodies<master_nkeys){master_nkeys=totalnbodies;}
+      // Number to receiv from each process
+      for(int i=0;i<size;++i){
+        master_recvcounts[i]*=sizeof(std::pair<entity_key_t,int64_t>);
+      } // for
+      std::partial_sum(master_recvcounts.begin(),master_recvcounts.end(),
+        &master_offsets[0]); 
+      master_offsets.insert(master_offsets.begin(),0);
+      master_keys.resize(master_nkeys);
+    } // if
+
+
+    MPI_Gatherv(&keys_sample[0],nsample*sizeof(std::pair<entity_key_t,int64_t>)
+      ,MPI_BYTE,&master_keys[0],&master_recvcounts[0],&master_offsets[0]
+      ,MPI_BYTE,0,MPI_COMM_WORLD);
+
+    // Generate the splitters
+    splitters.resize(size-1);
+    if(rank==0){
+      std::sort(master_keys.begin(),master_keys.end(),
+        [](auto& left, auto& right){
+          if(left.first < right.first){
+            return true; 
+          }
+          if(left.first == right.first){
+            return left.second < right.second; 
+          }
+          return false; 
+        });
+
+      //std::cout<<entity_key_t::first_key()<<std::endl;
+      for(int i=0;i<size-1;++i){
+        int64_t position = (master_nkeys/size)*(i+1);
+        splitters[i] = master_keys[position];
+        //std::cout<<splitters[i].first<<std::endl;
+      } // for
+      // Last key 
+      //std::cout<<entity_key_t::last_key()<<std::endl;
+    } // if
+
+    // Bradcast the splitters 
+    MPI_Bcast(&splitters[0],(size-1)*sizeof(std::pair<entity_key_t,int64_t>)
+    ,MPI_BYTE,0,MPI_COMM_WORLD);
+  }
+
+
+/**
+ * @brief      Best algorithm for scalability 
+ * \TODO Need to bed implemented 
+ *
+ * @param      splitters  The splitters used in the qsort in mpi_qsort
+ * @param[in]  rbodies  The local bodies of the process
+ */
+  void
+  generate_splitters_histogram(
+    std::vector<std::pair<entity_key_t,int64_t>>& splitters,
+    std::vector<std::pair<entity_key_t,body>>& rbodies, 
+    const int64_t totalnbodies
+  ){ 
+    int rank, size; 
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Comm_size(MPI_COMM_WORLD,&size); 
   }
 
   /**
