@@ -114,3 +114,7 @@ Then make:
  
  Also, app/miscell directory contains python scripts that perform different aspects for initial data generators and converter for h5part format. 
  
+ # Contacts
+ 
+ If you have any questions or find any worries about FleCSPH, please contact Julien Loiseau (julien.loiseau@univ-reims.fr) and/or Hyun Lim (hylim1988@gmail.com)
+ 
