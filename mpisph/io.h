@@ -479,7 +479,6 @@ void inputDataHDF5(
   //  }
   //}else{
     int64_t start = (totalnbodies/size)*rank+1;
-    std::cout<<rank<<": start:"<<start<<"npart="<<nparticlesproc<<std::endl;
     for(int64_t i=0; i<nparticlesproc; ++i){
       bodies[i].second.setId(start+i); 
     }

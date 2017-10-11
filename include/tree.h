@@ -420,9 +420,6 @@ public:
           break; 
         }
       }
-      auto itr_contiguous = find(ents_contiguous_.begin(),
-        ents_contiguous_.end(),ent); 
-      ents_contiguous_.clear(); 
       if(ents_.empty()){
         coarsen();
       } 

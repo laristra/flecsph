@@ -308,7 +308,7 @@ void HDF5ParticleIO::displayStepAttributes(int ts)
     H5SetStep(dataFile, ts);
 
     const int MAX_LEN = 256;
-    h5_int64_t type;
+    //h5_int64_t type;
     h5_size_t numElem;
     int numTimestepAttributes = H5GetNumStepAttribs(dataFile);
     for (int i=0; i<numTimestepAttributes; i++)
@@ -348,7 +348,7 @@ void HDF5ParticleIO::displayStepAttributes(int ts)
 void HDF5ParticleIO::displayFileAttributes()
 {
     const int MAX_LEN = 256;
-    h5_int64_t type;
+    //h5_int64_t type;
     h5_size_t numElem;
     int numDatasetAttributes = H5GetNumFileAttribs(dataFile);
     for (int i=0; i<numDatasetAttributes; i++)

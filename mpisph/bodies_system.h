@@ -24,12 +24,17 @@ public:
   body_system():totalnbodies_(0L),localnbodies_(0L),macangle_(0.0),
   maxmasscell_(1.0e-40),tree_(nullptr)
   {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank); 
     // Display the number of threads in DEBUG mode
     #ifdef DEBUG
-    #pragma omp parallel 
-    #pragma omp single 
-    std::cout<<"OMP: "<<omp_get_num_threads()<<std::endl;
-    #endif 
+    if(rank==0)
+    {
+      #pragma omp parallel 
+      #pragma omp single 
+      std::cout<<"OMP: "<<omp_get_num_threads()<<std::endl;
+      #endif
+    } 
   };
 
   /**
@@ -249,7 +254,7 @@ public:
     //std::cout<<"TWO=="<<rank<<": "<<tree_->root()->getMass()<<std::endl;
 
     // Compute and refresh the ghosts 
-    tcolorer_.mpi_compute_ghosts(*tree_,smoothinglength_/*,range_*/);
+    tcolorer_.mpi_compute_ghosts(*tree_,bodies_,smoothinglength_/*,range_*/);
     tcolorer_.mpi_refresh_ghosts(*tree_/*,range_*/); 
   }
 

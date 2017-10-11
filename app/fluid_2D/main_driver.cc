@@ -54,8 +54,6 @@ mpi_init_task(int startiteration){
   
   int totaliters = 50;
   int iteroutput = 10;
-  double totaltime = 0.0;
-  double maxtime = 10.0;
   int iter = startiteration; 
 
   // Init if default values are not ok
@@ -111,58 +109,71 @@ mpi_init_task(int startiteration){
     bs.update_iteration();
     
     // Do the Sod Tube physics
+    MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0){
       std::cout<<"Density"<<std::flush; 
       start = omp_get_wtime(); 
     }
     bs.apply_in_smoothinglength(physics::compute_density);
+    MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0)
       std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
+    MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0){
       std::cout<<"Pressure"<<std::flush; 
       start = omp_get_wtime(); 
     }
-    bs.apply_all(physics::compute_pressure);
+    bs.apply_all(physics::compute_pressure); 
+    MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0)
       std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
+    MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0){
       std::cout<<"Soundspeed"<<std::flush; 
       start = omp_get_wtime(); 
     }
     bs.apply_all(physics::compute_soundspeed);
+    MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0)
       std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
     
     // Refresh the neighbors within the smoothing length 
     bs.update_neighbors(); 
 
+    MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0){
       std::cout<<"Hydro acceleration"<<std::flush; 
       start = omp_get_wtime(); 
     }
     bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
+    MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0)
       std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
+    MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0){
       std::cout<<"Gravitation acceleration"<<std::flush; 
       start = omp_get_wtime(); 
     }
     bs.apply_all(physics::compute_gravitation);
+    MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0)
       std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
+    MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0){
       std::cout<<"Internalenergy"<<std::flush; 
       start = omp_get_wtime(); 
     }
     bs.apply_in_smoothinglength(physics::compute_internalenergy);
+    MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0)
       std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
      
     
+    MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0){
         std::cout<<"MoveParticles"<<std::flush; 
         start = omp_get_wtime(); 
@@ -173,6 +184,7 @@ mpi_init_task(int startiteration){
     }else{
       bs.apply_all(physics::leapfrog_integration);
     }
+    MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0)
       std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
