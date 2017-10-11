@@ -1222,7 +1222,7 @@ public:
           int pos = 0;
           proc[nb->getOwner()] = true;
 
-#pragma omp critical
+#pragma omp atomic capture
           pos = spbodies[nb->getOwner()]++;
 
           // Write
