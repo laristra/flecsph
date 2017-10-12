@@ -1126,6 +1126,8 @@ public:
   mpi_compute_ghosts(
     tree_topology_t& tree,
     std::vector<body_holder*>& lbodies,
+    std::vector<body_holder*>& neighbors, 
+    std::vector<int>& neighbors_count,
     double smoothinglength
   )
   {    
@@ -1153,22 +1155,17 @@ public:
 
     int64_t nelem = lbodies.size();
    
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //double start_1 = omp_get_wtime();  
+    MPI_Barrier(MPI_COMM_WORLD);
+    double start_1 = omp_get_wtime();  
 
     // Count send
 #pragma omp parallel for 
     for(int64_t i=0; i<nelem;++i)
     {
       std::vector<bool> proc(size,false);
-      body_holder * bi = lbodies[i];
-      assert(bi->is_local());  
-      auto nbs = tree.find_in_radius_b(
-            bi->coordinates(), 
-            2.*bi->getBody()->getSmoothinglength()
-        );
-      for(auto nb: nbs)
+      for(int64_t j=neighbors_count[i]; j<neighbors_count[i+1]; ++j)
       {
+        auto nb = neighbors[j];
         if(!nb->is_local() && !proc[nb->getOwner()])
         {
           proc[nb->getOwner()] = true;
@@ -1185,12 +1182,6 @@ public:
     {
       totalsbodies += ghosts_data.nsbodies[i];
     }
-
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //if(rank==0)
-    //  std::cout<<"Step 1: "<<omp_get_wtime()-start_1<<" total="<<totalsbodies<<std::endl<<std::flush;
-    
-    //start_1 = omp_get_wtime();
 
     std::vector<int> offset(size,0);
     for(int i=1; i<size; ++i)
@@ -1211,12 +1202,9 @@ public:
       std::vector<bool> proc(size,false); 
       body_holder* bi = lbodies[i];
       assert(bi->is_local());
-      auto nbs = tree.find_in_radius_b(
-          bi->coordinates(),
-          2.*bi->getBody()->getSmoothinglength()
-      );
-      for(auto nb: nbs)
+      for(int64_t j=neighbors_count[i]; j<neighbors_count[i+1]; ++j)
       {
+        auto nb = neighbors[j];
         if(!nb->is_local() && !proc[nb->getOwner()])
         {
           int pos = 0;
@@ -1233,9 +1221,6 @@ public:
         } // if 
       } // for 
     } // for 
-
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //std::cout<<"Step 2: "<<omp_get_wtime()-start_1<<std::endl<<std::flush;
 
     MPI_Alltoall(&ghosts_data.nsbodies[0],1,MPI_INT,
         &ghosts_data.nrbodies[0],1,MPI_INT,MPI_COMM_WORLD);
@@ -1276,6 +1261,75 @@ public:
     if(rank==0)
       std::cout<<".done "<< end-start << "s"<<std::endl;
 #endif
+  }
+
+  void 
+  mpi_compute_neighbors(
+    tree_topology_t& tree,
+    std::vector<body_holder*>& lbodies,
+    std::vector<body_holder*>& neighbors,
+    std::vector<int>& neighbors_count,
+    double smoothinglength
+  ){
+    int rank,size;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Comm_size(MPI_COMM_WORLD,&size);
+
+#ifdef OUTPUT
+    MPI_Barrier(MPI_COMM_WORLD);
+    double start = omp_get_wtime();
+    if(rank==0)
+      std::cout<<"Compute Neighbors"<<std::flush;
+#endif
+
+    neighbors.clear();
+    neighbors_count.clear();
+    int64_t nelem = lbodies.size();
+    neighbors_count.resize(nelem);
+
+    // 1 compute the neigbors for each 
+#pragma omp parallel for 
+    for(int64_t i=0; i<nelem;++i)
+    {
+      auto nbs = tree.find_in_radius_b(
+            lbodies[i]->coordinates(),
+            lbodies[i]->getBody()->getSmoothinglength()*2.
+          );
+      neighbors_count[i] = nbs.size();
+    }
+
+    // Compute the prefix array 
+    std::partial_sum(neighbors_count.begin(),neighbors_count.end(),
+        neighbors_count.begin());
+    neighbors_count.insert(neighbors_count.begin(),0);
+    assert(neighbors_count[0]==0);
+
+    int64_t totalneighbors = neighbors_count[nelem];
+    //std::cout<<"totalneighbors/totalbodies="<<
+    //  totalneighbors<<"/"<<nelem<<" Moyenne="<<totalneighbors/nelem<<std::endl<<std::flush;
+
+    neighbors.resize(totalneighbors); 
+
+#pragma omp parallel for 
+    for(int64_t i=0; i<nelem; ++i)
+    {
+      auto nbs = tree.find_in_radius_b(
+          lbodies[i]->coordinates(),
+          lbodies[i]->getBody()->getSmoothinglength()*2.
+        );
+      int pos = 0;
+      for(auto nb: nbs)
+      {
+        neighbors[neighbors_count[i]+pos++] = nb;
+      }
+      assert(neighbors_count[i+1]-neighbors_count[i] == pos);
+    }
+
+#ifdef OUTPUT
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0)
+      std::cout<<".done "<< omp_get_wtime()-start<<"s"<<std::endl<<std::flush;
+#endif 
   }
 
 /*~---------------------------------------------------------------------------*

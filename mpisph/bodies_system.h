@@ -253,8 +253,19 @@ public:
     tree_->update_branches(2*smoothinglength_); 
     //std::cout<<"TWO=="<<rank<<": "<<tree_->root()->getMass()<<std::endl;
 
+    tcolorer_.mpi_compute_neighbors(
+        *tree_,
+        bodies_,
+        neighbors_,
+        neighbors_count_,
+        smoothinglength_);
     // Compute and refresh the ghosts 
-    tcolorer_.mpi_compute_ghosts(*tree_,bodies_,smoothinglength_/*,range_*/);
+    tcolorer_.mpi_compute_ghosts(
+        *tree_,
+        bodies_,
+        neighbors_,
+        neighbors_count_,
+        smoothinglength_/*,range_*/);
     tcolorer_.mpi_refresh_ghosts(*tree_/*,range_*/); 
   }
 
@@ -289,17 +300,14 @@ public:
         assert(!std::isnan(bodies_[i]->getBody()->coordinates()[d])); 
       }
       assert(bodies_[i]->getBody()->getSmoothinglength() > 0.); 
-      auto ents = tree_->find_in_radius_b(
-        bodies_[i]->getBody()->coordinates(),
-        2*bodies_[i]->getBody()->getSmoothinglength());
-      auto vecents = ents.to_vec();
-      if(vecents.size() == 0){
-        std::cout<< "Particle:" << *(bodies_[i]->getBody()) << std::endl 
-        << "Holder:"<< *bodies_[i] <<std::endl;
-      }   
-      assert(vecents.size()>0);
-
-      ef(bodies_[i],vecents,std::forward<ARGS>(args)...);
+      assert(neighbors_count_[i+1]-neighbors_count_[i]>0);
+      std::vector<body_holder*> nbs(neighbors_count_[i+1]-neighbors_count_[i]);
+      int local = 0;
+      for(int j=neighbors_count_[i]; j<neighbors_count_[i+1]; ++j)
+      {
+        nbs[local++]=neighbors_[j];
+      }
+      ef(bodies_[i],nbs,std::forward<ARGS>(args)...);
     } 
   }
 
@@ -338,6 +346,9 @@ private:
   double smoothinglength_;
   double totalmass_;
   double minmass_;
+  
+  std::vector<int> neighbors_count_;
+  std::vector<body_holder*> neighbors_; 
   //double epsilon_ = 1.0;
 };
 
