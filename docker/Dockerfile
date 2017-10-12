@@ -27,6 +27,7 @@ COPY ccache/ /home/flecsi/.ccache
 COPY sonar/ /home/flecsi/.sonar
 USER root
 RUN chown -R flecsi:flecsi /home/flecsi/flecsph /home/flecsi/.ccache /home/flecsi/.sonar
+RUN yum install -y which; exit 0
 USER flecsi
 
 #build flecsi
