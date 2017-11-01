@@ -10,6 +10,7 @@
 #include <omp.h>
 
 #include "tree_colorer.h"
+#include "physics.h"
 #include "io.h"
 
 template<
@@ -72,6 +73,28 @@ public:
     macangle_ = macangle;
   };
 
+  
+  template<
+    typename TL
+  >
+  TL
+  get_attribute(
+      const char * filename,
+      const char * attributeName,
+      TL default_value = TL(0))
+  {
+    TL value = TL{};
+    if(typeid(TL)==typeid(double)){
+      value = io::input_parameter_double(filename,attributeName);
+    }else if(typeid(TL) == typeid(int)){
+      value = io::input_parameter_int(filename,attributeName);
+    }
+    if(value == TL{}){
+      value = default_value;
+    }
+    return value;
+  }
+
   /**
    * @brief      Read the bodies from H5part file
    * Compute also the total to check for mass lost 
@@ -84,6 +107,10 @@ public:
       const char * filename,
       int startiteration)
   {
+
+    //io::init_reading(localbodies_,filename,totalnbodies_,localnbodies_,
+    //    startiteration);
+    //physics::read_data(filename,localbodies_,startiteration);
     io::inputDataHDF5(localbodies_,filename,totalnbodies_,localnbodies_,
         startiteration);
     
@@ -326,6 +353,16 @@ public:
     }
   }
 
+  template<
+    typename EF,
+    typename... ARGS
+  >
+  void get_all(
+    EF&& ef, 
+    ARGS&&... args)
+  {
+    ef(bodies_,std::forward<ARGS>(args)...);
+  }
 
   std::vector<std::pair<entity_key_t,body>>& 
     getLocalbodies(){

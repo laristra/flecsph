@@ -1156,7 +1156,7 @@ public:
     int64_t nelem = lbodies.size();
    
     MPI_Barrier(MPI_COMM_WORLD);
-    double start_1 = omp_get_wtime();  
+    //double start_1 = omp_get_wtime();  
 
     // Count send
 #pragma omp parallel for 

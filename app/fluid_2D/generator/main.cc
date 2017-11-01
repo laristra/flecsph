@@ -10,17 +10,46 @@
 
 #include "hdf5ParticleIO.h"
 
-
 enum type {WALL=1, SIMPLE=0};
 
-const double distance = 0.04;  // Distance between the particles 
+const double rest_density = 998.29;
 const double m_ = 0.02;
-const double rho_ = 998.29;
-const double u_ = 1.0; 
+const double rho_ = rest_density;
 const double smoothing_length = 0.0457;
+const double distance = smoothing_length;  // Distance between the particles 
 const char* fileprefix = "hdf5_fluid_2D";
-const double timestep = 0.01;
 int32_t dimension = 2;
+
+void generate_wall(
+    std::vector<double>& x,
+    std::vector<double>& y,
+    std::vector<double>& vx, 
+    std::vector<double>& vy,
+    double x0, double y0, 
+    double x1, double y1,
+    double distance){
+  double dist_points = sqrt((x1-x0)*(x1-x0)+(y1-y0)*(y1-y0));
+  printf("Distance: %.4f",dist_points);
+  int nelements = dist_points/distance;
+  double xcur = x0;
+  double ycur = y0;
+  double xincr = (x1-x0)/(double)nelements;
+  double yincr = (y1-y0)/(double)nelements;
+  for(int i=0;i<nelements;++i){
+    x.push_back(xcur);
+    y.push_back(ycur);
+    vx.push_back(0/*xincr*/);
+    vy.push_back(0/*yincr*/);
+
+    x.push_back(xcur+yincr);
+    y.push_back(ycur-xincr);
+    vx.push_back(0/*xincr*/);
+    vy.push_back(0/*yincr*/);
+
+    xcur += xincr; 
+    ycur += yincr;
+  }  
+}
 
 int main(int argc, char * argv[]){
   
@@ -78,62 +107,51 @@ int main(int argc, char * argv[]){
   double ncols = ny;
   double linestart = rank * nlinesproc * distance;
 
-  double minX = -100.*distance;
-  double minY = -1.*distance;
-  double maxX = -2.*distance + nx*distance + 100.*distance; 
-  double maxY = -2.*distance + ny*distance + 100.*distance;
+  double minX = -2.*distance;
+  double minY = -2.*distance;
+  double maxX = nx*distance + 100.*distance; 
+  double maxY = ny*distance + 100.*distance;
   
 
   // Generate wall particles position 
-  std::vector<double> vec_x; 
-  std::vector<double> vec_y;
+  std::vector<double> vec_x, vec_vx; 
+  std::vector<double> vec_y, vec_vy;
   //                    _  
   // Generate 4 lines | _ | for the tank 
   // Use two particles for wall like: 
   // o   o   o   o   o   
   //   o   o   o   o   o
   // Spaces by the smoothing length (not 2) 
-    
-  double div = 2.;
-  // First left line 
-  double val_x = minX - 10.*distance; 
-  for(double i = minY-5.*distance; i < maxY+5.*distance ; i+=smoothing_length/div){
-    vec_x.push_back(val_x);
-    vec_y.push_back(i);  
-    // Add the second particle 
-    vec_x.push_back(val_x-sqrt(3./4.)*smoothing_length/div); 
-    vec_y.push_back(i-1./2.*smoothing_length/div);
-  }
-
-  // Right line 
-  val_x = maxX + 10.*distance; 
-  for(double i = maxY+5.*distance ; i > minY-5.*distance ; i-=smoothing_length/div){
-    vec_x.push_back(val_x);
-    vec_y.push_back(i);  
-    // Add the second particle 
-    vec_x.push_back(val_x+sqrt(3./4.)*smoothing_length/div); 
-    vec_y.push_back(i+1./2.*smoothing_length/div);
-  }
-
-  // Bottom line
-  double val_y = minY - 5.*distance; 
-  for(double i = maxX+10.*distance ; i>minX-10.*distance;i-=smoothing_length/div){
-    vec_x.push_back(i);
-    vec_y.push_back(val_y);  
-    // Add the second particle 
-    vec_x.push_back(i-1./2.*smoothing_length/div); 
-    vec_y.push_back(val_y-sqrt(3./4.)*smoothing_length/div);
-  }
-
-  // Top line
-  val_y = maxY + 5.*distance; 
-  for(double i = minX-10.*distance; i<maxX+10.*distance;i+=smoothing_length/div){
-    vec_x.push_back(i);
-    vec_y.push_back(val_y);  
-    // Add the second particle 
-    vec_x.push_back(i+1./2.*smoothing_length/div); 
-    vec_y.push_back(val_y+sqrt(3./4.)*smoothing_length/div);
-  }
+  
+  //  |
+  //  |
+  //  |
+  generate_wall(vec_x,vec_y,vec_vx,vec_vy,
+      minX,minY-5.*distance,
+      minX,maxY+5.*distance,
+      smoothing_length); 
+  //  |      |
+  //  |      |
+  //  |      |  
+  generate_wall(vec_x,vec_y,vec_vx,vec_vy,
+      maxX+10.*distance,minY-5.*distance,
+      maxX+10.*distance,maxY+5.*distance,
+      smoothing_length);
+  //  |      |
+  //  |      |
+  //  |______|
+  generate_wall(vec_x,vec_y,vec_vx,vec_vy,
+      minX-10.*distance,minY,
+      maxX+10.*distance,minY,
+      smoothing_length);
+  //  ________
+  //  |      |
+  //  |      |
+  //  |______|  
+  generate_wall(vec_x,vec_y,vec_vx,vec_vy,
+      minX-10.*distance,maxY+5.*distance,
+      maxX+10.*distance,maxY+5.*distance,
+      smoothing_length);
 
   int64_t nwall = vec_x.size(); 
   int64_t nwall_proc = nwall/size; 
@@ -195,7 +213,6 @@ int main(int argc, char * argv[]){
     y[part] = curcol; 
     z[part] = 0.;
 
-    u[part] = u_; 
     rho[part] = rho_;
     m[part] = m_; 
     // Y and Z not used 
@@ -222,13 +239,13 @@ int main(int argc, char * argv[]){
   for(int64_t i = (nwall/size)*rank ; i < (nwall/size)*rank+nwall_proc ; ++i){
     x[pos+nparticlesproc] = vec_x[i]; 
     y[pos+nparticlesproc] = vec_y[i]; 
+    vx[pos+nparticlesproc] = vec_vx[i];
+    vy[pos+nparticlesproc] = vec_vy[i];
     z[pos+nparticlesproc] = 0.;
-    m[pos+nparticlesproc] = m_*100.;
+    m[pos+nparticlesproc] = m_;
     h[pos+nparticlesproc] = smoothing_length; 
-    u[pos+nparticlesproc] = u_; 
     type[pos+nparticlesproc] = WALL; 
-    rho[pos+nparticlesproc] = m[pos+nparticlesproc] / 
-      (M_PI*4.*smoothing_length*smoothing_length);
+    rho[pos+nparticlesproc] = rest_density;
     pos++;
   }
 
@@ -245,7 +262,6 @@ int main(int argc, char * argv[]){
 
   // add the global attributes
   testDataSet.writeDatasetAttribute("nparticles","int64_t",nparticles+nwall);
-  testDataSet.writeDatasetAttribute("timestep","double",timestep);
   testDataSet.writeDatasetAttribute("dimension","int32_t",dimension);
   testDataSet.writeDatasetAttribute("use_fixed_timestep","int32_t",1);
 
