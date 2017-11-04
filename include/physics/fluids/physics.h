@@ -31,6 +31,8 @@
 #include "tree.h"
 #include "io.h"
 
+#include "kernel.h"
+
 namespace physics{
 
   double dt = 0.000001;
@@ -53,8 +55,9 @@ namespace physics{
   double maxtime = 10.;
   double outputtime = 0.02;
 
-  double kernel_2D_fac = 7/(4*M_PI);
-  double grad_kernel_2D_fac = -35./(4.*M_PI);
+  auto kernel = kernel::quintic_wendland_2D;
+  auto kernel_gradient = kernel::quintic_wendland_2D_gradient;
+
   
   void init_physics(
     const char * filename)
@@ -73,7 +76,12 @@ namespace physics{
     outputtime = io::input_parameter_double(filename,"outputtime");
     rest_density = io::input_parameter_double(filename,"rest_density");
 
-    //maxtime = 0.1;
+    maxtime = 0.5;
+    // Switch kernel for 3D case
+    if(gdimension == 3){
+        kernel = kernel::quintic_wendland_3D;
+        kernel_gradient = kernel::quintic_wendland_3D_gradient;
+    }
 
     printf("\nInput Data:\n"
       "verlet_cstep=%d\n"
@@ -91,37 +99,16 @@ namespace physics{
       "rest_density=%g\n\n",verlet_cstep,eta_sq,cs0,K,gravity_cste,dt,alpha,
       beta,local_gamma,epsilon,maxtime,outputtime,rest_density);
 
-    gravity_force = point_t(0.,-gravity_cste);
 
-
-#if 0 
-      physics::dt = bs.get_attribute<double>(
-      "hdf5_fluid_2D.h5part","timestep");
-  physics::rest_density = bs.get_attribute<double>(
-      "hdf5_fluid_2D.h5part","rest_density");
-  physics::viscosity = bs.get_attribute<double>(
-      "hdf5_fluid_2D.h5part","viscosity");
-  physics::g_strength = bs.get_attribute<double>(
-      "hdf5_fluid_2D.h5part","gravitation");
-#endif 
+    if(gdimension == 2 ){
+      gravity_force[0] = 0.;
+      gravity_force[1] = -gravity_cste;
+    }else{
+      gravity_force[0] = 0.;
+      gravity_force[1] = -gravity_cste;
+      gravity_force[2] = 0.;
+    }
   }
-
-  double kernel(
-      double r, 
-      double h)
-  {
-    double q = r/h;
-    return kernel_2D_fac/(h*h)*pow(1.-0.5*q,4)*(2.*q+1.); 
-  }
-
-  point_t kernel_gradient(
-      point_t vec, 
-      double h)
-  {
-    double r = sqrt(vec[0]*vec[0]+vec[1]*vec[1]);
-    double q = r/h;
-    return grad_kernel_2D_fac/(h*h*h) * q * pow(1.-0.5*q,3)/r * vec;
-  } 
 
   double mu_ij(
     double vijrij, 

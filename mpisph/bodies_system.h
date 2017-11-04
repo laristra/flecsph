@@ -280,6 +280,7 @@ public:
     tree_->update_branches(2*smoothinglength_); 
     //std::cout<<"TWO=="<<rank<<": "<<tree_->root()->getMass()<<std::endl;
 
+#if COMPUTE_NEIGHBORS == 1 
     tcolorer_.mpi_compute_neighbors(
         *tree_,
         bodies_,
@@ -294,6 +295,11 @@ public:
         neighbors_count_,
         smoothinglength_/*,range_*/);
     tcolorer_.mpi_refresh_ghosts(*tree_/*,range_*/); 
+#else 
+// Compute and refresh the ghosts 
+    tcolorer_.mpi_compute_ghosts(*tree_,bodies_,smoothinglength_/*,range_*/);
+    tcolorer_.mpi_refresh_ghosts(*tree_/*,range_*/); 
+#endif 
   }
 
   void update_neighbors()
@@ -320,6 +326,8 @@ public:
       EF&& ef,
       ARGS&&... args)
   {
+
+  #if COMPUTE_NEIGHBORS == 1 
   int64_t nelem = bodies_.size(); 
   #pragma omp parallel for 
     for(int64_t i=0; i<nelem; ++i){
@@ -336,6 +344,27 @@ public:
       }
       ef(bodies_[i],nbs,std::forward<ARGS>(args)...);
     } 
+#else 
+  int64_t nelem = bodies_.size(); 
+  #pragma omp parallel for 
+    for(int64_t i=0; i<nelem; ++i){
+      for(size_t d=0; d<gdimension; ++d){
+        assert(!std::isnan(bodies_[i]->getBody()->coordinates()[d])); 
+      }
+      assert(bodies_[i]->getBody()->getSmoothinglength() > 0.); 
+      auto ents = tree_->find_in_radius_b(
+        bodies_[i]->getBody()->coordinates(),
+        2*bodies_[i]->getBody()->getSmoothinglength());
+      auto vecents = ents.to_vec();
+      if(vecents.size() == 0){
+        std::cout<< "Particle:" << *(bodies_[i]->getBody()) << std::endl 
+        << "Holder:"<< *bodies_[i] <<std::endl;
+      }   
+      assert(vecents.size()>0);
+
+      ef(bodies_[i],vecents,std::forward<ARGS>(args)...);
+    } 
+#endif
   }
 
   template<
