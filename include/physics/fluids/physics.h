@@ -76,7 +76,7 @@ namespace physics{
     outputtime = io::input_parameter_double(filename,"outputtime");
     rest_density = io::input_parameter_double(filename,"rest_density");
 
-    maxtime = 0.5;
+    //maxtime = 0.5;
     // Switch kernel for 3D case
     if(gdimension == 3){
         kernel = kernel::quintic_wendland_3D;

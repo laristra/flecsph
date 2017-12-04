@@ -28,14 +28,12 @@ public:
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank); 
     // Display the number of threads in DEBUG mode
-    #ifdef DEBUG
     if(rank==0)
     {
       #pragma omp parallel 
       #pragma omp single 
       std::cout<<"OMP: "<<omp_get_num_threads()<<std::endl;
-      #endif
-    } 
+    }
   };
 
   /**
@@ -248,7 +246,7 @@ public:
 
  
     // Distributed qsort and bodies exchange 
-    tcolorer_.mpi_qsort(localbodies_,totalnbodies_);
+    tcolorer_.mpi_qsort(localbodies_,totalnbodies_,neighbors_count_);
  
     // Generate the tree 
     tree_ = new tree_topology_t(range_[0],range_[1]);

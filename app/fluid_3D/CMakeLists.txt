@@ -8,7 +8,7 @@
 #------------------------------------------------------------------------------#
 
 set(CMAKE_CXX_FLAGS_DEBUG 
-  "-g -O2 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses")
+  "-g -pg -O2 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses")
 set(CMAKE_CXX_FLAGS_RELEASE 
   "-O3 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses") 
 
