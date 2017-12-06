@@ -48,6 +48,7 @@ namespace physics{
   double g_strength = 1; 
   double damp = 1;
   double totaltime = 0.0;
+  double MAC = 0.;
 
   // Default configuration for kernel
   int kernel_choice = 0;

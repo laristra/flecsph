@@ -275,7 +275,8 @@ public:
         range_,smoothinglength_);
 
     // Update the tree 
-    tree_->update_branches(2*smoothinglength_); 
+    tree_->update_branches(2*smoothinglength_);
+    std::cout<<rank<<" sub_entities="<<tree_->root()->sub_entities()<<std::endl<<std::flush; 
     //std::cout<<"TWO=="<<rank<<": "<<tree_->root()->getMass()<<std::endl;
 
 #if COMPUTE_NEIGHBORS == 1 
@@ -411,7 +412,7 @@ private:
   double totalmass_;
   double minmass_;
   
-  std::vector<int> neighbors_count_;
+  std::vector<int64_t> neighbors_count_;
   std::vector<body_holder*> neighbors_; 
   //double epsilon_ = 1.0;
 };

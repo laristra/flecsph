@@ -54,6 +54,7 @@ namespace physics{
   double epsilon = 0.1;
   double maxtime = 10.;
   double outputtime = 0.02;
+  double MAC = 0.;
 
   auto kernel = kernel::quintic_wendland_2D;
   auto kernel_gradient = kernel::quintic_wendland_2D_gradient;
@@ -83,7 +84,7 @@ namespace physics{
         kernel_gradient = kernel::quintic_wendland_3D_gradient;
     }
 
-    printf("\nInput Data:\n"
+    /*printf("\nInput Data:\n"
       "verlet_cstep=%d\n"
       "eta_sq=%g\n"
       "cs0=%g\n"
@@ -98,7 +99,7 @@ namespace physics{
       "outputtime=%g\n"
       "rest_density=%g\n\n",verlet_cstep,eta_sq,cs0,K,gravity_cste,dt,alpha,
       beta,local_gamma,epsilon,maxtime,outputtime,rest_density);
-
+    */
 
     if(gdimension == 2 ){
       gravity_force[0] = 0.;

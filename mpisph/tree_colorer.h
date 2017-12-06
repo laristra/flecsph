@@ -250,7 +250,7 @@ public:
   void mpi_qsort(
     std::vector<std::pair<entity_key_t,body>>& rbodies,
     int totalnbodies,
-    std::vector<int>& neighbors_count
+    std::vector<int64_t>& neighbors_count
   )
   {
     int size, rank;
@@ -280,6 +280,7 @@ public:
     std::vector<std::pair<entity_key_t,int64_t>> splitters;
     
     #if COMPUTE_NEIGHBORS == 1
+    
     if(neighbors_count.size() > 1){
       if(rank == 0)
         std::cout<<"Weight function"<<std::endl;
@@ -289,6 +290,7 @@ public:
       if(rank == 0)
         std::cout<<"Normal function"<<std::endl;
     }
+
     #else
     generate_splitters_samples_v2(splitters,rbodies,totalnbodies); 
     #endif
@@ -616,7 +618,7 @@ void mpi_refresh_ghosts(
     tree_topology_t& tree,
     std::vector<body_holder*>& lbodies,
     std::vector<body_holder*>& neighbors, 
-    std::vector<int>& neighbors_count,
+    std::vector<int64_t>& neighbors_count,
     double smoothinglength
   )
   {    
@@ -935,7 +937,7 @@ void mpi_refresh_ghosts(
     tree_topology_t& tree,
     std::vector<body_holder*>& lbodies,
     std::vector<body_holder*>& neighbors,
-    std::vector<int>& neighbors_count,
+    std::vector<int64_t>& neighbors_count,
     double smoothinglength
   ){
     int rank,size;
@@ -958,10 +960,37 @@ void mpi_refresh_ghosts(
     neighbors_count.resize(nelem);
 
     //MPI_Barrier(MPI_COMM_WORLD);
-    t2 = omp_get_wtime();
+    t2 = omp_get_wtime(); 
+
+#define CUTV 
+
+#ifdef CUTV 
+    double MAC = 0.;
+    // Index them?????????
+    #pragma omp parallel for 
+    for(int64_t i=0; i<nelem;++i){
+      lbodies[i]->set_index(i);
+    } 
+
+    auto count = [](
+      body_holder* source,
+      const body_holder* nb,
+      std::vector<int64_t>& nbc){
+        nbc[source->index()]++;
+    };
 
     // 1 compute the neigbors for each 
-#pragma omp parallel for 
+    tree.apply_sub_cells(
+        tree.root(),
+        2*smoothinglength,
+        MAC,
+        count,
+        neighbors_count
+    );
+
+    //std::cout<<"End count"<<std::endl;
+  #else
+  //#pragma omp parallel for 
     for(int64_t i=0; i<nelem;++i)
     {
       auto nbs = tree.find_in_radius_b(
@@ -970,6 +999,7 @@ void mpi_refresh_ghosts(
           );
       neighbors_count[i] = nbs.size();
     }
+#endif
 
     //MPI_Barrier(MPI_COMM_WORLD);
     t3 = omp_get_wtime();
@@ -989,6 +1019,35 @@ void mpi_refresh_ghosts(
     //MPI_Barrier(MPI_COMM_WORLD);
     t4 = omp_get_wtime();
 
+#ifdef CUTV
+    auto record = [](
+      body_holder* source,
+      body_holder* nb,
+      std::vector<int64_t>& carray, 
+      std::vector<int64_t>& nbc,
+      std::vector<body_holder*>& nba)
+    {
+        nba[nbc[source->index()] + carray[source->index()]++] = nb;
+    };
+
+    //std::cout<<"End indexing"<<std::endl;
+
+    std::vector<int64_t> count_array(nelem);
+
+    // 1 compute the neigbors for each 
+    tree.apply_sub_cells(
+        tree.root(),
+        2*smoothinglength,
+        MAC,
+        record,
+        count_array,
+        neighbors_count,
+        neighbors
+    );
+
+    //std::cout<<"End count"<<std::endl;
+#else
+
 #pragma omp parallel for 
     for(int64_t i=0; i<nelem; ++i)
     {
@@ -1003,6 +1062,8 @@ void mpi_refresh_ghosts(
       }
       assert(neighbors_count[i+1]-neighbors_count[i] == pos);
     }
+
+#endif
 
     //MPI_Barrier(MPI_COMM_WORLD);
     t5 = omp_get_wtime();
@@ -1019,10 +1080,12 @@ void mpi_refresh_ghosts(
       }
       std::cout<<std::endl;
     }
+
+    std::cout<<rank<<" t="<<t5-t1<<"s"<<std::endl<<std::flush;
     //std::cout<<rank<<" neighbors = "<< neighbors_count.back()<< std::endl;
     //if(rank==0){
-      std::cout<<"["<<rank<<"]: "<<"t1="<<t2-t1<<"s t2="<<t3-t2<<
-        "s t3="<<t4-t3<<"s t4="<<t5-t4<<"s"<<std::endl;
+    //  std::cout<<"["<<rank<<"]: "<<"t1="<<t2-t1<<"s t2="<<t3-t2<<
+    //    "s t3="<<t4-t3<<"s t4="<<t5-t4<<"s"<<std::endl;
     //}
 
 #ifdef OUTPUT
@@ -1276,7 +1339,7 @@ void mpi_refresh_ghosts(
     std::vector<std::pair<entity_key_t,int64_t>>& splitters,
     std::vector<std::pair<entity_key_t,body>>& rbodies, 
     const int64_t totalnbodies, 
-    std::vector<int>& neighbors_count)
+    std::vector<int64_t>& neighbors_count)
   {
     int rank, size; 
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
