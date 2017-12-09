@@ -13,6 +13,9 @@
 #include "physics.h"
 #include "io.h"
 
+#include <iostream>
+#include <fstream>
+
 template<
   typename T,
   size_t D
@@ -268,7 +271,61 @@ public:
     assert(checknparticles==totalnbodies_);
 
     tree_->update_branches(2*smoothinglength_); 
-    // Check the total mass of system 
+
+    std::vector<int> nentities(size);
+    int lentities = tree_->root()->sub_entities();
+    // Get on 0 
+    MPI_Gather(
+      &lentities,
+      1,
+      MPI_INT,
+      &nentities[0],
+      1,
+      MPI_INT,
+      0,
+      MPI_COMM_WORLD
+      );
+
+    if(rank == 0){
+      std::cout<<rank<<" sub_entities before="; 
+      for(auto v: nentities){
+        std::cout<<v<<";";
+      }
+      std::cout<<std::endl;
+    }
+
+    /*std::vector<branch_t*> search_branches;
+    //tree_->find_sub_cells(
+    //  tree_->root(),
+    //  1,
+    //  search_branches);
+    tree_->get_all_branches(
+      tree_->root(),
+      search_branches);
+
+    // Output the branches and particles data in a file 
+    char name[64];
+    sprintf(name,"output_search_%02d.txt",rank);
+    remove(name);
+    FILE * f = fopen(name,"w");
+    //fprintf(f,"#type x y r \n");
+    std::ofstream myfile (name);
+    for(auto b: search_branches){
+      myfile<<"1 "<<b->get_coordinates()[0]<<" "<<b->get_coordinates()[1]<<" "<<b->bmin()[0] <<" "<< b->bmin()[1] << " " << b->bmax()[0] <<" "<< b->bmax()[1] <<" "<<b->id()<<" "<<b->sub_entities()<<std::endl;
+    }
+    for(auto e: localbodies_){
+      myfile<<"0 "<<e.second.coordinates()[0]<<" "<<e.second.coordinates()[1]<<" "<<2*e.second.getSmoothinglength()<<" "<<e.first<<" 0 0 0 0"<<std::endl;
+    }
+    myfile.close();
+    //for(auto b: search_branches){
+    //  fprintf(f,"1 %.4f %.4f %.4f %lo\n",
+    //    b->get_coordinates()[0],b->get_coordinates()[1],b->radius(),b->id());
+    //}
+    // Also output the bodies 
+    //for(auto e: localbodies_){
+    //  fprintf(f,"0 %.4f %.4f %.4f %lo\n",e.second.coordinates()[0],e.second.coordinates()[1],2*e.second.getSmoothinglength(),e.first);
+    //}
+    fclose(f);*/
 
     // Exchnage usefull body_holder from my tree to other processes
     tcolorer_.mpi_branches_exchange(*tree_,localbodies_,rangeposproc_,
@@ -276,9 +333,28 @@ public:
 
     // Update the tree 
     tree_->update_branches(2*smoothinglength_);
-    std::cout<<rank<<" sub_entities="<<tree_->root()->sub_entities()<<std::endl<<std::flush; 
-    //std::cout<<"TWO=="<<rank<<": "<<tree_->root()->getMass()<<std::endl;
 
+    lentities = tree_->root()->sub_entities();
+    // Get on 0 
+    MPI_Gather(
+      &lentities,
+      1,
+      MPI_INT,
+      &nentities[0],
+      1,
+      MPI_INT,
+      0,
+      MPI_COMM_WORLD
+      );
+
+    if(rank == 0){
+      std::cout<<rank<<" sub_entities after="; 
+      for(auto v: nentities){
+        std::cout<<v<<";";
+      }
+      std::cout<<std::endl;
+    }
+    
 #if COMPUTE_NEIGHBORS == 1 
     tcolorer_.mpi_compute_neighbors(
         *tree_,

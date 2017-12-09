@@ -63,7 +63,7 @@ mpi_init_task(int startiteration){
   bs.read_bodies("hdf5_fluid_3D.h5part",startiteration);
   physics::init_physics("hdf5_fluid_3D.h5part");
 
-  physics::maxtime = 0.002;
+  physics::maxtime = 4.0;
   remove("output_fluid_3D.h5part");
 
   bs.update_iteration();

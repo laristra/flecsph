@@ -279,7 +279,7 @@ public:
 
     std::vector<std::pair<entity_key_t,int64_t>> splitters;
     
-    #if COMPUTE_NEIGHBORS == 1
+    #if COMPUTE_NEIGHBORS == 0
     
     if(neighbors_count.size() > 1){
       if(rank == 0)
@@ -386,7 +386,159 @@ public:
       std::cout<<"Branches repartition" << std::flush;
 #endif
 
-   
+    // Version with the small branch update
+    #if 1 
+
+    // Do a tree search up to a branch 
+    // Keep those branches in a list 
+    int criterion = 128;
+    std::vector<branch_t*> search_branches; 
+    tree.find_sub_cells(
+      tree.root(),
+      criterion,
+      search_branches);
+
+    // Make a list of boundaries
+    std::vector<std::array<point_t,2>> send_branches(search_branches.size());
+    for(int i=0;i<search_branches.size();++i){
+      send_branches[i][0] = search_branches[i]->bmin();
+      send_branches[i][1] = search_branches[i]->bmax();
+      //std::cout<<rank<<" - "<<i<<" = "<<send_branches[i][0] <<" - "<< send_branches[i][1] <<std::endl;
+    }
+
+    int nbranches = send_branches.size();
+    // Send to neighbors 
+    std::vector<int> count_search_branches(size);
+    
+    MPI_Allgather(
+      &nbranches,
+      1,
+      MPI_INT,
+      &count_search_branches[0],
+      1,
+      MPI_INT,
+      MPI_COMM_WORLD
+    );
+
+    if(rank==0){
+      std::cout<<"Packets with ncrit="<<criterion<<" = ";
+      for(auto v: count_search_branches){
+        std::cout<<v<<";";
+      }
+      std::cout<<std::endl;
+    }
+
+    std::vector<int> count_search_branches_byte(size);
+    std::vector<int> offset_search_branches_byte(size);
+    int64_t total_branches = 0L;
+    for(int i = 0; i < size; ++i){
+      total_branches += count_search_branches[i];
+      count_search_branches_byte[i] = 
+          count_search_branches[i]*sizeof(std::array<point_t,2>);
+    }
+
+    std::partial_sum(count_search_branches_byte.begin(),
+      count_search_branches_byte.end(),&offset_search_branches_byte[0]); 
+    // As we need an exscan, add a zero
+    offset_search_branches_byte.insert(offset_search_branches_byte.begin(),0);
+
+    std::vector<std::array<point_t,2>> recv_search_branches(total_branches);
+
+    //std::cout<<"SEND DATA"<<std::endl;
+    //for(int i = 0; i< size;++i){
+    //  std::cout<<rank<<" to "<<i<<" = "<<count_search_branches_byte[i]<<" + " 
+    //    << offset_search_branches_byte[i]<< " / "<< total_branches*sizeof(std::array<point_t,2>) <<std::endl;
+    //}
+
+    //std::cout<<rank<<" = "<<send_branches.size()<<" = b = "<<count_search_branches_byte[rank]<<std::endl;
+
+    MPI_Allgatherv(
+      &send_branches[0],
+      count_search_branches_byte[rank],
+      MPI_BYTE,
+      &recv_search_branches[0],
+      &count_search_branches_byte[0],
+      &offset_search_branches_byte[0],
+      MPI_BYTE,
+      MPI_COMM_WORLD
+    );
+
+    //MPI_Barrier(MPI_COMM_WORLD);
+
+    //if(rank == 0 )
+    //for(auto v: recv_search_branches){
+    //  std::cout<<rank<<" = "<<v[0]<<" - "<<v[1]<<std::endl<<std::flush;
+    //}
+
+    //MPI_Barrier(MPI_COMM_WORLD);
+
+    //if(rank == 1 )
+    //for(auto v: recv_search_branches){
+    //  std::cout<<rank<<" = "<<v[0]<<" - "<<v[1]<<std::endl<<std::flush;
+    //}
+
+    //MPI_Barrier(MPI_COMM_WORLD);
+
+    //exit(0);
+
+    reset_buffers();
+    std::vector<body_holder_mpi_t> sendbuffer;
+    int cur = 0;
+
+    //std::cout<<rank<<" Generating vector of particlies"<<std::endl;
+    // Compute the requested nodes 
+    // Search in the tree for each processes 
+    for(int i=0;i<size;++i)
+    {
+      if(i==rank){
+        cur += count_search_branches[i];
+        continue;
+      }
+      std::vector<body_holder_mpi_t> tmpsendbuffer; 
+      for(int j = cur; j < cur+count_search_branches[i]; ++j ){
+        //std::cout<<rank<<" - "<<j<<" = "<<recv_search_branches[j][0] <<" - "
+        //  << recv_search_branches[j][1] <<std::endl;
+        // Then for each branches 
+        auto ents = tree.find_in_box_b(
+            recv_search_branches[j][0],
+            recv_search_branches[j][1]);
+        for(auto ent: ents){
+          tmpsendbuffer.push_back(body_holder_mpi_t{
+            ent->getPosition(),
+            rank,
+            ent->getMass(),
+            ent->getId()});
+        }
+      }
+
+      std::sort(tmpsendbuffer.begin(),tmpsendbuffer.end(),
+        [](const auto& left, const auto& right){
+          return left.id < right.id;
+      });  
+
+      tmpsendbuffer.erase(
+          std::unique(tmpsendbuffer.begin(),tmpsendbuffer.end(),
+          [](const auto& left, const auto& right){
+            return (left.id == right.id);
+          }),tmpsendbuffer.end());
+      scount[i] = tmpsendbuffer.size(); 
+
+      sendbuffer.insert(sendbuffer.end(),tmpsendbuffer.begin(),
+        tmpsendbuffer.end());
+    
+      cur += count_search_branches[i];
+    }
+
+    //int val = 0;
+    //for(auto v: scount){
+    //   std::cout<<rank<<" for "<<val<< " = "<< 
+    //    count_search_branches[val] << "=" << v <<std::endl;
+    //    val++;
+    //}
+
+    //std::cout<<rank<<" Send vector of particlies"<<std::endl;
+
+    #else
     // Search for my min and max posititon
     std::array<point_t,2> range;
     local_range(rbodies,range);
@@ -428,6 +580,7 @@ public:
 	          ent->getId()});
       }
     }
+    #endif
 
     std::vector<body_holder_mpi_t> recvbuffer;
     mpi_alltoallv(scount,sendbuffer,recvbuffer); 
@@ -974,16 +1127,19 @@ void mpi_refresh_ghosts(
 
     auto count = [](
       body_holder* source,
-      const body_holder* nb,
+      const std::vector<body_holder*>& nb,
       std::vector<int64_t>& nbc){
-        nbc[source->index()]++;
+        nbc[source->index()] = nb.size();
     };
+
+    int criterion = 128;
 
     // 1 compute the neigbors for each 
     tree.apply_sub_cells(
         tree.root(),
         2*smoothinglength,
         MAC,
+        criterion,
         count,
         neighbors_count
     );
@@ -1022,12 +1178,14 @@ void mpi_refresh_ghosts(
 #ifdef CUTV
     auto record = [](
       body_holder* source,
-      body_holder* nb,
-      std::vector<int64_t>& carray, 
+      std::vector<body_holder*>& nb,
       std::vector<int64_t>& nbc,
       std::vector<body_holder*>& nba)
     {
-        nba[nbc[source->index()] + carray[source->index()]++] = nb;
+      int pos = 0;
+      for(auto n: nb){
+        nba[nbc[source->index()] + pos++] = n;
+      }
     };
 
     //std::cout<<"End indexing"<<std::endl;
@@ -1039,8 +1197,8 @@ void mpi_refresh_ghosts(
         tree.root(),
         2*smoothinglength,
         MAC,
+        criterion,
         record,
-        count_array,
         neighbors_count,
         neighbors
     );
@@ -1194,6 +1352,66 @@ void mpi_refresh_ghosts(
   mpi_alltoallv(
       std::vector<int> sendcount,
       std::vector<M>& sendbuffer,
+      std::vector<M>& recvbuffer,
+      std::vector<int>& recvcount_save
+    )
+  {
+    int rank, size; 
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Comm_size(MPI_COMM_WORLD,&size); 
+
+    std::vector<int> recvcount(size); 
+    std::vector<int> recvoffsets(size); 
+    std::vector<int> sendoffsets(size); 
+
+    // Exchange the send count 
+    MPI_Alltoall(&sendcount[0],1,MPI_INT,&recvcount[0],1,MPI_INT,
+      MPI_COMM_WORLD);
+    recvcount_save = recvcount;
+    
+    // Generate the send and recv offsets 
+    std::partial_sum(recvcount.begin(),recvcount.end(),&recvoffsets[0]); 
+    // As we need an exscan, add a zero
+    recvoffsets.insert(recvoffsets.begin(),0);
+    
+    // Then send offsets
+    std::partial_sum(sendcount.begin(),sendcount.end(),&sendoffsets[0]);
+    // As we need an exscan, add a zero
+    sendoffsets.insert(sendoffsets.begin(),0);
+    
+    // Set the recvbuffer to the right size
+    recvbuffer.resize(recvoffsets.back()); 
+    
+    // Trnaform the offsets for bytes 
+    for(int i=0;i<size;++i){
+      sendcount[i] *= sizeof(M);
+      recvcount[i] *= sizeof(M);
+      sendoffsets[i] *= sizeof(M);
+      recvoffsets[i] *= sizeof(M);
+    } // for
+    
+    // Use this array for the global buckets communication
+    MPI_Alltoallv(&sendbuffer[0],&sendcount[0],&sendoffsets[0],MPI_BYTE,
+      &recvbuffer[0],&recvcount[0],&recvoffsets[0],MPI_BYTE,MPI_COMM_WORLD);
+  }
+
+  /**
+ * @brief      Simple version of all to all 
+ * Use to generate the offsets and do the pre exchange 
+ * Then realise the MPI_Alltoall call 
+ *
+ * @param[in]  sendcount   The sendcount
+ * @param      sendbuffer  The sendbuffer
+ * @param      recvbuffer  The recvbuffer
+ *
+ * @tparam     M           The type of data sent 
+ */
+  template<
+    typename M>
+  void 
+  mpi_alltoallv(
+      std::vector<int> sendcount,
+      std::vector<M>& sendbuffer,
       std::vector<M>& recvbuffer
     )
   {
@@ -1234,6 +1452,7 @@ void mpi_refresh_ghosts(
     MPI_Alltoallv(&sendbuffer[0],&sendcount[0],&sendoffsets[0],MPI_BYTE,
       &recvbuffer[0],&recvcount[0],&recvoffsets[0],MPI_BYTE,MPI_COMM_WORLD);
   }
+
 
 /**
  * @brief      Use in mpi_qsort to generate the splitters to sort the particles 

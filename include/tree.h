@@ -72,7 +72,7 @@ public:
         body * bodyptr,
         int owner,
         element_t mass,
-	int64_t id
+	      int64_t id
         )
       :position_(position),bodyptr_(bodyptr),owner_(owner),mass_(mass),
 	id_(id)
@@ -258,7 +258,7 @@ public:
         ostr << std::bitset<64>(id_);
       }else{
         // For dimension 2, display base 4
-        ostr << "Dimension not handled";
+        ostr << std::bitset<64>(id_);
       }
       // Old display group of bits based on the dimension
       //constexpr int_t mask = ((int_t(1) << dimension) - 1) << bits - dimension;
@@ -443,7 +443,7 @@ public:
 
     point_t getPosition(){return coordinates_;};
     element_t getMass(){return mass_;};
-    element_t getRadius(){return radius_;};
+    //element_t getRadius(){return radius_;};
     point_t getBMin(){return bmin_;};
     point_t getBMax(){return bmax_;};
     void setPosition(point_t position){coordinates_ = position;};
