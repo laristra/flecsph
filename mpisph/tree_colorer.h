@@ -250,7 +250,7 @@ public:
   void mpi_qsort(
     std::vector<std::pair<entity_key_t,body>>& rbodies,
     int totalnbodies,
-    std::vector<int64_t>& neighbors_count
+    const std::vector<int64_t>& neighbors_count = std::vector<int64_t>()
   )
   {
     int size, rank;
@@ -279,8 +279,8 @@ public:
 
     std::vector<std::pair<entity_key_t,int64_t>> splitters;
     
-    #if COMPUTE_NEIGHBORS == 0
-    
+    // If nothing int the neighbor arraym normal repartition
+
     if(neighbors_count.size() > 1){
       if(rank == 0)
         std::cout<<"Weight function"<<std::endl;
@@ -290,10 +290,6 @@ public:
       if(rank == 0)
         std::cout<<"Normal function"<<std::endl;
     }
-
-    #else
-    generate_splitters_samples_v2(splitters,rbodies,totalnbodies); 
-    #endif
 
     // The rbodies array is already sorted. We just need to determine the 
     // limits for each process
@@ -400,6 +396,8 @@ public:
 
     // Make a list of boundaries
     std::vector<std::array<point_t,2>> send_branches(search_branches.size());
+
+    #pragma omp parallel for 
     for(int i=0;i<search_branches.size();++i){
       send_branches[i][0] = search_branches[i]->bmin();
       send_branches[i][1] = search_branches[i]->bmax();
@@ -444,13 +442,6 @@ public:
 
     std::vector<std::array<point_t,2>> recv_search_branches(total_branches);
 
-    //std::cout<<"SEND DATA"<<std::endl;
-    //for(int i = 0; i< size;++i){
-    //  std::cout<<rank<<" to "<<i<<" = "<<count_search_branches_byte[i]<<" + " 
-    //    << offset_search_branches_byte[i]<< " / "<< total_branches*sizeof(std::array<point_t,2>) <<std::endl;
-    //}
-
-    //std::cout<<rank<<" = "<<send_branches.size()<<" = b = "<<count_search_branches_byte[rank]<<std::endl;
 
     MPI_Allgatherv(
       &send_branches[0],
@@ -462,24 +453,6 @@ public:
       MPI_BYTE,
       MPI_COMM_WORLD
     );
-
-    //MPI_Barrier(MPI_COMM_WORLD);
-
-    //if(rank == 0 )
-    //for(auto v: recv_search_branches){
-    //  std::cout<<rank<<" = "<<v[0]<<" - "<<v[1]<<std::endl<<std::flush;
-    //}
-
-    //MPI_Barrier(MPI_COMM_WORLD);
-
-    //if(rank == 1 )
-    //for(auto v: recv_search_branches){
-    //  std::cout<<rank<<" = "<<v[0]<<" - "<<v[1]<<std::endl<<std::flush;
-    //}
-
-    //MPI_Barrier(MPI_COMM_WORLD);
-
-    //exit(0);
 
     reset_buffers();
     std::vector<body_holder_mpi_t> sendbuffer;
@@ -1558,7 +1531,7 @@ void mpi_refresh_ghosts(
     std::vector<std::pair<entity_key_t,int64_t>>& splitters,
     std::vector<std::pair<entity_key_t,body>>& rbodies, 
     const int64_t totalnbodies, 
-    std::vector<int64_t>& neighbors_count)
+    const std::vector<int64_t>& neighbors_count)
   {
     int rank, size; 
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);

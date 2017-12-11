@@ -48,7 +48,7 @@ TEST(io, write_N_read) {
   }
 
   // Write that to file
-  io::outputDataHDF5(bodies,fileprefix,0); 
+  io::outputDataHDF5(bodies,fileprefix,0,0.); 
 
   std::vector<std::pair<entity_key_t,body>> rbodies; 
   int64_t totalnbodies = 0; 

@@ -8,7 +8,7 @@
 #include <cassert>
 
 #include "hdf5ParticleIO.h"
-#include "physics/kernel.h"
+#include "kernel.h"
 
 
 const double ldistance = 0.001;  // Distance between the particles 

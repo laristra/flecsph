@@ -247,10 +247,14 @@ public:
       bi.first = entity_key_t(/*range_,*/bi.second.coordinates());
     }
 
- 
+
+  #define NORMAL_REP 
+  #ifdef NORMAL_REP
     // Distributed qsort and bodies exchange 
+    tcolorer_.mpi_qsort(localbodies_,totalnbodies_);
+  #else
     tcolorer_.mpi_qsort(localbodies_,totalnbodies_,neighbors_count_);
- 
+  #endif
     // Generate the tree 
     tree_ = new tree_topology_t(range_[0],range_[1]);
 
