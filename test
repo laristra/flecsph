@@ -1,0 +1,428 @@
+/*~--------------------------------------------------------------------------~*
+ *  @@@@@@@@  @@           @@@@@@   @@@@@@@@ @@
+ * /@@/////  /@@          @@////@@ @@////// /@@
+ * /@@       /@@  @@@@@  @@    // /@@       /@@
+ * /@@@@@@@  /@@ @@///@@/@@       /@@@@@@@@@/@@
+ * /@@////   /@@/@@@@@@@/@@       ////////@@/@@
+ * /@@       /@@/@@//// //@@    @@       /@@/@@
+ * /@@       @@@//@@@@@@ //@@@@@@  @@@@@@@@ /@@
+ * //       ///  //////   //////  ////////  //
+ *
+ * Copyright (c) 2016 Los Alamos National Laboratory, LLC
+ * All rights reserved
+ *~--------------------------------------------------------------------------~*/
+
+#ifndef flecsi_topology_tree_topology_h
+#define flecsi_topology_tree_topology_h
+
+/*!
+  \file tree_topology.h
+  \authors nickm@lanl.gov
+  \date Initial file creation: Apr 5, 2016
+ */
+
+/*
+  Tree topology is a statically configured N-dimensional hashed tree for
+  representing localized entities, e.g. particles. It stores entities in a
+  configurable branch type. Inserting entities into a branch can cause that
+  branch to be refined or coarsened correspondingly. A client of tree topology
+  defines a policy which defines its branch and entity types and other
+  compile-time parameters. Specializations can define a policy and default
+  branch types which can then be specialized in a simpler fashion
+  (see the basic_tree specialization).
+*/
+
+#include <map>
+#include <unordered_map>
+#include <vector>
+#include <array>
+#include <map>
+#include <cmath>
+#include <bitset>
+#include <algorithm>
+#include <cassert>
+#include <iostream>
+#include <set>
+#include <functional>
+#include <mutex>
+#include <stack>
+
+#include "flecsi/geometry/point.h"
+#include "flecsi/concurrency/thread_pool.h"
+#include "flecsi/data/storage.h"
+#include "flecsi/data/data_client.h"
+#include "flecsi/topology/index_space.h"
+
+/*
+#define np(X)                                                            \
+ std::cout << __FILE__ << ":" << __LINE__ << ": " << __PRETTY_FUNCTION__ \
+           << ": " << #X << " = " << (X) << std::endl
+
+#define hp(X)                                                            \
+ std::cout << __FILE__ << ":" << __LINE__ << ": " << __PRETTY_FUNCTION__ \
+           << ": " << #X << " = " << std::hex << (X) << std::endl
+*/
+
+namespace flecsi {
+namespace topology {
+
+template<
+  typename T,
+  size_t D
+>
+struct tree_geometry{};
+
+/*!
+  \brief 1d geometry class for computing intersections and distances.
+ */
+template<
+  typename T
+>
+struct tree_geometry<T, 1>
+{
+  using point_t = point<T, 1>;
+  using element_t = T;
+
+  /*!
+    Return true if point origin lies within the spheroid centered at center
+    with radius.
+   */
+  static
+  bool
+  within(
+    const point_t& origin,
+    const point_t& center,
+    element_t radius)
+  {
+    return distance(origin, center) <= radius;
+  }
+
+  /*!
+    Return true if point origin lies within the box specified by min/max point.
+   */
+  static
+  bool
+  within_box(
+    const point_t& origin,
+    const point_t& min,
+    const point_t& max)
+  {
+    return origin[0] <= max[0] && origin[0] >= min[0];
+  }
+
+  // initial attempt to get this working, needs to be optimized
+
+  static
+  bool
+  intersects(
+    const point_t& origin,
+    element_t size,
+    const point_t& scale,
+    const point_t& center,
+    element_t radius)
+  {
+    return center[0] >= origin[0] - radius &&
+           center[0] <= origin[0] + size * scale[0] + radius;
+  }
+
+  // Intersection of two spheres
+  static 
+  bool 
+  intersects_sphere_sphere(
+    const point_t& c1, 
+    const element_t r1, 
+    const point_t& c2, 
+    const element_t r2)
+  {
+    return distance(c1,c2) <= r1+r2; 
+  }
+
+  // Intersection of sphere and box
+  static 
+  bool 
+  intersects_sphere_box(
+    const point_t& min, 
+    const point_t& max, 
+    const point_t& c, 
+    const element_t r)
+  {
+    point_t x = point_t(std::max(min[0],std::min(c[0],max[0])));  
+    element_t dist = distance(x,c); 
+    return dist <= r;
+  }
+
+  static
+  bool
+  intersects_box(
+    const point_t& origin,
+    element_t size,
+    const point_t& scale,
+    const point_t& min2,
+    const point_t& max2)
+  {
+    point_t max1 = origin;
+    max1[0] += size * scale[0];
+    return intersects_box_(origin, max1, min2, max2);
+  }
+
+  static
+  bool
+  intersects_box_(
+    const point_t& min1,
+    const point_t& max1,
+    const point_t& min2,
+    const point_t& max2)
+  {
+    if(max1[0] <= min2[0])
+    {
+      return false;
+    }
+
+    if(min1[0] >= max2[0])
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  static
+  bool
+  intersect_true(
+    const point_t& origin,
+    element_t size,
+    const point_t& scale,
+    const point_t& center,
+    element_t radius)
+  {
+    return true;
+  }
+};
+
+
+/*!
+  \brief 2d geometry class for computing intersections and distances.
+ */
+template<
+  typename T
+>
+struct tree_geometry<T, 2>
+{
+  using point_t = point<T, 2>;
+  using element_t = T;
+
+  /*!
+    Return true if point origin lies within the spheroid centered at center
+    with radius.
+   */
+  static
+  bool
+  within(
+    const point_t& origin,
+    const point_t& center,
+    element_t radius)
+{
+    return distance(origin, center) <= radius;
+  }
+
+  /*!
+    Return true if point origin lies within the box specified by min/max point.
+   */
+  static
+  bool
+  within_box(
+    const point_t& origin,
+    const point_t& min,
+    const point_t& max)
+  {
+    return origin[0] <= max[0] && origin[0] >= min[0] &&
+           origin[1] <= max[1] && origin[1] >= min[1];
+  }
+
+  // initial attempt to get this working, needs to be optimized
+
+  /*!
+    Spheroid/box intersection test.
+   */
+  static
+  bool
+  intersects(
+    const point_t& origin,
+    element_t size,
+    const point_t& scale,
+    const point_t& center,
+    element_t radius)
+  {
+    return center[0] >= origin[0] - radius &&
+           center[0] <= origin[0] + size * scale[0] + radius &&
+           center[1] >= origin[1] - radius &&
+           center[1] <= origin[1] + size * scale[1] + radius;
+  }
+
+
+  // Intersection of two spheres
+  static 
+  bool 
+  intersects_sphere_sphere(
+    const point_t& c1, 
+    const element_t r1, 
+    const point_t& c2, 
+    const element_t r2)
+  {
+    return distance(c1,c2) <= r1+r2; 
+  }
+
+  // Intersection of sphere and box
+  static 
+  bool 
+  intersects_sphere_box(
+    const point_t& min, 
+    const point_t& max, 
+    const point_t& c, 
+    const element_t r)
+  {
+    point_t x = point_t(
+        std::max(min[0],std::min(c[0],max[0])),
+        std::max(min[1],std::min(c[1],max[1])));  
+    element_t dist = distance(x,c); 
+    return dist <= r;
+  }
+
+
+
+  static
+  bool
+  intersects_box(
+    const point_t& origin,
+    element_t size,
+    const point_t& scale,
+    const point_t& min2,
+    const point_t& max2)
+  {
+    point_t max1 = origin;
+
+    for(size_t d = 0; d < 2; ++d)
+{
+      max1[d] += size * scale[d];
+    }
+
+    return intersects_box_(origin, max1, min2, max2);
+  }
+
+  static
+  bool
+  intersects_box_(
+    const point_t& min1,
+    const point_t& max1,
+    const point_t& min2,
+    const point_t& max2)
+  {
+
+    for(size_t d = 0; d < 2; ++d)
+    {
+      if(max1[d] <= min2[d])
+      {
+        return false;
+      }
+
+      if(min1[d] >= max2[d])
+      {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  static
+  bool
+  intersect_true(
+    const point_t& origin,
+    element_t size,
+    const point_t& scale,
+    const point_t& center,
+    element_t radius)
+  {
+    return true;
+  }
+};
+
+
+/*!
+  \brief 1d geometry class for computing intersections and distances.
+ */
+template<
+  typename T
+>
+struct tree_geometry<T, 3>
+{
+  using point_t = point<T, 3>;
+  using element_t = T;
+
+  /*!
+    Return true if point origin lies within the spheroid centered at center
+    with radius.
+   */
+  static
+  bool
+  within(
+    const point_t& origin,
+    const point_t& center,
+    element_t radius)
+  {
+    return (center[0]-origin[0])*(center[0]-origin[0])+
+      (center[1]-origin[1])*(center[1]-origin[1])+
+      (center[2]-origin[2])*(center[2]-origin[2])
+        < radius*radius;
+  }
+
+  /*!
+    Return true if point origin lies within the box specified by min/max point.
+   */
+  static
+  bool
+  within_box(
+    const point_t& origin,
+    const point_t& min,
+    const point_t& max)
+  {
+    return origin[0] <= max[0] && origin[0] > min[0] &&
+           origin[1] <= max[1] && origin[1] > min[1] &&
+           origin[2] <= max[2] && origin[2] > min[2];
+  }
+
+  /*!
+    Spheroid/box intersection test.
+   */
+  static
+  bool
+  intersects(
+    const point_t& origin,
+    element_t size,
+    const point_t& scale,
+    const point_t& center,
+    element_t radius)
+  {
+    return center[0] >= origin[0] - radius &&
+           center[0] <= origin[0] + size * scale[0] + radius &&
+           center[1] >= origin[1] - radius &&
+           center[1] <= origin[1] + size * scale[1] + radius &&
+           center[2] >= origin[2] - radius &&
+           center[2] <= origin[2] + size * scale[2] + radius;
+  }
+  
+  // Intersection of two spheres
+  static 
+  bool 
+  intersects_sphere_sphere(
+    const point_t& c1, 
+    const element_t r1, 
+    const point_t& c2, 
+    const element_t r2)
+  {
+    return (c2[0]-c1[0])*(c2[0]-c1[0])+
+      (c2[1]-c1[1])*(c2[1]-c1[1])+
+      (c2[2]-c1[2])*(c2[2]-c1[2])
+        < (r1+r2)*(r1+r2);
+  }
+

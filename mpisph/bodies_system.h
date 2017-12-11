@@ -10,7 +10,11 @@
 #include <omp.h>
 
 #include "tree_colorer.h"
+#include "physics.h"
 #include "io.h"
+
+#include <iostream>
+#include <fstream>
 
 template<
   typename T,
@@ -27,14 +31,12 @@ public:
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank); 
     // Display the number of threads in DEBUG mode
-    #ifdef DEBUG
     if(rank==0)
     {
       #pragma omp parallel 
       #pragma omp single 
       std::cout<<"OMP: "<<omp_get_num_threads()<<std::endl;
-      #endif
-    } 
+    }
   };
 
   /**
@@ -72,6 +74,28 @@ public:
     macangle_ = macangle;
   };
 
+  
+  template<
+    typename TL
+  >
+  TL
+  get_attribute(
+      const char * filename,
+      const char * attributeName,
+      TL default_value = TL(0))
+  {
+    TL value = TL{};
+    if(typeid(TL)==typeid(double)){
+      value = io::input_parameter_double(filename,attributeName);
+    }else if(typeid(TL) == typeid(int)){
+      value = io::input_parameter_int(filename,attributeName);
+    }
+    if(value == TL{}){
+      value = default_value;
+    }
+    return value;
+  }
+
   /**
    * @brief      Read the bodies from H5part file
    * Compute also the total to check for mass lost 
@@ -84,6 +108,10 @@ public:
       const char * filename,
       int startiteration)
   {
+
+    //io::init_reading(localbodies_,filename,totalnbodies_,localnbodies_,
+    //    startiteration);
+    //physics::read_data(filename,localbodies_,startiteration);
     io::inputDataHDF5(localbodies_,filename,totalnbodies_,localnbodies_,
         startiteration);
     
@@ -219,10 +247,14 @@ public:
       bi.first = entity_key_t(/*range_,*/bi.second.coordinates());
     }
 
- 
+
+  #define NORMAL_REP 
+  #ifdef NORMAL_REP
     // Distributed qsort and bodies exchange 
     tcolorer_.mpi_qsort(localbodies_,totalnbodies_);
- 
+  #else
+    tcolorer_.mpi_qsort(localbodies_,totalnbodies_,neighbors_count_);
+  #endif
     // Generate the tree 
     tree_ = new tree_topology_t(range_[0],range_[1]);
 
@@ -243,19 +275,110 @@ public:
     assert(checknparticles==totalnbodies_);
 
     tree_->update_branches(2*smoothinglength_); 
-    // Check the total mass of system 
+
+    std::vector<int> nentities(size);
+    int lentities = tree_->root()->sub_entities();
+    // Get on 0 
+    MPI_Gather(
+      &lentities,
+      1,
+      MPI_INT,
+      &nentities[0],
+      1,
+      MPI_INT,
+      0,
+      MPI_COMM_WORLD
+      );
+
+    if(rank == 0){
+      std::cout<<rank<<" sub_entities before="; 
+      for(auto v: nentities){
+        std::cout<<v<<";";
+      }
+      std::cout<<std::endl;
+    }
+
+    /*std::vector<branch_t*> search_branches;
+    //tree_->find_sub_cells(
+    //  tree_->root(),
+    //  1,
+    //  search_branches);
+    tree_->get_all_branches(
+      tree_->root(),
+      search_branches);
+
+    // Output the branches and particles data in a file 
+    char name[64];
+    sprintf(name,"output_search_%02d.txt",rank);
+    remove(name);
+    FILE * f = fopen(name,"w");
+    //fprintf(f,"#type x y r \n");
+    std::ofstream myfile (name);
+    for(auto b: search_branches){
+      myfile<<"1 "<<b->get_coordinates()[0]<<" "<<b->get_coordinates()[1]<<" "<<b->bmin()[0] <<" "<< b->bmin()[1] << " " << b->bmax()[0] <<" "<< b->bmax()[1] <<" "<<b->id()<<" "<<b->sub_entities()<<std::endl;
+    }
+    for(auto e: localbodies_){
+      myfile<<"0 "<<e.second.coordinates()[0]<<" "<<e.second.coordinates()[1]<<" "<<2*e.second.getSmoothinglength()<<" "<<e.first<<" 0 0 0 0"<<std::endl;
+    }
+    myfile.close();
+    //for(auto b: search_branches){
+    //  fprintf(f,"1 %.4f %.4f %.4f %lo\n",
+    //    b->get_coordinates()[0],b->get_coordinates()[1],b->radius(),b->id());
+    //}
+    // Also output the bodies 
+    //for(auto e: localbodies_){
+    //  fprintf(f,"0 %.4f %.4f %.4f %lo\n",e.second.coordinates()[0],e.second.coordinates()[1],2*e.second.getSmoothinglength(),e.first);
+    //}
+    fclose(f);*/
 
     // Exchnage usefull body_holder from my tree to other processes
     tcolorer_.mpi_branches_exchange(*tree_,localbodies_,rangeposproc_,
         range_,smoothinglength_);
 
     // Update the tree 
-    tree_->update_branches(2*smoothinglength_); 
-    //std::cout<<"TWO=="<<rank<<": "<<tree_->root()->getMass()<<std::endl;
+    tree_->update_branches(2*smoothinglength_);
 
+    lentities = tree_->root()->sub_entities();
+    // Get on 0 
+    MPI_Gather(
+      &lentities,
+      1,
+      MPI_INT,
+      &nentities[0],
+      1,
+      MPI_INT,
+      0,
+      MPI_COMM_WORLD
+      );
+
+    if(rank == 0){
+      std::cout<<rank<<" sub_entities after="; 
+      for(auto v: nentities){
+        std::cout<<v<<";";
+      }
+      std::cout<<std::endl;
+    }
+    
+#if COMPUTE_NEIGHBORS == 1 
+    tcolorer_.mpi_compute_neighbors(
+        *tree_,
+        bodies_,
+        neighbors_,
+        neighbors_count_,
+        smoothinglength_);
     // Compute and refresh the ghosts 
+    tcolorer_.mpi_compute_ghosts(
+        *tree_,
+        bodies_,
+        neighbors_,
+        neighbors_count_,
+        smoothinglength_/*,range_*/);
+    tcolorer_.mpi_refresh_ghosts(*tree_/*,range_*/); 
+#else 
+// Compute and refresh the ghosts 
     tcolorer_.mpi_compute_ghosts(*tree_,bodies_,smoothinglength_/*,range_*/);
     tcolorer_.mpi_refresh_ghosts(*tree_/*,range_*/); 
+#endif 
   }
 
   void update_neighbors()
@@ -282,6 +405,25 @@ public:
       EF&& ef,
       ARGS&&... args)
   {
+
+  #if COMPUTE_NEIGHBORS == 1 
+  int64_t nelem = bodies_.size(); 
+  #pragma omp parallel for 
+    for(int64_t i=0; i<nelem; ++i){
+      for(size_t d=0; d<gdimension; ++d){
+        assert(!std::isnan(bodies_[i]->getBody()->coordinates()[d])); 
+      }
+      assert(bodies_[i]->getBody()->getSmoothinglength() > 0.); 
+      assert(neighbors_count_[i+1]-neighbors_count_[i]>0);
+      std::vector<body_holder*> nbs(neighbors_count_[i+1]-neighbors_count_[i]);
+      int local = 0;
+      for(int j=neighbors_count_[i]; j<neighbors_count_[i+1]; ++j)
+      {
+        nbs[local++]=neighbors_[j];
+      }
+      ef(bodies_[i],nbs,std::forward<ARGS>(args)...);
+    } 
+#else 
   int64_t nelem = bodies_.size(); 
   #pragma omp parallel for 
     for(int64_t i=0; i<nelem; ++i){
@@ -301,6 +443,7 @@ public:
 
       ef(bodies_[i],vecents,std::forward<ARGS>(args)...);
     } 
+#endif
   }
 
   template<
@@ -318,6 +461,16 @@ public:
     }
   }
 
+  template<
+    typename EF,
+    typename... ARGS
+  >
+  void get_all(
+    EF&& ef, 
+    ARGS&&... args)
+  {
+    ef(bodies_,std::forward<ARGS>(args)...);
+  }
 
   std::vector<std::pair<entity_key_t,body>>& 
     getLocalbodies(){
@@ -338,6 +491,9 @@ private:
   double smoothinglength_;
   double totalmass_;
   double minmass_;
+  
+  std::vector<int64_t> neighbors_count_;
+  std::vector<body_holder*> neighbors_; 
   //double epsilon_ = 1.0;
 };
 

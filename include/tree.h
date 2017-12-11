@@ -72,7 +72,7 @@ public:
         body * bodyptr,
         int owner,
         element_t mass,
-	int64_t id
+	      int64_t id
         )
       :position_(position),bodyptr_(bodyptr),owner_(owner),mass_(mass),
 	id_(id)
@@ -100,10 +100,14 @@ public:
     int getOwner(){return owner_;};
     element_t getMass(){return mass_;};
     int64_t getId(){return id_;}; 
-
+    double getWeight(){return weight_;};
+    int64_t index(){return index_;};
+    
     void setBody(body * bodyptr){bodyptr_ = bodyptr;};
     void setPosition(point_t position){position_ = position;};
     void setId(int64_t id){id_ = id;}; 
+    void setWeight(double weight){weight_ = weight;};
+    void set_index(int64_t index){index_ = index;};
 
     friend std::ostream& operator<<(std::ostream& os, const body_holder& b){
       os << std::setprecision(10);
@@ -129,6 +133,9 @@ public:
     element_t mass_;
     // Id of the particle behind
     int64_t id_;
+    // Weight of the body_holder, init to 0 
+    double weight_;
+    int64_t index_;
   };
     
   using entity_t = body_holder;
@@ -251,7 +258,7 @@ public:
         ostr << std::bitset<64>(id_);
       }else{
         // For dimension 2, display base 4
-        ostr << "Dimension not handled";
+        ostr << std::bitset<64>(id_);
       }
       // Old display group of bits based on the dimension
       //constexpr int_t mask = ((int_t(1) << dimension) - 1) << bits - dimension;
@@ -436,7 +443,7 @@ public:
 
     point_t getPosition(){return coordinates_;};
     element_t getMass(){return mass_;};
-    element_t getRadius(){return radius_;};
+    //element_t getRadius(){return radius_;};
     point_t getBMin(){return bmin_;};
     point_t getBMax(){return bmax_;};
     void setPosition(point_t position){coordinates_ = position;};

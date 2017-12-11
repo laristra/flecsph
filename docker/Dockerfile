@@ -28,15 +28,15 @@ COPY sonar/ /home/flecsi/.sonar
 USER root
 RUN yum install -y which; exit 0
 RUN chown -R flecsi:flecsi /home/flecsi/flecsph /home/flecsi/.ccache /home/flecsi/.sonar
+RUN yum install -y which; exit 0
 USER flecsi
 
 #build flecsi
 WORKDIR /home/flecsi
-RUN git clone -b FleCSPH --depth 1 --recursive https://github.com/laristra/flecsi flecsi && \
-    cd flecsi && mkdir build && cd build && \
-    cmake -DFLECSI_RUNTIME_MODEL=legion .. && \
-    make -j2
+RUN git clone -b FleCSPH --depth 1 --recursive https://github.com/laristra/flecsi flecsi 
+RUN  cd flecsi && mkdir build && cd build
 WORKDIR flecsi/build
+RUN  cmake -DFLECSI_RUNTIME_MODEL=legion -DENABLE_UNIT_TESTS=OFF .. && make VERBOSE=1 -j2
 USER root
 RUN make install
 USER flecsi

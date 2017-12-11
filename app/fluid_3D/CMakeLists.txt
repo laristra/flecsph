@@ -8,14 +8,15 @@
 #------------------------------------------------------------------------------#
 
 set(CMAKE_CXX_FLAGS_DEBUG 
-  "-g -O2 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses")
+  "-g -pg -O2 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses")
 set(CMAKE_CXX_FLAGS_RELEASE 
-  "-O3 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses") 
+  "-O2 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses") 
 
 #------------------------------------------------------------------------------#
 # Includes
 #------------------------------------------------------------------------------#
 include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/include/physics/fluids)
 include_directories(${CMAKE_SOURCE_DIR}/app/fluid_3D/include)
 include_directories(${CMAKE_SOURCE_DIR}/mpisph)
 include_directories(

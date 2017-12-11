@@ -39,8 +39,8 @@
 
 #include <bodies_system.h>
 
-#include "physics/eos_analytics.h"
-#include "physics/physics.h"
+#include "eos_analytics.h"
+#include "physics.h"
 
 namespace flecsi{
 namespace execution{

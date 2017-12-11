@@ -48,6 +48,7 @@ namespace physics{
   double g_strength = 1; 
   double damp = 1;
   double totaltime = 0.0;
+  double MAC = 0.;
 
   // Default configuration for kernel
   int kernel_choice = 0;
@@ -308,13 +309,13 @@ namespace physics{
     point_t acceleration = source->getAcceleration();
     point_t force; 
     if(gdimension == 1){
-      force = point_t{-g_strength};
+      force = point_t{g_strength};
     }
     if(gdimension == 2){
-      force = point_t{0.0,-g_strength};
+      force = point_t{0.0,g_strength};
     }
     if(gdimension == 3){
-      force = point_t{0.0,0.0,-g_strength};
+      force = point_t{0.0,0.0,g_strength};
     }
     acceleration += force;
     source->setAcceleration(acceleration);

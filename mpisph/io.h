@@ -34,156 +34,46 @@
 #include <hdf5ParticleIO.h>
 
 //#include "tree.h"
-#include "physics/physics.h"
+#include "physics.h"
 
 namespace io{
 
-#if 0
-// Read data from txt file with ranges
-// This is not the most beautiful way, but enough for testing
-void inputDataTxtRange(
-    std::vector<std::pair<entity_key_t,body>>& bodies, 
-    int64_t& nbodies,
-    int64_t& totalnbodies,
-    const char * filename
-  )
+double 
+input_parameter_double(
+    const char * filename, 
+    const char * attribute_name)
 {
-  int rank, size; 
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  MPI_Comm_size(MPI_COMM_WORLD,&size);
-  nbodies = 0; 
-  totalnbodies = 0;
-  int mpi_err;
-  MPI_File file; 
-  MPI_Offset filesize;
-  MPI_Offset nelemperproc;
-  MPI_Offset startposition; 
-  MPI_Offset stopposition; 
-  double x, y, z, velX, velY, velZ, velHX, velHY, velHZ;
-  double accX, accY, accZ, smoothinglength, pressure;
-  double entropy, density, mass, tmp, angularMoment;
-  int tmpD;
 
-  //int overlap = 100;
-
-  mpi_err = MPI_File_open(MPI_COMM_WORLD,filename,
-      MPI_MODE_RDONLY,MPI_INFO_NULL, &file);
-  if(mpi_err){
-    fprintf(stderr,"Could not open file %s\n",filename);
-    MPI_Finalize(); 
-    exit(1); 
-  }
-
-  MPI_File_get_size(file,&filesize);
-  nelemperproc = filesize/size;
-  startposition = rank * nelemperproc; 
-  stopposition = startposition + nelemperproc-1;
-  if(rank == size-1)
-    stopposition = filesize;
-  //else 
-  //  stopposition += overlap; 
-  // Read in a buffer of a double and or int 
-  char buffer[2048]; 
-  //int iintbuffer; 
- 
-  //printf("%d/%d from %d to %d",rank,size,startposition,stopposition);
-
-  // Read a line in char buffer
-  MPI_File_read_at(file,startposition,
-      &buffer,2048,MPI_CHAR,MPI_STATUS_IGNORE); 
-  // Print the read value 
-  //std::cout << "Just read: "<< buffer<< std::endl;
+  auto dataFile = H5OpenFile(filename,H5_O_RDONLY
+      | H5_VFD_MPIIO_IND,// Flag to be not use mpiposix
+      MPI_COMM_WORLD);
   
-  // For all but the first process, go to the end of this line 
-  if(rank != 0){
-    int pos = 0;
-    while(buffer[pos]!='\n'){
-      startposition++;
-      pos++;
-    }
-    startposition++;
-    // Read another line from new starting point
-    MPI_File_read_at(file,startposition,
-      &buffer,2048,MPI_CHAR,MPI_STATUS_IGNORE); 
-    // Print the read value 
-    //std::cout << "Second read: "<< buffer<< std::endl;
+  double value;
+  if(H5_SUCCESS != H5ReadFileAttribFloat64(dataFile,attribute_name,&value)){
+    value = double{};
   }
+  H5CloseFile(dataFile);
+  return value;
+}
 
-  // Interpret the buffer 
-  sscanf(buffer,
-      "%lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf"
-      " %lf %lf %lf %lf %lf %lf %d %lf %lf %lf %lf %lf \n",
-      &x,&y,&z,                       // positions
-      &velX,&velY,&velZ,              // velocity
-      &velHX,&velHY,&velHZ,           // velHalf 
-      &accX,&accY,&accZ,              // acceleration
-      &density,&pressure,&entropy,    // density, pressure, entropy 
-      &mass,&smoothinglength,&tmp,    // mass, smoothing length, dt 
-      &tmpD,&tmp,&tmp,                // step, totalTime, tmp
-      &tmp,&tmp,&angularMoment        // tmp, tmp, angularMoment
-  );
-  point_t position = {x,y,z}; 
-  point_t velocity = {velX,velY,velZ};
-  point_t velocityhalf = {velHX,velHY,velHZ};
-  point_t acceleration = {accX, accY, accZ};
+
+int 
+input_parameter_int(
+    const char * filename, 
+    const char * attribute_name)
+{
+
+  auto dataFile = H5OpenFile(filename,H5_O_RDONLY
+      | H5_VFD_MPIIO_IND,// Flag to be not use mpiposix
+      MPI_COMM_WORLD);
   
-  auto bi = body(position,velocity,velocityhalf,
-      acceleration,density,pressure,entropy,mass,smoothinglength);
-  bodies.push_back(std::make_pair(entity_key_t::null(),bi));
-  ++nbodies;
-
-  // Move at the end of this line 
-  int pos = 0;
-  while(buffer[pos]!='\n'){
-    startposition++;
-    pos++;
+  int value;
+  if(H5_SUCCESS != H5ReadFileAttribInt32(dataFile,attribute_name,&value)){
+    value = int{};
   }
-  startposition++;
-
-  // Loop for all the lines of the file 
-  while(startposition < stopposition){
-    // Read new line  
-    MPI_File_read_at(file,startposition,
-      &buffer,2048,MPI_CHAR,MPI_STATUS_IGNORE); 
-    // Interpret
-    sscanf(buffer,
-      "%lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf"
-      " %lf %lf %lf %lf %lf %lf %d %lf %lf %lf %lf %lf \n",
-      &x,&y,&z,                       // positions
-      &velX,&velY,&velZ,              // velocity
-      &velHX,&velHY,&velHZ,           // velHalf 
-      &accX,&accY,&accZ,              // acceleration
-      &density,&pressure,&entropy,    // density, pressure, entropy 
-      &mass,&smoothinglength,&tmp,    // mass, smoothing length, dt 
-      &tmpD,&tmp,&tmp,                // step, totalTime, tmp
-      &tmp,&tmp,&angularMoment        // tmp, tmp, angularMoment
-    );
-    position = {x,y,z}; 
-    velocity = {velX,velY,velZ};
-    velocityhalf = {velHX,velHY,velHZ};
-    acceleration = {accX, accY, accZ};
-
-    auto bi = body(position,velocity,velocityhalf,
-      acceleration,density,pressure,entropy,mass,smoothinglength);
-    bodies.push_back(std::make_pair(entity_key_t::null(),bi));
-    
-    ++nbodies;
-    //std::cout << *bi << std::endl;
-    // Move at the end of this line 
-    int pos = 0;
-    while(buffer[pos]!='\n'){
-      startposition++;
-      pos++;
-    }
-    startposition++;
-  }
-  // Reduction over the bodies 
-  MPI_Allreduce(&nbodies,&totalnbodies,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
-  std::cout << rank<<"/"<<size<<" nbodies: "<<nbodies<<"/"<<totalnbodies<<std::endl; 
-
-} // inputDataTxtRange
-#endif 
-
+  H5CloseFile(dataFile);
+  return value;
+}
 
 // Input data fro HDF5 File
 void inputDataHDF5(
@@ -250,11 +140,11 @@ void inputDataHDF5(
   }
 
   // timestep 
-  if(H5_SUCCESS != 
-      H5ReadFileAttribFloat64(dataFile,"timestep",&physics::dt)){
-    std::cerr<<"No timestep value: setting to default 0.001"<<std::endl;
-    physics::dt = 0.001;
-  }
+  //if(H5_SUCCESS != 
+  //    H5ReadFileAttribFloat64(dataFile,"timestep",&physics::dt)){
+  //  std::cerr<<"No timestep value: setting to default 0.001"<<std::endl;
+  //  physics::dt = 0.001;
+  //}
 
   //--------------- READ DATA FROM STEP ---------------------------------------
   // Set the number of particles read by each process
@@ -448,10 +338,10 @@ void inputDataHDF5(
   std::fill(dataX,dataX+nparticlesproc,0.);
 
   // Internal Energy   
-  H5PartReadDataFloat64(dataFile,"u",dataX);
-  for(int64_t i=0; i<nparticlesproc; ++i){
-    bodies[i].second.setInternalenergy(dataX[i]);
-  }
+  //H5PartReadDataFloat64(dataFile,"u",dataX);
+  //for(int64_t i=0; i<nparticlesproc; ++i){
+  //  bodies[i].second.setInternalenergy(dataX[i]);
+  //}
 
   // Reset buffer to 0, if next value not present 
   std::fill(dataX,dataX+nparticlesproc,0.);
@@ -528,6 +418,7 @@ void outputDataHDF5(
     std::vector<std::pair<entity_key_t,body>>& bodies,
     const char* fileprefix,
     int step,
+    double totaltime,
     bool do_diff_files = false)
 {
 
@@ -586,7 +477,7 @@ void outputDataHDF5(
         "time",
        Flecsi_Sim_IO::timestep,
         "double",
-        physics::totaltime)
+        totaltime)
       );
 
   simio.writeTimestepAttributes();
@@ -686,15 +577,16 @@ void outputDataHDF5(
   for(auto bi: bodies){
     b1[pos] = bi.second.getSmoothinglength();
     b2[pos] = bi.second.getDensity();
-    b3[pos++] = bi.second.getInternalenergy();
+    //b3[pos++] = bi.second.getInternalenergy();
+    pos++;
   }
 
   simio.addVariable( Flecsi_Sim_IO::Variable("h",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b1));
   simio.addVariable( Flecsi_Sim_IO::Variable("rho",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b2));
-  simio.addVariable( Flecsi_Sim_IO::Variable("u",Flecsi_Sim_IO::point, 
-        "double", nparticlesproc,b3));
+  //simio.addVariable( Flecsi_Sim_IO::Variable("u",Flecsi_Sim_IO::point, 
+  //      "double", nparticlesproc,b3));
 
   simio.writeVariables();
 

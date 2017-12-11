@@ -38,7 +38,7 @@
 #include "flecsi/data/data.h"
 
 #include <bodies_system.h>
-#include "physics/physics.h"
+#include "physics.h"
 
 namespace flecsi{
 namespace execution{
@@ -52,41 +52,49 @@ mpi_init_task(int startiteration){
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   
-  int totaliters = 2000;
-  int iteroutput = 10;
-  double totaltime = 0.0;
-  double maxtime = 10.0;
   int iter = startiteration; 
-
-  // Init if default values are not ok
-  // \TODO in config filem
-  physics::dt = 1.0e-3;
-  physics::do_boundaries = true;
-  physics::reflect_boundaries = true;
-  //physics::min_boundary = point_t{-1.0,-1.0};
-  //physics::max_boundary = point_t{6.0,1000.0};
-  physics::g_strength = 9.8;
-  physics::K = 1;
-  physics::damp = 0.80;
+  int noutput = startiteration+1;
 
   body_system<double,gdimension> bs;
-  bs.read_bodies("hdf5_fluid.h5part",startiteration);
-  //io::inputDataHDF5(rbodies,"hdf5_sodtube.h5part",totalnbodies,nbodies);
+  
+  //bs.read_bodies("hdf5_fluid_3D.h5part",bs,startiteration);
+  
+  // Use the user reader defined in the physics file 
+  bs.read_bodies("hdf5_fluid_3D.h5part",startiteration);
+  physics::init_physics("hdf5_fluid_3D.h5part");
 
-  double h = bs.getSmoothinglength();
-  physics::epsilon = 0.01*h*h;
+  physics::maxtime = 4.0;
+  remove("output_fluid_3D.h5part");
 
-  // Set the boundaries based on range 
-  auto range = bs.getRange();
-  physics::min_boundary = point_t{range[0][0],range[0][1],range[0][2]};
-  physics::max_boundary = point_t{range[1][0] + 2.0, range[1][1],range[1][2]+0.5};
+  bs.update_iteration();
 
-  remove("output_fluid.h5part");
+  // For OMP time, just used on 0, initialized for others
+  double start = 0;
+
+  // Apply EOS once 
+  MPI_Barrier(MPI_COMM_WORLD);
+  if(rank==0){
+    std::cout<<"Init EOS"<<std::flush; 
+    start = omp_get_wtime(); 
+  }
+  bs.apply_all(physics::EOS); 
+  MPI_Barrier(MPI_COMM_WORLD);
+  if(rank==0)
+    std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+
+  // Apply EOS once 
+  MPI_Barrier(MPI_COMM_WORLD);
+  if(rank==0){
+    std::cout<<"Init Density Velocity"<<std::flush; 
+    start = omp_get_wtime(); 
+  }
+  bs.apply_all(physics::init_density_velocity); 
+  MPI_Barrier(MPI_COMM_WORLD);
+  if(rank==0)
+    std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
 #ifdef OUTPUT
-  bs.write_bodies("output_fluid",iter);
-  //io::outputDataHDF5(rbodies,"output_sodtube.h5part",0);
-  //tcolorer.mpi_output_txt(rbodies,iter,"output_sodtube"); 
+  bs.write_bodies("output_fluid_3D",startiteration);
 #endif
 
   ++iter; 
@@ -108,66 +116,61 @@ mpi_init_task(int startiteration){
     bs.update_iteration();
     
     // Do the Sod Tube physics
-    if(rank==0)
-      std::cout<<"Density"<<std::flush; 
-    bs.apply_in_smoothinglength(physics::compute_density);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
-
-    if(rank==0)
-      std::cout<<"Pressure"<<std::flush; 
-    bs.apply_all(physics::compute_pressure);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
-
-    if(rank==0)
-      std::cout<<"Soundspeed"<<std::flush; 
-    bs.apply_all(physics::compute_soundspeed);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
-    
-    // Refresh the neighbors within the smoothing length 
-    bs.update_neighbors(); 
-
-    if(rank==0)
-      std::cout<<"Hydro acceleration"<<std::flush; 
-    bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
-
-    if(rank==0)
-      std::cout<<"Gravitation acceleration"<<std::flush; 
-    bs.apply_all(physics::compute_gravitation);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
-
-    if(rank==0)
-      std::cout<<"Internalenergy"<<std::flush; 
-    bs.apply_in_smoothinglength(physics::compute_internalenergy);
-    if(rank==0)
-      std::cout<<".done"<<std::endl; 
-     
-    
-    if(rank==0)
-        std::cout<<"MoveParticles"<<std::flush; 
-
-    if(iter == 1){
-      bs.apply_all(physics::leapfrog_integration_first_step);
-    }else{
-      bs.apply_all(physics::leapfrog_integration);
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){
+      std::cout<<"Accel"<<std::flush; 
+      start = omp_get_wtime(); 
     }
+    bs.apply_in_smoothinglength(physics::compute_accel);
+    MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0)
-      std::cout<<".done"<<std::endl;
+      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){
+      std::cout<<"DT"<<std::flush; 
+      start = omp_get_wtime(); 
+    }
+    bs.get_all(physics::update_dt); 
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0)
+      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+
+    // Reduce the local DT 
+    MPI_Allreduce(MPI_IN_PLACE,&physics::dt,1,MPI_DOUBLE,MPI_MIN,MPI_COMM_WORLD); 
+    if(rank == 0){
+      std::cout<<"New DT = "<<physics::dt<<std::endl;
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){
+      std::cout<<"Verlet integration EOS"<<std::flush; 
+      start = omp_get_wtime(); 
+    }
+    bs.apply_all(physics::verlet_integration_EOS);
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0)
+      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+
+    physics::totaltime += physics::dt;
+    if(rank == 0){
+      std::cout<<"Total time="<<physics::totaltime<<"s / "<<physics::maxtime<<"s"<<std::endl;
+    }
 #ifdef OUTPUT
-    if(iter % iteroutput == 0){ 
-      bs.write_bodies("output_fluid",iter/iteroutput);
+    if(physics::totaltime > noutput*physics::outputtime){
+      bs.write_bodies("output_fluid_3D",noutput);
+      noutput++;
     }
+    
+    //if(iter % iteroutput == 0){ 
+    //  bs.write_bodies("output_fluid",iter/iteroutput);
+    //}
 #endif
     ++iter;
-    physics::totaltime += physics::dt;
     
-  }while(iter<totaliters);
+    
+  }while(physics::totaltime<physics::maxtime);
 }
 
 flecsi_register_mpi_task(mpi_init_task);
