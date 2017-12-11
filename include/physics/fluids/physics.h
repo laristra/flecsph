@@ -26,6 +26,7 @@
 #ifndef _physics_fluids_h_
 #define _physics_fluids_h_
 
+#include <cmath>
 #include <vector>
 
 #include "tree.h"
@@ -181,9 +182,9 @@ namespace physics{
         point_t grad_wab = kernel_gradient(rij,source->getSmoothinglength());
         
         double density_bar = (source->getDensity()+nb->getDensity())/2.;
-        assert(!isnan(density_bar));
+        assert(!std::isnan(density_bar));
         double cs_bar = (source->getSoundspeed()+nb->getSoundspeed())/2.;
-        assert(!isnan(cs_bar));
+        assert(!std::isnan(cs_bar));
 
         // Pressure contribution
         double pressure_part = source->getPressure()/pow(source->getDensity(),2)+
@@ -191,8 +192,8 @@ namespace physics{
         double viscosity_part = viscosity(
           vijrij,source->getSmoothinglength(),r,density_bar,cs_bar);
 
-        assert(!isnan(pressure_part));
-        assert(!isnan(viscosity_part));
+        assert(!std::isnan(pressure_part));
+        assert(!std::isnan(viscosity_part));
 
         accel = accel - nb->getMass()*(pressure_part+viscosity_part)*grad_wab;
         //printf("accel = %g %g with m=%g pv=%g with (di=%g dj=%g)"
@@ -201,7 +202,7 @@ namespace physics{
         //  nb->getDensity(),viscosity_part,
         //  grad_wab[0],grad_wab[1]);
         //fflush(stdout);
-        assert(!isnan(accel[0])&&!isnan(accel[1]));
+        assert(!std::isnan(accel[0])&&!std::isnan(accel[1]));
         
         // Compute the velocity correction
         velCor = velCor - wab * vij * nb->getMass() / density_bar; 
@@ -216,7 +217,7 @@ namespace physics{
             flecsi::point_to_vector(grad_wab));
       }
     }
-    assert(!isnan(accel[0])&&!isnan(accel[1]));
+    assert(!std::isnan(accel[0])&&!std::isnan(accel[1]));
     source->setAcceleration(accel+gravity_force);
     source->setVelocityCor(source->getVelocity()+epsilon*velCor);
     source->setDensityDt(density_dt);
@@ -273,7 +274,7 @@ namespace physics{
     double pressure = K*(pow(source->getDensity()/rest_density,local_gamma)-1.)
       + background_pressure;
     double soundspeed = cs0*pow(source->getDensity()/rest_density,3);
-    assert(!isnan(pressure) && !isnan(soundspeed));
+    assert(!std::isnan(pressure) && !std::isnan(soundspeed));
     source->setPressure(pressure);
     source->setSoundspeed(soundspeed);
   } // EOS 
@@ -305,10 +306,10 @@ namespace physics{
       density = source->getDensity() + source->getDensityDt()*dt;
     }
     for(size_t i = 0; i < gdimension; ++i){
-      assert(!isnan(velocity[i]&&!isnan(velocity[i])));
-      assert(!isnan(position[i]&&!isnan(position[i])));
+      assert(!std::isnan(velocity[i]&&!std::isnan(velocity[i])));
+      assert(!std::isnan(position[i]&&!std::isnan(position[i])));
     }
-    assert(!isnan(density));
+    assert(!std::isnan(density));
     assert(density > 0.);
 
     source->setVelocity(velocity);
