@@ -169,8 +169,8 @@ mpi_init_task(int startiteration){
 #endif
     ++iter;
     
-    
-  }while(physics::totaltime<physics::maxtime);
+  }while(iter<40);
+  //}while(physics::totaltime<physics::maxtime);
 }
 
 flecsi_register_mpi_task(mpi_init_task);

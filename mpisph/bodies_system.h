@@ -10,11 +10,16 @@
 #include <omp.h>
 
 #include "tree_colorer.h"
+#include "tree_fmm.h"
 #include "physics.h"
 #include "io.h"
 
+
 #include <iostream>
 #include <fstream>
+
+
+#define NORMAL_REP // Repartition based on part num 
 
 template<
   typename T,
@@ -248,13 +253,13 @@ public:
     }
 
 
-  #define NORMAL_REP 
   #ifdef NORMAL_REP
     // Distributed qsort and bodies exchange 
     tcolorer_.mpi_qsort(localbodies_,totalnbodies_);
   #else
     tcolorer_.mpi_qsort(localbodies_,totalnbodies_,neighbors_count_);
   #endif
+
     // Generate the tree 
     tree_ = new tree_topology_t(range_[0],range_[1]);
 
@@ -276,6 +281,7 @@ public:
 
     tree_->update_branches(2*smoothinglength_); 
 
+#ifdef DEBUG
     std::vector<int> nentities(size);
     int lentities = tree_->root()->sub_entities();
     // Get on 0 
@@ -297,39 +303,7 @@ public:
       }
       std::cout<<std::endl;
     }
-
-    /*std::vector<branch_t*> search_branches;
-    //tree_->find_sub_cells(
-    //  tree_->root(),
-    //  1,
-    //  search_branches);
-    tree_->get_all_branches(
-      tree_->root(),
-      search_branches);
-
-    // Output the branches and particles data in a file 
-    char name[64];
-    sprintf(name,"output_search_%02d.txt",rank);
-    remove(name);
-    FILE * f = fopen(name,"w");
-    //fprintf(f,"#type x y r \n");
-    std::ofstream myfile (name);
-    for(auto b: search_branches){
-      myfile<<"1 "<<b->get_coordinates()[0]<<" "<<b->get_coordinates()[1]<<" "<<b->bmin()[0] <<" "<< b->bmin()[1] << " " << b->bmax()[0] <<" "<< b->bmax()[1] <<" "<<b->id()<<" "<<b->sub_entities()<<std::endl;
-    }
-    for(auto e: localbodies_){
-      myfile<<"0 "<<e.second.coordinates()[0]<<" "<<e.second.coordinates()[1]<<" "<<2*e.second.getSmoothinglength()<<" "<<e.first<<" 0 0 0 0"<<std::endl;
-    }
-    myfile.close();
-    //for(auto b: search_branches){
-    //  fprintf(f,"1 %.4f %.4f %.4f %lo\n",
-    //    b->get_coordinates()[0],b->get_coordinates()[1],b->radius(),b->id());
-    //}
-    // Also output the bodies 
-    //for(auto e: localbodies_){
-    //  fprintf(f,"0 %.4f %.4f %.4f %lo\n",e.second.coordinates()[0],e.second.coordinates()[1],2*e.second.getSmoothinglength(),e.first);
-    //}
-    fclose(f);*/
+#endif
 
     // Exchnage usefull body_holder from my tree to other processes
     tcolorer_.mpi_branches_exchange(*tree_,localbodies_,rangeposproc_,
@@ -338,6 +312,7 @@ public:
     // Update the tree 
     tree_->update_branches(2*smoothinglength_);
 
+#ifdef DEBUG
     lentities = tree_->root()->sub_entities();
     // Get on 0 
     MPI_Gather(
@@ -358,8 +333,9 @@ public:
       }
       std::cout<<std::endl;
     }
+#endif
     
-#if COMPUTE_NEIGHBORS == 1 
+#ifdef COMPUTE_NEIGHBORS
     tcolorer_.mpi_compute_neighbors(
         *tree_,
         bodies_,
@@ -378,7 +354,8 @@ public:
 // Compute and refresh the ghosts 
     tcolorer_.mpi_compute_ghosts(*tree_,bodies_,smoothinglength_/*,range_*/);
     tcolorer_.mpi_refresh_ghosts(*tree_/*,range_*/); 
-#endif 
+#endif
+
   }
 
   void update_neighbors()
@@ -386,15 +363,17 @@ public:
     tcolorer_.mpi_refresh_ghosts(*tree_/*,range_*/);
   }
 
-  void gravitation_fmm(){
-    // Compute the COM
-    tcolorer_.tree_traversal_com(*tree_);
+  void gravitation_fmm()
+  {
+    tree_->update_branches_local(/*2*smoothinglength_*/);
+    assert(tree_->root()->sub_entities() == localnbodies_);
     // Exchange the cells up to a depth 
-    tcolorer_.mpi_exchange_cells(*tree_,maxmasscell_);
+    tfmm_.mpi_exchange_cells(*tree_,maxmasscell_);
     // Compute the fmm interaction to the gathered cells 
-    tcolorer_.mpi_compute_fmm(*tree_,macangle_);
+    tfmm_.mpi_compute_fmm(*tree_,macangle_);
     // Gather all the contributions and compute 
-    tcolorer_.mpi_gather_cells(*tree_);
+    tfmm_.mpi_gather_cells(*tree_);
+    tree_->update_branches(2*smoothinglength_);
   }
 
   template<
@@ -406,10 +385,11 @@ public:
       ARGS&&... args)
   {
 
-  #if COMPUTE_NEIGHBORS == 1 
-  int64_t nelem = bodies_.size(); 
+#ifdef COMPUTE_NEIGHBORS
+    int64_t nelem = bodies_.size(); 
   #pragma omp parallel for 
     for(int64_t i=0; i<nelem; ++i){
+      // Change here to use only the iterator of begin and end 
       for(size_t d=0; d<gdimension; ++d){
         assert(!std::isnan(bodies_[i]->getBody()->coordinates()[d])); 
       }
@@ -424,25 +404,14 @@ public:
       ef(bodies_[i],nbs,std::forward<ARGS>(args)...);
     } 
 #else 
-  int64_t nelem = bodies_.size(); 
-  #pragma omp parallel for 
-    for(int64_t i=0; i<nelem; ++i){
-      for(size_t d=0; d<gdimension; ++d){
-        assert(!std::isnan(bodies_[i]->getBody()->coordinates()[d])); 
-      }
-      assert(bodies_[i]->getBody()->getSmoothinglength() > 0.); 
-      auto ents = tree_->find_in_radius_b(
-        bodies_[i]->getBody()->coordinates(),
-        2*bodies_[i]->getBody()->getSmoothinglength());
-      auto vecents = ents.to_vec();
-      if(vecents.size() == 0){
-        std::cout<< "Particle:" << *(bodies_[i]->getBody()) << std::endl 
-        << "Holder:"<< *bodies_[i] <<std::endl;
-      }   
-      assert(vecents.size()>0);
-
-      ef(bodies_[i],vecents,std::forward<ARGS>(args)...);
-    } 
+    int64_t ncritical = 32; 
+    tree_->apply_sub_cells(
+        tree_->root(),
+        bodies_[0]->getBody()->getSmoothinglength()*2.,
+        0.,
+        ncritical,
+        ef,
+        std::forward<ARGS>(args)...); 
 #endif
   }
 
@@ -486,6 +455,7 @@ private:
   std::array<point_t,2> range_;
   std::vector<std::array<point_t,2>> rangeposproc_;
   tree_colorer<T,D> tcolorer_;
+  tree_fmm<T,D> tfmm_;
   tree_topology_t* tree_;
   std::vector<body_holder*> bodies_;
   double smoothinglength_;

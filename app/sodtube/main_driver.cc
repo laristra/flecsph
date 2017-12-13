@@ -54,8 +54,8 @@ mpi_init_task(int startiteration){
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   
-  int totaliters = 1000;
-  int iteroutput = 10;
+  int totaliters = 500;
+  int iteroutput = 1;
   double totaltime = 0.0;
   double maxtime = 10.0;
   int iter = startiteration; 
@@ -93,6 +93,8 @@ mpi_init_task(int startiteration){
       physics::max_boundary<<std::endl;
   }
 
+  bs.update_iteration();
+
 #ifdef OUTPUT
   bs.write_bodies("output_sodtube",iter);
   //io::outputDataHDF5(rbodies,"output_sodtube.h5part",0);
@@ -116,29 +118,15 @@ mpi_init_task(int startiteration){
     // - Exchange branches for smoothing length 
     // - Compute and exchange ghosts in real smoothing length 
     bs.update_iteration();
+
+    if(rank==0)
+      std::cout<<"compute_density_pressure_soundspeed"<<std::flush; 
+    bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
+    if(rank==0)
+      std::cout<<".done"<<std::endl;
+
+    bs.update_neighbors();
    
-    // Do the Sod Tube physics
-    if(rank==0)
-      std::cout<<"Density"<<std::flush; 
-    bs.apply_in_smoothinglength(physics::compute_density);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
-
-    if(rank==0)
-      std::cout<<"Pressure"<<std::flush; 
-    bs.apply_all(physics::compute_pressure);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
-
-    if(rank==0)
-      std::cout<<"Soundspeed"<<std::flush; 
-    bs.apply_all(physics::compute_soundspeed);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
-    
-    // Refresh the neighbors within the smoothing length 
-    bs.update_neighbors(); 
-
     if(rank==0)
       std::cout<<"Hydro acceleration"<<std::flush; 
     bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
@@ -163,20 +151,15 @@ mpi_init_task(int startiteration){
       bs.apply_all(physics::leapfrog_integration);
       if(rank==0)
         std::cout<<".done"<<std::endl;
-
     }
 
-    if(rank==0)
+    if(rank==0){
       std::cout<<"dudt integration"<<std::flush; 
+    }
     bs.apply_all(physics::dudt_integration);
-    if(rank==0)
+    if(rank==0){
       std::cout<<".done"<<std::endl;
-
-    //if(rank==0)
-    //  std::cout<<"Boundaries"<<std::flush; 
-    //bs.apply_all(physics::compute_boundaries);
-    //if(rank==0)
-    //  std::cout<<".done"<<std::endl;
+    }
 
 
 #ifdef OUTPUT

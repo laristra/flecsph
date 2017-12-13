@@ -33,8 +33,10 @@
 #endif
 
 int main(int argc, char * argv[]){
-  //#ifdef GASNET_CONDUIT_MPI
+  
+//#ifdef GASNET_CONDUIT_MPI
   int provided;
+ 
   // Normal way 
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
   if (provided < MPI_THREAD_MULTIPLE)
@@ -42,14 +44,6 @@ int main(int argc, char * argv[]){
      "MPI_THREAD_MULTIPLE which is required for use of the "
      "GASNet MPI conduit with the Legion-MPI Interop!\n");
   assert(provided == MPI_THREAD_MULTIPLE);
-
-  //MPI_Info info;
-  //MPI_Info_create(&info);
-  //MPI_Info_set(info, "collective_buffering", "true");
-  //MPI_Info_set(info, "romio_lustre_ds_in_coll", "disable");
-  //MPI_Info_set(info, "romio_ds_read", "disable");
-  //MPI_Info_set(info, "romio_ds_write", "disable");
-
 
   std::cout << "MPI_Init done, Initialize" << std::endl;
   auto retval = flecsi::execution::context_t::instance().initialize(argc,argv);

@@ -134,6 +134,16 @@ namespace physics{
     source->setSoundspeed(soundspeed);
   } // computeSoundspeed
 
+  void 
+  compute_density_pressure_soundspeed(
+    body_holder* srch, 
+    std::vector<body_holder*>& nbsh)
+  {
+    compute_density(srch,nbsh);
+    compute_pressure(srch);
+    compute_soundspeed(srch); 
+  }
+
   // mu used in artificial viscosity 
   // Formula is:
   // h_ij*(v_i-v_j).(p_i-p_j)/(dist*dist + h_ij+epsi)
@@ -174,7 +184,6 @@ namespace physics{
     std::vector<body_holder*>& ngbsh)
   { 
     body* source = srch->getBody();
-
     // reset acceleration 
     source->setAcceleration(point_t{});
 
@@ -217,6 +226,8 @@ namespace physics{
     hydro = -1.0*hydro;
     acceleration += hydro;
     source->setAcceleration(acceleration);
+    //std::cout<<*source<<std::endl;
+
   } // compute_hydro_acceleration
 
   // compute u 
@@ -344,9 +355,11 @@ namespace physics{
     if(stop_boundaries){
       if(position < min_boundary || 
           position > max_boundary){
+
         velocity = point_t{};
         velocityHalf = point_t{};
         considered = true;
+      
       }
     }else if(reflect_boundaries){
       for(size_t dim=0;dim < gdimension ; ++dim){
@@ -405,8 +418,6 @@ namespace physics{
     source->setVelocityhalf(velocityHalf);
     source->setVelocity(velocity);
     source->setPosition(position);
-  
-    totaltime += dt;
 
     assert(!std::isnan(position[0])); 
   }
@@ -438,8 +449,6 @@ namespace physics{
     source->setVelocityhalf(velocityHalf);
     source->setVelocity(velocity);
     source->setPosition(position);
-    
-    totaltime += dt;
     
     assert(!std::isnan(position[0])); 
   }

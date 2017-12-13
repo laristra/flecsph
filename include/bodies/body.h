@@ -34,6 +34,8 @@
 
 #include "user.h"
 
+#define INTERNAL_ENERGY
+
 class body{
 
   static const size_t dimension = gdimension;

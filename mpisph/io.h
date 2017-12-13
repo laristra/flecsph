@@ -283,7 +283,6 @@ void inputDataHDF5(
       " density="<<b_rho<<
       " h="<<b_h<<std::endl;
 
-    
     for(int64_t i=0; i<nparticlesproc; ++i){
       double m = 0.;
       if(gdimension == 3){
@@ -351,6 +350,15 @@ void inputDataHDF5(
   for(int64_t i=0; i<nparticlesproc; ++i){
     bodies[i].second.setPressure(dataX[i]);
   }
+
+  // Internal Energy  
+  #ifdef INTERNAL_ENERGY
+  std::fill(dataX,dataX+nparticlesproc,0.);
+  H5PartReadDataFloat64(dataFile,"u",dataX);
+  for(int64_t i=0; i<nparticlesproc; ++i){
+    bodies[i].second.setInternalenergy(dataX[i]);
+  }
+  #endif
 
   //bool b_index = false; 
   // Id, if the same id, reindex the particles 
@@ -577,7 +585,9 @@ void outputDataHDF5(
   for(auto bi: bodies){
     b1[pos] = bi.second.getSmoothinglength();
     b2[pos] = bi.second.getDensity();
-    //b3[pos++] = bi.second.getInternalenergy();
+    #ifdef INTERNAL_ENERGY
+    b3[pos] = bi.second.getInternalenergy();
+    #endif
     pos++;
   }
 
@@ -585,8 +595,10 @@ void outputDataHDF5(
         "double", nparticlesproc,b1));
   simio.addVariable( Flecsi_Sim_IO::Variable("rho",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b2));
-  //simio.addVariable( Flecsi_Sim_IO::Variable("u",Flecsi_Sim_IO::point, 
-  //      "double", nparticlesproc,b3));
+  #ifdef INTERNAL_ENERGY
+  simio.addVariable( Flecsi_Sim_IO::Variable("u",Flecsi_Sim_IO::point, 
+        "double", nparticlesproc,b3));
+  #endif
 
   simio.writeVariables();
 

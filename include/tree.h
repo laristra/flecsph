@@ -62,6 +62,7 @@ public:
   using element_t = type_t; 
   using point_t = flecsi::point<element_t, dimension>;
   using space_vector_t = flecsi::space_vector<element_t,dimension>;
+  using geometry_t = flecsi::topology::tree_geometry<element_t, gdimension>;
 
   class body_holder : 
     public flecsi::topology::tree_entity<branch_int_t,dimension>{

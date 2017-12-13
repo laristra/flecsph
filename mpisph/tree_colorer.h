@@ -34,7 +34,7 @@
 
 #include "tree.h"
 
-#define COMPUTE_NEIGHBORS 1
+//#define COMPUTE_NEIGHBORS 1
 
 std::ostream&
 operator<<(
@@ -169,10 +169,6 @@ private:
 
   // To share the ghosts data within the radius
   mpi_ghosts_t ghosts_data;
-
-  // Used in the COM computation and exchange
-  //std::vector<mpi_cell_t> recvCOM;
-  std::vector<int> nrecvCOM;
 
   const size_t noct = 256*1024; // Number of octets used for quicksort    
 
@@ -382,9 +378,6 @@ public:
       std::cout<<"Branches repartition" << std::flush;
 #endif
 
-    // Version with the small branch update
-    #if 1 
-
     // Do a tree search up to a branch 
     // Keep those branches in a list 
     int criterion = 128;
@@ -511,50 +504,6 @@ public:
 
     //std::cout<<rank<<" Send vector of particlies"<<std::endl;
 
-    #else
-    // Search for my min and max posititon
-    std::array<point_t,2> range;
-    local_range(rbodies,range);
-
-    // Add the smoothing length to the max and min to find the real boundaries
-    // Consider that on the edge of the box, and the sphere radius. 
-    double dist_sphere_box = sqrt(2)*2*smoothinglength;
-    range[0] = range[0]-dist_sphere_box;
-    range[1] = range[1]+dist_sphere_box;
-
-    // Gather the keys of everyone 
-    // If it is the first time, allocate the ranges 
-    if(ranges.size() == 0){
-      ranges.resize(size);
-    }
-    
-    MPI_Allgather(&range,sizeof(std::array<point_t,2>),
-      MPI_BYTE,&ranges[0],sizeof(std::array<point_t,2>),
-      MPI_BYTE,MPI_COMM_WORLD);
-
-    // Now generate the sendbuffer, ordered by processes
-    // for the holders 
-    reset_buffers();
-    std::vector<body_holder_mpi_t> sendbuffer;
-    scount[rank]=0;
-
-    // Search in the tree for each processes 
-    for(int i=0;i<size;++i)
-    {
-      if(i==rank)
-        continue;
-      auto ents = tree.find_in_box_b(ranges[i][0],ranges[i][1]);
-      scount[i] = ents.size();
-      for(auto ent: ents){
-        sendbuffer.push_back(body_holder_mpi_t{
-            ent->getPosition(),
-            rank,
-            ent->getMass(),
-	          ent->getId()});
-      }
-    }
-    #endif
-
     std::vector<body_holder_mpi_t> recvbuffer;
     mpi_alltoallv(scount,sendbuffer,recvbuffer); 
 
@@ -579,7 +528,7 @@ public:
 
 
 
-#if COMPUTE_NEIGHBORS == 1 
+#ifdef COMPUTE_NEIGHBORS
   /**
    * @brief      Update the local ghosts data. This function is always use 
    * after one call of mpi_compute_ghosts. It can be use several time like:
@@ -727,7 +676,7 @@ void mpi_refresh_ghosts(
 #endif // COMPUTE_NEIGHBORS
 
 
-#if COMPUTE_NEIGHBORS == 1 
+#ifdef COMPUTE_NEIGHBORS
   /**
    * @brief      Prepare the buffer for the ghost transfer function. 
    * Based on the non local particles shared in the mpi_branches_exchange, 
@@ -1056,7 +1005,7 @@ void mpi_refresh_ghosts(
 #endif
   }
 
-#endif 
+#endif // COMPUTE_NEIGHBORS
 
   void 
   mpi_compute_neighbors(
@@ -1088,9 +1037,6 @@ void mpi_refresh_ghosts(
     //MPI_Barrier(MPI_COMM_WORLD);
     t2 = omp_get_wtime(); 
 
-#define CUTV 
-
-#ifdef CUTV 
     double MAC = 0.;
     // Index them?????????
     #pragma omp parallel for 
@@ -1105,7 +1051,7 @@ void mpi_refresh_ghosts(
         nbc[source->index()] = nb.size();
     };
 
-    int criterion = 128;
+    int criterion = 64;
 
     // 1 compute the neigbors for each 
     tree.apply_sub_cells(
@@ -1116,19 +1062,6 @@ void mpi_refresh_ghosts(
         count,
         neighbors_count
     );
-
-    //std::cout<<"End count"<<std::endl;
-  #else
-  //#pragma omp parallel for 
-    for(int64_t i=0; i<nelem;++i)
-    {
-      auto nbs = tree.find_in_radius_b(
-            lbodies[i]->coordinates(),
-            lbodies[i]->getBody()->getSmoothinglength()*2.
-          );
-      neighbors_count[i] = nbs.size();
-    }
-#endif
 
     //MPI_Barrier(MPI_COMM_WORLD);
     t3 = omp_get_wtime();
@@ -1148,7 +1081,6 @@ void mpi_refresh_ghosts(
     //MPI_Barrier(MPI_COMM_WORLD);
     t4 = omp_get_wtime();
 
-#ifdef CUTV
     auto record = [](
       body_holder* source,
       std::vector<body_holder*>& nb,
@@ -1176,26 +1108,6 @@ void mpi_refresh_ghosts(
         neighbors
     );
 
-    //std::cout<<"End count"<<std::endl;
-#else
-
-#pragma omp parallel for 
-    for(int64_t i=0; i<nelem; ++i)
-    {
-      auto nbs = tree.find_in_radius_b(
-          lbodies[i]->coordinates(),
-          lbodies[i]->getBody()->getSmoothinglength()*2.
-        );
-      int pos = 0;
-      for(auto nb: nbs)
-      {
-        neighbors[neighbors_count[i]+pos++] = nb;
-      }
-      assert(neighbors_count[i+1]-neighbors_count[i] == pos);
-    }
-
-#endif
-
     //MPI_Barrier(MPI_COMM_WORLD);
     t5 = omp_get_wtime();
 
@@ -1213,11 +1125,6 @@ void mpi_refresh_ghosts(
     }
 
     std::cout<<rank<<" t="<<t5-t1<<"s"<<std::endl<<std::flush;
-    //std::cout<<rank<<" neighbors = "<< neighbors_count.back()<< std::endl;
-    //if(rank==0){
-    //  std::cout<<"["<<rank<<"]: "<<"t1="<<t2-t1<<"s t2="<<t3-t2<<
-    //    "s t3="<<t4-t3<<"s t4="<<t5-t4<<"s"<<std::endl;
-    //}
 
 #ifdef OUTPUT
     MPI_Barrier(MPI_COMM_WORLD);

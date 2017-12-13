@@ -1,7 +1,7 @@
 /*~--------------------------------------------------------------------------~*
  * Copyright (c) 2017 Los Alamos National Security, LLC
  * All rights reserved.
- *~--------------------------------------------------------------------------~*/
+ *~--------------------------------------------------------------------------~*\
 
  /*~--------------------------------------------------------------------------~*
  * 
@@ -38,9 +38,7 @@
 #include "flecsi/data/data.h"
 
 #include <bodies_system.h>
-
-#include "eos_analytics.h"
-//#include "physics.h"
+#include "physics.h"
 
 namespace flecsi{
 namespace execution{
@@ -54,40 +52,45 @@ mpi_init_task(int startiteration){
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   
-  int totaliters = 100;
-  int iteroutput = 1;
-  double totaltime = 0.0;
-  double maxtime = 10.0;
   int iter = startiteration; 
-
-  // Init if default values are not ok
-  physics::dt = 0.001;
-  physics::alpha = 1; 
-  physics::beta = 2; 
-  //physics::stop_boundaries = true;
-  //physics::min_boundary = {0.1};
-  //physics::max_boundary = {1.0};
-  physics::gamma = 5./3.;
+  int noutput = startiteration+1;
+  int maxiter = 300;
 
   body_system<double,gdimension> bs;
-  bs.read_bodies("hdf5_sedov.h5part",startiteration);
-  //io::inputDataHDF5(rbodies,"hdf5_sodtube.h5part",totalnbodies,nbodies);
+  double maxtime = 1.0;
+  double outputtime = 0.001;
+  
+  // Use the user reader defined in the physics file 
+  bs.read_bodies("hdf5_bns_3D.h5part",startiteration);
 
-  double h = bs.getSmoothinglength();
-  physics::epsilon = 0.01*h*h;
+  remove("output_bns_3D.h5part");
 
-  remove("output_sedov.h5part"); 
+  bs.update_iteration();
+    // For OMP time, just used on 0, initialized for others
+  double start = 0;
+  double start_iteration = 0;
+
+  // Compute density, pressure, cs for next iteration
+  MPI_Barrier(MPI_COMM_WORLD);
+  if(rank==0){
+    std::cout<<"compute_density_pressure_soundspeed"<<std::flush; 
+    start = omp_get_wtime(); 
+  }
+  bs.apply_in_smoothinglength(
+    physics::compute_density_pressure_soundspeed); 
+  MPI_Barrier(MPI_COMM_WORLD);
+  if(rank==0)
+    std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
 #ifdef OUTPUT
-  bs.write_bodies("output_sedov",iter);
-  //io::outputDataHDF5(rbodies,"output_sodtube.h5part",0);
-  //tcolorer.mpi_output_txt(rbodies,iter,"output_sodtube"); 
+  bs.write_bodies("output_bns_3D",startiteration);
 #endif
 
   ++iter; 
   do
   { 
     MPI_Barrier(MPI_COMM_WORLD);
+    start_iteration = omp_get_wtime();
     if(rank==0)
       std::cout<<std::endl<<"#### Iteration "<<iter<<std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
@@ -101,58 +104,68 @@ mpi_init_task(int startiteration){
     // - Exchange branches for smoothing length 
     // - Compute and exchange ghosts in real smoothing length 
     bs.update_iteration();
-   
-    // Do the Sod Tube physics
-    if(rank==0)
-      std::cout<<"compute_density_pressure_soundspeed"<<std::flush; 
-    bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
     
-    // Refresh the neighbors within the smoothing length 
-    bs.update_neighbors(); 
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){
+      std::cout<<"Accel FMM"<<std::flush; 
+      start = omp_get_wtime(); 
+    }
+    bs.gravitation_fmm();
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0)
+      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
-    if(rank==0)
-      std::cout<<"Hydro acceleration"<<std::flush; 
-    bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
- 
-    if(rank==0)
-      std::cout<<"Internalenergy"<<std::flush; 
-    bs.apply_in_smoothinglength(physics::compute_internalenergy);
-    if(rank==0)
-      std::cout<<".done"<<std::endl; 
-   
-    if(iter==1){ 
-      if(rank==0)
-        std::cout<<"leapfrog"<<std::flush; 
+    physics::dt = 0.001;
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){
+      std::cout<<"Leapfrog integration"<<std::flush; 
+      start = omp_get_wtime(); 
+    }
+    if(iter == 1){
       bs.apply_all(physics::leapfrog_integration_first_step);
-      if(rank==0)
-        std::cout<<".done"<<std::endl;
     }else{
-      if(rank==0)
-        std::cout<<"leapfrog"<<std::flush; 
       bs.apply_all(physics::leapfrog_integration);
-      if(rank==0)
-        std::cout<<".done"<<std::endl;
     }
-
+    MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0)
-      std::cout<<"dudt integration"<<std::flush; 
-    bs.apply_all(physics::dudt_integration);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
+      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
-   
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){
+      std::cout<<"compute_density_pressure_soundspeed"<<std::flush; 
+      start = omp_get_wtime(); 
+    }
+    bs.apply_in_smoothinglength(
+      physics::compute_density_pressure_soundspeed); 
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0)
+      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+
+    physics::totaltime += physics::dt;
+
+    if(rank == 0){
+      std::cout<<"Total time="<<physics::totaltime<<"s / "<<maxtime<<"s"<<std::endl;
+    }
 #ifdef OUTPUT
-    if(iter % iteroutput == 0){ 
-      bs.write_bodies("output_sedov",iter/iteroutput);
+    if(physics::totaltime > noutput*outputtime){
+      bs.write_bodies("output_bns_3D",noutput);
+      noutput++;
     }
+
+    //if(iter % iteroutput == 0){ 
+    //  bs.write_bodies("output_fluid",iter/iteroutput);
+    //}
 #endif
     ++iter;
     
-  }while(iter<totaliters);
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank == 0){
+      std::cout<<"Iteration time = "<<omp_get_wtime()-start_iteration<< "s" <<std::endl;
+    }
+  }while(iter<maxiter);
+  //}while(physics::totaltime<physics::maxtime);
 }
 
 flecsi_register_mpi_task(mpi_init_task);
