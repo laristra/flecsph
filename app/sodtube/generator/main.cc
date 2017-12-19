@@ -13,7 +13,7 @@
 namespace simulation_params {
   int64_t nparticles;        // global number of particles
   int64_t nparticlesproc;    // number of particles per proc
-  double ldistance;          // Distance between the particles 
+  double ldistance;          // particles spacing 
   double localgamma;         // polytropic index
   double smoothing_length;   // constant smoothing length
 
@@ -26,31 +26,26 @@ namespace simulation_params {
 
   // output filename
   const char* fileprefix = "hdf5_sodtube";
+  char output_filename[128];
 }
 
+
 // 
-// set default parameters 
+// setup parameter defaults 
 //
 void set_default_param(int rank, int size) {
   using namespace simulation_params;
 
   // number of particles
   nparticles = 1000;
-  nparticlesproc = nparticles/size;
-  if(rank==size-1){
-    nparticlesproc = nparticles - nparticlesproc*(size-1);
-  }
 
-  // setup Sod test #1
-  sodtest_num = 1;
-  ldistance = 0.001;  // Distance between the particles 
+  // equation of state parameters (one so far)
   localgamma = 5./3.;
-  rho_1 = 1;          rho_2 = 0.125;
-  pressure_1 = 1;     pressure_2 = 0.1;
-  u_1 = 2.5;          u_2 = 2;
-  m_1 = 1.0e-4;       m_2 = 1.0e-5;
-  smoothing_length = 1.0e-2;
+
+  // run Sod test 1 by default
+  sodtest_num = 1;
 }
+
 
 //
 // help message
@@ -58,61 +53,114 @@ void set_default_param(int rank, int size) {
 void print_usage(int rank) {
   using namespace std;
   if (rank == 0)
-    cout << "Initial data generator for Sod shocktube test problem in 1D" << endl 
+    cout << "Initial data generator for Sod shocktube test in 1D" << endl
          << "Usage: ./sodtube_generator [OPTIONS]" << endl 
          << " -h: this help" << endl
          << " -n <number of particles>" << endl
          << " -t <Sod test (integer from 1 to 5)>" << endl;
 }
 
+
 //
-// parse command-line options 
+// option parser 
 //
-int option_parser(int rank, int argc, char * argv[]) {
+void parse_command_line_options(int rank, int size, int argc, char* argv[]) {
   using namespace std;
+  using namespace simulation_params;
+
   for (int i=1; i<argc; ++i) 
     if (argv[i][0] == '-') 
       switch(argv[i][1]) {
       case 'h':
         print_usage(rank);
-        return (-1);
+        MPI_Finalize();
+        exit(0);
+      
+      case 'n':
+        nparticles = atoll(argv[++i]);
+        nparticlesproc = nparticles/size;
+        if(rank==size-1)
+          nparticlesproc = nparticles - nparticlesproc*(size-1);
+        break;
+        
+      case 't':
+        sodtest_num = atoi(argv[++i]);
+        assert(sodtest_num>=1 && sodtest_num<=6);
+        break;
+
+      default:
+        cerr << "ERROR: unknown option '-" << argv[i][1] << "'" << endl;
+        MPI_Finalize();
+        exit(-1);
+        
       } // switch argv[i][1]
-  return 0;
+
 }
 
-int main(int argc, char * argv[]){
+
+// 
+// setup simulation parameters
+//
+void set_param(int rank, int size) {
+  using namespace std;
   using namespace simulation_params;
 
+  // number of particles per core
+  nparticlesproc = nparticles/size + 1;
+  if(rank==size-1){
+    nparticlesproc = nparticles - nparticlesproc*(size-1);
+  }
+
+  // particle spacing and smoothing length
+  ldistance = 1.0/(double)nparticles; 
+  smoothing_length = ldistance*10; // TODO: introduce \eta parameter
+
+  // test selector
+  switch (sodtest_num) {
+    case (1): 
+      // -- left side   || right side -- //  
+      rho_1      = 1.0;    rho_2      = 0.125;
+      pressure_1 = 1.0;    pressure_2 = 0.1;
+      u_1        = 2.5;    u_2        = 2.0;
+      m_1        = 1.e-4;  m_2        = 1.e-5;
+      break;
+
+    default:
+      cerr << "ERROR: invalid test (" << sodtest_num << ")." << endl;
+      MPI_Finalize();
+      exit(-1);
+  }
+  
+  // output file
+  sprintf(output_filename,"%s.h5part",fileprefix);
+
+}
+
+//----------------------------------------------------------------------------//
+int main(int argc, char * argv[]){
+  using namespace std;
+  using namespace simulation_params;
+
+  // launch MPI
   int rank, size; 
   MPI_Init(&argc,&argv);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
 
-  // TODO
+  // set simulation parameters
   set_default_param(rank,size);
+  parse_command_line_options(rank,size,argc,argv);
+  set_param(rank,size); 
 
-  // 2. parse options
-  int parsed= option_parser(rank,argc,argv);
-  if (parsed != 0) {
-    MPI_Finalize();
-    return (0);
-  }
-
-  if(argc!=2){
-    if(rank==0){
-      printf("./sodtube_generator [nParticles]\n");
-      fprintf(stderr,"Running with default number of particles=1000\n");
-    }
-  }else{
-    nparticles = atoll(argv[1]);
-  }
-
-
+  // screen output
   if(rank==0){
-    printf("Generating %ld particles\n",nparticles);
-    printf("%ld particles per proc (last %ld)\n",nparticlesproc,
-        nparticles-nparticlesproc*(size-1));
+    cout << "Sod test #" << sodtest_num << " in 1D:" << endl
+         << " - number of particles: " << nparticles << endl
+         << " - particles per core:  " << nparticlesproc << endl
+         << " - output file: " << output_filename << endl;
   }
+
+  // allocate arrays
 
   // Position
   double* x = new double[nparticlesproc]();
@@ -185,15 +233,11 @@ int main(int argc, char * argv[]){
     //std::cout<<x[part]<<": "<<h[part]<<std::endl;
   }
 
-  char filename[128];
-  //sprintf(filename,"%s_%d.h5part",fileprefix,nparticles);
-  sprintf(filename,"%s.h5part",fileprefix);
-
   // Destroy the file if exists 
-  remove(filename);
+  remove(output_filename);
 
   Flecsi_Sim_IO::HDF5ParticleIO testDataSet; 
-  testDataSet.createDataset(filename,MPI_COMM_WORLD);
+  testDataSet.createDataset(output_filename,MPI_COMM_WORLD);
 
   // add the global attributes
   testDataSet.writeDatasetAttribute("nparticles","int64_t",nparticles);
