@@ -3,7 +3,7 @@
  * All rights reserved.
  *~--------------------------------------------------------------------------~*/
 
- #include <iostream>
+#include <iostream>
 #include <algorithm>
 #include <cassert>
 
@@ -11,31 +11,81 @@
 #include "kernel.h"
 
 
-const double ldistance = 0.001;  // Distance between the particles 
-const double localgamma = 5./3.;
-const double rho_1 = 1;
-const double rho_2 = 0.125;
-const double pressure_1 = 1;
-const double pressure_2 = 0.1;
-const double u_1 = 2.5;
-const double u_2 = 2;
-const double m_1 = 1.0e-4;
-const double m_2 = 1.0e-5;
-const double smoothing_length = 1.0e-2;
-const char* fileprefix = "hdf5_sodtube";
+namespace simulation_params {
+  int64_t nparticles;        // Total number of particles
+  double ldistance;          // Distance between the particles 
+  double localgamma;         // polytropic index
+  double smoothing_length;   // constant smoothing length
 
+  // test conditions for two sides of the domain
+  int    sodtest_num;            // which Sod test to generate
+  double rho_1, rho_2;           // densities
+  double pressure_1, pressure_2; // pressures
+  double u_1, u_2;               // internal energies
+  double m_1, m_2;               // particle masses
 
+  // output filename
+  const char* fileprefix = "hdf5_sodtube";
+}
+
+// 
+// set default parameters 
+//
+void set_default_param(int rank) {
+  using namespace simulation_params;
+
+  // number of particles
+  nparticles = 1000;
+
+  // setup Sod test #1
+  sodtest_num = 1;
+  ldistance = 0.001;  // Distance between the particles 
+  localgamma = 5./3.;
+  rho_1 = 1;          rho_2 = 0.125;
+  pressure_1 = 1;     pressure_2 = 0.1;
+  u_1 = 2.5;          u_2 = 2;
+  m_1 = 1.0e-4;       m_2 = 1.0e-5;
+  smoothing_length = 1.0e-2;
+}
+
+// 
+// parse command-line options 
+//
+int option_parser(int rank, int argc, char * argv[]) {
+  using namespace std;
+  for (int i=1; i<argc; ++i) 
+    if (argv[i][0] == '-') 
+      switch(argv[i][1]) {
+      case 'h':
+        if (rank == 0)
+          cout << "Usage: ./" << argv[0] 
+               << " -n <number of particles>" << endl;
+        return (-1);
+      } // switch argv[i][1]
+
+  return 0;
+
+}
 
 int main(int argc, char * argv[]){
+  using namespace simulation_params;
 
-  int64_t nparticles = 1000;
-  
   int rank, size;
   int provided;  
   MPI_Init_thread(&argc,&argv,MPI_THREAD_MULTIPLE,&provided);
   assert(provided>=MPI_THREAD_MULTIPLE);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
+
+  // TODO
+  set_default_param(rank);
+
+  // 2. parse options
+  int parsed= option_parser(rank,argc,argv);
+  if (parsed != 0) {
+    MPI_Finalize();
+    return (0);
+  }
 
   if(argc!=2){
     if(rank==0){
@@ -205,22 +255,7 @@ int main(int argc, char * argv[]){
 
   testDataSet.closeFile(); 
   
-  delete[] x;
-  delete[] y;
-  delete[] z;
-  delete[] vx;
-  delete[] vy;
-  delete[] vz;
-  delete[] ax;
-  delete[] ay;
-  delete[] az;
-  delete[] h;
-  delete[] rho;
-  delete[] u;
-  delete[] P;
-  delete[] m;
-  delete[] id;
-  delete[] dt;
+  delete[] x,y,z,vx,vy,vz,ax,ay,az,h,rho,u,P,m,id,dt;
  
   MPI_Finalize();
   return 0;
