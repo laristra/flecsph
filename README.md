@@ -18,7 +18,7 @@ The Binary, Quad and Oct tree respectively for 1, 2 and 3 dimensions is develope
 
 For the first version of the code we intent to provide several basic physics problems: 
 
-- Sod Shock Tube in 1D
+- Sod Shock Tube Tests in 1D
 - Sedov Blast Wave 2D
 - Binary Compact Object Merger 3D  
 
