@@ -12,7 +12,8 @@
 
 
 namespace simulation_params {
-  int64_t nparticles;        // Total number of particles
+  int64_t nparticles;        // global number of particles
+  int64_t nparticlesproc;    // number of particles per proc
   double ldistance;          // Distance between the particles 
   double localgamma;         // polytropic index
   double smoothing_length;   // constant smoothing length
@@ -31,11 +32,15 @@ namespace simulation_params {
 // 
 // set default parameters 
 //
-void set_default_param(int rank) {
+void set_default_param(int rank, int size) {
   using namespace simulation_params;
 
   // number of particles
   nparticles = 1000;
+  nparticlesproc = nparticles/size;
+  if(rank==size-1){
+    nparticlesproc = nparticles - nparticlesproc*(size-1);
+  }
 
   // setup Sod test #1
   sodtest_num = 1;
@@ -48,7 +53,20 @@ void set_default_param(int rank) {
   smoothing_length = 1.0e-2;
 }
 
-// 
+//
+// help message
+//
+void print_usage(int rank) {
+  using namespace std;
+  if (rank == 0)
+    cout << "Initial data generator for Sod shocktube test problem in 1D" << endl 
+         << "Usage: ./sodtube_generator [OPTIONS]" << endl 
+         << " -h: this help" << endl
+         << " -n <number of particles>" << endl
+         << " -t <Sod test (integer from 1 to 5)>" << endl;
+}
+
+//
 // parse command-line options 
 //
 int option_parser(int rank, int argc, char * argv[]) {
@@ -57,14 +75,10 @@ int option_parser(int rank, int argc, char * argv[]) {
     if (argv[i][0] == '-') 
       switch(argv[i][1]) {
       case 'h':
-        if (rank == 0)
-          cout << "Usage: ./" << argv[0] 
-               << " -n <number of particles>" << endl;
+        print_usage(rank);
         return (-1);
       } // switch argv[i][1]
-
   return 0;
-
 }
 
 int main(int argc, char * argv[]){
@@ -78,7 +92,7 @@ int main(int argc, char * argv[]){
   MPI_Comm_size(MPI_COMM_WORLD,&size);
 
   // TODO
-  set_default_param(rank);
+  set_default_param(rank,size);
 
   // 2. parse options
   int parsed= option_parser(rank,argc,argv);
@@ -96,10 +110,6 @@ int main(int argc, char * argv[]){
     nparticles = atoll(argv[1]);
   }
 
-  int64_t nparticlesproc = nparticles/size;
-  if(rank==size-1){
-    nparticlesproc = nparticles - nparticlesproc*(size-1);
-  }
 
   if(rank==0){
     printf("Generating %ld particles\n",nparticles);
