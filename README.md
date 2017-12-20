@@ -18,7 +18,7 @@ The Binary, Quad and Oct tree respectively for 1, 2 and 3 dimensions is develope
 
 For the first version of the code we intent to provide several basic physics problems: 
 
-- Sod Shock Tube in 1D
+- Sod Shock Tube Tests in 1D
 - Sedov Blast Wave 2D
 - Binary Compact Object Merger 3D  
 
@@ -113,4 +113,8 @@ Then make:
  - bwd : 3D binary white dwarf merger with analytic zero temperature EOS
  
  Also, app/miscell directory contains python scripts that perform different aspects for initial data generators and converter for h5part format. 
+ 
+ # Contacts
+ 
+ If you have any questions or find any worries about FleCSPH, please contact Julien Loiseau (julien.loiseau@univ-reims.fr) and/or Hyun Lim (hylim1988@gmail.com)
  
