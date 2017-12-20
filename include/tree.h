@@ -480,5 +480,99 @@ using entity_id_t = flecsi::topology::entity_id_t;
 
 std::array<point_t,2> entity_key_t::range_ = {point_t{},point_t{}};
 
-#endif // tree_h
 
+std::ostream&
+operator<<(
+  std::ostream& ostr,
+  const entity_key_t& id
+)
+{
+  id.output_(ostr);
+  return ostr;
+}
+
+inline 
+bool
+operator==(
+    const point_t& p1, 
+    const point_t& p2)
+{
+  for(size_t i=0;i<gdimension;++i)
+    if(p1[i]!=p2[i])
+      return false;
+  return true;
+}
+
+inline 
+bool
+operator!=(
+    const point_t& p1, 
+    const point_t& p2)
+{
+  for(size_t i=0;i<gdimension;++i)
+    if(p1[i]!=p2[i])
+      return true;
+  return false;
+}
+
+inline 
+point_t
+operator+(
+    const point_t& p, 
+    const double& val)
+{
+  point_t pr = p;
+  for(size_t i=0;i<gdimension;++i)
+    pr[i]+=val;
+  return pr;
+}
+
+inline 
+point_t
+operator-(
+    const point_t& p, 
+    const double& val)
+{
+  point_t pr = p;
+  for(size_t i=0;i<gdimension;++i)
+    pr[i]-=val;
+  return pr;
+}
+
+inline 
+bool
+operator<(
+    const point_t& p, 
+    const point_t& q)
+{ 
+  for(size_t i=0;i<gdimension;++i)
+    if(p[i]>q[i])
+      return false;
+  return true;
+}
+
+inline 
+bool
+operator>(
+    const point_t& p, 
+    const point_t& q)
+{  
+  for(size_t i=0;i<gdimension;++i)
+    if(p[i]<q[i])
+      return false;
+  return true;
+}
+
+inline 
+point_t 
+operator*(
+    const point_t& p,
+    const point_t& q)
+{
+  point_t r = p;
+  for(size_t i=0;i<gdimension;++i)
+    r[i] *= q[i];
+  return r;
+}
+
+#endif // tree_h
