@@ -44,6 +44,15 @@ cinch_add_unit(mpi_qsort
   THREADS 4 
 )
 
+cinch_add_unit(gravitation
+  SOURCES
+    test/gravitation.cc
+    ${FleCSI_RUNTIME}/runtime_driver.cc  
+  LIBRARIES ${FleCSPH_LIBRARIES}
+  POLICY MPI 
+  THREADS 4 
+)
+
 cinch_add_unit(io
   SOURCES
     test/io.cc

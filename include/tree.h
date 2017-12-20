@@ -210,7 +210,8 @@ public:
       int_t 
       truncate_value(int depth)
       {
-        return id_ >> dimension*depth;
+        int dec = ((sizeof(int_t)*8)/dimension)*dimension;
+        return id_ >> (dec-dimension*(depth+1));
       }
 
       constexpr

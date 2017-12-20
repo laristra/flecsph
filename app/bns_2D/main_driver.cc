@@ -54,16 +54,17 @@ mpi_init_task(int startiteration){
   
   int iter = startiteration; 
   int noutput = startiteration+1;
-  int maxiter = 2000;
+  int maxiter = 100;
 
   body_system<double,gdimension> bs;
   double maxtime = 1.0;
   double outputtime = 0.02;
   
   // Use the user reader defined in the physics file 
-  bs.read_bodies("hdf5_bns_3D.h5part",startiteration);
+  bs.read_bodies("hdf5_bns_2D.h5part",startiteration);
 
-  remove("output_bns_3D.h5part");
+  remove("output_bns_2D.h5part");
+  const char outputname[64] = "output_bns_2D";
 
   bs.update_iteration();
     // For OMP time, just used on 0, initialized for others
@@ -84,7 +85,7 @@ mpi_init_task(int startiteration){
   //  std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
 #ifdef OUTPUT
-  bs.write_bodies("output_bns_3D",startiteration);
+  bs.write_bodies(outputname,startiteration);
 #endif
 
   ++iter; 
@@ -156,7 +157,7 @@ mpi_init_task(int startiteration){
     }
 #ifdef OUTPUT
     if(physics::totaltime > noutput*outputtime){
-      bs.write_bodies("output_bns_3D",noutput);
+      bs.write_bodies(outputname,noutput);
       noutput++;
     }
 

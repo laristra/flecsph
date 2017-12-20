@@ -365,7 +365,11 @@ public:
 
   void gravitation_fmm()
   {
-    tree_->update_branches_local(/*2*smoothinglength_*/);
+    tree_->update_branches_local();
+    tcolorer_.mpi_tree_traversal_graphviz(*tree_);
+
+    debug_display_branches();
+    
     assert(tree_->root()->sub_entities() == localnbodies_);
     // Exchange the cells up to a depth 
     tfmm_.mpi_exchange_cells(*tree_,maxmasscell_);
@@ -374,6 +378,37 @@ public:
     // Gather all the contributions and compute 
     tfmm_.mpi_gather_cells(*tree_);
     tree_->update_branches(2*smoothinglength_);
+  }
+
+  void
+  debug_display_branches()
+  {
+    int rank = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+
+    static int num = 0;
+
+    std::vector<branch_t*> search_list;
+    tree_->get_all_branches(tree_->root(),search_list);
+    // Output in file 
+    char filename[64];
+    sprintf(filename,"output_search_%02d_%02d.txt",rank,num++);
+    FILE* output = fopen(filename,"w");
+    for(auto& v: search_list){
+      fprintf(output,"%d %.4f %.4f %.4f %.4f %.4f %.4f %d %d\n",
+        1,v->get_coordinates()[0],v->get_coordinates()[1],
+        v->bmin()[0],v->bmin()[1],v->bmax()[0],v->bmax()[1],
+        rank,rank
+        );
+    }
+    // Output the bodies 
+    for(auto& v: localbodies_){
+      fprintf(output,"%d %.4f %.4f %.4f %d %d %d %d %d\n",
+        0,v.second.coordinates()[0],v.second.coordinates()[1],
+        v.second.getSmoothinglength(),rank,0,0,0,0);
+    }
+    
+    fclose(output);
   }
 
   template<

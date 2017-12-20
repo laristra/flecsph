@@ -35,7 +35,7 @@ WORKDIR /home/flecsi
 RUN git clone -b FleCSPH --depth 1 --recursive https://github.com/laristra/flecsi flecsi 
 RUN  cd flecsi && mkdir build && cd build
 WORKDIR flecsi/build
-RUN  cmake -DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_COMPILER=gcc -DFLECSI_RUNTIME_MODEL=legion -DENABLE_CLOG=OFF .. && make VERBOSE=1 -j2
+RUN  cmake -DFLECSI_RUNTIME_MODEL=legion -DENABLE_CLOG=OFF .. && make VERBOSE=1 -j2
 USER root
 RUN make install
 USER flecsi

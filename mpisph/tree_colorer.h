@@ -1686,11 +1686,13 @@ void mpi_refresh_ghosts(
     int rank = 0;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
+    //static int noutput = 0;
+
     char fname[64];
-    sprintf(fname,"output_graphviz_%d.gv",rank);
+    sprintf(fname,"output_graphviz_%02d.gv",rank);
     std::ofstream output;
     output.open(fname);
-    output<<"digraph G {"<<std::endl;
+    output<<"digraph G {"<<std::endl<<"forcelabels=true;"<<std::endl;
 
     std::stack<branch_t*> stk;
     // Get root
@@ -1701,48 +1703,74 @@ void mpi_refresh_ghosts(
       branch_t* cur = stk.top();
       stk.pop();
       if(!cur->is_leaf()){
+
+        if(dimension == 3){
+          output<<std::oct<<cur->id().value_()<<" [label=\""<< cur->id().value_() 
+          <<std::dec<< "\", xlabel=\"" << cur->sub_entities() <<"\"];"<<std::endl;
+        }
+        if(dimension == 2){
+          output<<cur->id().value_()<<" [label=\""<< cur->id().value_() 
+          << "\", xlabel=\"" << cur->sub_entities() <<"\"];"<<std::endl;
+
+        }
+
         // Add the child to the stack and add for display 
         for(size_t i=0;i<(1<<dimension);++i)
         {
           auto br = tree.child(cur,i);
           stk.push(br);
-          if(dimension == 3)
-          {
+          if(dimension == 3){
             output<<std::oct<<cur->id().value_()
               <<"->"<<br->id().value_()<<std::dec<<std::endl;
-          }else if(dimension == 1)
-          {
-            output<<std::bitset<64>(cur->id().value_())<<"->"<<
-              std::bitset<64>(br->id().value_())<<std::endl;
+          }
+          if(dimension == 2){
+            output<<cur->id().value_()
+              <<"->"<<br->id().value_()<<std::dec<<std::endl;  
           }
         }
       }else{
+        if(dimension == 3){
+          output<<std::oct<<cur->id().value_()<<" [label=\""<< cur->id().value_() 
+          <<std::dec<< "\", xlabel=\"" << cur->sub_entities() <<"\"];"<<std::endl;
+        }
+        if(dimension == 2){
+          output<<cur->id().value_()<<" [label=\""<< cur->id().value_() 
+          << "\", xlabel=\"" << cur->sub_entities() <<"\"];"<<std::endl; 
+        }    
         for(auto ent: *cur)
         {
-          entity_key_t key(/*range,*/ent->coordinates());
-          output<<std::bitset<64>(cur->id().value_())<<
-            "->"<<key<<std::endl;
+          entity_key_t key(ent->coordinates());
+          int64_t key_int = key.truncate_value(tree.max_depth()+2);
+          if(dimension == 3){
+            output<<std::oct<<cur->id().value_()<<
+              "->"<<key_int<<std::endl;
+          }
+          if(dimension == 2){
+            output<<cur->id().value_()<<
+              "->"<<key_int<<std::endl;
+          }
           switch (ent->getLocality())
           {
             case 2:
-              output<<key<<"[shape=box,color=blue]"<<std::endl;
+              output<<key_int<<" [shape=box,color=blue]"<<std::endl;
               break;
             case 3:
-              output<<key<<" [shape=box,color=red]"<<std::endl;
+              output<<key_int<<" [shape=box,color=red]"<<std::endl;
               //fprintf(output,"\"%lo\" [shape=box,color=red]\n",
               //  key.truncate_value(17));
               break;
             case 1:
-              output<<key<<" [shape=box,color=green]"<<std::endl;
+              output<<key_int<<" [shape=box,color=green]"<<std::endl;
               //fprintf(output,"\"%lo\" [shape=box,color=green]\n",
               //  key.truncate_value(17));
               break;
             default:
-              output<<key<<" [shape=circle,color=black]"<<std::endl;
+              output<<key_int<<" [shape=circle,color=black]"<<std::endl;
               //fprintf(output,"\"%lo\" [shape=circle,color=black]\n",
               //  key.truncate_value(17));
               break;
           }
+          output<<std::dec;
         }
       } 
     }

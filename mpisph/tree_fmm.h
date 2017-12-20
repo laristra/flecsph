@@ -34,34 +34,6 @@
 
 #include "tree.h"
 
-/**
- * @brief      Structure for COM communication during the gravitation
- *             computation process
- */
-struct mpi_cell_t{
-  point_t position;
-  point_t fc = {};
-  double dfcdr[9] = {};
-  double dfcdrdr[27] = {};
-  point_t bmax;
-  point_t bmin;
-  branch_id_t id;
-  
-  mpi_cell_t(
-      point_t position_,
-      point_t bmin_,
-      point_t bmax_,
-      branch_id_t id_)
-  {
-    position = position_;
-    id = id_;
-    bmax = bmax_;
-    bmin = bmin_;
-  };
-
-  mpi_cell_t(){};
-};
-
 template<
   typename T,
   size_t D
@@ -69,16 +41,44 @@ template<
 class tree_fmm
 {
 
-  using point_t = flecsi::point<T,D>;
+  //using point_t = flecsi::point<T,D>;
   using geometry_t = flecsi::topology::tree_geometry<T,D>;
   static const size_t dimension = D;
+
+  /**
+   * @brief      Structure for COM communication during the gravitation
+   *             computation process
+  */
+  struct mpi_cell_t{
+    point_t position;
+    point_t fc = {};
+    double dfcdr[dimension*dimension] = {};
+    double dfcdrdr[dimension*dimension*dimension] = {};
+    point_t bmax;
+    point_t bmin;
+    branch_id_t id;
+    int ninterations = 0;
+  
+    mpi_cell_t(
+      point_t position_,
+      point_t bmin_,
+      point_t bmax_,
+      branch_id_t id_)
+    {
+      position = position_;
+      id = id_;
+      bmax = bmax_;
+      bmin = bmin_;
+    };
+
+    mpi_cell_t(){};
+  };
 
 private:
 
   // Used in the COM computation and exchange
   std::vector<mpi_cell_t> recvCOM_;
   std::vector<int> nrecvCOM_;
-  double mass_criterion_ = 1.0e-40;
 
 public:
 
@@ -109,12 +109,14 @@ public:
 
     tree.find_sub_cells_mass(
       tree.root(),
-      mass_criterion_,
+      maxMass,
       vbranches);
 
     vcells.resize(vbranches.size());
 
-    #pragma omp parallel for 
+    int visited_entities = 0;
+
+    #pragma omp parallel for reduction(+:visited_entities)
     for(int i = 0; i < vbranches.size(); ++i){
       assert(vbranches[i]->sub_entities()>0);
       vcells[i] = mpi_cell_t(
@@ -123,7 +125,10 @@ public:
         vbranches[i]->bmax(), 
         vbranches[i]->id()
       );
+      visited_entities += vbranches[i]->sub_entities();
     }
+
+    assert(visited_entities == tree.root()->sub_entities());
 
     nrecvCOM_.clear(); 
     // Gather the number of cells from everyone 
@@ -177,7 +182,7 @@ public:
     tree_topology_t& tree,
     double macangle)
   {
-    int size = MPI_Comm_rank(MPI_COMM_WORLD,&size);
+    int size = MPI_Comm_size(MPI_COMM_WORLD,&size);
     int rank = MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
     #pragma omp parallel for 
@@ -189,7 +194,7 @@ public:
       // Do the tree traversal, compute the cells data
       tree_traversal_c2c(tree,&sink,tree.root(),
           cell->fc,cell->dfcdr,cell->dfcdrdr,
-          macangle);
+          macangle,cell->ninterations);
     } // for 
   }
 
@@ -204,7 +209,6 @@ public:
     MPI_Comm_size(MPI_COMM_WORLD,&size);
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   
-    int totalrecv = nrecvCOM_[rank]*size;
     int ncells = nrecvCOM_[rank]/sizeof(mpi_cell_t);
 
     std::vector<int> nrecv(size);
@@ -227,27 +231,50 @@ public:
     // Reduce the sum on the COM 
     // They are in the same order from all the others 
     for(int i=1;i<size;++i){ 
+      std::cout<<"SUMMING FROM "<<i<<std::endl;
       for(int j=0;j<ncells;++j) {
         assert(recvcells[j].position ==  recvcells[i*ncells+j].position );
         assert(recvcells[j].id == recvcells[i*ncells+j].id);
         recvcells[j].fc += recvcells[i*ncells+j].fc;
-        for(int k=0;k<27;++k){ 
-          if(k<9){ 
-            recvcells[j].dfcdr[k] += recvcells[i*ncells+j].dfcdr[k];
-          } // if
+        for(int k=0;k<dimension*dimension;++k){
+          recvcells[j].dfcdr[k] += recvcells[i*ncells+j].dfcdr[k];
+          assert(recvcells[j].dfcdr[k] < 1000);
+        }
+        for(int k=0;k<dimension*dimension*dimension;++k){ 
           recvcells[j].dfcdrdr[k] += recvcells[i*ncells+j].dfcdrdr[k];
-          // Check if cells are not too high 
           assert(recvcells[j].dfcdrdr[k] < 1000);
         } // for
+        recvcells[j].ninterations += recvcells[i*ncells+j].ninterations;
       } // for 
     } // for
-  
+
+    // Remove to zero 
+    /*for(int j=0;j<ncells;++j){ 
+      for(int i = 0; i < dimension; ++i){
+        if(fabs(recvcells[j].fc[i]) < 1.0e-10){
+          recvcells[j].fc[i] = 0.;
+        }
+      }
+      for(int i = 0; i < dimension*dimension; ++i){
+        if(fabs(recvcells[j].dfcdr[i]) < 1.0e-10){
+          recvcells[j].fc[i] = 0.;
+        }
+      }
+      for(int i = 0; i < dimension*dimension*dimension; ++i){
+        if(fabs(recvcells[j].dfcdrdr[i]) < 1.0e-10){
+          recvcells[j].fc[i] = 0.;
+        }
+      }
+    }*/
+
     int nbody = 0;
     // Propagate in the particles from sink 
     for(int i=0;i<ncells;++i){ 
       std::vector<body*> subparts;
       // Find the branch in the local tree with the id
       branch_t * sink =  tree.get(recvcells[i].id);
+      std::cout<<"Cell =  "<<i<< " sub entities = "<< sink->sub_entities() <<" fc = "<<recvcells[i].fc<<std::endl;
+      
       assert(sink!=nullptr);
       point_t pos = sink->getPosition();
 
@@ -258,9 +285,14 @@ public:
       // if the bodies are non local in this area 
       assert(subparts.size()!=0);
 
+      // I interacted with all the other particles 
+      if(size == 1){
+        assert(recvcells[i].ninterations+subparts.size() == tree.root()->sub_entities());
+      }
+
       // Also do the local contribution
       for(auto bi: subparts){  
-        point_t grav = point_t{};
+        point_t grav{};
         for(auto nb: subparts){  
           double dist = flecsi::distance(bi->getPosition(),nb->getPosition());
           if(dist>0.0){  
@@ -290,27 +322,36 @@ public:
     double dist = flecsi::distance(sinkPosition,sourcePosition);
     assert(dist > 0.0);
     point_t diffPos =  sinkPosition - sourcePosition;
-    fc +=  - sourceMass/(dist*dist*dist)*(diffPos);
+    //if(fabs(- sourceMass/(dist*dist*dist)*(diffPos)) > 1.0e-10)
+    fc +=  -sourceMass/(dist*dist*dist)*(diffPos);
+    //for(int i = 0; i < dimension; ++i){
+    //  if(fabs((-sourceMass/(dist*dist*dist)*(diffPos))[i]) > 1.0e-10){
+    //    fc[i] += (-sourceMass/(dist*dist*dist)*(diffPos))[i];
+    //  }
+    //}
+
     double jacobicoeff = -sourceMass/(dist*dist*dist);
-    for(int i=0;i<3;++i){ 
-      for(int j=0;j<3;++j){
+    for(int i=0;i<dimension;++i){ 
+      for(int j=0;j<dimension;++j){
+        double valjacobian = 0.;
         if(i==j){ 
-          jacobi[i*3+j] += jacobicoeff* 
-            (1 - 3*(diffPos[i])*(diffPos[j])/(dist*dist)); 
+          valjacobian = jacobicoeff*(1-3*diffPos[i]*diffPos[j]/(dist*dist)); 
         }else{ 
-          jacobi[i*3+j] += jacobicoeff*
-          (- 3*(diffPos[i])*(diffPos[j])/(dist*dist));
+          valjacobian = jacobicoeff*(- 3*diffPos[i]*diffPos[j]/(dist*dist));
         }
-        assert(!std::isnan(jacobi[i*3+j]));
+        assert(!std::isnan(valjacobian));
+        //if(fabs(valjacobian) > 1.0e-10){
+          jacobi[i*dimension+j] += valjacobian;
+        //}
       }
     }
     // Compute the Hessian matrix 
     double hessiancoeff = -3.0*sourceMass/(dist*dist*dist*dist*dist);
-    for(int i=0;i<3;++i){
-      int matrixPos = i*9;
-      for(int j=0;j<3;++j){
-        for(int k=0;k<3;++k){
-          int position = matrixPos+j*3+k;
+    for(int i=0;i<dimension;++i){
+      int matrixPos = i*dimension*dimension;
+      for(int j=0;j<dimension;++j){
+        for(int k=0;k<dimension;++k){
+          int position = matrixPos+j*dimension+k;
           //hessian[position] = 0.0;
           double firstterm = 0.0;
           if(i==j){
@@ -322,12 +363,15 @@ public:
           if(k==i){
             firstterm += diffPos[j];
           } // if
-          if(!(i==j==k)){
-            firstterm*=3.0;
-          } // if
-          hessian[position] += hessiancoeff * firstterm + 
-            hessiancoeff * -5.0/(dist*dist)*
-            (diffPos[i])*(diffPos[j])*(diffPos[k]);
+          //if(!(i==j && j==k)){
+          //  firstterm*=3.0;
+          //} // if
+          double valhessian = hessiancoeff * 
+            ( 5.0/(dist*dist)*diffPos[i]*diffPos[j]*diffPos[k] - firstterm) ;
+
+          //if(fabs(valhessian) > 1.0e-10){
+            hessian[position] += valhessian;
+          //}
         } // for
       } // for
     } // for
@@ -342,7 +386,8 @@ public:
     //point_t& dfc,
     double* jacobi,
     double* hessian,
-    double& macangle)
+    double& macangle,
+    int& ninter)
   {
     std::stack<branch_t*> stk;
     stk.push(source);
@@ -355,25 +400,27 @@ public:
       // Or if inside the sink, stop 
       if((sink->bmin()==cur->bmin()&&sink->bmax()==cur->bmax()) ||
         (sink->bmin()<cur->bmin()&&sink->bmax()>cur->bmax())){
-        //std::cout<<"Same box"<<std::endl;
-        return;
+        continue;
       } // if
   
-      if(geometry_t::box_MAC(
-        cur->getPosition(),
-        sink->getPosition(),
-        cur->bmin(),
-        cur->bmax(),
-        macangle)){
-        computeAcceleration(sink->getPosition(),cur->getPosition(),
-          cur->getMass(),fc,jacobi,hessian);
-      }else{
+      //if(geometry_t::box_MAC(
+      //  cur->getPosition(),
+      //  sink->getPosition(),
+      //  cur->bmin(),
+      //  cur->bmax(),
+      //  macangle)){
+      //  computeAcceleration(sink->getPosition(),cur->getPosition(),
+      //    cur->getMass(),fc,jacobi,hessian);
+      //  ninter+=cur->sub_entities();
+      //  std::cout<<"Using box"<<std::endl;
+      //}else{
         if(cur->is_leaf()){
           for(auto bi: *cur){
             if(bi->is_local()){
               // Check if particle is not inside my radius 
               if(!(bi->getPosition() < sink->bmax() &&
                 bi->getPosition() > sink->bmin())){
+                ninter++;
                 computeAcceleration(sink->getPosition(),bi->getPosition(),
                   bi->getMass(),fc,jacobi,hessian);
               } // if
@@ -383,10 +430,10 @@ public:
           for(int i=0;i<(1<<dimension);++i){
             if(tree.child(cur,i)->sub_entities() > 0){
               stk.push(tree.child(cur,i));
-            }
+            } // if
           } // for
         } // if
-      } // if
+      //} // if
     } // while
   } // tree_traversal_c2c
 
@@ -396,7 +443,6 @@ public:
     branch_t *b,
     point_t& sinkPosition,
     point_t& fc, 
-    //point_t& dfc, 
     double* jacobi,
     double* hessian,
     std::vector<body*>& neighbors,
@@ -419,28 +465,30 @@ public:
           point_t diffPos = bi->getPosition() - sinkPosition;
           point_t grav = fc;
           // The Jacobi 
-          for(int i=0;i<3;++i){
-            for(int  j=0;j<3;++j){
-              grav[i] += (jacobi[i*3+j]*(diffPos[j]));
+          for(int i=0;i<dimension;++i){
+            for(int  j=0;j<dimension;++j){
+              grav[i] += jacobi[i*dimension+j]*diffPos[j];
             } // for
           } // for
           // The hessian 
-          double tmpMatrix[9] = {};
-          for(int i=0;i<3;++i){
-            for(int j=0;j<3;++j){
-              for(int k=0;k<3;++k){
-                tmpMatrix[i*3+j] += diffPos[k]*hessian[i*9+j+k*3];
+          double tmpMatrix[dimension*dimension] = {};
+          for(int i=0;i<dimension;++i){
+            for(int j=0;j<dimension;++j){
+              for(int k=0;k<dimension;++k){
+                tmpMatrix[i*dimension+j] += 
+                  diffPos[k]*hessian[i*dimension*dimension+j+k*dimension];
               } // for
             } // for
           } // for
-          double tmpVector[3] = {};
-          for(int i=0;i<3;++i){
-            for(int j=0;j<3;++j){
-              tmpVector[i] += tmpMatrix[i*3+j]*diffPos[j];
+          double tmpVector[dimension*dimension] = {};
+          for(int i=0;i<dimension;++i){
+            for(int j=0;j<dimension;++j){
+              tmpVector[i] += tmpMatrix[i*dimension+j]*diffPos[j];
             } // for
           } // for
-          for(int i=0;i<3;++i){
+          for(int i=0;i<dimension;++i){
             grav[i] += 1./2.*tmpVector[i];
+            //assert(tmpVector[i] == 0.);
           } // for
           neighbors.push_back(bi->getBody());
           bi->getBody()->setAcceleration(grav+bi->getBody()->getAcceleration());
@@ -450,7 +498,7 @@ public:
         for(int i=0;i<(1<<dimension);++i){
           if(tree.child(cur,i)->sub_entities() > 0){
             stk.push(tree.child(cur,i));
-          }
+          } // if
         } // for
       } // else
     } // while

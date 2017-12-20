@@ -504,6 +504,26 @@ namespace physics{
     source->setLinMomentum(lin_momentum);   
   }
 
+  void
+  nsquare_gravitation(
+      std::vector<body_holder*>& bodies){
+    int64_t nelem = bodies.size();
+    #pragma omp parallel for 
+    for(int64_t i = 0; i<nelem; ++i){
+      body * source = bodies[i]->getBody();
+      point_t grav = point_t{};
+      for(auto& n: bodies){
+        body* nb = n->getBody();
+        double dist = flecsi::distance(source->getPosition(),nb->getPosition());
+        point_t pos = source->getPosition() - nb->getPosition();
+        if(dist > 0.){
+          grav += -nb->getMass() / (dist*dist*dist) * pos; 
+        }
+      }
+      source->setAcceleration(source->getAcceleration() + grav);
+    }
+  }
+
 }; // physics
 
 #endif // _physics_physics_h_
