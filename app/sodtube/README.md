@@ -2,24 +2,27 @@
 
 # Sod Shock Tube test
 
-This test implement the 1D sod shock tube test. 
+This test implements five standard Sod shock tube tests in 1D 
+(see e.g. Toro 1999, "Riemann Solvers and Numerical Methods for Fluid Dynamics"). 
 
-## Generate the data 
+## Generating initial data 
 Using the generator like: 
 
-    % mpirun -np X ./sodtube_generator <number of particles>
+    % mpirun -np X ./sodtube_generator [-n <number of particles> [-t <testnum>]]
 
-This will generates a h5part file name h5part_sodtube.h5part which is directly
-read by the program. 
+where <testnum> is a number from 1 to 5 (1 by default), and number of particles
+is 1000 by default. 
+This will produce an h5part file named `h5part_sodtube.h5part` to be input into 
+the evolution code. 
 
-## Running the application 
+## Running the evoluiton app 
 
-    % mpirun -np X ./sotube 
+    % mpirun -np X ./sodtube 
 
 As long as FleCSI does not provide a way to read the file name, it is hardcoded 
-in the main_driver.cc file. 
+in the main_driver.cc file to be `h5part_sodtube.h5part`. 
 
-The current version generate an output_sodtube.h5part file with the result. 
+The current version generates a file `output_sodtube.h5part` with the result. 
 
 ## Visualize resutls
 
