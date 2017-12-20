@@ -21,9 +21,8 @@ namespace simulation_params {
   // test conditions for two sides of the domain
   int    sodtest_num;            // which Sod test to generate
   double rho_1, rho_2;           // densities
+  double vx_1, vx_2;             // velocities
   double pressure_1, pressure_2; // pressures
-  double u_1, u_2;               // internal energies
-  double m_1, m_2;               // particle masses
 
   // output filename
   const char* fileprefix = "hdf5_sodtube";
@@ -90,7 +89,8 @@ void parse_command_line_options(int rank, int size, int argc, char* argv[]) {
         break;
 
       default:
-        cerr << "ERROR: unknown option '-" << argv[i][1] << "'" << endl;
+        if (rank == 0)
+          cerr << "ERROR: unknown option '-" << argv[i][1] << "'" << endl;
         MPI_Finalize();
         exit(-1);
         
@@ -119,15 +119,39 @@ void set_param(int rank, int size) {
   // test selector
   switch (sodtest_num) {
     case (1): 
-      // -- left side   || right side -- //  
-      rho_1      = 1.0;    rho_2      = 0.125;
-      pressure_1 = 1.0;    pressure_2 = 0.1;
-      u_1        = 2.5;    u_2        = 2.0;
-      m_1        = 1.e-4;  m_2        = 1.e-5;
+      // -- left side      | right side -- //  
+      rho_1      = 1.0;      rho_2      = 0.125;
+      pressure_1 = 1.0;      pressure_2 = 0.1;
+      vx_1       = 0.0;      vx_2       = 0.0;
+      break;
+
+    case (2): 
+      rho_1      = 1.0;      rho_2      = 1.0;
+      pressure_1 = 0.4;      pressure_2 = 0.4;
+      vx_1       =-2.0;      vx_2       = 2.0;
+      break;
+
+    case (3): 
+      rho_1      = 1.0;      rho_2      = 1.0;
+      pressure_1 = 1000.;    pressure_2 = 0.01;
+      vx_1       = 0.0;      vx_2       = 0.0;
+      break;
+
+    case (4): 
+      rho_1      = 1.0;      rho_2      = 1.0;
+      pressure_1 = 0.01;     pressure_2 = 100.;
+      vx_1       = 0.0;      vx_2       = 0.0;
+      break;
+
+    case (5): 
+      rho_1      = 5.99924;  rho_2      = 5.99242;
+      pressure_1 = 460.894;  pressure_2 = 46.0950;
+      vx_1       = 19.5975;  vx_2       =-6.19633;
       break;
 
     default:
-      cerr << "ERROR: invalid test (" << sodtest_num << ")." << endl;
+      if (rank == 0)
+        cerr << "ERROR: invalid test (" << sodtest_num << ")." << endl;
       MPI_Finalize();
       exit(-1);
   }
@@ -199,51 +223,51 @@ int main(int argc, char * argv[]){
   // Id of my first particle 
   int64_t posid = nparticlesproc*rank;
 
-  // Header data 
-  // the number of particles = nparticles 
+  // max. value for the speed of sound
+  double cs = sqrt(localgamma*max(pressure_1/rho_1,pressure_2/rho_2));
+  
   // The value for constant timestep 
-  double timestep = 0.001;
-  int dimension = 1;
+  double timestep = 0.5*ldistance/cs;
   
   
   for(int64_t part=0; part<nparticlesproc; ++part){
+    id[part] = posid++; 
     x[part] = lposition;
 
     if(x[part] > middle){
       P[part] = pressure_2;
       rho[part] = rho_2; 
-      u[part] = u_2;
-      //m[part] = m_2;
+      vx[part] = vx_2;
     }else{
       P[part] = pressure_1;
       rho[part] = rho_1;
-      u[part] = u_1;
-      //m[part] = m_1;
+      vx[part] = vx_1;
     }
 
-    m[part] = rho[part]*middle/(nparticles/2.);
+    // compute internal energy using gamma-law eos
+    u[part] = P[part]/(localgamma-1.)/rho[part];
 
-    //m[part] = 0.;
-    // Y and Z not used 
-    // VX, VY, VZ and AX, AY, AZ stay to 0
+    // particle masses and smoothing length
+    m[part] = rho[part]*middle/(nparticles/2.);
     h[part] = smoothing_length;
-    
-    // P stay to 0
-    id[part] = posid++; 
+
+    // P,Y,Z,VY,VZ,AX,AY,AZ stay 0
     // Move to the next particle 
     lposition += ldistance;
-    //std::cout<<x[part]<<": "<<h[part]<<std::endl;
-  }
 
-  // Destroy the file if exists 
+  } // for part=0..nparticles
+
+  // delete the output file if exists
   remove(output_filename);
 
+  // Header data 
+  // the number of particles = nparticles 
   Flecsi_Sim_IO::HDF5ParticleIO testDataSet; 
   testDataSet.createDataset(output_filename,MPI_COMM_WORLD);
 
   // add the global attributes
   testDataSet.writeDatasetAttribute("nparticles","int64_t",nparticles);
-  //testDataSet.writeDatasetAttribute("timestep","double",timestep);
+  testDataSet.writeDatasetAttribute("timestep","double",timestep);
   testDataSet.writeDatasetAttribute("dimension","int32_t",1);
   testDataSet.writeDatasetAttribute("use_fixed_timestep","int32_t",1);
 
@@ -265,15 +289,15 @@ int main(int argc, char * argv[]){
 
   testDataSet.writeVariables();
 
-  //_d1.createVariable("vx",Flecsi_Sim_IO::point,"double",nparticlesproc,vx);
+  _d1.createVariable("vx",Flecsi_Sim_IO::point,"double",nparticlesproc,vx);
   //_d2.createVariable("vy",Flecsi_Sim_IO::point,"double",nparticlesproc,vy);
   //_d3.createVariable("vz",Flecsi_Sim_IO::point,"double",nparticlesproc,vz);
 
-  //testDataSet.vars.push_back(_d1);
+  testDataSet.vars.push_back(_d1);
   //testDataSet.vars.push_back(_d2);
   //testDataSet.vars.push_back(_d3);
 
-  //testDataSet.writeVariables();
+  testDataSet.writeVariables();
 
   //_d1.createVariable("ax",Flecsi_Sim_IO::point,"double",nparticlesproc,ax);
   //_d2.createVariable("ay",Flecsi_Sim_IO::point,"double",nparticlesproc,ay);
