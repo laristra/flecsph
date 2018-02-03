@@ -21,6 +21,15 @@
 
 #define NORMAL_REP // Repartition based on part num 
 
+// Local version of assert to handle MPI abord
+void mpi_assert(bool expression)
+{
+  if (!(expression)) {
+     fprintf(stderr, "Failed assertion at %d in %s",__LINE__, __FILE__);
+     MPI_Abort(MPI_COMM_WORLD, 1);
+  }
+}
+
 template<
   typename T,
   size_t D
@@ -269,7 +278,7 @@ public:
     for(auto& bi:  localbodies_){
       auto nbi = tree_->make_entity(bi.second.getPosition(),&(bi.second),rank,
           bi.second.getMass(),bi.second.getId());
-      tree_->insert(nbi);
+      tree_->insert(nbi); 
       bodies_.push_back(nbi);
     }
 

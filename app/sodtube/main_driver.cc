@@ -42,6 +42,8 @@
 #include "eos_analytics.h"
 //#include "physics.h"
 
+#define INTERNAL_ENERGY
+
 namespace flecsi{
 namespace execution{
 

@@ -64,24 +64,19 @@ namespace physics{
       body_holder* srch, 
       std::vector<body_holder*>& nbsh)
   {
-    assert(srch!=nullptr);
-    assert(srch->getBody()!=nullptr);
     body* source = srch->getBody();
     double density = 0;
-    assert(nbsh.size()>0);
+    mpi_assert(nbsh.size()>0);
     for(auto nbh : nbsh){
-      assert(nbh!=nullptr);
-      assert(nbh->getBody()!=nullptr);
       body* nb = nbh->getBody();
       double dist = flecsi::distance(source->getPosition(),nb->getPosition());
-      assert(dist>=0.0);
+      mpi_assert(dist>=0.0);
       double kernelresult = (1./2.)*(
           kernel(dist,source->getSmoothinglength())+
           kernel(dist,nb->getSmoothinglength()));
-      assert(kernelresult>=0.0);
       density += kernelresult*nb->getMass();
     } // for
-    assert(density>0);
+    mpi_assert(density>0);
     source->setDensity(density);
   } // c ompute_density
 
@@ -95,10 +90,12 @@ namespace physics{
       body_holder* srch)
   { 
     body* source = srch->getBody();
-    double pressure = (gamma-1.0)*
-      source->getDensity()*source->getInternalenergy();
-    //double pressure = K*
-    //  pow(source->getDensity(),gamma);
+    //double pressure = (gamma-1.0)*
+    //  source->getDensity()*source->getInternalenergy();
+    double A = (gamma-1)*source->getInternalenergy()/
+      (pow(source->getDensity(),gamma-1));
+    double pressure = A*
+      pow(source->getDensity(),gamma);
     //assert(pressure>=0);
     source->setPressure(pressure);
   } // compute_pressure
@@ -128,9 +125,9 @@ namespace physics{
       body_holder* srch)
   {
     body* source = srch->getBody();
-    //double soundspeed = pow(source->getPressure()/source->getDensity(),1./2.);
-    double soundspeed = pow(gamma*
-        source->getPressure()/source->getDensity(),1./2.);
+    double soundspeed = pow(source->getPressure()/source->getDensity(),1./2.);
+    //double soundspeed = pow(gamma*
+    //    source->getPressure()/source->getDensity(),1./2.);
     source->setSoundspeed(soundspeed);
   } // computeSoundspeed
 
@@ -168,7 +165,7 @@ namespace physics{
     // Should add norm to space_vector
     double dist = flecsi::distance(source->getPosition(),nb->getPosition());
     result = h_ij * dotproduct / (dist*dist + epsilon*h_ij*h_ij);
-    assert(result < 0.0);
+    mpi_assert(result < 0.0);
     return result; 
   } // mu
 
@@ -205,7 +202,7 @@ namespace physics{
       double mu_ij = mu(source,nb,epsilon);
       double viscosity = (-alpha*mu_ij*soundspeed_ij+beta*mu_ij*mu_ij)
         /density_ij;
-      assert(viscosity>=0.0);
+      mpi_assert(viscosity>=0.0);
 
       // Hydro force
       point_t vecPosition = source->getPosition()-nb->getPosition();
@@ -268,10 +265,10 @@ namespace physics{
       double soundspeed_ij = (1./2.)*
         (source->getSoundspeed()+nb->getSoundspeed());
       double mu_ij = mu(source,nb,epsilon);
-      assert(mu_ij <= 0.0); 
+      mpi_assert(mu_ij <= 0.0); 
       double viscosity = (-alpha*mu_ij*soundspeed_ij+beta*mu_ij*mu_ij)
         /density_ij;
-      assert(viscosity>=0.0);
+      mpi_assert(viscosity>=0.0);
 
       internalenergy += nb->getMass()*(
           //nb->getPressure()/(nb->getDensity()*nb->getDensity())+
@@ -419,7 +416,7 @@ namespace physics{
     source->setVelocity(velocity);
     source->setPosition(position);
 
-    assert(!std::isnan(position[0])); 
+    mpi_assert(!std::isnan(position[0])); 
   }
 
   void 
@@ -450,7 +447,7 @@ namespace physics{
     source->setVelocity(velocity);
     source->setPosition(position);
     
-    assert(!std::isnan(position[0])); 
+    mpi_assert(!std::isnan(position[0])); 
   }
 
   void 
