@@ -292,7 +292,7 @@ public:
 
       // Also do the local contribution
       for(auto bi: subparts){  
-        point_t grav{};
+        point_t grav;
         for(auto nb: subparts){  
           double dist = flecsi::distance(bi->getPosition(),nb->getPosition());
           if(dist>0.0){  
@@ -337,12 +337,10 @@ public:
         if(i==j){ 
           valjacobian = jacobicoeff*(1-3*diffPos[i]*diffPos[j]/(dist*dist)); 
         }else{ 
-          valjacobian = jacobicoeff*(- 3*diffPos[i]*diffPos[j]/(dist*dist));
+          valjacobian = jacobicoeff*(-3*diffPos[i]*diffPos[j]/(dist*dist));
         }
         assert(!std::isnan(valjacobian));
-        //if(fabs(valjacobian) > 1.0e-10){
-          jacobi[i*dimension+j] += valjacobian;
-        //}
+        jacobi[i*dimension+j] += valjacobian;
       }
     }
     // Compute the Hessian matrix 
@@ -363,15 +361,10 @@ public:
           if(k==i){
             firstterm += diffPos[j];
           } // if
-          //if(!(i==j && j==k)){
-          //  firstterm*=3.0;
-          //} // if
           double valhessian = hessiancoeff * 
             ( 5.0/(dist*dist)*diffPos[i]*diffPos[j]*diffPos[k] - firstterm) ;
 
-          //if(fabs(valhessian) > 1.0e-10){
-            hessian[position] += valhessian;
-          //}
+          hessian[position] += valhessian;
         } // for
       } // for
     } // for
@@ -424,7 +417,7 @@ public:
                 computeAcceleration(sink->getPosition(),bi->getPosition(),
                   bi->getMass(),fc,jacobi,hessian);
               } // if
-            } // if
+            } // if 
           } // for
         }else{
           for(int i=0;i<(1<<dimension);++i){
@@ -476,19 +469,18 @@ public:
             for(int j=0;j<dimension;++j){
               for(int k=0;k<dimension;++k){
                 tmpMatrix[i*dimension+j] += 
-                  diffPos[k]*hessian[i*dimension*dimension+j+k*dimension];
+                  diffPos[k]*hessian[i*dimension*dimension+j*dimension+k];
               } // for
             } // for
           } // for
-          double tmpVector[dimension*dimension] = {};
+          double tmpVector[dimension] = {};
           for(int i=0;i<dimension;++i){
             for(int j=0;j<dimension;++j){
-              tmpVector[i] += tmpMatrix[i*dimension+j]*diffPos[j];
+              tmpVector[j] += tmpMatrix[i*dimension+j]*diffPos[i];
             } // for
           } // for
           for(int i=0;i<dimension;++i){
-            grav[i] += 1./2.*tmpVector[i];
-            //assert(tmpVector[i] == 0.);
+            grav[i] += 0.5*tmpVector[i];
           } // for
           neighbors.push_back(bi->getBody());
           bi->getBody()->setAcceleration(grav+bi->getBody()->getAcceleration());

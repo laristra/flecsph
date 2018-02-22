@@ -54,7 +54,7 @@ mpi_init_task(int startiteration){
   
   int iter = startiteration; 
   int noutput = startiteration+1;
-  int maxiter = 100;
+  int maxiter = 1000;
 
   body_system<double,gdimension> bs;
   double maxtime = 1.0;
@@ -70,7 +70,7 @@ mpi_init_task(int startiteration){
     // For OMP time, just used on 0, initialized for others
   double start = 0;
   double start_iteration = 0;
-  physics::dt = 0.001;
+  physics::dt = 0.0001;
 
   // Compute density, pressure, cs for next iteration
   //MPI_Barrier(MPI_COMM_WORLD);

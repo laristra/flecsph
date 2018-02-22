@@ -377,7 +377,7 @@ public:
     tree_->update_branches_local();
     tcolorer_.mpi_tree_traversal_graphviz(*tree_);
 
-    debug_display_branches();
+    //debug_display_branches();
     
     assert(tree_->root()->sub_entities() == localnbodies_);
     // Exchange the cells up to a depth 
