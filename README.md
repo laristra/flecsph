@@ -72,6 +72,7 @@ Clone the FleCSI repo with third party libraries and check out FleCSPH-compatibl
 
     % cd $HOME/FLECSPH
     % git clone --recursive git@github.com:laristra/flecsi-third-party.git
+    % cd flecsi-third-party
     % git checkout FleCSPH
     % git submodule update
     % mkdir build ; cd build
@@ -87,6 +88,7 @@ Build the libraries using several cores (note that no install step is required):
 
 Clone FleCSI repo and change to FlecSPH branch:
 
+    % cd $HOME/FLECSPH
     % git clone --recursive git@github.com:laristra/flecsi.git
     % cd flecsi
     % git checkout FleCSPH
