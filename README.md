@@ -102,7 +102,7 @@ EOF
 
 If no errors appeared, build and install:
 
-   % make -j8 install
+    % make -j8 install
 
 In case of errors: if you are rebuilding everything from scratch, 
 make sure that your installation directory (`$HOME/FLECSPH/local` 
@@ -115,10 +115,10 @@ in our example) is empty.
 In order to build flecsph some other dependencies can be found in the third-party-libraries/ directory.
 - Use the scripts to install HDF5 and H5Hut from within build/ directory:
 
-     % cd ~/FLECSPH/flecsph
-     % mkdir build; cd build
-     % ../third-party-libraries/install_hdf5_parallel.sh
-     % ../third-party-libraries/install_h5hut.sh
+    % cd ~/FLECSPH/flecsph
+    % mkdir build; cd build
+    % ../third-party-libraries/install_hdf5_parallel.sh
+    % ../third-party-libraries/install_h5hut.sh
 
 - ScalingFramework is available in LANL property right now, soon open-source
 
@@ -133,7 +133,7 @@ Set the following options:
 - `ENABLE_MPI`: ON
 - `ENABLE_OPENMPI`: ON
 - `ENABLE_LEGION`: ON
-- `HDF5_C_LIBRARY_hdf5`: ~/FLECSPH/local/lib/libhdf5.so
+- `HDF5_C_LIBRARY_hdf5`: `~/FLECSPH/local/lib/libhdf5.so`
 
 You can also use the following command to setup cmake cache:
 
@@ -150,7 +150,7 @@ EOF
 % ccmake ..
 ```
 
-Configure and make:
+Configure, build and install:
 
     % make -j8
 
