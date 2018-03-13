@@ -72,7 +72,7 @@ Clone the FleCSI repo with third party libraries and check out FleCSPH-compatibl
 
     % cd $HOME/FLECSPH
     % git clone --recursive git@github.com:laristra/flecsi-third-party.git
-    % git checkout flecsph
+    % git checkout FleCSPH
     % git submodule update
     % mkdir build ; cd build
     % ccmake ..
