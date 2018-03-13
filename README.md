@@ -138,10 +138,12 @@ in our example) is empty.
 In order to build flecsph some other dependencies can be found in the third-party-libraries/ directory.
 - Use the scripts to install HDF5 and H5Hut from within build/ directory:
 
-    % cd ~/FLECSPH/flecsph
-    % mkdir build; cd build
-    % ../third-party-libraries/install_hdf5_parallel.sh
-    % ../third-party-libraries/install_h5hut.sh
+```{engine=sh}
+  % cd ~/FLECSPH/flecsph
+  % mkdir build; cd build
+  % ../third-party-libraries/install_hdf5_parallel.sh
+  % ../third-party-libraries/install_h5hut.sh
+```    
 
 - ScalingFramework is available in LANL property right now, soon open-source
 
