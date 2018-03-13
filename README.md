@@ -25,11 +25,11 @@ For the first version of the code we intent to provide several basic physics pro
 # Getting the Code
 
 FleCSPH can be installed anywhere in your system; to be particular, below we
-assume that all repositories are downloaded in FleCSPH root directory `${HOME}/FleCSPH`.
-All dependencies are installed in `${HOME}/FleCSPH/local`.
+assume that all repositories are downloaded in FLECSPH root directory `${HOME}/FLECSPH`.
+All dependencies are installed in `${HOME}/FLECSPH/local`.
 
-    % mkdir -p $HOME/FleCSPH/local
-    % cd $HOME/FleCSPH
+    % mkdir -p $HOME/FLECSPH/local
+    % cd $HOME/FLECSPH
     % git clone --recursive git@github.com:laristra/flecsph.git
 
 # Requirements
@@ -49,7 +49,7 @@ On DARWIN supercomputer load the modules:
 
 Clone the FleCSI repo with third party libraries and check out FleCSPH-compatible branch `flecsph`:
 
-    % cd $HOME/FleCSPH
+    % cd $HOME/FLECSPH
     % git clone --recursive https://github.com/laristra/flecsi-third-party.git
     % git checkout flecsph
     % git submodule update
@@ -57,10 +57,9 @@ Clone the FleCSI repo with third party libraries and check out FleCSPH-compatibl
     % ccmake ..
 
 Let all the flags ON, make sure the conduit of GASNET is MPI.
-Set `CMAKE_INSTALL_PREFIX -> ~/FleCSPH/local`.
-Run configure and make using several cores:
+Set `CMAKE_INSTALL_PREFIX -> ~/FLECSPH/local`.
+Build the libraries using several cores (note that no install step is required):
 
-    % cmake ..
     % make -j8
 
 ### FleCSI
@@ -68,13 +67,14 @@ Run configure and make using several cores:
 Clone FleCSI repo and change to FlecSPH branch:
 
     % git clone --recursive https://github.com/laristra/flecsi.git
+    % cd flecsi
     % git checkout FleCSPH
     % git submodule update
     % mkdir build ; cd build
     % ccmake ..
 
 Press `c` to do initial configuring.
-- Set `CMAKE_INSTALL_PREFIX -> ~/FleCSPH/local`.
+- Set `CMAKE_INSTALL_PREFIX -> ~/FLECSPH/local`.
 
 Press `c` to reconfigure. Press `t` for advanced options; scroll down to select:
 Here add:
@@ -85,14 +85,27 @@ Here add:
 - `FLECSI_RUNTIME_MODEL`: legion
 
 Press `c` to reconfigure and `g` to generate configurations scripts.
-If no errors have emerged, configure, make and install:
 
-      % ccmake ..
-      % make -j8
-      % make install
+You can also supply CMakeCache.txt to avoid multiple reconfigures:
+
+```{engine=sh}
+% cat > CMakeCache.txt << EOF
+  CMAKE_INSTALL_PREFIX:PATH=$HOME/FLECSPH/local
+  ENABLE_MPI:BOOL=ON
+  ENABLE_MPI_CXX_BINDINGS:BOOL=ON
+  ENABLE_OPENMP:BOOL=ON
+  ENABLE_LEGION:BOOL=ON
+  FLECSI_RUNTIME_MODEL:STRING=legion
+EOF
+% ccmake ..
+```
+
+If no errors appeared, build and install:
+
+   % make -j8 install
 
 In case of errors: if you are rebuilding everything from scratch, 
-make sure that your installation directory (`$HOME/FleCSPH/local` 
+make sure that your installation directory (`$HOME/FLECSPH/local` 
 in our example) is empty.
 
 # Build
@@ -100,24 +113,46 @@ in our example) is empty.
 ## Dependencies
 
 In order to build flecsph some other dependencies can be found in the third-party-libraries/ directory.
-Use the two script to install:
-- hdf5 parallel
-- h5hut
+- Use the scripts to install HDF5 and H5Hut from within build/ directory:
+
+     % cd ~/FLECSPH/flecsph
+     % mkdir build; cd build
+     % ../third-party-libraries/install_hdf5_parallel.sh
+     % ../third-party-libraries/install_h5hut.sh
+
 - ScalingFramework is available in LANL property right now, soon open-source
 
 ## Build FleCSPH
 
-    % mkdir build
-    % cd build
-    % ccmake ../
+Continue with the build:
 
-- ENABLE_MPI: ON
-- ENABLE_OPENMPI: ON
-- ENABLE_LEGION: ON
+    % ccmake ..
 
-Then make:
+Set the following options:
+- `CMAKE_INSTALL_PREFIX`: ~/FLECSPH/local
+- `ENABLE_MPI`: ON
+- `ENABLE_OPENMPI`: ON
+- `ENABLE_LEGION`: ON
+- `HDF5_C_LIBRARY_hdf5`: ~/FLECSPH/local/lib/libhdf5.so
 
-    % make
+You can also use the following command to setup cmake cache:
+
+```{engine=sh}
+% cat > CMakeCache.txt << EOF
+  CMAKE_INSTALL_PREFIX:PATH=$HOME/FLECSPH/local
+  ENABLE_LEGION:BOOL=ON
+  ENABLE_MPI:BOOL=ON
+  ENABLE_MPI_CXX_BINDINGS:BOOL=ON
+  ENABLE_OPENMP:BOOL=ON
+  HDF5_C_LIBRARY_hdf5:FILEPATH=$HOME/FLECSPH/local/lib/libhdf5.so
+  VERSION_CREATION:STRING=
+EOF
+% ccmake ..
+```
+
+Configure and make:
+
+    % make -j8
 
  # Running test cases
 
