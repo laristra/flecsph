@@ -71,7 +71,7 @@ On DARWIN supercomputer load the modules:
 Clone the FleCSI repo with third party libraries and check out FleCSPH-compatible branch `flecsph`:
 
     % cd $HOME/FLECSPH
-    % git clone --recursive https://github.com/laristra/flecsi-third-party.git
+    % git clone --recursive git@github.com:laristra/flecsi-third-party.git
     % git checkout flecsph
     % git submodule update
     % mkdir build ; cd build
@@ -87,7 +87,7 @@ Build the libraries using several cores (note that no install step is required):
 
 Clone FleCSI repo and change to FlecSPH branch:
 
-    % git clone --recursive https://github.com/laristra/flecsi.git
+    % git clone --recursive git@github.com:laristra/flecsi.git
     % cd flecsi
     % git checkout FleCSPH
     % git submodule update
