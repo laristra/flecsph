@@ -35,11 +35,13 @@ The code requires:
 
 ### Suggested directory structure
 
-    % mkdir -p $HOME/FLECSPH/local
-    % cd $HOME/FLECSPH
-    % git clone --recursive git@github.com:laristra/flecsph.git
+```{engine=sh}
+   mkdir -p $HOME/FLECSPH/local
+   cd $HOME/FLECSPH
+   git clone --recursive git@github.com:laristra/flecsph.git
+```    
 
-```{sngine=sh}
+```{engine=sh}
   ${HOME}/FLECSPH
   ├── flecsi
   │   └── build
@@ -70,13 +72,15 @@ On DARWIN supercomputer load the modules:
 
 Clone the FleCSI repo with third party libraries and check out FleCSPH-compatible branch `flecsph`:
 
-    % cd $HOME/FLECSPH
-    % git clone --recursive git@github.com:laristra/flecsi-third-party.git
-    % cd flecsi-third-party
-    % git checkout FleCSPH
-    % git submodule update
-    % mkdir build ; cd build
-    % ccmake ..
+```{engine=sh}    
+   cd $HOME/FLECSPH
+   git clone --recursive git@github.com:laristra/flecsi-third-party.git
+   cd flecsi-third-party
+   git checkout FleCSPH
+   git submodule update
+   mkdir build ; cd build
+   ccmake ..
+```    
 
 Let all the flags ON, make sure the conduit of GASNET is MPI.
 Set `CMAKE_INSTALL_PREFIX -> ~/FLECSPH/local`.
@@ -88,13 +92,15 @@ Build the libraries using several cores (note that no install step is required):
 
 Clone FleCSI repo and change to FlecSPH branch:
 
-    % cd $HOME/FLECSPH
-    % git clone --recursive git@github.com:laristra/flecsi.git
-    % cd flecsi
-    % git checkout FleCSPH
-    % git submodule update
-    % mkdir build ; cd build
-    % ccmake ..
+```{engine=sh}    
+   cd $HOME/FLECSPH
+   git clone --recursive git@github.com:laristra/flecsi.git
+   cd flecsi
+   git checkout FleCSPH
+   git submodule update
+   mkdir build ; cd build
+   ccmake ..
+```    
 
 Press `c` to do initial configuring.
 - Set `CMAKE_INSTALL_PREFIX -> ~/FLECSPH/local`.
@@ -112,7 +118,7 @@ Press `c` to reconfigure and `g` to generate configurations scripts.
 You can also supply CMakeCache.txt to avoid multiple reconfigures:
 
 ```{engine=sh}
-% cat > CMakeCache.txt << EOF
+cat > CMakeCache.txt << EOF
   CMAKE_INSTALL_PREFIX:PATH=$HOME/FLECSPH/local
   ENABLE_MPI:BOOL=ON
   ENABLE_MPI_CXX_BINDINGS:BOOL=ON
@@ -120,7 +126,7 @@ You can also supply CMakeCache.txt to avoid multiple reconfigures:
   ENABLE_LEGION:BOOL=ON
   FLECSI_RUNTIME_MODEL:STRING=legion
 EOF
-% ccmake ..
+ccmake ..
 ```
 
 If no errors appeared, build and install:
@@ -139,10 +145,10 @@ In order to build flecsph some other dependencies can be found in the third-part
 - Use the scripts to install HDF5 and H5Hut from within build/ directory:
 
 ```{engine=sh}
-  % cd ~/FLECSPH/flecsph
-  % mkdir build; cd build
-  % ../third-party-libraries/install_hdf5_parallel.sh
-  % ../third-party-libraries/install_h5hut.sh
+   cd ~/FLECSPH/flecsph
+   mkdir build; cd build
+   ../third-party-libraries/install_hdf5_parallel.sh
+   ../third-party-libraries/install_h5hut.sh
 ```    
 
 - ScalingFramework is available in LANL property right now, soon open-source
@@ -163,7 +169,7 @@ Set the following options:
 You can also use the following command to setup cmake cache:
 
 ```{engine=sh}
-% cat > CMakeCache.txt << EOF
+cat > CMakeCache.txt << EOF
   CMAKE_INSTALL_PREFIX:PATH=$HOME/FLECSPH/local
   ENABLE_LEGION:BOOL=ON
   ENABLE_MPI:BOOL=ON
@@ -172,7 +178,7 @@ You can also use the following command to setup cmake cache:
   HDF5_C_LIBRARY_hdf5:FILEPATH=$HOME/FLECSPH/local/lib/libhdf5.so
   VERSION_CREATION:STRING=
 EOF
-% ccmake ..
+ccmake ..
 ```
 
 Configure, build and install:
