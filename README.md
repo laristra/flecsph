@@ -22,22 +22,43 @@ For the first version of the code we intent to provide several basic physics pro
 - Sedov Blast Wave 2D
 - Binary Compact Object Merger 3D
 
+
 # Getting the Code
 
 FleCSPH can be installed anywhere in your system; to be particular, below we
 assume that all repositories are downloaded in FLECSPH root directory `${HOME}/FLECSPH`.
-All dependencies are installed in `${HOME}/FLECSPH/local`.
+The code requires:
+
+- FleCSI third party library
+- FleCSI
+- shared local directory
+
+### Suggested directory structure
 
     % mkdir -p $HOME/FLECSPH/local
     % cd $HOME/FLECSPH
     % git clone --recursive git@github.com:laristra/flecsph.git
 
-# Requirements
+```{sngine=sh}
+  ${HOME}/FLECSPH
+  ├── flecsi
+  │   └── build
+  ├── flecsi-third-party
+  │   └── build
+  ├── flecsph
+  │   ├── build
+  │   └── third-party-libraries
+  │       ├── install_h5hut.sh
+  │       └── install_hdf5_parallel.sh
+  └── local
+      ├── bin
+      ├── include
+      ├── lib
+      ├── lib64
+      └── share
+```
 
-The code requires:
-
-- FleCSI third party library
-- FleCSI
+In this configuration, all dependencies are installed in `${HOME}/FLECSPH/local`.
 
 ## Install the dependencies
 
@@ -152,7 +173,7 @@ EOF
 
 Configure, build and install:
 
-    % make -j8
+    % make -j8 install
 
  # Running test cases
 
