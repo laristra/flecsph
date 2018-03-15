@@ -30,12 +30,31 @@ RUN chown -R flecsi:flecsi /home/flecsi/flecsph /home/flecsi/.ccache /home/flecs
 RUN yum install -y which; exit 0
 USER flecsi
 
+#rebuild flecsi-third-party
+WORKDIR /home/flecsi/tpl
+RUN git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+RUN git fetch origin FleCSPH
+RUN git checkout FleCSPH
+RUN git submodule update --recursive
+RUN rm -rf build && mkdir build
+WORKDIR /home/flecsi/tpl/build
+RUN  cmake .. 
+USER root
+RUN rm -rf /usr/local/include/legion* /usr/local/include/realm*
+RUN make VERBOSE=1 -j2
+USER flecsi
+
 #build flecsi
 WORKDIR /home/flecsi
 RUN git clone -b FleCSPH --depth 1 --recursive https://github.com/laristra/flecsi flecsi 
 RUN  cd flecsi && mkdir build && cd build
 WORKDIR flecsi/build
-RUN  cmake -DFLECSI_RUNTIME_MODEL=legion -DENABLE_CLOG=OFF .. && make VERBOSE=1 -j2
+RUN  cmake .. -DFLECSI_RUNTIME_MODEL=legion \
+              -DENABLE_LEGION=ON \
+              -DENABLE_CLOG=OFF \
+              -DENABLE_MPI=ON \
+              -DENABLE_MPI_CXX_BINDINGS=ON 
+RUN make VERBOSE=1 -j2
 USER root
 RUN make install
 USER flecsi
