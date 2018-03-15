@@ -374,9 +374,9 @@ public:
   tree_traversal_c2c(
     tree_topology_t& tree, 
     branch_t * sink, 
-    branch_t * source, 
+    branch_t * source,
+    std::vector<branch_id> neighbors_branches, 
     point_t& fc, 
-    //point_t& dfc,
     double* jacobi,
     double* hessian,
     double& macangle,
@@ -396,26 +396,28 @@ public:
         continue;
       } // if
   
-      //if(geometry_t::box_MAC(
-      //  cur->getPosition(),
-      //  sink->getPosition(),
-      //  cur->bmin(),
-      //  cur->bmax(),
-      //  macangle)){
-      //  computeAcceleration(sink->getPosition(),cur->getPosition(),
-      //    cur->getMass(),fc,jacobi,hessian);
-      //  ninter+=cur->sub_entities();
-      //  std::cout<<"Using box"<<std::endl;
-      //}else{
+      if(geometry_t::box_MAC(
+        cur->getPosition(),
+        sink->getPosition(),
+        cur->bmin(),
+        cur->bmax(),
+        macangle)){
+        computeAcceleration(sink->getPosition(),cur->getPosition(),
+          cur->getMass(),fc,jacobi,hessian);
+        ninter+=cur->sub_entities();
+        std::cout<<"Using box"<<std::endl;
+      }else{
         if(cur->is_leaf()){
           for(auto bi: *cur){
             if(bi->is_local()){
+              // Add particle to vector based on ID 
+              
               // Check if particle is not inside my radius 
-              if(!(bi->getPosition() < sink->bmax() &&
-                bi->getPosition() > sink->bmin())){
-                ninter++;
-                computeAcceleration(sink->getPosition(),bi->getPosition(),
-                  bi->getMass(),fc,jacobi,hessian);
+              //if(!(bi->getPosition() < sink->bmax() &&
+              //  bi->getPosition() > sink->bmin())){
+              //  ninter++;
+              //  computeAcceleration(sink->getPosition(),bi->getPosition(),
+              //    bi->getMass(),fc,jacobi,hessian);
               } // if
             } // if 
           } // for
