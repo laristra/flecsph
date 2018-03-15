@@ -30,6 +30,19 @@ RUN chown -R flecsi:flecsi /home/flecsi/flecsph /home/flecsi/.ccache /home/flecs
 RUN yum install -y which; exit 0
 USER flecsi
 
+#rebuild flecsi-third-party
+WORKDIR /home/flecsi/tpl
+RUN git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+RUN git fetch origin FleCSPH
+RUN git checkout FleCSPH
+RUN git submodule update --recursive
+RUN rm -rf build && mkdir build
+WORKDIR /home/flecsi/tpl/build
+RUN  cmake .. 
+USER root
+RUN make VERBOSE=1 -j
+USER flecsi
+
 #build flecsi
 WORKDIR /home/flecsi
 RUN git clone -b FleCSPH --depth 1 --recursive https://github.com/laristra/flecsi flecsi 
