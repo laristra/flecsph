@@ -85,6 +85,13 @@ public:
   point_t getVelocityhalf() const{return velocityhalf_;}
   point_t getAcceleration() const{return acceleration_;}
   double getInternalenergy() const{return internalenergy_;}
+  point_t getLinMomentum() const { 
+    point_t res = {};
+    for(int i = 0 ; i < dimension; ++i){
+      res[i] = velocity_[i] * mass_;
+    }
+    return res;
+  };
   //double getDudt(){return dudt_;};
   int64_t getId(){return id_;};
   double getDt(){return dt_;};
@@ -103,7 +110,7 @@ public:
   void setPressure(double pressure){pressure_ = pressure;}
   void setDensity(double density){density_ = density;}
   void setMass(double mass){mass_ = mass;};
-  void setLinMomentum(point_t lin_momentum){lin_momentum_ = lin_momentum;}
+  //void setLinMomentum(point_t lin_momentum){lin_momentum_ = lin_momentum;}
   void setInternalenergy(double internalenergy)
     {internalenergy_=internalenergy;};
   void setSmoothinglength(double smoothinglength)
@@ -143,7 +150,7 @@ private:
   double smoothinglength_; 
   double soundspeed_;
   double internalenergy_;
-  point_t lin_momentum_; //TODO : Need to check
+  //point_t lin_momentum_; //TODO : Need to check
   //double dudt_;
   //point_t gravforce_;
   //point_t hydroforce_;

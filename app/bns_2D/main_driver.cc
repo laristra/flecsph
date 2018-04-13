@@ -44,7 +44,7 @@ namespace flecsi{
 namespace execution{
 
 void
-mpi_init_task(int startiteration){
+mpi_init_task(int startiteration, double macangle = 0){
   // TODO find a way to use the file name from the specialiszation_driver
   
   int rank;
@@ -54,7 +54,7 @@ mpi_init_task(int startiteration){
   
   int iter = startiteration; 
   int noutput = startiteration+1;
-  int maxiter = 1000;
+  int maxiter = 200;
 
   body_system<double,gdimension> bs;
   double maxtime = 1.0;
@@ -70,7 +70,12 @@ mpi_init_task(int startiteration){
     // For OMP time, just used on 0, initialized for others
   double start = 0;
   double start_iteration = 0;
-  physics::dt = 0.0001;
+  physics::dt = 0.001;
+  bs.setMacangle(macangle);
+
+  std::cout<<"MacAngle="<<macangle<<std::endl;
+
+  point_t momentum = {};
 
   // Compute density, pressure, cs for next iteration
   //MPI_Barrier(MPI_COMM_WORLD);
@@ -111,18 +116,30 @@ mpi_init_task(int startiteration){
     bs.apply_all([](body_holder* source){
       source->getBody()->setAcceleration(point_t{});
     });
+
+    // Compute the hydro force 
+
+
+    
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){
+      std::cout<<"Accel hydro"<<std::flush; 
+      start = omp_get_wtime(); 
+    }
+    bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0)
+      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
     
     MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0){
       std::cout<<"Accel FMM"<<std::flush; 
       start = omp_get_wtime(); 
     }
-    //bs.get_all(physics::nsquare_gravitation);
     bs.gravitation_fmm();
     MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0)
       std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
-
 
     MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0){
@@ -138,17 +155,50 @@ mpi_init_task(int startiteration){
     if(rank==0)
       std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
+    // Compute momentum 
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){
+      std::cout<<"compute_density_pressure_soundspeed"<<std::flush; 
+      start = omp_get_wtime(); 
+    }
+    bs.apply_in_smoothinglength(
+      physics::compute_density_pressure_soundspeed); 
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0)
+      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //if(rank==0){
-    //  std::cout<<"compute_density_pressure_soundspeed"<<std::flush; 
-    //  start = omp_get_wtime(); 
-    //}
-    //bs.apply_in_smoothinglength(
-    //  physics::compute_density_pressure_soundspeed); 
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //if(rank==0)
-    //  std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+    
+    // Compute momentum 
+    point_t total_momentum;
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){
+      std::cout<<"Momentum computation"<<std::flush; 
+      start = omp_get_wtime(); 
+    }
+      bs.get_all(physics::compute_lin_momentum,&total_momentum);
+    MPI_Barrier(MPI_COMM_WORLD);
+    // Gather on 0 and sum 
+    std::vector<point_t> sub_momentum;
+    if(rank==0){
+      sub_momentum.resize(size);
+    }
+    MPI_Gather(&total_momentum,sizeof(point_t),MPI_BYTE,
+         &sub_momentum[0],sizeof(point_t),MPI_BYTE,0,MPI_COMM_WORLD);
+    // Sum 
+    if(rank==0){
+      total_momentum = {0};
+      for(auto v: sub_momentum){
+        total_momentum += v;
+      }
+      // Display diff 
+      std::cout << "="<< magnitude(point_to_vector(total_momentum-momentum)) << " ";
+
+      momentum = total_momentum;
+    }
+    if(rank==0)
+      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+
+ 
 
     physics::totaltime += physics::dt;
 
@@ -182,15 +232,20 @@ specialization_tlt_init(int argc, char * argv[]){
   
   // Default start at iteration 0
   int startiteration = 0;
+  double macangle = 0;
   if(argc == 2){
     startiteration = atoi(argv[1]);
+  }
+  if(argc == 3){
+    startiteration = atoi(argv[1]);
+    macangle = atof(argv[2]);
   }
 
   std::cout << "In user specialization_driver" << std::endl;
   /*const char * filename = argv[1];*/
   /*std::string  filename(argv[1]);
   std::cout<<filename<<std::endl;*/
-  flecsi_execute_mpi_task(mpi_init_task,startiteration); 
+  flecsi_execute_mpi_task(mpi_init_task,startiteration,macangle); 
 } // specialization driver
 
 void 

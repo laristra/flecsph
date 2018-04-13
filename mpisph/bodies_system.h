@@ -374,18 +374,36 @@ public:
 
   void gravitation_fmm()
   {
-    tree_->update_branches_local();
-    tcolorer_.mpi_tree_traversal_graphviz(*tree_);
+    int rank, size; 
+    MPI_Comm_size(MPI_COMM_WORLD,&size);
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
+    //macangle_ = 0;
+   std::cout<<"MACANGLE="<<macangle_<<std::endl;
+
+    // Gather the distant particles 
+
+    // Compute the multipoles
+    tree_->update_branches_local();
+    //tcolorer_.mpi_tree_traversal_graphviz(*tree_);
     //debug_display_branches();
     
-    assert(tree_->root()->sub_entities() == localnbodies_);
+    //assert(tree_->root()->sub_entities() == localnbodies_);
     // Exchange the cells up to a depth 
     tfmm_.mpi_exchange_cells(*tree_,maxmasscell_);
     // Compute the fmm interaction to the gathered cells 
-    tfmm_.mpi_compute_fmm(*tree_,macangle_);
+    // Also gather the particles needed for the N^2 algorithm
+    std::vector<std::vector<body_holder_mpi_t>> particles (size);
+    // Check the size of vector of vector 
+    //int pos = 0;
+    //for(auto v: particles){
+    //  std::cout<<"Need: "<<v.size()<<" to "<<pos++;
+    //}
+    tfmm_.mpi_compute_fmm(*tree_,macangle_,particles);
+    // Vompute the n square algorithm 
+
     // Gather all the contributions and compute 
-    tfmm_.mpi_gather_cells(*tree_);
+    tfmm_.mpi_gather_cells(*tree_,macangle_);
     tree_->update_branches(2*smoothinglength_);
   }
 

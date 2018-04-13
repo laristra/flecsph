@@ -58,17 +58,20 @@ class tree_fmm
     point_t bmin;
     branch_id_t id;
     int ninterations = 0;
+    int owner;
   
     mpi_cell_t(
       point_t position_,
       point_t bmin_,
       point_t bmax_,
-      branch_id_t id_)
+      branch_id_t id_,
+      int owner_)
     {
       position = position_;
       id = id_;
       bmax = bmax_;
       bmin = bmin_;
+      owner = owner_;
     };
 
     mpi_cell_t(){};
@@ -84,6 +87,113 @@ public:
 
   tree_fmm(){recvCOM_.clear(); nrecvCOM_.clear();};
   ~tree_fmm(){recvCOM_.clear(); nrecvCOM_.clear();};
+
+
+    /**
+   * @brief Start the computation on the cells received from everyone
+   * - Call the function tree_traversal_c2c on the cells 
+   * - Use a Sink cell to store data 
+   * @param tree The tree topology we are working on 
+   * @param macangle The macangle for Multipole Method
+   */
+  void
+  mpi_compute_fmm(
+    tree_topology_t& tree,
+    double macangle,
+    std::vector<std::vector<body_holder_mpi_t>> & particles)
+  {
+    int size = MPI_Comm_size(MPI_COMM_WORLD,&size);
+    int rank = MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+
+    //#pragma omp parallel for 
+    for(auto cell=recvCOM_.begin(); cell < recvCOM_.end() ; ++cell){
+      branch_t sink;
+      sink.setPosition(cell->position);
+      sink.set_bmax(cell->bmax);
+      sink.set_bmin(cell->bmin);
+      // Do the tree traversal, compute the cells data
+      tree_traversal_c2c(tree,&sink,tree.root(),
+          cell->fc,cell->dfcdr,cell->dfcdrdr,
+          macangle,cell->ninterations,
+          particles[cell->owner]);
+    } // for 
+  }
+
+  void computeAcceleration_direct(
+    body* bi,
+    const point_t& pos_nb,
+    const double& mass_nb)
+  {
+    double dist = flecsi::distance(bi->getPosition(),pos_nb);
+    if(dist > 0){
+      bi->setAcceleration(bi->getAcceleration()-
+        mass_nb/(dist*dist*dist)*(bi->getPosition()-pos_nb));
+    }
+  }
+
+  // Compute the acceleration due to a source branch to the sink branch 
+  void 
+  computeAcceleration(
+    point_t sinkPosition,
+    point_t sourcePosition,
+    double sourceMass,
+    point_t& fc, 
+    //point_t& dfc,
+    double* jacobi,
+    double* hessian
+    )
+  {
+    //std::cout<<"computeAcceleration"<<std::endl;
+    double dist = flecsi::distance(sinkPosition,sourcePosition);
+    assert(dist > 0.0);
+    point_t diffPos =  sinkPosition - sourcePosition;
+    //if(fabs(- sourceMass/(dist*dist*dist)*(diffPos)) > 1.0e-10)
+    fc +=  -sourceMass/(dist*dist*dist)*(diffPos);
+    //for(int i = 0; i < dimension; ++i){
+    //  if(fabs((-sourceMass/(dist*dist*dist)*(diffPos))[i]) > 1.0e-10){
+    //    fc[i] += (-sourceMass/(dist*dist*dist)*(diffPos))[i];
+    //  }
+    //}
+
+    double jacobicoeff = -sourceMass/(dist*dist*dist);
+    for(int i=0;i<dimension;++i){ 
+      for(int j=0;j<dimension;++j){
+        double valjacobian = 0.;
+        if(i==j){ 
+          valjacobian = jacobicoeff*(1-3*diffPos[i]*diffPos[j]/(dist*dist)); 
+        }else{ 
+          valjacobian = jacobicoeff*(-3*diffPos[i]*diffPos[j]/(dist*dist));
+        }
+        assert(!std::isnan(valjacobian));
+        jacobi[i*dimension+j] += valjacobian;
+      }
+    }
+    // Compute the Hessian matrix 
+    double hessiancoeff = -3.0*sourceMass/(dist*dist*dist*dist*dist);
+    for(int i=0;i<dimension;++i){
+      int matrixPos = i*dimension*dimension;
+      for(int j=0;j<dimension;++j){
+        for(int k=0;k<dimension;++k){
+          int position = matrixPos+j*dimension+k;
+          //hessian[position] = 0.0;
+          double firstterm = 0.0;
+          if(i==j){
+            firstterm += diffPos[k];
+          } // if
+          if(j==k){
+            firstterm += diffPos[i];
+          } // if
+          if(k==i){
+            firstterm += diffPos[j];
+          } // if
+          double valhessian = hessiancoeff * 
+            ( 5.0/(dist*dist)*diffPos[i]*diffPos[j]*diffPos[k] - firstterm) ;
+
+          hessian[position] += valhessian;
+        } // for
+      } // for
+    } // for
+  } // computeAcceleration
 
   /**
    * @brief Exchange the cells required for the FMM computation
@@ -123,7 +233,8 @@ public:
         vbranches[i]->get_coordinates(),
         vbranches[i]->bmin(),
         vbranches[i]->bmax(), 
-        vbranches[i]->id()
+        vbranches[i]->id(),
+        rank
       );
       visited_entities += vbranches[i]->sub_entities();
     }
@@ -170,40 +281,13 @@ public:
     MPI_Barrier(MPI_COMM_WORLD);
   } // mpi_exchange_cells
 
-  /**
-   * @brief Start the computation on the cells received from everyone
-   * - Call the function tree_traversal_c2c on the cells 
-   * - Use a Sink cell to store data 
-   * @param tree The tree topology we are working on 
-   * @param macangle The macangle for Multipole Method
-   */
-  void
-  mpi_compute_fmm(
-    tree_topology_t& tree,
-    double macangle)
-  {
-    int size = MPI_Comm_size(MPI_COMM_WORLD,&size);
-    int rank = MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-
-    #pragma omp parallel for 
-    for(auto cell=recvCOM_.begin(); cell < recvCOM_.end() ; ++cell){
-      branch_t sink;
-      sink.setPosition(cell->position);
-      sink.set_bmax(cell->bmax);
-      sink.set_bmin(cell->bmin);
-      // Do the tree traversal, compute the cells data
-      tree_traversal_c2c(tree,&sink,tree.root(),
-          cell->fc,cell->dfcdr,cell->dfcdrdr,
-          macangle,cell->ninterations);
-    } // for 
-  }
 
   // Gather the result from the other processes and add the forces 
   // Then apply to the particles below it 
   void 
   mpi_gather_cells(
-    tree_topology_t& tree
-    )
+    tree_topology_t& tree,
+    double& macangle)
   { 
     int rank,size; 
     MPI_Comm_size(MPI_COMM_WORLD,&size);
@@ -269,11 +353,14 @@ public:
 
     int nbody = 0;
     // Propagate in the particles from sink 
+    #pragma omp parallel for
     for(int i=0;i<ncells;++i){ 
       std::vector<body*> subparts;
       // Find the branch in the local tree with the id
       branch_t * sink =  tree.get(recvcells[i].id);
-      std::cout<<"Cell =  "<<i<< " sub entities = "<< sink->sub_entities() <<" fc = "<<recvcells[i].fc<<std::endl;
+      //std::cout<<"Cell =  "<<i<< " sub entities = "<< 
+      //sink->sub_entities() <<" fc = "<<recvcells[i].fc<<
+      //" ninter = "<< recvcells[i].ninterations <<std::endl;
       
       assert(sink!=nullptr);
       point_t pos = sink->getPosition();
@@ -285,103 +372,91 @@ public:
       // if the bodies are non local in this area 
       assert(subparts.size()!=0);
 
-      // I interacted with all the other particles 
+      // Also gather the particles and proceed to the direct computation
+      tree_traversal_p2p(tree,sink,tree.root(),subparts,
+          recvcells[i].ninterations,macangle);
+      
       if(size == 1){
-        assert(recvcells[i].ninterations+subparts.size() == tree.root()->sub_entities());
-      }
-
-      // Also do the local contribution
-      for(auto bi: subparts){  
-        point_t grav;
-        for(auto nb: subparts){  
-          double dist = flecsi::distance(bi->getPosition(),nb->getPosition());
-          if(dist>0.0){  
-            grav += - nb->getMass()/(dist*dist*dist)*
-              (bi->getPosition()-nb->getPosition());
-          } // if
-        } // for
-        // add in the acceleration
-        bi->setAcceleration(bi->getAcceleration()+grav);
-      } // for
-    } // for
-  } // mpi_gather_cells
-  
-  // Compute the acceleration due to a source branch to the sink branch 
-  void 
-  computeAcceleration(
-    point_t sinkPosition,
-    point_t sourcePosition,
-    double sourceMass,
-    point_t& fc, 
-    //point_t& dfc,
-    double* jacobi,
-    double* hessian
-    )
-  {
-    //std::cout<<"computeAcceleration"<<std::endl;
-    double dist = flecsi::distance(sinkPosition,sourcePosition);
-    assert(dist > 0.0);
-    point_t diffPos =  sinkPosition - sourcePosition;
-    //if(fabs(- sourceMass/(dist*dist*dist)*(diffPos)) > 1.0e-10)
-    fc +=  -sourceMass/(dist*dist*dist)*(diffPos);
-    //for(int i = 0; i < dimension; ++i){
-    //  if(fabs((-sourceMass/(dist*dist*dist)*(diffPos))[i]) > 1.0e-10){
-    //    fc[i] += (-sourceMass/(dist*dist*dist)*(diffPos))[i];
-    //  }
-    //}
-
-    double jacobicoeff = -sourceMass/(dist*dist*dist);
-    for(int i=0;i<dimension;++i){ 
-      for(int j=0;j<dimension;++j){
-        double valjacobian = 0.;
-        if(i==j){ 
-          valjacobian = jacobicoeff*(1-3*diffPos[i]*diffPos[j]/(dist*dist)); 
-        }else{ 
-          valjacobian = jacobicoeff*(-3*diffPos[i]*diffPos[j]/(dist*dist));
-        }
-        assert(!std::isnan(valjacobian));
-        jacobi[i*dimension+j] += valjacobian;
+        //std::cout<< recvcells[i].ninterations << "!=" << tree.root()->sub_entities() <<std::endl;
+        assert(recvcells[i].ninterations == tree.root()->sub_entities());
       }
     }
-    // Compute the Hessian matrix 
-    double hessiancoeff = -3.0*sourceMass/(dist*dist*dist*dist*dist);
-    for(int i=0;i<dimension;++i){
-      int matrixPos = i*dimension*dimension;
-      for(int j=0;j<dimension;++j){
-        for(int k=0;k<dimension;++k){
-          int position = matrixPos+j*dimension+k;
-          //hessian[position] = 0.0;
-          double firstterm = 0.0;
-          if(i==j){
-            firstterm += diffPos[k];
-          } // if
-          if(j==k){
-            firstterm += diffPos[i];
-          } // if
-          if(k==i){
-            firstterm += diffPos[j];
-          } // if
-          double valhessian = hessiancoeff * 
-            ( 5.0/(dist*dist)*diffPos[i]*diffPos[j]*diffPos[k] - firstterm) ;
+  } // mpi_gather_cells
 
-          hessian[position] += valhessian;
-        } // for
-      } // for
-    } // for
-  } // computeAcceleration
+private:
+
+  void 
+  tree_traversal_p2p(
+    tree_topology_t& tree,
+    branch_t * sink,
+    branch_t * source,
+    std::vector<body*>& subparts,
+    int& ninter,
+    double& macangle)
+  {
+    // Tree traversal and interact only if close enough 
+    int rank, size; 
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Comm_size(MPI_COMM_WORLD,&size);
+
+    std::stack<branch_t*> stk;
+    stk.push(source);
+
+    while(!stk.empty()){
+      branch_t * cur = stk.top();
+      stk.pop();
+  
+      if(geometry_t::box_MAC(
+        cur->getPosition(),
+        sink->getPosition(),
+        cur->bmin(),
+        cur->bmax(),
+        macangle)){
+        // Do nothing, handled outside 
+      }else{
+        if(cur->is_leaf()){
+          for(auto bi: *cur){
+            //if(bi->is_local()){
+              ninter++;
+              // Apply to all subbodies of this sink
+              for(auto b: subparts){
+                if(bi->getPosition() == b->getPosition()){
+                }
+                computeAcceleration_direct(
+                  b,
+                  bi->getPosition(),
+                  bi->getMass());
+              } // if
+            //} // if
+          } // for
+        }else{
+          for(int i=0;i<(1<<dimension);++i){
+            if(tree.child(cur,i)->sub_entities() > 0){
+              stk.push(tree.child(cur,i));
+            } // if
+          } // for
+        } // if
+      } // if
+    } // while
+  }
 
   void  
   tree_traversal_c2c(
     tree_topology_t& tree, 
     branch_t * sink, 
     branch_t * source,
-    std::vector<branch_id> neighbors_branches, 
+    //std::vector<branch_id_t> neighbors_branches, 
     point_t& fc, 
     double* jacobi,
     double* hessian,
     double& macangle,
-    int& ninter)
+    int& ninter,
+    std::vector<body_holder_mpi_t>& particles)
   {
+    int rank, size; 
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Comm_size(MPI_COMM_WORLD,&size);
+
     std::stack<branch_t*> stk;
     stk.push(source);
 
@@ -405,21 +480,24 @@ public:
         computeAcceleration(sink->getPosition(),cur->getPosition(),
           cur->getMass(),fc,jacobi,hessian);
         ninter+=cur->sub_entities();
-        std::cout<<"Using box"<<std::endl;
+        //std::cout<<"Using box"<<std::endl;
       }else{
         if(cur->is_leaf()){
           for(auto bi: *cur){
             if(bi->is_local()){
-              // Add particle to vector based on ID 
-              
-              // Check if particle is not inside my radius 
-              //if(!(bi->getPosition() < sink->bmax() &&
-              //  bi->getPosition() > sink->bmin())){
-              //  ninter++;
-              //  computeAcceleration(sink->getPosition(),bi->getPosition(),
-              //    bi->getMass(),fc,jacobi,hessian);
+              //Add particle to vector based on ID 
+              //Check if particle is not inside my radius 
+              if(!(bi->getPosition() < sink->bmax() &&
+               bi->getPosition() > sink->bmin()))
+              {
+                //ninter++;
+                particles.push_back(body_holder_mpi_t{
+                  bi->getPosition(),rank,bi->getMass(),bi->getId()}
+                );
+                //computeAcceleration(sink->getPosition(),bi->getPosition(),
+                //  bi->getMass(),fc,jacobi,hessian);
               } // if
-            } // if 
+            } // if
           } // for
         }else{
           for(int i=0;i<(1<<dimension);++i){
@@ -428,7 +506,7 @@ public:
             } // if
           } // for
         } // if
-      //} // if
+      } // if
     } // while
   } // tree_traversal_c2c
 
