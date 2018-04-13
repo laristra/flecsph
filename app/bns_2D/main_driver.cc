@@ -54,7 +54,7 @@ mpi_init_task(int startiteration, double macangle = 0){
   
   int iter = startiteration; 
   int noutput = startiteration+1;
-  int maxiter = 200;
+  int maxiter = 500;
 
   body_system<double,gdimension> bs;
   double maxtime = 1.0;
@@ -78,16 +78,16 @@ mpi_init_task(int startiteration, double macangle = 0){
   point_t momentum = {};
 
   // Compute density, pressure, cs for next iteration
-  //MPI_Barrier(MPI_COMM_WORLD);
-  //if(rank==0){
-  //  std::cout<<"compute_density_pressure_soundspeed"<<std::flush; 
-  //  start = omp_get_wtime(); 
-  //}
-  //bs.apply_in_smoothinglength(
-  //  physics::compute_density_pressure_soundspeed); 
-  //MPI_Barrier(MPI_COMM_WORLD);
-  //if(rank==0)
-  //  std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+  MPI_Barrier(MPI_COMM_WORLD);
+  if(rank==0){
+    std::cout<<"compute_density_pressure_soundspeed"<<std::flush; 
+    start = omp_get_wtime(); 
+  }
+  bs.apply_in_smoothinglength(
+    physics::compute_density_pressure_soundspeed); 
+  MPI_Barrier(MPI_COMM_WORLD);
+  if(rank==0)
+    std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
 #ifdef OUTPUT
   bs.write_bodies(outputname,startiteration);
@@ -130,6 +130,16 @@ mpi_init_task(int startiteration, double macangle = 0){
     MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0)
       std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){
+      std::cout<<"Accel hydro"<<std::flush; 
+      start = omp_get_wtime(); 
+    }
+    bs.apply_in_smoothinglength(physics::compute_internalenergy);
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0)
+      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
     
     MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0){
@@ -140,6 +150,18 @@ mpi_init_task(int startiteration, double macangle = 0){
     MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0)
       std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){
+      std::cout<<"Internal energy integration"<<std::flush; 
+      start = omp_get_wtime(); 
+    }
+      bs.apply_all(physics::dudt_integration);
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0)
+      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+    
 
     MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0){
@@ -155,7 +177,7 @@ mpi_init_task(int startiteration, double macangle = 0){
     if(rank==0)
       std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
-    // Compute momentum 
+    // Pressure density and soundspeed
     MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0){
       std::cout<<"compute_density_pressure_soundspeed"<<std::flush; 
@@ -197,8 +219,19 @@ mpi_init_task(int startiteration, double macangle = 0){
     }
     if(rank==0)
       std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
-
  
+    // Compute the new DT 
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){
+      std::cout<<"Accel hydro"<<std::flush; 
+      start = omp_get_wtime(); 
+    }
+    bs.apply_in_smoothinglength(physics::compute_dt);
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){
+      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+      std::cout<<"dt="<<physics::dt<<std::endl;
+    }
 
     physics::totaltime += physics::dt;
 

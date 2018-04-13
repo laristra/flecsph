@@ -182,7 +182,7 @@ namespace physics{
   { 
     body* source = srch->getBody();
     // reset acceleration 
-    source->setAcceleration(point_t{});
+    //source->setAcceleration(point_t{});
 
     // Add in the acceleration
     point_t acceleration = source->getAcceleration();
