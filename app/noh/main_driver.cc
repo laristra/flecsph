@@ -47,28 +47,21 @@ namespace execution{
 
 void
 mpi_init_task(int startiteration){
-  // TODO find a way to use the file name from the specialiszation_driver
-  
   int rank;
   int size;
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   
-  int totaliters = 500;
-  int iteroutput = 10;
+  int totaliters   = 500;
+  int iteroutput   = 10;
   double totaltime = 0.0;
-  double maxtime = 10.0;
+  double maxtime   = 10.0;
   int iter = startiteration; 
 
   // Init if default values are not ok
   physics::dt = 0.001;
-
   physics::alpha = 1; 
-  physics::beta = 2; 
-
-  //physics::stop_boundaries = true;
-  //physics::min_boundary = {0.1};
-  //physics::max_boundary = {1.0};
+  physics::beta  = 2; 
   physics::gamma = 5./3.;
 
   body_system<double,gdimension> bs;
@@ -81,16 +74,12 @@ mpi_init_task(int startiteration){
 
 #ifdef OUTPUT
   bs.write_bodies("output_noh",iter);
-  //io::outputDataHDF5(rbodies,"output_sodtube.h5part",0);
-  //tcolorer.mpi_output_txt(rbodies,iter,"output_sodtube"); 
 #endif
 
   ++iter; 
-  do
-  { 
+  do { 
     MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0)
-      std::cout<<std::endl<<"#### Iteration "<<iter<<std::endl;
+    if (rank == 0) std::cout << std::endl << "#### Iteration " << iter << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
 
     // Compute and prepare the tree for this iteration 
@@ -103,51 +92,39 @@ mpi_init_task(int startiteration){
     // - Compute and exchange ghosts in real smoothing length 
     bs.update_iteration();
    
-    // Do the Sod Tube physics
-    if(rank==0)
-      std::cout<<"compute_density_pressure_soundspeed"<<std::flush; 
+    // Do the Noh physics
+    if (rank == 0) std::cout << "compute_density_pressure_soundspeed" << std::flush; 
     bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
+    if (rank == 0) std::cout << ".done" << std::endl;
     
     // Refresh the neighbors within the smoothing length 
     bs.update_neighbors(); 
 
-    if(rank==0)
-      std::cout<<"Hydro acceleration"<<std::flush; 
+    if (rank == 0) std::cout << "Hydro acceleration" << std::flush; 
     bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
+    if (rank == 0) std::cout << ".done" << std::endl;
  
-    if(rank==0)
-      std::cout<<"Internalenergy"<<std::flush; 
+    if (rank == 0) std::cout << "Internalenergy" << std::flush; 
     bs.apply_in_smoothinglength(physics::compute_internalenergy);
-    if(rank==0)
-      std::cout<<".done"<<std::endl; 
+    if (rank == 0) std::cout << ".done" << std::endl; 
    
-    if(iter==1){ 
-      if(rank==0)
-        std::cout<<"leapfrog"<<std::flush; 
+    if (iter == 1){ 
+      if (rank == 0) std::cout << "leapfrog" << std::flush; 
       bs.apply_all(physics::leapfrog_integration_first_step);
-      if(rank==0)
-        std::cout<<".done"<<std::endl;
-    }else{
-      if(rank==0)
-        std::cout<<"leapfrog"<<std::flush; 
+      if (rank == 0) std::cout << ".done" << std::endl;
+    }
+    else{
+      if (rank == 0) std::cout << "leapfrog" << std::flush; 
       bs.apply_all(physics::leapfrog_integration);
-      if(rank==0)
-        std::cout<<".done"<<std::endl;
+      if (rank == 0) std::cout << ".done" << std::endl;
     }
 
-    if(rank==0)
-      std::cout<<"dudt integration"<<std::flush; 
+    if (rank == 0) std::cout<<"dudt integration"<<std::flush; 
     bs.apply_all(physics::dudt_integration);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
-
+    if (rank == 0) std::cout << ".done" << std::endl;
    
 #ifdef OUTPUT
-    if(iter % iteroutput == 0){ 
+    if (iter % iteroutput == 0){ 
       bs.write_bodies("output_noh",iter/iteroutput);
     }
 #endif
@@ -156,23 +133,22 @@ mpi_init_task(int startiteration){
   }while(iter<totaliters);
 }
 
+
 flecsi_register_mpi_task(mpi_init_task);
 
+
 void 
-specialization_tlt_init(int argc, char * argv[]){
-  
+specialization_tlt_init(int argc, char * argv[]){  
   // Default start at iteration 0
   int startiteration = 0;
-  if(argc == 2){
+  if (argc == 2){
     startiteration = atoi(argv[1]);
   }
-
   std::cout << "In user specialization_driver" << std::endl;
-  /*const char * filename = argv[1];*/
-  /*std::string  filename(argv[1]);
-  std::cout<<filename<<std::endl;*/
   flecsi_execute_mpi_task(mpi_init_task,startiteration); 
 } // specialization driver
+
+
 
 void 
 driver(int argc,  char * argv[]){
