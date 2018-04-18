@@ -197,11 +197,11 @@ Configure, build and install:
  Also, app/miscell directory contains python scripts that perform different aspects for initial data generators and converter for h5part format.
 
 # Adding your own projects
-FleCSPH can handle different projects. To add your own projects, you first need to create a directory in the `app` directory. For example, you can create a `myproject` directory in `app`. In `myproject`, you must have the files `CMakeLists.txt`, `/include/user.h`, `main.cc`, and `main_driver.cc`. In order to get these files easily and correctly, you can copy them from other application directories such as `sodtube` then paste into `myproject`.
+FleCSPH can handle different projects. To add your own project, you first need to create a corresponding directory in the `app` folder, for example `myproject`. In `myproject`, you must have the following files: `CMakeLists.txt`, `generator/main.cc`, `/include/user.h`, `main.cc`, and `main_driver.cc`. It is also advisable to have a README.md file that describes the problem you want to run. In order to get all files easily and correctly, you can copy them from other application directories such as `sodtube`, paste them into `myproject` and modify according to your needs.
 
-You need to modify the file `CMakeLists.txt` to have the correct name of your executable. All values and functions that you want to put and change should go into `main_driver.cc`. The file `/include/user.h` defines dimension of your problem. Do not edit `main.cc`.
+You need to modify the file `CMakeLists.txt` to have the correct name of your executable. The file `generator/main.cc` should contain the initialization of your problem. All values and functions that you want to put into your project and/or change from their default values should go into `main_driver.cc`. While `generator/main.cc` initializes your problem, `main_driver.cc` describes how it is run. The file `/include/user.h` defines the dimensions of your problem. Do not edit `main.cc`.
 
-You also need to add your project in `project.cmake` in the `config` directory. At the end of this file (`Add application targets` section), you need to add:
+To compile your project, you need to add it in `flecsph/config/project.cmake`: At the end of this file you have a section called `Add application targets`. Here, you need to add:
 
 ```cinch add application directory("app/myproject")```
 
