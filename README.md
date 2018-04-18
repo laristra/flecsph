@@ -197,15 +197,15 @@ Configure, build and install:
  Also, app/miscell directory contains python scripts that perform different aspects for initial data generators and converter for h5part format.
 
 # Adding your own projects
-FleCSPH can handle different projects. To add your projects, first you need to create a directory in `app` directory. For example, you create `myproject` directory in `app`. In `myproject`, you must have `CMakeLists.txt`, `/include/user.h`, `main.cc`, and `main_driver.cc`. In order to get these files easily (and correctly), you copy these files from other application directory such as `sodtube` then paste into `myproject`.
+FleCSPH can handle different projects. To add your own projects, you first need to create a directory in the `app` directory. For example, you can create a `myproject` directory in `app`. In `myproject`, you must have the files `CMakeLists.txt`, `/include/user.h`, `main.cc`, and `main_driver.cc`. In order to get these files easily and correctly, you can copy them from other application directories such as `sodtube` then paste into `myproject`.
 
-You need to modify `CMakeLists.txt` to get correct name of executable. All values and functions that you want to put and change should go `main_driver.cc`. `/include/user.h` defines dimension of your problem. Currently, FleCSPH can handle one, two, and three spatial dimensions. Do not edit `main.cc` unless you know what features in here.
+You need to modify the file `CMakeLists.txt` to have the correct name of your executable. All values and functions that you want to put and change should go into `main_driver.cc`. The file `/include/user.h` defines dimension of your problem. Do not edit `main.cc`.
 
-You also need to add your project in `project.cmake` in the `config` directory. At the end of this file (Add application targets section), you need to add:
+You also need to add your project in `project.cmake` in the `config` directory. At the end of this file (`Add application targets` section), you need to add:
 
 ```cinch add application directory("app/myproject")```
 
-Then, `cmake` links your project and you can compile it unless you do not have any errors. 
+Then, `cmake` links your project and you can compile it. 
 
 
  # Contacts
