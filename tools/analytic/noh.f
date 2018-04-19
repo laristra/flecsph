@@ -29,17 +29,17 @@ c      call getarg(2,outfile)
 
 
 c..input parameters in cgs
-      time   =  3.688293e-03
-      rho0   =  80000000.d0/(4.d0*4.d0*4.d0)
-      vel0   = -300.0d0
+      time   =  0.2
+      rho0   =  1
+      vel0   = -0.1d0
       gamma  = 5.d0/3.d0
-      xgeom  = 3.0d0
+      xgeom  = 2.0d0
 
 
 c..number of grid points, spatial domain, spatial step size
-      nstep = 500
+      nstep = 1000
       zlo   = 0.0d0
-      zhi   = 4.0d0
+      zhi   = 0.5d0
       zstep = (zhi - zlo)/float(nstep)
 
 

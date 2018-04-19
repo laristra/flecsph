@@ -123,6 +123,13 @@ mpi_init_task(int startiteration){
     bs.apply_all(physics::dudt_integration);
     if (rank == 0) std::cout << ".done" << std::endl;
    
+
+    physics::totaltime += physics::dt;
+    if(rank == 0){
+      std::cout << "Total time=" << physics::totaltime << "s / " << std::endl;
+    }
+
+
 #ifdef OUTPUT
     if (iter % iteroutput == 0){ 
       bs.write_bodies("output_noh",iter/iteroutput);
