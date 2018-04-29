@@ -1380,9 +1380,13 @@ public:
   }
 
 
-  /*!
-   * Update the branch boundaries
-   * Go through all the branches in a DFS order
+  /**
+   * @brief Update the COM data regarding the local bodies. 
+   * Do not consider GHOSTS 
+   * This function is useful to prepare the tree for local search 
+   * It is currently used in the FMM method. 
+   * 
+   * @param epsilon The radius to add in the boundaries of COM
    */
   void
   update_branches_local(
@@ -1453,15 +1457,12 @@ public:
           }
         }
       }
-      // Save in both cases
+      // Save in both cases leaf or not
       b->set_sub_entities(nchildren);
       b->set_coordinates(coordinates);
       b->set_mass(mass);
       b->set_bmin(bmin);
       b->set_bmax(bmax);  
-      //if(b->sub_entities() > 0)
-      //std::cout<<"Adding branch: mass="<<b->getMass() << " coord=" <<b->get_coordinates() <<
-      //  " sub_entities ="<<b->sub_entities() << " min="<<b->bmin() << " max=" << b->bmax() <<std::endl;
     };
     traverse(root());
   }
@@ -1481,9 +1482,6 @@ public:
       if(c->is_leaf()){
         //search_list.push_back(c);
       }else{
-        //if(c->sub_entities() < criterion && c->sub_entities() > 0){
-        //  search_list.push_back(c); 
-        //}else{
         for(int i=0; i<(1<<dimension);++i){
           branch_t * next = child(c,i);
           if(next->sub_entities() > 0){
@@ -1491,7 +1489,40 @@ public:
             stk.push(next);
           }
         }
-        //}
+      } 
+    }
+  }
+
+  /**
+   * @brief Return a vector with all the local sub entities
+   * 
+   * @param start The branch in which the search occur 
+   * @param search_list The found entities vector
+   */
+  void
+  get_sub_entities_local(
+    branch_t * start,
+    std::vector<entity_t*>& search_list)
+  {
+    std::stack<branch_t*> stk;
+    stk.push(start);
+    
+    while(!stk.empty()){
+      branch_t* c = stk.top();
+      stk.pop();
+      if(c->is_leaf()){
+        for(auto bh: *c){
+          if(bh->is_local()){
+            search_list.push_back(bh);
+          }
+        }
+      }else{
+        for(int i=0; i<(1<<dimension);++i){
+          branch_t * next = child(c,i);
+          if(next->sub_entities() > 0){
+            stk.push(next);
+          }
+        }
       } 
     }
   }
@@ -1525,6 +1556,14 @@ public:
     }
   }
 
+  /**
+   * @brief Find all the center of mass of the tree up to the 
+   * maximum mass criterion.  
+   * 
+   * @param b The starting branch for the search, usually root
+   * @param mass_criterion The maximum mass for the COMs
+   * @param search_list The extracted COMs
+   */
   void 
   find_sub_cells_mass(
       branch_t * b,
@@ -1715,40 +1754,6 @@ public:
     subentity_space_t ents;
     ents.set_master(entities_);
 
-    // RECURSIVE VERSION
-#if 0
-    // Tree traversal from root down 
-    // Recursive version 
-    std::function<void(branch_t*)> traverse;
-    traverse = [this,&ents,&traverse,&radius,&center](branch_t* b){
-      if(b->is_leaf())
-      {
-        for(auto child: *b)
-        {
-            // Check if in radius 
-            if(geometry_t::within(center,child->coordinates(),radius))
-            {
-              ents.push_back(child);
-            }
-        }
-      }else{
-        for(int i=0 ; i<(1<<dimension);++i)
-        {
-          auto branch = child(b,i);
-          if(geometry_t::intersects_sphere_sphere(
-                center,
-                radius,
-                branch->get_coordinates(),
-                branch->radius()))
-          {
-            traverse(branch);
-          }
-        }
-      }
-    };
-
-    traverse(root()); 
-#else
     // ITERATIVE VERSION
     std::stack<branch_t*> stk;
     stk.push(root());
@@ -1778,7 +1783,6 @@ public:
         }
       }
     }
-#endif
     return ents;
   }
 
@@ -2200,7 +2204,7 @@ public:
   get(
     branch_id_t id
   )
-  {
+  { 
     auto itr = branch_map_.find(id);
     assert(itr != branch_map_.end());
     return itr->second;

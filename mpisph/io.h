@@ -225,11 +225,11 @@ void inputDataHDF5(
   std::fill(dataY,dataY+nparticlesproc,0.);
   std::fill(dataZ,dataZ+nparticlesproc,0.); 
 
-  b_m = H5_SUCCESS == H5PartReadDataFloat64(dataFile,"m",dataX);
+  b_m = H5_SUCCESS == H5PartReadDataFloat64(dataFile,"mass",dataX);
   for(int64_t i=0; i<nparticlesproc; ++i){
     bodies[i].second.setMass(dataX[i]);
   }
-  b_rho = H5_SUCCESS == H5PartReadDataFloat64(dataFile,"rho",dataY);
+  b_rho = H5_SUCCESS == H5PartReadDataFloat64(dataFile,"density",dataY);
   for(int64_t i=0; i<nparticlesproc; ++i){
     bodies[i].second.setDensity(dataY[i]);
   }
@@ -477,17 +477,10 @@ void outputDataHDF5(
   // Put the step header
   simio.setTimeStep(step);
   
-  //Flecsi_Sim_IO::Attribute timeValue("time",Flecsi_Sim_IO::timestep,"float",
-  //    physics::totaltime);
-  //simio.timestepAttributes.push_back(timeValue);
-  
-  simio.addTimeStepAttribute(
-      Flecsi_Sim_IO::Attribute(
-        "time",
-       Flecsi_Sim_IO::timestep,
-        "double",
-        totaltime)
-      );
+  Flecsi_Sim_IO::Attribute timeValue("time",Flecsi_Sim_IO::timestep,"double",
+      physics::totaltime);
+  simio.addTimeStepAttribute(timeValue);
+
 
   simio.writeTimestepAttributes();
 
@@ -594,7 +587,7 @@ void outputDataHDF5(
 
   simio.addVariable( Flecsi_Sim_IO::Variable("h",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b1));
-  simio.addVariable( Flecsi_Sim_IO::Variable("rho",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("density",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b2));
   #ifdef INTERNAL_ENERGY
   simio.addVariable( Flecsi_Sim_IO::Variable("u",Flecsi_Sim_IO::point, 
@@ -616,7 +609,7 @@ void outputDataHDF5(
   
   simio.addVariable( Flecsi_Sim_IO::Variable("P",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b1));
-  simio.addVariable( Flecsi_Sim_IO::Variable("m",Flecsi_Sim_IO::point, 
+  simio.addVariable( Flecsi_Sim_IO::Variable("mass",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b2));
   simio.addVariable( Flecsi_Sim_IO::Variable("dt",Flecsi_Sim_IO::point, 
         "double", nparticlesproc,b3));

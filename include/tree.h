@@ -35,7 +35,13 @@
 
 #include "body.h"
 
-void mpi_assert(bool expression);
+// Local version of assert to handle MPI abord
+static void mpi_assert_fct(
+  bool expression, 
+  const char *file,
+  int line);
+
+#define mpi_assert( err ) (mpi_assert_fct(err,__FILE__,__LINE__))
 
 using namespace flecsi;
 
@@ -78,13 +84,9 @@ public:
         element_t mass,
 	      int64_t id
         )
-      :position_(position),bodyptr_(bodyptr),owner_(owner),mass_(mass),
-	id_(id)
+      :position_(position),bodyptr_(bodyptr),owner_(owner),mass_(mass),id_(id)
     {
-      if(bodyptr_==nullptr)
-        locality_ = NONLOCAL;
-      else
-        locality_ = EXCL;
+      locality_ = bodyptr_==nullptr?NONLOCAL:EXCL;
     };
 
     body_holder()
@@ -385,19 +387,6 @@ public:
     void insert(body_holder* ent){
       // Check if same id in the branch 
       entity_key_t nkey = entity_key_t(ent->coordinates()); 
-      // Check same key and do not refine in this case
-      //for(auto& e: ents_)
-      //{ 
-        // in case of same key, do not just add plus refine => number of children
-      //  if(nkey == entity_key_t(e->coordinates())){
-      //    ents_.push_back(ent);    
-      //    return;  
-      //  }
-      //}
-      // If yes, add in a vector of bodies 
-      //std::vector<body_holder*> nvent; 
-      //nvent.push_back(ent); 
-      //ents_.push_back(nvent);
       ents_.push_back(ent); 
       if(ents_.size() > (1<<dimension)){
         refine();
@@ -420,16 +409,6 @@ public:
     void remove(body_holder* ent){
       auto itr = find(ents_.begin(), ents_.end(), ent);
       ents_.erase(itr);  
-          
-      //for(auto e = ents_contiguous_.begin(); e < ents_contiguous_.end(); ++e){
-        //std::vector<body_holder*> elem = *e; 
-        //auto itr = find(e->begin(), e->end(), ent); 
-        //if(itr!=e->end()){
-          //e->erase(itr);
-          //ents_contiguous_.erase(e);  
-          //break; 
-        //}
-      //}
       if(ents_.empty()){
         coarsen();
       } 

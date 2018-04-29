@@ -1,7 +1,7 @@
 /*~--------------------------------------------------------------------------~*
  * Copyright (c) 2017 Los Alamos National Security, LLC
  * All rights reserved.
- *~--------------------------------------------------------------------------~*\
+ *~--------------------------------------------------------------------------~*/
 
  /*~--------------------------------------------------------------------------~*
  * 
@@ -17,17 +17,40 @@
  *~--------------------------------------------------------------------------~*/
 
 /**
- * @file user.h
+ * @file eos.h
  * @author Julien Loiseau
- * @date April 2017
- * @brief User define for dimension and type 
+ * @date June 2017
+ * @brief Abstract EOS implementation
  */
 
-#ifndef _user_h_
-#define _user_h_
+#ifndef _physics_eos_h_
+#define _physics_eos_h_
 
-#define OUTPUT
-static const size_t gdimension = 3;
-using type_t = double;
+#define DEFAULT_GAMMA 1.4
 
-#endif // _user_h_
+#include <vector>
+
+#include "tree.h"
+
+class eos{
+
+public:
+  eos(double gamma):gamma_(gamma){};
+  eos():gamma_(DEFAULT_GAMMA){};
+
+  ~eos(){};
+
+  // Generic eos function to compute the pressure 
+  virtual double compute_pressure(
+      body_holder*, 
+      std::vector<body_holder*>&); 
+
+  virtual double compute_pressure_wd(
+      body_holder*, 
+      std::vector<body_holder*>&); 
+
+protected:
+  double gamma_;
+};
+
+#endif // _physics_kernel_h_

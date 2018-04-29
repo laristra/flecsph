@@ -5,13 +5,13 @@
 
  /*~--------------------------------------------------------------------------~*
  * 
- * /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
- * /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
- * /@@       /@@  @@@@@  @@    // /@@       /@@   /@@/@@     /@@
- * /@@@@@@@  /@@ @@///@@/@@       /@@@@@@@@@/@@@@@@@ /@@@@@@@@@@
- * /@@////   /@@/@@@@@@@/@@       ////////@@/@@////  /@@//////@@
- * /@@       /@@/@@//// //@@    @@       /@@/@@      /@@     /@@
- * /@@       @@@//@@@@@@ //@@@@@@  @@@@@@@@ /@@      /@@     /@@
+ * /@@@@@@@@ @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
+ * /@@///// /@@          @@////@@ @@////// /@@////@@/@@     /@@
+ * /@@      /@@  @@@@@  @@    // /@@       /@@   /@@/@@     /@@
+ * /@@@@@@@ /@@ @@///@@/@@       /@@@@@@@@@/@@@@@@@ /@@@@@@@@@@
+ * /@@////  /@@/@@@@@@@/@@       ////////@@/@@////  /@@//////@@
+ * /@@      /@@/@@//// //@@    @@       /@@/@@      /@@     /@@
+ * /@@      @@@//@@@@@@ //@@@@@@  @@@@@@@@ /@@      /@@     /@@
  * //       ///  //////   //////  ////////  //       //      //  
  *
  *~--------------------------------------------------------------------------~*/
@@ -40,11 +40,15 @@
 #include <bodies_system.h>
 #include "physics.h"
 
+#define FROT 1
+#define ROT 0
+#define INTERNAL_ENERGY 1
+
 namespace flecsi{
 namespace execution{
 
 void
-mpi_init_task(int startiteration, double macangle = 0){
+mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
   // TODO find a way to use the file name from the specialiszation_driver
   
   int rank;
@@ -53,41 +57,65 @@ mpi_init_task(int startiteration, double macangle = 0){
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   
   int iter = startiteration; 
-  int noutput = startiteration+1;
-  int maxiter = 500;
+  int noutput = 0;//startiteration+1;
 
   body_system<double,gdimension> bs;
   double maxtime = 1.0;
-  double outputtime = 0.02;
+  double outputtime = 0.05;
   
   // Use the user reader defined in the physics file 
-  bs.read_bodies("hdf5_bns_2D.h5part",startiteration);
+  bs.read_bodies("hdf5_bns_3D.h5part",startiteration);
 
-  remove("output_bns_2D.h5part");
-  const char outputname[64] = "output_bns_2D";
+  remove("output_bns_3D.h5part");
+  const char outputname[64] = "output_bns_3D";
 
   bs.update_iteration();
     // For OMP time, just used on 0, initialized for others
   double start = 0;
   double start_iteration = 0;
-  physics::dt = 0.001;
+  physics::dt = 1.0e-8;
   bs.setMacangle(macangle);
+  bs.setMaxmasscell(10.0e-40);
 
   std::cout<<"MacAngle="<<macangle<<std::endl;
 
   point_t momentum = {};
 
-  // Compute density, pressure, cs for next iteration
-  MPI_Barrier(MPI_COMM_WORLD);
-  if(rank==0){
-    std::cout<<"compute_density_pressure_soundspeed"<<std::flush; 
-    start = omp_get_wtime(); 
+  // Get rid of distant particles for faster run 
+  bs.apply_all([](body_holder* source){
+      body * src = source->getBody();
+      point_t pos = src->getPosition();
+      for(int i = 0 ; i < gdimension ; ++i){
+        if(pos[i] > 10){
+          pos[i] = 10;
+          src->setVelocity(point_t{});
+        }
+        if(pos[i] < -10){
+          pos[i] = -10;
+          src->setVelocity(point_t{});
+        }
+        src->setPosition(pos);
+      }
+  });
+
+  
+  if(iter == 0){
+    // Set adiabatic value 
+    bs.apply_all([](body_holder* source){
+        source->getBody()->setAdiabatic(physics::A);
+        physics::compute_internal_energy(source);
+      });
+
+  }else{
+    std::cout << "Recomputing A from u"<<std::endl; 
+    std::cout << "Considering velocityHalf = velocity" << std::endl;
+    // Convert internal energy to A ratio 
+    bs.apply_all(physics::compute_adiabatic_from_u);
+    bs.apply_all([](body_holder* source){
+        source->getBody()->setVelocityhalf(
+          source->getBody()->getVelocity());
+      });
   }
-  bs.apply_in_smoothinglength(
-    physics::compute_density_pressure_soundspeed); 
-  MPI_Barrier(MPI_COMM_WORLD);
-  if(rank==0)
-    std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
 #ifdef OUTPUT
   bs.write_bodies(outputname,startiteration);
@@ -102,6 +130,30 @@ mpi_init_task(int startiteration, double macangle = 0){
       std::cout<<std::endl<<"#### Iteration "<<iter<<std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
 
+    // Integration step
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){
+      std::cout<<"Leapfrog integration"<<std::flush; 
+      start = omp_get_wtime(); 
+    }
+    bs.apply_all(physics::leapfrog_integration);
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0)
+      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+
+#if ROT == 1
+    // Rotation of the stars
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){
+      std::cout<<"Rotation"<<std::flush; 
+      start = omp_get_wtime(); 
+    }
+    bs.apply_all(physics::apply_rotation);
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0)
+      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+#endif
+
     // Compute and prepare the tree for this iteration 
     // - Compute the Max smoothing length 
     // - Compute the range of the system using the smoothinglength
@@ -112,72 +164,6 @@ mpi_init_task(int startiteration, double macangle = 0){
     // - Compute and exchange ghosts in real smoothing length 
     bs.update_iteration();
 
-    // reset acceleration to 0 
-    bs.apply_all([](body_holder* source){
-      source->getBody()->setAcceleration(point_t{});
-    });
-
-    // Compute the hydro force 
-
-
-    
-    MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0){
-      std::cout<<"Accel hydro"<<std::flush; 
-      start = omp_get_wtime(); 
-    }
-    bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
-    MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0)
-      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
-
-    MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0){
-      std::cout<<"Accel hydro"<<std::flush; 
-      start = omp_get_wtime(); 
-    }
-    bs.apply_in_smoothinglength(physics::compute_internalenergy);
-    MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0)
-      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
-    
-    MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0){
-      std::cout<<"Accel FMM"<<std::flush; 
-      start = omp_get_wtime(); 
-    }
-    bs.gravitation_fmm();
-    MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0)
-      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
-
-
-    MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0){
-      std::cout<<"Internal energy integration"<<std::flush; 
-      start = omp_get_wtime(); 
-    }
-      bs.apply_all(physics::dudt_integration);
-    MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0)
-      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
-    
-
-    MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0){
-      std::cout<<"Leapfrog integration"<<std::flush; 
-      start = omp_get_wtime(); 
-    }
-    if(iter == 1){
-      bs.apply_all(physics::leapfrog_integration_first_step);
-    }else{
-      bs.apply_all(physics::leapfrog_integration);
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0)
-      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
-
-    // Pressure density and soundspeed
     MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0){
       std::cout<<"compute_density_pressure_soundspeed"<<std::flush; 
@@ -189,60 +175,83 @@ mpi_init_task(int startiteration, double macangle = 0){
     if(rank==0)
       std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
-    
-    // Compute momentum 
-    point_t total_momentum;
+    bs.update_neighbors();
+
+    // reset acceleration to 0 
+    bs.apply_all([](body_holder* source){
+      source->getBody()->setAcceleration(point_t{});
+    });
+
+
     MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0){
-      std::cout<<"Momentum computation"<<std::flush; 
+      std::cout<<"Accel FMM"<<std::flush; 
       start = omp_get_wtime(); 
     }
-      bs.get_all(physics::compute_lin_momentum,&total_momentum);
+    bs.gravitation_fmm();
     MPI_Barrier(MPI_COMM_WORLD);
-    // Gather on 0 and sum 
-    std::vector<point_t> sub_momentum;
-    if(rank==0){
-      sub_momentum.resize(size);
-    }
-    MPI_Gather(&total_momentum,sizeof(point_t),MPI_BYTE,
-         &sub_momentum[0],sizeof(point_t),MPI_BYTE,0,MPI_COMM_WORLD);
-    // Sum 
-    if(rank==0){
-      total_momentum = {0};
-      for(auto v: sub_momentum){
-        total_momentum += v;
-      }
-      // Display diff 
-      std::cout << "="<< magnitude(point_to_vector(total_momentum-momentum)) << " ";
-
-      momentum = total_momentum;
-    }
     if(rank==0)
       std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
- 
-    // Compute the new DT 
+
     MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0){
       std::cout<<"Accel hydro"<<std::flush; 
       start = omp_get_wtime(); 
     }
+    bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0)
+      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+
+#if FROT == 1
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){
+      std::cout<<"Accel rot"<<std::flush; 
+      start = omp_get_wtime(); 
+    }
+    bs.get_all(physics::compute_QZZ);
+    // Reduce QZZ
+    MPI_Allreduce(MPI_IN_PLACE,&physics::QZZ,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+    bs.get_all(physics::compute_rotation);
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0)
+      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+ #endif
+
+    // Compute the new DT 
+    physics::dt = 1.0;
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank==0){
+      std::cout<<"DT computation"<<std::flush; 
+      start = omp_get_wtime(); 
+    }
     bs.apply_in_smoothinglength(physics::compute_dt);
+    // Get the minimum using MPI
+    MPI_Allreduce(MPI_IN_PLACE,&physics::dt,1,MPI_DOUBLE,MPI_MIN,MPI_COMM_WORLD);
     MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0){
       std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
       std::cout<<"dt="<<physics::dt<<std::endl;
     }
-
+    assert(physics::dt != 1.0);
     physics::totaltime += physics::dt;
+
+    // Compute internal energy for output 
+    bs.apply_all(physics::compute_internal_energy);
 
     if(rank == 0){
       std::cout<<"Total time="<<physics::totaltime<<"s / "<<maxtime<<"s"<<std::endl;
     }
 #ifdef OUTPUT
-    if(physics::totaltime > noutput*outputtime){
+    if(physics::totaltime >= noutput*outputtime){
       bs.write_bodies(outputname,noutput);
       noutput++;
     }
+
+    //if(iter % 50 == 0){
+    //  bs.write_bodies(outputname,noutput);
+    //  noutput++;
+    //}
 
     //if(iter % iteroutput == 0){ 
     //  bs.write_bodies("output_fluid",iter/iteroutput);
@@ -265,20 +274,26 @@ specialization_tlt_init(int argc, char * argv[]){
   
   // Default start at iteration 0
   int startiteration = 0;
+  int maxiter = 1000;
   double macangle = 0;
   if(argc == 2){
     startiteration = atoi(argv[1]);
   }
   if(argc == 3){
     startiteration = atoi(argv[1]);
-    macangle = atof(argv[2]);
+    maxiter = atoi(argv[2]);
+  }
+  if(argc == 4){
+    startiteration = atoi(argv[1]);
+    maxiter = atoi(argv[2]);
+    macangle = atof(argv[3]);
   }
 
   std::cout << "In user specialization_driver" << std::endl;
   /*const char * filename = argv[1];*/
   /*std::string  filename(argv[1]);
   std::cout<<filename<<std::endl;*/
-  flecsi_execute_mpi_task(mpi_init_task,startiteration,macangle); 
+  flecsi_execute_mpi_task(mpi_init_task,startiteration,maxiter,macangle); 
 } // specialization driver
 
 void 

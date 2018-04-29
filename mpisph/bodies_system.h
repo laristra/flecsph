@@ -13,22 +13,31 @@
 #include "tree_fmm.h"
 #include "physics.h"
 #include "io.h"
-
+#include "utils.h"
 
 #include <iostream>
 #include <fstream>
 
+using namespace mpi_utils;
+
 
 #define NORMAL_REP // Repartition based on part num 
 
+
 // Local version of assert to handle MPI abord
-void mpi_assert(bool expression)
+static void mpi_assert_fct(
+  bool expression, 
+  const char *file,
+  int line)
 {
   if (!(expression)) {
-     fprintf(stderr, "Failed assertion at %d in %s",__LINE__, __FILE__);
+     fprintf(stderr, "Failed assertion in %s in %d\n",file, line);
      MPI_Abort(MPI_COMM_WORLD, 1);
   }
 }
+
+#define mpi_assert( err ) (mpi_assert_fct(err,__FILE__,__LINE__))
+
 
 template<
   typename T,
@@ -281,6 +290,7 @@ public:
       tree_->insert(nbi); 
       bodies_.push_back(nbi);
     }
+    localnbodies_ = localbodies_.size();
 
     // Check the total number of bodies 
     int64_t checknparticles = bodies_.size();
@@ -372,38 +382,26 @@ public:
     tcolorer_.mpi_refresh_ghosts(*tree_/*,range_*/);
   }
 
-  void gravitation_fmm()
+  void 
+  gravitation_fmm()
   {
     int rank, size; 
     MPI_Comm_size(MPI_COMM_WORLD,&size);
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
-    //macangle_ = 0;
-   std::cout<<"MACANGLE="<<macangle_<<std::endl;
+    if(rank == 0){
+      std::cout<<"FMM: mmass="<<maxmasscell_<<" angle="<<macangle_<<std::endl;
+    }
 
-    // Gather the distant particles 
-
-    // Compute the multipoles
+    // Just consider the local particles in the tree for FMM 
     tree_->update_branches_local();
-    //tcolorer_.mpi_tree_traversal_graphviz(*tree_);
-    //debug_display_branches();
-    
-    //assert(tree_->root()->sub_entities() == localnbodies_);
-    // Exchange the cells up to a depth 
-    tfmm_.mpi_exchange_cells(*tree_,maxmasscell_);
-    // Compute the fmm interaction to the gathered cells 
-    // Also gather the particles needed for the N^2 algorithm
-    std::vector<std::vector<body_holder_mpi_t>> particles (size);
-    // Check the size of vector of vector 
-    //int pos = 0;
-    //for(auto v: particles){
-    //  std::cout<<"Need: "<<v.size()<<" to "<<pos++;
-    //}
-    tfmm_.mpi_compute_fmm(*tree_,macangle_,particles);
-    // Vompute the n square algorithm 
+    assert(tree_->root()->sub_entities() == localnbodies_);
 
-    // Gather all the contributions and compute 
-    tfmm_.mpi_gather_cells(*tree_,macangle_);
+    tfmm_.mpi_exchange_cells(*tree_,maxmasscell_);
+    tfmm_.mpi_compute_fmm(*tree_,macangle_,2*smoothinglength_);
+    tfmm_.mpi_gather_cells(*tree_,macangle_,totalnbodies_);
+    
+    // Reset the tree to normal before leaving
     tree_->update_branches(2*smoothinglength_);
   }
 
@@ -446,26 +444,6 @@ public:
       EF&& ef,
       ARGS&&... args)
   {
-
-#ifdef COMPUTE_NEIGHBORS
-    int64_t nelem = bodies_.size(); 
-  #pragma omp parallel for 
-    for(int64_t i=0; i<nelem; ++i){
-      // Change here to use only the iterator of begin and end 
-      for(size_t d=0; d<gdimension; ++d){
-        assert(!std::isnan(bodies_[i]->getBody()->coordinates()[d])); 
-      }
-      assert(bodies_[i]->getBody()->getSmoothinglength() > 0.); 
-      assert(neighbors_count_[i+1]-neighbors_count_[i]>0);
-      std::vector<body_holder*> nbs(neighbors_count_[i+1]-neighbors_count_[i]);
-      int local = 0;
-      for(int j=neighbors_count_[i]; j<neighbors_count_[i+1]; ++j)
-      {
-        nbs[local++]=neighbors_[j];
-      }
-      ef(bodies_[i],nbs,std::forward<ARGS>(args)...);
-    } 
-#else 
     int64_t ncritical = 32; 
     tree_->apply_sub_cells(
         tree_->root(),
@@ -474,7 +452,6 @@ public:
         ncritical,
         ef,
         std::forward<ARGS>(args)...); 
-#endif
   }
 
   template<
