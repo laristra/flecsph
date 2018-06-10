@@ -53,6 +53,7 @@ RUN  cmake .. -DFLECSI_RUNTIME_MODEL=legion \
               -DENABLE_LEGION=ON \
               -DENABLE_CLOG=OFF \
               -DENABLE_MPI=ON \
+              -DENABLE_OPENMP=ON \
               -DENABLE_MPI_CXX_BINDINGS=ON 
 RUN make VERBOSE=1
 USER root
