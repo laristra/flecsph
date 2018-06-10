@@ -86,7 +86,7 @@ RUN cmake -DENABLE_MPI=$MPI \
           -DENABLE_OPENMP=ON \
           -DENABLE_LEGION=ON \
           -DENABLE_DOXYGEN=ON \
-          -CMAKE_CXX_FLAGS="-fpermissive"
+          -CMAKE_CXX_FLAGS="-fpermissive" \
           ${COVERAGE:+-DENABLE_COVERAGE_BUILD=ON} ..
 
 RUN HDF5_USE_SHLIB=yes ${SONARQUBE:+build-wrapper-linux-x86-64 --out-dir bw-output} make VERBOSE=1 -j2
