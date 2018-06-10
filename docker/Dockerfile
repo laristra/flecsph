@@ -54,7 +54,7 @@ RUN  cmake .. -DFLECSI_RUNTIME_MODEL=legion \
               -DENABLE_CLOG=OFF \
               -DENABLE_MPI=ON \
               -DENABLE_MPI_CXX_BINDINGS=ON 
-RUN make VERBOSE=1 -j2
+RUN make VERBOSE=1
 USER root
 RUN make install
 USER flecsi
