@@ -411,7 +411,7 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
     // Gather the distant particles 
-    mpi_alltoallv<body_holder_fmm_t>(send_particles_count_,send_particles_,recv_particles_);
+    mpi_alltoallv(send_particles_count_,send_particles_,recv_particles_);
 
     // Gather the center of mass
     int ncells = nrecvCOM_[rank]/sizeof(mpi_cell_t);
