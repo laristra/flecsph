@@ -20,6 +20,7 @@ script:
   - cp -r $HOME/.sonar ${HOME}/docker/sonar
   - if [[ ${CC} != gcc ]]; then TAG="_${CC}"; fi
   - docker build --build-arg MPI=${MPI}
+                --build-arg LEGION=${LEGION} 
                 --build-arg COVERAGE=${COVERAGE}
                 --build-arg CC=${CC} --build-arg CXX=${CXX}
                 --build-arg SONARQUBE=${SONARQUBE} --build-arg SONARQUBE_TOKEN=${SONARQUBE_TOKEN}
