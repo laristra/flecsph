@@ -24,7 +24,6 @@ using namespace mpi_utils;
 #define NORMAL_REP // Repartition based on part num 
 
 
-
 template<
   typename T,
   size_t D
@@ -34,6 +33,10 @@ class body_system{
 using point_t = flecsi::point<T,D>;
 
 public:
+
+    /**
+     *
+     */
   body_system():totalnbodies_(0L),localnbodies_(0L),macangle_(0.0),
   maxmasscell_(1.0e-40),tree_(nullptr)
   {
@@ -83,7 +86,15 @@ public:
     macangle_ = macangle;
   };
 
-  
+  /**
+   * @brief [brief description]
+   * @details [long description]
+   * 
+   * @param filename [description]
+   * @param attributeName [description]
+   * @param default_value [description]
+   * @return [description]
+   */
   template<
     typename TL
   >

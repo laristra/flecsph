@@ -264,9 +264,9 @@ int main(int argc, char* argv[])
 		data3[i] = particles[i%nparticles].density_;
 	}
 
-	write_dataset(dataFile, "/Step#0/mass",data1);
+	write_dataset(dataFile, "/Step#0/m",data1);
 	write_dataset(dataFile, "/Step#0/h",data2);
-	write_dataset(dataFile, "/Step#0/denisty",data3);
+	write_dataset(dataFile, "/Step#0/rho",data3);
 
 	std::cout<<"mass ["<<*std::min_element(data1.begin(),data1.end())<<","
 	<< *std::max_element(data1.begin(),data1.end()) <<"]"<<std::endl;
