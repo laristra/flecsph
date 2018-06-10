@@ -180,6 +180,7 @@ public:
     {
       std::vector<body_holder_fmm_t> local;
       std::vector<int> local_count(size);
+
       #pragma omp for 
       for(auto cell=recvCOM_.begin(); cell != recvCOM_.end() ; ++cell){
         branch_t sink;
@@ -407,7 +408,7 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
     // Gather the distant particles 
-    mpi_alltoallv(send_particles_count_,send_particles_,recv_particles_);
+    mpi_alltoallv<body_holder_fmm_t>(send_particles_count_,send_particles_,recv_particles_);
 
     // Gather the center of mass
     int ncells = nrecvCOM_[rank]/sizeof(mpi_cell_t);
