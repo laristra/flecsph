@@ -33,6 +33,9 @@
 #include <omp.h>
 
 #include "tree.h"
+#include "utils.h"
+
+using namespace mpi_utils;
 
 
 struct body_holder_fmm_t{
