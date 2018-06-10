@@ -7,9 +7,9 @@ services:
 
 env:
   matrix:
-    - DISTRO=fedora MPI=ON DOCKERHUB=true TRAVIS_BRANCH=flecsph
-    - DISTRO=ubuntu MPI=ON DOCKERHUB=true TRAVIS_BRANCH=flecsph
-    - DISTRO=ubuntu MPI=ON COVERAGE=ON TRAVIS_BRANCH=flecsph
+    - DISTRO=fedora MPI=ON DOCKERHUB=true
+    - DISTRO=ubuntu MPI=ON DOCKERHUB=true
+    - DISTRO=ubuntu MPI=ON COVERAGE=ON
 
 script:
   - cp -vr docker ${HOME}/docker
