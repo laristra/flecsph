@@ -24,20 +24,6 @@ using namespace mpi_utils;
 #define NORMAL_REP // Repartition based on part num 
 
 
-// Local version of assert to handle MPI abord
-static void mpi_assert_fct(
-  bool expression, 
-  const char *file,
-  int line)
-{
-  if (!(expression)) {
-     fprintf(stderr, "Failed assertion in %s in %d\n",file, line);
-     MPI_Abort(MPI_COMM_WORLD, 1);
-  }
-}
-
-#define mpi_assert( err ) (mpi_assert_fct(err,__FILE__,__LINE__))
-
 
 template<
   typename T,
@@ -394,11 +380,11 @@ public:
     }
 
     // Just consider the local particles in the tree for FMM 
-    tree_->update_branches_local();
+    tree_->update_branches_local(smoothinglength_);
     assert(tree_->root()->sub_entities() == localnbodies_);
 
     tfmm_.mpi_exchange_cells(*tree_,maxmasscell_);
-    tfmm_.mpi_compute_fmm(*tree_,macangle_,2*smoothinglength_);
+    tfmm_.mpi_compute_fmm(*tree_,macangle_,0);
     tfmm_.mpi_gather_cells(*tree_,macangle_,totalnbodies_);
     
     // Reset the tree to normal before leaving

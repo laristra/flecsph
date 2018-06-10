@@ -161,6 +161,9 @@ public:
     double macangle,
     double epsilon)
   {
+    MPI_Barrier(MPI_COMM_WORLD);
+    double time = omp_get_wtime();
+
     int rank, size; 
     MPI_Comm_size(MPI_COMM_WORLD,&size);
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -201,16 +204,26 @@ public:
         for(int i = 0 ; i < size; ++i){
           send_particles_count_[i] += local_count[i];
         }
+        local.clear();
+        local_count.clear();
       }
     }
     
     sort(send_particles_.begin(),send_particles_.end(),
       [&rank](const body_holder_fmm_t& v1, const body_holder_fmm_t&v2){
         //assert(rank != v1.owner && rank != v2.owner);
+        if(v1.owner == v2.owner){
+          return v1.id < v2.id;
+        }
         return v1.owner < v2.owner;
       });
 
     assert(send_particles_count_[rank] == 0);
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank == 0){
+      std::cout<<"mpi_compute_fmm in "<<omp_get_wtime()-time<<
+      "s"<<std::endl<<std::flush;
+    }
   }
 
   void computeAcceleration_direct(
@@ -294,6 +307,10 @@ public:
     tree_topology_t& tree,
     double maxMass)
   {
+    MPI_Barrier(MPI_COMM_WORLD);
+    double time = omp_get_wtime();
+
+
     int rank,size; 
     MPI_Comm_size(MPI_COMM_WORLD,&size);
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -365,6 +382,12 @@ public:
       assert(vcells[i].position == 
         recvCOM_[i+noffsets[rank]/sizeof(mpi_cell_t)].position);
     }// for
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank == 0){
+      std::cout<<"mpi_exchange_cells in "<<omp_get_wtime()-time<<
+      "s"<<std::endl<<std::flush;
+    }
   } // mpi_exchange_cells
 
 
@@ -376,6 +399,9 @@ public:
     double& macangle,
     int64_t & totalnbodies)
   { 
+    MPI_Barrier(MPI_COMM_WORLD);
+    double time = omp_get_wtime();
+
     int rank,size; 
     MPI_Comm_size(MPI_COMM_WORLD,&size);
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -423,17 +449,8 @@ public:
       } // for 
     } // for
 
-    // Go through the received particles and apply to the concerned COM 
-    for(auto rp: recv_particles_){
-      // Find the concerned branch
-      branch_t * sink = tree.get(rp.id_sink);
-      assert(sink!=nullptr);
-      // Apply to the subparts
-      tree_traversal_p2p_distant(tree,sink,rp.position,rp.mass); 
-    }
-
     // Propagate in the particles from sink 
-    //#pragma omp parallel for
+    #pragma omp parallel for
     for(int i=0;i<ncells;++i){
       std::vector<body*> subparts;
       // Find the branch in the local tree with the id
@@ -455,9 +472,13 @@ public:
 
       int distant_contrib = 0;
       // Add the contribution of received particles 
-      #pragma omp parallel for reduction(+:distant_contrib)
+      //#pragma omp parallel for reduction(+:distant_contrib)
       for(int j = 0 ; j < recv_particles_.size(); ++j){
         if(recvcells[i].id == recv_particles_[j].id_sink){
+          tree_traversal_p2p_distant(
+            tree,sink,
+            recv_particles_[j].position,
+            recv_particles_[j].mass); 
           distant_contrib++;
         }
       }
@@ -467,6 +488,11 @@ public:
         <<"/"<<totalnbodies<<std::endl<<std::flush;
       }
       assert(recvcells[i].ninterations == totalnbodies);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(rank == 0){
+      std::cout<<"mpi_gather_cells in "<<omp_get_wtime()-time<<
+      "s"<<std::endl<<std::flush;
     }
   } // mpi_gather_cells
 
@@ -617,27 +643,27 @@ private:
         macangle))
       {
 
-        point_t center_cur = (cur->bmax()+cur->bmin())/2.;
+        //point_t center_cur = (cur->bmax()+cur->bmin())/2.;
 
         // In every case if too close, just perform the normal computation
-        if(flecsi::distance(center_cur,center_sink) <
-          distance+epsilon && rank != owner){
+        //if(flecsi::distance(center_cur,center_sink) <
+          //distance+epsilon && rank != owner){
           // Add the sub particles 
-          std::vector<body_holder*> sub_entities; 
-          tree.get_sub_entities_local(cur,sub_entities);
-          for(auto bi: sub_entities){
-            particles_count[owner]++;
-            particles.push_back(
-              body_holder_fmm_t{
-                bi->getPosition(),owner,bi->getMass(),bi->getId(),sink_id
-              }
-            ); 
-          }
-        }else{
+          //std::vector<body_holder*> sub_entities; 
+          //tree.get_sub_entities_local(cur,sub_entities);
+          //for(auto bi: sub_entities){
+          //  particles_count[owner]++;
+          //  particles.push_back(
+          //    body_holder_fmm_t{
+          //      bi->getPosition(),owner,bi->getMass(),bi->getId(),sink_id
+          //    }
+          //  ); 
+         // }
+        //}else{
           computeAcceleration(sink->getPosition(),cur->getPosition(),
             cur->getMass(),fc,jacobi,hessian);
           ninter+=cur->sub_entities();
-        }
+        //}
       }else{
         if(cur->is_leaf()){
           for(auto bi: *cur){

@@ -26,7 +26,29 @@
 #ifndef _mpisph_utils_
 #define _mpisph_utils_
 
+// Local version of assert to handle MPI abord
+static void mpi_assert_fct(
+  bool expression, 
+  const char *file,
+  int line);
+
+#define mpi_assert( err ) (mpi_assert_fct(err,__FILE__,__LINE__))
+
+// Local version of assert to handle MPI abord
+static void mpi_assert_fct(
+  bool expression, 
+  const char *file,
+  int line)
+{
+  if (!(expression)) {
+     fprintf(stderr, "Failed assertion in %s in %d\n",file, line);
+     MPI_Abort(MPI_COMM_WORLD, 1);
+  }
+}
+
 namespace mpi_utils{
+
+
 
   /**
  * @brief      Simple version of all to all 

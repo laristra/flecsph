@@ -56,6 +56,7 @@ namespace physics{
   double maxtime = 10.;
   double outputtime = 0.02;
   double MAC = 0.;
+  
 
   auto kernel = kernel::quintic_wendland_2D;
   auto kernel_gradient = kernel::quintic_wendland_2D_gradient;

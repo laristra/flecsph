@@ -40,8 +40,8 @@
 #include <bodies_system.h>
 #include "physics.h"
 
-#define FROT 1
-#define ROT 0
+#define FROT 0
+#define ROT 1
 #define INTERNAL_ENERGY 1
 
 namespace flecsi{
@@ -62,6 +62,7 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
   body_system<double,gdimension> bs;
   double maxtime = 1.0;
   double outputtime = 0.05;
+
   
   // Use the user reader defined in the physics file 
   bs.read_bodies("hdf5_bns_3D.h5part",startiteration);
@@ -75,28 +76,13 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
   double start_iteration = 0;
   physics::dt = 1.0e-8;
   bs.setMacangle(macangle);
-  bs.setMaxmasscell(10.0e-40);
+  bs.setMaxmasscell(10e-5);
 
   std::cout<<"MacAngle="<<macangle<<std::endl;
 
   point_t momentum = {};
 
-  // Get rid of distant particles for faster run 
-  bs.apply_all([](body_holder* source){
-      body * src = source->getBody();
-      point_t pos = src->getPosition();
-      for(int i = 0 ; i < gdimension ; ++i){
-        if(pos[i] > 10){
-          pos[i] = 10;
-          src->setVelocity(point_t{});
-        }
-        if(pos[i] < -10){
-          pos[i] = -10;
-          src->setVelocity(point_t{});
-        }
-        src->setPosition(pos);
-      }
-  });
+
 
   
   if(iter == 0){
@@ -140,6 +126,23 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
     MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0)
       std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+
+    // Get rid of distant particles for faster run 
+    bs.apply_all([](body_holder* source){
+        body * src = source->getBody();
+        point_t pos = src->getPosition();
+        for(int i = 0 ; i < gdimension ; ++i){
+          if(pos[i] > 10){
+            pos[i] = 10;
+            src->setVelocity(point_t{});
+          }
+          if(pos[i] < -10){
+            pos[i] = -10;
+            src->setVelocity(point_t{});
+          }
+          src->setPosition(pos);
+        }
+    });
 
 #if ROT == 1
     // Rotation of the stars
@@ -247,6 +250,7 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
       bs.write_bodies(outputname,noutput);
       noutput++;
     }
+
 
     //if(iter % 50 == 0){
     //  bs.write_bodies(outputname,noutput);

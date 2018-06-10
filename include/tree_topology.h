@@ -1664,14 +1664,7 @@ public:
             b->bmax(),
             branch->bmin(),
             branch->bmax()))
-          /*if(geometry_t::within_mac(
-            b->get_coordinates(),
-            branch->get_coordinates(),
-            branch->radius(),
-            MAC))
           {
-            inter_list.push_back(branch);
-          }else*/{
             stk.push(branch);
           }
         }

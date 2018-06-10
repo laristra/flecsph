@@ -32,16 +32,9 @@
 #include "tree_topology.h"
 #include "flecsi/geometry/point.h"
 #include "flecsi/geometry/space_vector.h"
+#include "utils.h"
 
 #include "body.h"
-
-// Local version of assert to handle MPI abord
-static void mpi_assert_fct(
-  bool expression, 
-  const char *file,
-  int line);
-
-#define mpi_assert( err ) (mpi_assert_fct(err,__FILE__,__LINE__))
 
 using namespace flecsi;
 
@@ -145,8 +138,7 @@ public:
   };
     
   using entity_t = body_holder;
-
-  /**
+    /**
    * Class entity_key_t used to represent the key of a body. 
    * The right way should be to add this informations directly inside 
    * the body_holder. 

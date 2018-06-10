@@ -478,7 +478,7 @@ void outputDataHDF5(
   simio.setTimeStep(step);
   
   Flecsi_Sim_IO::Attribute timeValue("time",Flecsi_Sim_IO::timestep,"double",
-      physics::totaltime);
+      totaltime);
   simio.addTimeStepAttribute(timeValue);
 
 

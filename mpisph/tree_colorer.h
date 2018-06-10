@@ -383,7 +383,7 @@ public:
 
     // Do a tree search up to a branch 
     // Keep those branches in a list 
-    int criterion = 128;
+    int criterion = 1024;
     std::vector<branch_t*> search_branches; 
     tree.find_sub_cells(
       tree.root(),

@@ -5,8 +5,10 @@
 #include <cmath>
 #include <mpi.h>
 
+#include "utils.h"
 #include "tree_colorer.h"
 #include "io.h"
+
 
 using namespace std;
 using namespace flecsi;
@@ -19,14 +21,6 @@ namespace execution{
 }
 }
 
-// Local version of assert to handle MPI abord
-void mpi_assert(bool expression)
-{
-  if (!(expression)) {
-     fprintf(stderr, "Failed assertion at %d in %s",__LINE__, __FILE__);
-     MPI_Abort(MPI_COMM_WORLD, 1);
-  }
-}
 
 TEST(io, write_N_read) {
 
