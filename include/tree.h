@@ -28,9 +28,11 @@
 
 #include <vector>
 
-#include "flecsi/topology/tree_topology.h"
+//#warning "CHANGE TO FLECSI ONE"
+#include "tree_topology.h"
 #include "flecsi/geometry/point.h"
 #include "flecsi/geometry/space_vector.h"
+#include "utils.h"
 
 #include "body.h"
 
@@ -75,13 +77,9 @@ public:
         element_t mass,
 	      int64_t id
         )
-      :position_(position),bodyptr_(bodyptr),owner_(owner),mass_(mass),
-	id_(id)
+      :position_(position),bodyptr_(bodyptr),owner_(owner),mass_(mass),id_(id)
     {
-      if(bodyptr_==nullptr)
-        locality_ = NONLOCAL;
-      else
-        locality_ = EXCL;
+      locality_ = bodyptr_==nullptr?NONLOCAL:EXCL;
     };
 
     body_holder()
@@ -140,8 +138,7 @@ public:
   };
     
   using entity_t = body_holder;
-
-  /**
+    /**
    * Class entity_key_t used to represent the key of a body. 
    * The right way should be to add this informations directly inside 
    * the body_holder. 
@@ -379,56 +376,31 @@ public:
   public:
     branch(){}
 
-    //void insert(body_holder* ent)
-
     void insert(body_holder* ent){
       // Check if same id in the branch 
       entity_key_t nkey = entity_key_t(ent->coordinates()); 
-      for(auto& e: ents_)
-      { 
-        if(nkey == entity_key_t(e.front()->coordinates())){
-          //std::cout<<"SAME KEY DETECTED"<<std::endl;
-          // Add it to the vector, and finish 
-          e.push_back(ent); 
-          // Also add to contiguous vector
-          ents_contiguous_.push_back(ent);    
-          return;  
-        }
-      }
-      // If yes, add in a vector of bodies 
-      std::vector<body_holder*> nvent; 
-      nvent.push_back(ent); 
-      ents_.push_back(nvent);
-      ents_contiguous_.push_back(ent); 
+      ents_.push_back(ent); 
       if(ents_.size() > (1<<dimension)){
         refine();
       }
     } // insert
     
     auto begin(){
-      return ents_contiguous_.begin();
+      return ents_.begin();
     }
 
     auto end(){
-      return ents_contiguous_.end();
+      return ents_.end();
     }
 
     auto clear(){
-      ents_contiguous_.clear(); 
-      ents_.clear();
+      ents_.clear(); 
+      //ents_.clear();
     }
 
     void remove(body_holder* ent){
-      
-      for(auto e = ents_.begin(); e < ents_.end(); ++e){
-        //std::vector<body_holder*> elem = *e; 
-        auto itr = find(e->begin(), e->end(), ent); 
-        if(itr!=e->end()){
-          e->erase(itr);
-          ents_.erase(e);  
-          break; 
-        }
-      }
+      auto itr = find(ents_.begin(), ents_.end(), ent);
+      ents_.erase(itr);  
       if(ents_.empty()){
         coarsen();
       } 
@@ -455,8 +427,8 @@ public:
     void setBMin(point_t bmin){bmin_ = bmin;};
 
    private:
-    std::vector<std::vector<body_holder*>> ents_;
-    std::vector<body_holder*> ents_contiguous_; 
+    //std::vector<std::vector<body_holder*>> ents_;
+    std::vector<body_holder*> ents_; 
     point_t bmax_;
     point_t bmin_;
   }; // class branch 
