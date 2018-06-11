@@ -398,7 +398,7 @@ public:
 
     // Just consider the local particles in the tree for FMM 
     tree_->update_branches_local(smoothinglength_);
-    assert(tree_->root()->sub_entities() == localnbodies_);
+    assert((int64_t)tree_->root()->sub_entities() == localnbodies_);
 
     tfmm_.mpi_exchange_cells(*tree_,maxmasscell_);
     tfmm_.mpi_compute_fmm(*tree_,macangle_,0);

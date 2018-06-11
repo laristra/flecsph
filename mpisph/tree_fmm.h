@@ -57,7 +57,6 @@ template<
 class tree_fmm
 {
 
-  //using point_t = flecsi::point<T,D>;
   using geometry_t = flecsi::topology::tree_geometry<T,D>;
   static const size_t dimension = D;
 
@@ -147,7 +146,14 @@ private:
 
 public:
 
+  /**
+   * @brief      Constructs the object.
+   */
   tree_fmm(){recvCOM_.clear(); nrecvCOM_.clear();};
+
+  /**
+   * @brief      Destroys the object.
+   */
   ~tree_fmm(){recvCOM_.clear(); nrecvCOM_.clear();};
 
 
@@ -185,7 +191,7 @@ public:
       std::vector<int> local_count(size);
 
       #pragma omp for 
-      for(auto cell=recvCOM_.begin(); cell != recvCOM_.end() ; ++cell){
+      for(auto cell=recvCOM_.begin(); cell < recvCOM_.end() ; ++cell){
         branch_t sink;
         sink.setPosition(cell->position);
         sink.set_bmax(cell->bmax);
@@ -230,6 +236,15 @@ public:
     }
   }
 
+  /**
+   * @brief      Calculates the gravitation between two particles. The result is
+   *             store in the body bi based on position and mass of the other
+   *             particle.
+   *
+   * @param      bi       The body sink, result is store in it 
+   * @param[in]  pos_nb   The position of the source particle
+   * @param[in]  mass_nb  The mass of the source particle
+   */
   void computeAcceleration_direct(
     body* bi,
     const point_t& pos_nb,
@@ -241,8 +256,17 @@ public:
         mass_nb/(dist*dist*dist)*(bi->getPosition()-pos_nb));
     }
   }
-
-  // Compute the acceleration due to a source branch to the sink branch 
+  /**
+   * @brief      Compute the acceleration due to a source branch to the sink
+   *             branch
+   *
+   * @param[in]  sinkPosition    The sink position
+   * @param[in]  sourcePosition  The source position
+   * @param[in]  sourceMass      The source mass
+   * @param      fc              The gravitation force (function fc)
+   * @param      jacobi          The jacobi matrix 
+   * @param      hessian         The hessian matrix
+   */
   void 
   computeAcceleration(
     point_t sinkPosition,
@@ -260,8 +284,8 @@ public:
     fc +=  -sourceMass/(dist*dist*dist)*(diffPos);
 
     double jacobicoeff = -sourceMass/(dist*dist*dist);
-    for(int i=0;i<dimension;++i){ 
-      for(int j=0;j<dimension;++j){
+    for(size_t i=0;i<dimension;++i){ 
+      for(size_t j=0;j<dimension;++j){
         double valjacobian = 0.;
         if(i==j){ 
           valjacobian = jacobicoeff*(1-3*diffPos[i]*diffPos[j]/(dist*dist)); 
@@ -274,10 +298,10 @@ public:
     }
     // Compute the Hessian matrix 
     double hessiancoeff = -3.0*sourceMass/(dist*dist*dist*dist*dist);
-    for(int i=0;i<dimension;++i){
+    for(size_t i=0;i<dimension;++i){
       int matrixPos = i*dimension*dimension;
-      for(int j=0;j<dimension;++j){
-        for(int k=0;k<dimension;++k){
+      for(size_t j=0;j<dimension;++j){
+        for(size_t k=0;k<dimension;++k){
           int position = matrixPos+j*dimension+k;
           double firstterm = 0.0;
           if(i==j){
@@ -299,12 +323,12 @@ public:
   } // computeAcceleration
 
   /**
-   * @brief Exchange the cells required for the FMM computation
-   * - Get the cells up to a determined mass 
+   * @brief      Exchange the cells required for the FMM computation
+   * - Get the cells up to a determined mass
    * - Send them to all the other processes
-   * 
-   * @param tree The tree topology we are working on  
-   * @param maxMass The maximum mass to select the cells in the tree
+   *
+   * @param      tree     The tree topology we are working on
+   * @param      maxMass  The maximum mass to select the cells in the tree
    */
   void
   mpi_exchange_cells(
@@ -395,8 +419,14 @@ public:
   } // mpi_exchange_cells
 
 
-  // Gather the result from the other processes and add the forces 
-  // Then apply to the particles below it 
+  /**
+   * @brief      Gather the COM from other processes and the particles needed
+   *             for the local computation.
+   *
+   * @param      tree          The tree
+   * @param      macangle      The macangle
+   * @param      totalnbodies  The totalnbodies
+   */
   void 
   mpi_gather_cells(
     tree_topology_t& tree,
@@ -502,6 +532,17 @@ public:
 
 private:
 
+  /**
+   * @brief      Compute interaction between the subparticles of a branch. 
+   * We use the MAC angle to avoid COM already used in the c2c function.
+   *
+   * @param      tree      The tree
+   * @param      sink      The sink
+   * @param      source    The source
+   * @param      subparts  The subparts, neighbors of the current particle
+   * @param      ninter    The ninter
+   * @param      macangle  The macangle
+   */
   void 
   tree_traversal_p2p(
     tree_topology_t& tree,
@@ -720,35 +761,35 @@ private:
           point_t diffPos = bi->getPosition() - sinkPosition;
           point_t grav = fc;
           // The Jacobi 
-          for(int i=0;i<dimension;++i){
-            for(int  j=0;j<dimension;++j){
+          for(size_t i=0;i<dimension;++i){
+            for(size_t  j=0;j<dimension;++j){
               grav[i] += jacobi[i*dimension+j]*diffPos[j];
             } // for
           } // for
           // The hessian 
           double tmpMatrix[dimension*dimension] = {};
-          for(int i=0;i<dimension;++i){
-            for(int j=0;j<dimension;++j){
-              for(int k=0;k<dimension;++k){
+          for(size_t i=0;i<dimension;++i){
+            for(size_t j=0;j<dimension;++j){
+              for(size_t k=0;k<dimension;++k){
                 tmpMatrix[i*dimension+j] += 
                   diffPos[k]*hessian[i*dimension*dimension+j*dimension+k];
               } // for
             } // for
           } // for
           double tmpVector[dimension] = {};
-          for(int i=0;i<dimension;++i){
-            for(int j=0;j<dimension;++j){
+          for(size_t i=0;i<dimension;++i){
+            for(size_t j=0;j<dimension;++j){
               tmpVector[j] += tmpMatrix[i*dimension+j]*diffPos[i];
             } // for
           } // for
-          for(int i=0;i<dimension;++i){
+          for(size_t i=0;i<dimension;++i){
             grav[i] += 0.5*tmpVector[i];
           } // for
           neighbors.push_back(bi->getBody());
           bi->getBody()->setAcceleration(grav+bi->getBody()->getAcceleration());
         } // for
       }else{
-        for(int i=0;i<(1<<dimension);++i){
+        for(size_t i=0;i<(1<<dimension);++i){
           if(tree.child(cur,i)->sub_entities() > 0){
             stk.push(tree.child(cur,i));
           } // if

@@ -35,7 +35,7 @@
 
 #include "user.h"
 
-#define INTERNAL_ENERGY
+#define INTERNAL_ENERGY 1
 
 class body{
 

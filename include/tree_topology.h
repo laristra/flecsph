@@ -1622,7 +1622,7 @@ public:
           force_calc(c,inter_list,radius,ef,std::forward<ARGS>(args)...);
         }
       }else{
-        if(c->sub_entities() < ncritical && c->sub_entities() > 0){
+        if((int64_t)c->sub_entities() < ncritical && c->sub_entities() > 0){
           #pragma omp task firstprivate(c)
           {
             std::vector<branch_t*> inter_list; 

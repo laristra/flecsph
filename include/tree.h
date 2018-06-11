@@ -28,7 +28,7 @@
 
 #include <vector>
 
-#warning "CHANGE TO FLECSI ONE"
+//#warning "CHANGE TO FLECSI ONE"
 #include "tree_topology.h"
 #include "flecsi/geometry/point.h"
 #include "flecsi/geometry/space_vector.h"

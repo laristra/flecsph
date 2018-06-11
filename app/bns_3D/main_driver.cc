@@ -42,7 +42,6 @@
 
 #define FROT 0
 #define ROT 1
-#define INTERNAL_ENERGY 1
 
 namespace flecsi{
 namespace execution{
