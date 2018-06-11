@@ -17,11 +17,11 @@ const double rho_1 = 1;
 //const double rho_2 = 0.125;
 const double pressure_1 = 10e-7;
 //const double pressure_2 = 0.1;
-const double u_1 = .5;
+const double u_1 = 0.0001;
 //const double u_2 = 2;
 const double m_1 = 1.0e-7;
 //const double m_2 = 1.0e-5;
-const double smoothing_length = 2*ldistance;
+const double smoothing_length = 5.*ldistance;
 const char* fileprefix = "hdf5_sedov";
 
 bool 
@@ -52,7 +52,7 @@ density(
 int main(int argc, char * argv[]){
 
 
-  int64_t sparticles = 100;
+  int64_t sparticles = 101;
   if(argc!=2){
     printf("./sedov_generator [square nParticles]\n");
     fprintf(stderr,"Generating default number of particles=%ld*%ld=%ld",
@@ -70,23 +70,13 @@ int main(int argc, char * argv[]){
 
   int64_t nparticles = sparticles*sparticles;
 
-  double radius = (ldistance*(sparticles-1))/2.; 
-  double x_c = (sparticles-1)*ldistance/2.;
-  double y_c = x_c;//(sparticles-1)*ldistance/2.;
-
-  std::cout<<"Sphere: r="<<radius<<" pos=["<<x_c<<";"<<y_c<<"]"<<std::endl;
-
-  //if(rank==0){
-    printf("Generating %ld particles by %ldx%ld in sphere r=%.4f\n",
-        nparticles,sparticles,sparticles,radius);
-  //}
+  printf("Generating %ld particles by %ldx%ld\n",
+        nparticles,sparticles,sparticles);
 
   // Start on  0 0
-  double x_topproc = x_c-radius;
-  double y_topproc = y_c-radius;
 
-  double maxxposition = /*(sparticles-1)*ldistance;*/x_c+radius;
-  double maxyposition = /*(sparticles-1)*ldistance;*/y_c+radius;
+  double maxxposition = (sparticles)*ldistance;
+  double maxyposition = (sparticles)*ldistance;
   
   // Position
   double* x = new double[nparticles]();
@@ -124,53 +114,34 @@ int main(int argc, char * argv[]){
   double timestep = 0.001;
   int dimension = 2;
   
-  std::cout<<"top_X="<<x_topproc<<" top_Y="<<y_topproc<<
-    " maxX="<<maxxposition<<" maxY="<<maxyposition<<std::endl;
-
-  double xposition = /*0;*/x_topproc; 
+  double xposition = 0;//*/x_topproc; 
   int64_t tparticles = 0;
-  double yposition = /*0;*/y_topproc;
+  double yposition = 0;//*/y_topproc;
   //int xpos = 0;
   for(int64_t part=0; part<nparticles; ++part){
     
-    while(!in_radius(xposition,yposition,x_c,y_c,radius)){
-      xposition+= ldistance; 
-      if(xposition > maxxposition){
-        if(yposition > maxyposition){
-          break;
-        }
-        xposition=x_topproc;
-        yposition+=ldistance;
-      }
-    }
-
-    if(xposition > maxxposition){
-      if(yposition > maxyposition){
-          break;
-      }
-    }
-
     tparticles++;
     x[part] = xposition;
     y[part] = yposition;
          
-    xposition+=ldistance;
+    P[part] = pressure_1;
+    rho[part] = rho_1; 
+    m[part] = m_1;//density(x[part],y[part],x_c,y_c);
+    u[part] = u_1;
+    h[part] = smoothing_length;
+    id[part] = posid++;
+
+    if(part == nparticles/2){
+      u[part] = 5.;
+    }
+   
+    xposition+= ldistance; 
     if(xposition > maxxposition){
-      if(yposition > maxyposition){
-        break;
-      }
-      xposition=x_topproc;
+      xposition = 0.;
       yposition+=ldistance;
     }
 
 
-    P[part] = pressure_1;
-    rho[part] = rho_1; 
-    //u[part] = u_1;
-    m[part] = density(x[part],y[part],x_c,y_c);
-    u[part] = u_1;///m[part];
-    h[part] = smoothing_length;
-    id[part] = posid++; 
   }
 
   std::cout<<"Real number of particles: "<<tparticles<<std::endl;

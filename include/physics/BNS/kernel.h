@@ -32,7 +32,6 @@
 
 namespace kernel{
 
-
   // Standard spline kernel
   // for 1-2-3D
   //static 
@@ -42,20 +41,20 @@ namespace kernel{
       double h)
   {
     double rh = r/h;
-    // Default 1D case
-    double sigma = 2./(3.*h);
-    if(gdimension == 2){
-      sigma = 10./(7.*M_PI*h*h);
-    }
-    double result = sigma/pow(h,gdimension);
+    // Default 3D case
+    double sigma = 1.0/(M_PI*h*h*h);
+    //if(gdimension == 2){
+    //  sigma = 10./(7.*M_PI*h*h);
+    //}
+    double result = 0.; 
     if (0.0 <= rh && rh < 1.0) {
-      result *= 1.0 - (3.0/2.0) * pow(rh,2) + (3.0/4.0) * pow(rh,3); 
-      return result; 
+      result = 1.0 - 1.5 * rh*rh*(1-.5*rh);
+      result *= sigma;  
     }else if (1.0 <= rh && rh < 2.0) {
-      result *= (1.0/4.0) * pow(2-rh, 3);
-      return result;
+      result *= 0.25 * (2-rh)*(2-rh)*(2-rh);
+      result *= sigma; 
     }
-    return 0.0;
+    return result;
   } // kernel
 
   // Standard gradient of spline kernel
@@ -66,12 +65,14 @@ namespace kernel{
       point_t vecP, 
       double h)
   {
-    // Default 1D case
-    double sigma = 2./(3.*h*h);
-    if(gdimension == 2){
-      sigma = 10./(7.*M_PI*h*h*h);
-    }
-    double coeff = sigma/pow(h,1+gdimension);
+    // Default 3D case
+    double sigma = 1.0/(M_PI*h*h*h);
+    //if(gdimension == 2){
+    //  sigma = 10./(7.*M_PI*h*h);
+    //}
+    //double coeff = sigma; ///pow(h,1+gdimension);
+    
+    // Distance 
     double r = 0;
     for(size_t i=0;i<gdimension;++i){
       r += vecP[i]*vecP[i];
@@ -81,15 +82,15 @@ namespace kernel{
 
     point_t result{};
     if (0.0 <= rh && rh < 1.0){
-      result = coeff*vecP;
-      result *= ((-3.0/h)+(9.0*r/(4.0*h*h)));
+      result = sigma*vecP;
+      result *= -3.0 * rh * (1-.75*rh)/h/r;
     }else if(1.0 <= rh && rh < 2.0){
-      result = coeff*vecP;
-      result *= ((-3.0/r)+(3.0/h)+(-3.0*r/(4.0*h*h)));
+      result = sigma*vecP;
+      result *= -.75*(2-rh)*(2-rh)/h/r;
     }
     return result;
-  } // gradKernel 
+  } // gradKernel
 
-}; // kernel
+};
 
 #endif // _physics_kernel_h_

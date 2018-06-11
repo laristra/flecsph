@@ -5,8 +5,10 @@
 #include <cmath>
 #include <mpi.h>
 
+#include "utils.h"
 #include "tree_colorer.h"
 #include "io.h"
+
 
 using namespace std;
 using namespace flecsi;
@@ -18,6 +20,7 @@ namespace execution{
   }
 }
 }
+
 
 TEST(io, write_N_read) {
 

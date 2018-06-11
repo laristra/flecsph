@@ -37,7 +37,7 @@ TEST(tree_colorer, mpi_qsort){
   tree_colorer<double,gdimension> tc;
 
   // Generating the particles randomly on each process
-  size_t nparticles = 100000;
+  size_t nparticles = 10000;
   size_t nparticlesperproc = nparticles/size; 
   double maxbound = 1.0; // Particles positions between [0,1]
   // Adjust for last one 

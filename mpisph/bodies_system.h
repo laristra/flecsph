@@ -3,24 +3,35 @@
  * All rights reserved.
  *~--------------------------------------------------------------------------~*/
 
+/**
+ * @file bodies_system.h
+ * @author Julien Loiseau 
+ * @brief Class and function to handle the system of bodies/particles. 
+ * Contain the function for user, hidding the IO/distribution and tree search.
+ */
  
 #ifndef _mpisph_body_system_h_
 #define _mpisph_body_system_h_
-
-#include <omp.h>
 
 #include "tree_colorer.h"
 #include "tree_fmm.h"
 #include "physics.h"
 #include "io.h"
+#include "utils.h"
 
-
+#include <omp.h>
 #include <iostream>
 #include <fstream>
 
+using namespace mpi_utils;
 
-#define NORMAL_REP // Repartition based on part num 
-
+/**
+ * @brief      The bodies/particles system. 
+ * This is a wrapper for a simpler use from users. 
+ *
+ * @tparam     T     The type of data, usualy double
+ * @tparam     D     The dimension of the current simulation
+ */
 template<
   typename T,
   size_t D
@@ -30,6 +41,10 @@ class body_system{
 using point_t = flecsi::point<T,D>;
 
 public:
+
+  /**
+   * @brief      Constructs the object.
+   */
   body_system():totalnbodies_(0L),localnbodies_(0L),macangle_(0.0),
   maxmasscell_(1.0e-40),tree_(nullptr)
   {
@@ -79,7 +94,18 @@ public:
     macangle_ = macangle;
   };
 
-  
+  /**
+   * @brief      Get the value of an attribute from an HDF5 file
+   * @details    \TODO add more types of data 
+   *
+   * @param      filename       The file from which we get the attribute
+   * @param      attributeName  The attribute name in char
+   * @param      default_value  The default type 
+   *
+   * @tparam     TL             The attribute value 
+   *
+   * @return     The value of the attribute 
+   */
   template<
     typename TL
   >
@@ -102,8 +128,8 @@ public:
   }
 
   /**
-   * @brief      Read the bodies from H5part file
-   * Compute also the total to check for mass lost 
+   * @brief      Read the bodies from H5part file Compute also the total to
+   *             check for mass lost
    *
    * @param[in]  filename        The filename
    * @param[in]  startiteration  The iteration from which load the data
@@ -114,9 +140,6 @@ public:
       int startiteration)
   {
 
-    //io::init_reading(localbodies_,filename,totalnbodies_,localnbodies_,
-    //    startiteration);
-    //physics::read_data(filename,localbodies_,startiteration);
     io::inputDataHDF5(localbodies_,filename,totalnbodies_,localnbodies_,
         startiteration);
     
@@ -136,13 +159,13 @@ public:
   }
 
   /**
-   * @brief      Write bodies to file in parallel 
-   * Caution provide the file name prefix, h5part will be added
-   * This is useful in case of multiple files output
+   * @brief      Write bodies to file in parallel Caution provide the file name
+   *             prefix, h5part will be added This is useful in case of multiple
+   *             files output
    *
-   * @param[in]  filename       The outut file prefix 
+   * @param[in]  filename       The outut file prefix
    * @param[in]  iter           The iteration of output
-   * @param[in]  do_diff_files  Generate a file for each steps 
+   * @param[in]  do_diff_files  Generate a file for each steps
    */
   void 
   write_bodies(
@@ -155,8 +178,8 @@ public:
 
 
   /**
-   * @brief      Compute the largest smoothing length in the system 
-   * This is really useful for particles with differents smoothing length
+   * @brief      Compute the largest smoothing length in the system This is
+   *             really useful for particles with differents smoothing length
    *
    * @return     The largest smoothinglength of the system.
    */
@@ -190,7 +213,7 @@ public:
   }
 
   /**
-   * @brief      Compute the range of the total particles 
+   * @brief      Compute the range of thw whole particle system 
    *
    * @return     The range.
    */
@@ -222,6 +245,18 @@ public:
     return range_;
   }
 
+  /**
+   * @brief      Generate and share the particle for this iteration
+   * @details    This part if decomposed with:
+   *    - Compute and prepare the tree for this iteration
+   *    - Compute the Max smoothing length
+   *    - Compute the range of the system using the smoothinglength
+   *    - Cmopute the keys
+   *    - Distributed qsort and sharing
+   *    - Generate and feed the tree
+   *    - Exchange branches for smoothing length
+   *    - Compute and exchange ghosts in real smoothing length
+   */
   void 
   update_iteration() 
   {
@@ -253,12 +288,7 @@ public:
     }
 
 
-  #ifdef NORMAL_REP
-    // Distributed qsort and bodies exchange 
     tcolorer_.mpi_qsort(localbodies_,totalnbodies_);
-  #else
-    tcolorer_.mpi_qsort(localbodies_,totalnbodies_,neighbors_count_);
-  #endif
 
     // Generate the tree 
     tree_ = new tree_topology_t(range_[0],range_[1]);
@@ -269,9 +299,10 @@ public:
     for(auto& bi:  localbodies_){
       auto nbi = tree_->make_entity(bi.second.getPosition(),&(bi.second),rank,
           bi.second.getMass(),bi.second.getId());
-      tree_->insert(nbi);
+      tree_->insert(nbi); 
       bodies_.push_back(nbi);
     }
+    localnbodies_ = localbodies_.size();
 
     // Check the total number of bodies 
     int64_t checknparticles = bodies_.size();
@@ -335,82 +366,62 @@ public:
     }
 #endif
     
-#ifdef COMPUTE_NEIGHBORS
-    tcolorer_.mpi_compute_neighbors(
-        *tree_,
-        bodies_,
-        neighbors_,
-        neighbors_count_,
-        smoothinglength_);
-    // Compute and refresh the ghosts 
-    tcolorer_.mpi_compute_ghosts(
-        *tree_,
-        bodies_,
-        neighbors_,
-        neighbors_count_,
-        smoothinglength_/*,range_*/);
-    tcolorer_.mpi_refresh_ghosts(*tree_/*,range_*/); 
-#else 
-// Compute and refresh the ghosts 
     tcolorer_.mpi_compute_ghosts(*tree_,bodies_,smoothinglength_/*,range_*/);
     tcolorer_.mpi_refresh_ghosts(*tree_/*,range_*/); 
-#endif
 
   }
 
+  /**
+   * @brief      Update the neighbors that have beem compute in update_iteration
+   * This function use buffer pre-computed to update the data faster. 
+   */
   void update_neighbors()
   {
     tcolorer_.mpi_refresh_ghosts(*tree_/*,range_*/);
   }
 
-  void gravitation_fmm()
+  /**
+   * @brief      Compute the gravition interction between all the particles
+   * @details    The function is based on Fast Multipole Method. The functions
+   *             are defined in the file tree_fmm.h
+   */
+  void 
+  gravitation_fmm()
   {
-    tree_->update_branches_local();
-    tcolorer_.mpi_tree_traversal_graphviz(*tree_);
+    int rank, size; 
+    MPI_Comm_size(MPI_COMM_WORLD,&size);
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
-    debug_display_branches();
-    
-    assert(tree_->root()->sub_entities() == localnbodies_);
-    // Exchange the cells up to a depth 
+    if(rank == 0){
+      std::cout<<"FMM: mmass="<<maxmasscell_<<" angle="<<macangle_<<std::endl;
+    }
+
+    // Just consider the local particles in the tree for FMM 
+    tree_->update_branches_local(smoothinglength_);
+    assert((int64_t)tree_->root()->sub_entities() == localnbodies_);
+
     tfmm_.mpi_exchange_cells(*tree_,maxmasscell_);
-    // Compute the fmm interaction to the gathered cells 
-    tfmm_.mpi_compute_fmm(*tree_,macangle_);
-    // Gather all the contributions and compute 
-    tfmm_.mpi_gather_cells(*tree_);
+    tfmm_.mpi_compute_fmm(*tree_,macangle_,0);
+    tfmm_.mpi_gather_cells(*tree_,macangle_,totalnbodies_);
+    
+    // Reset the tree to normal before leaving
     tree_->update_branches(2*smoothinglength_);
   }
 
-  void
-  debug_display_branches()
-  {
-    int rank = 0;
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-
-    static int num = 0;
-
-    std::vector<branch_t*> search_list;
-    tree_->get_all_branches(tree_->root(),search_list);
-    // Output in file 
-    char filename[64];
-    sprintf(filename,"output_search_%02d_%02d.txt",rank,num++);
-    FILE* output = fopen(filename,"w");
-    for(auto& v: search_list){
-      fprintf(output,"%d %.4f %.4f %.4f %.4f %.4f %.4f %d %d\n",
-        1,v->get_coordinates()[0],v->get_coordinates()[1],
-        v->bmin()[0],v->bmin()[1],v->bmax()[0],v->bmax()[1],
-        rank,rank
-        );
-    }
-    // Output the bodies 
-    for(auto& v: localbodies_){
-      fprintf(output,"%d %.4f %.4f %.4f %d %d %d %d %d\n",
-        0,v.second.coordinates()[0],v.second.coordinates()[1],
-        v.second.getSmoothinglength(),rank,0,0,0,0);
-    }
-    
-    fclose(output);
-  }
-
+  /**
+   * @brief      Apply the function EF with ARGS in the smoothing length of all
+   *             the lcoal particles. This function need a previous call to
+   *             update_iteration and update_neighbors for the remote particles'
+   *             data.
+   *
+   * @param[in]  ef    The function to apply in the smoothing length
+   * @param[in]  args  Arguments of the physics function applied in the 
+   *                   smoothing length
+   *
+   * @tparam     EF         The function to apply in the smoothing length
+   * @tparam     ARGS       Arguments of the physics function applied in the
+   *                        smoothing length
+   */
   template<
     typename EF,
     typename... ARGS
@@ -419,26 +430,6 @@ public:
       EF&& ef,
       ARGS&&... args)
   {
-
-#ifdef COMPUTE_NEIGHBORS
-    int64_t nelem = bodies_.size(); 
-  #pragma omp parallel for 
-    for(int64_t i=0; i<nelem; ++i){
-      // Change here to use only the iterator of begin and end 
-      for(size_t d=0; d<gdimension; ++d){
-        assert(!std::isnan(bodies_[i]->getBody()->coordinates()[d])); 
-      }
-      assert(bodies_[i]->getBody()->getSmoothinglength() > 0.); 
-      assert(neighbors_count_[i+1]-neighbors_count_[i]>0);
-      std::vector<body_holder*> nbs(neighbors_count_[i+1]-neighbors_count_[i]);
-      int local = 0;
-      for(int j=neighbors_count_[i]; j<neighbors_count_[i+1]; ++j)
-      {
-        nbs[local++]=neighbors_[j];
-      }
-      ef(bodies_[i],nbs,std::forward<ARGS>(args)...);
-    } 
-#else 
     int64_t ncritical = 32; 
     tree_->apply_sub_cells(
         tree_->root(),
@@ -447,9 +438,17 @@ public:
         ncritical,
         ef,
         std::forward<ARGS>(args)...); 
-#endif
   }
 
+  /**
+   * @brief      Apply a function to all the particles. 
+   *
+   * @param[in]  <unnamed>  { parameter_description }
+   * @param[in]  <unnamed>  { parameter_description }
+   *
+   * @tparam     EF         The function to apply to all particles
+   * @tparam     ARGS       Arguments of the function for all particles
+   */
   template<
     typename EF,
     typename... ARGS
@@ -465,6 +464,15 @@ public:
     }
   }
 
+  /**
+   * @brief      Apply a function on the vector of local bodies 
+   *
+   * @param[in]  <unnamed>  { parameter_description }
+   * @param[in]  <unnamed>  { parameter_description }
+   *
+   * @tparam     EF         The function to apply to the vector 
+   * @tparam     ARGS       Arguments of the function to apply to the vector
+   */
   template<
     typename EF,
     typename... ARGS
@@ -476,26 +484,33 @@ public:
     ef(bodies_,std::forward<ARGS>(args)...);
   }
 
+  /**
+   * @brief      Gets a vector of the local bodies of this process.
+   *
+   * @return     The localbodies.
+   */
   std::vector<std::pair<entity_key_t,body>>& 
-    getLocalbodies(){
+    getLocalbodies(
+      )
+  {
     return localbodies_;
   };
 
 private:
-  int64_t totalnbodies_; 
-  int64_t localnbodies_;
-  double macangle_;
-  double maxmasscell_;
+  int64_t totalnbodies_;        // Total number of local particles
+  int64_t localnbodies_;        // Local number of particles
+  double macangle_;             // Macangle for FMM
+  double maxmasscell_;          // Mass criterion for FMM
   std::vector<std::pair<entity_key_t,body>> localbodies_;
   std::array<point_t,2> range_;
   std::vector<std::array<point_t,2>> rangeposproc_;
   tree_colorer<T,D> tcolorer_;
-  tree_fmm<T,D> tfmm_;
-  tree_topology_t* tree_;
+  tree_fmm<T,D> tfmm_;        // tree_fmm.h function for FMM 
+  tree_topology_t* tree_;     // The particle tree data structure
   std::vector<body_holder*> bodies_;
-  double smoothinglength_;
-  double totalmass_;
-  double minmass_;
+  double smoothinglength_;    // Keep track of the biggest smoothing length 
+  double totalmass_;          // Check the total mass of the system 
+  double minmass_;            // Check the minimal mass of the system
   
   std::vector<int64_t> neighbors_count_;
   std::vector<body_holder*> neighbors_; 
