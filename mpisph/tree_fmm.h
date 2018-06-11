@@ -46,7 +46,7 @@ struct body_holder_fmm_t{
   point_t position; 
   int owner; 
   double mass;
-  int id; 
+  long int id; 
   branch_id_t id_sink;
 };
 
@@ -331,7 +331,7 @@ public:
 
     vcells.resize(vbranches.size());
 
-    int visited_entities = 0;
+    uint64_t visited_entities = 0;
     
     #pragma omp parallel for reduction(+:visited_entities)
     for(int i = 0; i < vbranches.size(); ++i){
@@ -441,7 +441,7 @@ public:
         assert(recvcells[j].position ==  recvcells[i*ncells+j].position );
         assert(recvcells[j].id == recvcells[i*ncells+j].id);
         recvcells[j].fc += recvcells[i*ncells+j].fc;
-        for(int k=0;k<dimension*dimension;++k){
+        for(long unsigned int k=0;k<dimension*dimension;++k){
           recvcells[j].dfcdr[k] += recvcells[i*ncells+j].dfcdr[k];
           assert(recvcells[j].dfcdr[k] < 1000);
         }

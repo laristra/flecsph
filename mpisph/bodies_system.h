@@ -3,12 +3,15 @@
  * All rights reserved.
  *~--------------------------------------------------------------------------~*/
 
+/**
+ * @file bodies_system.h
+ * @author Julien Loiseau 
+ * @brief Class and function to handle the system of bodies/particles. 
+ * Contain the function for user, hidding the IO/distribution and tree search.
+ */
  
 #ifndef _mpisph_body_system_h_
 #define _mpisph_body_system_h_
-
-
-#include <omp.h>
 
 #include "tree_colorer.h"
 #include "tree_fmm.h"
@@ -16,6 +19,7 @@
 #include "io.h"
 #include "utils.h"
 
+#include <omp.h>
 #include <iostream>
 #include <fstream>
 
@@ -25,7 +29,7 @@ using namespace mpi_utils;
  * @brief      The bodies/particles system. 
  * This is a wrapper for a simpler use from users. 
  *
- * @tparam     T     The type of data
+ * @tparam     T     The type of data, usualy double
  * @tparam     D     The dimension of the current simulation
  */
 template<

@@ -131,7 +131,7 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
     bs.apply_all([](body_holder* source){
         body * src = source->getBody();
         point_t pos = src->getPosition();
-        for(int i = 0 ; i < gdimension ; ++i){
+        for(size_t i = 0 ; i < gdimension ; ++i){
           if(pos[i] > 10){
             pos[i] = 10;
             src->setVelocity(point_t{});

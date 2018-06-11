@@ -394,7 +394,7 @@ public:
     std::vector<std::array<point_t,2>> send_branches(search_branches.size());
 
     #pragma omp parallel for 
-    for(int i=0;i<search_branches.size();++i){
+    for(long unsigned int i=0;i<search_branches.size();++i){
       send_branches[i][0] = search_branches[i]->bmin();
       send_branches[i][1] = search_branches[i]->bmax();
       //std::cout<<rank<<" - "<<i<<" = "<<send_branches[i][0] <<" - "<< send_branches[i][1] <<std::endl;
