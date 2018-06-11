@@ -358,7 +358,7 @@ public:
     uint64_t visited_entities = 0;
     
     #pragma omp parallel for reduction(+:visited_entities)
-    for(int i = 0; i < vbranches.size(); ++i){
+    for(size_t i = 0; i < vbranches.size(); ++i){
       assert(vbranches[i]->sub_entities()>0);
       vcells[i] = mpi_cell_t(
         vbranches[i]->get_coordinates(),
@@ -507,7 +507,7 @@ public:
       int distant_contrib = 0;
       // Add the contribution of received particles 
       //#pragma omp parallel for reduction(+:distant_contrib)
-      for(int j = 0 ; j < recv_particles_.size(); ++j){
+      for(long unsigned int j = 0 ; j < recv_particles_.size(); ++j){
         if(recvcells[i].id == recv_particles_[j].id_sink){
           tree_traversal_p2p_distant(
             tree,sink,
