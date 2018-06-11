@@ -67,7 +67,7 @@ RUN wget --no-check-certificate https://amas.psi.ch/H5hut/raw-attachment/wiki/Do
 RUN tar -xzf ${H5Hut}.tar.gz
 RUN wget -O- https://raw.githubusercontent.com/gentoo/gentoo/e8827415e767b1252f3851edef8e000980b7f2a1/sci-libs/h5hut/files/h5hut-1.99.13-autotools.patch | patch -p0
 WORKDIR ${H5Hut}
-RUN sed -i 's/H5Pset_fapl_mpiposix (fapl_id, comm, use_gpfs)/H5Pset_fapl_mpio (fapl_id, comm, &use_gpfs)/g' src/h5core/h5_hdf5_private.h
+RUN sed -i 's/H5Pset_fapl_mpiposix (fapl_id, comm, use_gpfs)/H5Pset_fapl_mpio (fapl_id, comm, \&use_gpfs)/g' src/h5core/h5_hdf5_private.h
 RUN autoreconf -i -f
 #ubuntu needs CC=h5pcc amd HDF5_USE_SHLIB=yes is needed for shared lib
 RUN ./configure --disable-static --enable-shared --enable-parallel --prefix=/usr/local CC=h5pcc && HDF5_USE_SHLIB=yes make
