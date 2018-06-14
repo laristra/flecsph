@@ -111,6 +111,7 @@ cinch_add_application_directory("mpisph/")
 #------------------------------------------------------------------------------#
 cinch_add_application_directory("app/bns_3D")
 cinch_add_application_directory("app/sedov")
+cinch_add_application_directory("app/noh")
 cinch_add_application_directory("app/fluid_3D")
 cinch_add_application_directory("app/fluid_2D")
 cinch_add_application_directory("app/sodtube")
