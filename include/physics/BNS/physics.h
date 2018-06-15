@@ -53,7 +53,7 @@ namespace physics{
   double A = 0.6366197723675814;
   double angular_moment = 1.36049047255;
   //double rotation_speed = 10.;
-  double angular_speed = 0.48;
+  double angular_speed = 1.0;
   double QZZ = 0.;
   double Omega2 = 0.;
   double t_relax = 1.12;
@@ -298,18 +298,6 @@ namespace physics{
   #pragma omp critical 
     physics::dt = std::min(dt,min);
     //return std::min(physics::dt,dt1); 
-  }
-
-  // Calculate simple linear momentum for checking momentum conservation
-  void 
-  compute_lin_momentum(
-      std::vector<body_holder*>& bodies, 
-      point_t* total) 
-  {
-    *total = {0};
-    for(auto nbh: bodies) {
-      *total += nbh->getBody()->getLinMomentum(); 
-    }  
   }
 
   void 

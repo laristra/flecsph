@@ -219,7 +219,7 @@ int main(int argc, char* argv[])
 	std::cout<<"Generating two stars = "<<nparticles*2<<std::endl;
 
 	char name[128]; 
-	sprintf(name,"hdf5_bns_3D_%d.h5part",nparticles);
+	sprintf(name,"hdf5_bns_3D_%d.h5part",nparticles*2);
 
 	auto dataFile = H5Fcreate(
 		name,

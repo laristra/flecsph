@@ -39,6 +39,7 @@
 
 #include <bodies_system.h>
 #include "physics.h"
+#include "analysis.h"
 
 #define FROT 0
 #define ROT 1
@@ -62,6 +63,9 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
   double maxtime = 1.0;
   double outputtime = 0.05;
 
+  double outputtime_analysis = 0.02;
+  int noutput_analysis = 0;
+
   
   // Use the user reader defined in the physics file 
   bs.read_bodies("hdf5_bns_3D.h5part",startiteration);
@@ -81,9 +85,6 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
 
   point_t momentum = {};
 
-
-
-  
   if(iter == 0){
     // Set adiabatic value 
     bs.apply_all([](body_holder* source){
@@ -228,8 +229,8 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
       start = omp_get_wtime(); 
     }
     bs.apply_in_smoothinglength(physics::compute_dt);
-    // Get the minimum using MPI
-    MPI_Allreduce(MPI_IN_PLACE,&physics::dt,1,MPI_DOUBLE,MPI_MIN,MPI_COMM_WORLD);
+    mpi_utils::reduce_min(physics::dt);
+
     MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0){
       std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
@@ -240,25 +241,37 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
 
     // Compute internal energy for output 
     bs.apply_all(physics::compute_internal_energy);
-
     if(rank == 0){
       std::cout<<"Total time="<<physics::totaltime<<"s / "<<maxtime<<"s"<<std::endl;
     }
+
+
+
+    // Analysis control step 
+#ifdef OUTPUT_ANALYSIS
+    if(physics::totaltime >= noutput_analysis*outputtime_analysis){
+      // Compute the analysis values based on physics 
+      bs.get_all(analysis::compute_lin_momentum);
+      mpi_utils::reduce_sum(analysis::linear_momentum);
+      bs.get_all(analysis::compute_JULIEN_ENERGY);
+      mpi_utils::reduce_sum(analysis::JULIEN_ENERGY);
+
+      // Output 
+      noutput_analysis++;
+      if(rank == 0){
+        analysis::display();
+      }
+    }
+#endif
+
+
+
+    // OUTPUT step
 #ifdef OUTPUT
     if(physics::totaltime >= noutput*outputtime){
       bs.write_bodies(outputname,noutput);
       noutput++;
     }
-
-
-    //if(iter % 50 == 0){
-    //  bs.write_bodies(outputname,noutput);
-    //  noutput++;
-    //}
-
-    //if(iter % iteroutput == 0){ 
-    //  bs.write_bodies("output_fluid",iter/iteroutput);
-    //}
 #endif
     ++iter;
     

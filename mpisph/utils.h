@@ -108,6 +108,53 @@ namespace mpi_utils{
       &recvbuffer[0],&recvcount[0],&recvoffsets[0],MPI_BYTE,MPI_COMM_WORLD);
   }
 
+
+
+  void reduce_min(
+    double& value)
+  {
+    MPI_Allreduce(MPI_IN_PLACE,&value,1,MPI_DOUBLE,MPI_MIN,MPI_COMM_WORLD);
+  }
+
+  void reduce_min(
+    float& value)
+  {
+    MPI_Allreduce(MPI_IN_PLACE,&value,1,MPI_FLOAT,MPI_MIN,MPI_COMM_WORLD);
+  }
+
+  void reduce_min(
+    int& value)
+  {
+    MPI_Allreduce(MPI_IN_PLACE,&value,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD);
+  }
+
+
+
+
+  void reduce_sum(
+    double& value)
+  {
+    MPI_Allreduce(MPI_IN_PLACE,&value,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+  }
+
+  void reduce_sum(
+    float& value)
+  {
+    MPI_Allreduce(MPI_IN_PLACE,&value,1,MPI_FLOAT,MPI_SUM,MPI_COMM_WORLD);
+  }
+
+  void reduce_sum(
+    int& value)
+  {
+    MPI_Allreduce(MPI_IN_PLACE,&value,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
+  }
+
+  void reduce_sum(
+    point_t& value)
+  {
+    MPI_Allreduce(MPI_IN_PLACE,&value[0],gdimension,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+  }
+
 }; // utils
 
 #endif // _mpisph_utils_

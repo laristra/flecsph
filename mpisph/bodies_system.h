@@ -22,6 +22,7 @@
 #include <omp.h>
 #include <iostream>
 #include <fstream>
+#include <typeinfo>
 
 using namespace mpi_utils;
 
