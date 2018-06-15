@@ -35,7 +35,7 @@
 
 #include "user.h"
 
-#define INTERNAL_ENERGY
+#define INTERNAL_ENERGY 1
 
 class body{
 
@@ -81,6 +81,8 @@ public:
   //double getEntropy() const{return entropy_;}
   double getDensity() const{return density_;}
   point_t getVelocity() const{return velocity_;}
+  double getAdiabatic() const{return adiabatic_;}
+  double getDadt() const {return dadt_;}
   //point_t getHydroForce() const{return hydroforce_;}
   //point_t getGravForce() const{return gravforce_;}
   point_t getVelocityhalf() const{return velocityhalf_;}
@@ -88,11 +90,12 @@ public:
   double getInternalenergy() const{return internalenergy_;}
   point_t getLinMomentum() const { 
     point_t res = {};
-    for(int i = 0 ; i < dimension; ++i){
+    for(size_t i = 0 ; i < dimension; ++i){
       res[i] = velocity_[i] * mass_;
     }
     return res;
   };
+
   //double getDudt(){return dudt_;};
   int64_t getId(){return id_;};
   double getDt(){return dt_;};
@@ -105,6 +108,8 @@ public:
   void setAcceleration(point_t acceleration){acceleration_ = acceleration;}
   void setVelocity(point_t velocity){velocity_ = velocity;}
   void setVelocityhalf(point_t velocityhalf){velocityhalf_ = velocityhalf;}
+  void setAdiabatic(double adiabatic){adiabatic_ = adiabatic;};
+  void setDadt(double dadt){dadt_ = dadt;};
   //void setGravForce(point_t gravforce){gravforce_ = gravforce;}
   //void setHydroForce(point_t hydroforce){hydroforce_ = hydroforce;}
   void setSoundspeed(double soundspeed){soundspeed_ = soundspeed;}
@@ -151,6 +156,8 @@ private:
   double smoothinglength_; 
   double soundspeed_;
   double internalenergy_;
+  double adiabatic_;
+  double dadt_;
   //point_t lin_momentum_; //TODO : Need to check
   //double dudt_;
   //point_t gravforce_;

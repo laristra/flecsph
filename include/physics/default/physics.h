@@ -41,14 +41,15 @@ namespace physics{
   point_t min_boundary = {};
   double dt = 0.0;
   double alpha = 2; 
-  double beta = 1; 
-  double gamma = 1.4; 
+  double beta = 2; // 1; 
+  double gamma = 2.0; // 1.4; 
   double K = 1;
   double epsilon = 1;
   double g_strength = 1; 
   double damp = 1;
   double totaltime = 0.0;
   double MAC = 0.;
+  double eta = 0.01;
 
   // Default configuration for kernel
   int kernel_choice = 0;
@@ -64,26 +65,21 @@ namespace physics{
       body_holder* srch, 
       std::vector<body_holder*>& nbsh)
   {
-    assert(srch!=nullptr);
-    assert(srch->getBody()!=nullptr);
     body* source = srch->getBody();
     double density = 0;
-    assert(nbsh.size()>0);
+    mpi_assert(nbsh.size()>0);
     for(auto nbh : nbsh){
-      assert(nbh!=nullptr);
-      assert(nbh->getBody()!=nullptr);
       body* nb = nbh->getBody();
       double dist = flecsi::distance(source->getPosition(),nb->getPosition());
-      assert(dist>=0.0);
+      mpi_assert(dist>=0.0);
       double kernelresult = (1./2.)*(
           kernel(dist,source->getSmoothinglength())+
           kernel(dist,nb->getSmoothinglength()));
-      assert(kernelresult>=0.0);
       density += kernelresult*nb->getMass();
     } // for
-    assert(density>0);
+    mpi_assert(density>0);
     source->setDensity(density);
-  } // c ompute_density
+  } // compute_density
 
   // Computre pressure on a body 
   // This function does not need the neighbors
@@ -95,10 +91,13 @@ namespace physics{
       body_holder* srch)
   { 
     body* source = srch->getBody();
-    double pressure = (gamma-1.0)*
-      source->getDensity()*source->getInternalenergy();
-    //double pressure = K*
-    //  pow(source->getDensity(),gamma);
+    //double pressure = (gamma-1.0)*
+    //  source->getDensity()*source->getInternalenergy();
+    //double A = (gamma-1)*source->getInternalenergy()/
+    //  (pow(source->getDensity(),gamma-1));
+    double A = 0.6366;
+    double pressure = A*
+      pow(source->getDensity(),gamma);
     //assert(pressure>=0);
     source->setPressure(pressure);
   } // compute_pressure
@@ -167,8 +166,11 @@ namespace physics{
       return result;
     // Should add norm to space_vector
     double dist = flecsi::distance(source->getPosition(),nb->getPosition());
-    result = h_ij * dotproduct / (dist*dist + epsilon*h_ij*h_ij);
-    assert(result < 0.0);
+    //result = h_ij * dotproduct / (dist*dist + epsilon*h_ij*h_ij);
+    result = dotproduct / (h_ij*((dist*dist)/(h_ij*h_ij))+eta*eta);
+    //  res = dotRes / (h_ij * (((dist*dist)/(h_ij*h_ij))+visc_eta*visc_eta));  
+
+    mpi_assert(result < 0.0);
     return result; 
   } // mu
 
@@ -185,7 +187,7 @@ namespace physics{
   { 
     body* source = srch->getBody();
     // reset acceleration 
-    source->setAcceleration(point_t{});
+    //source->setAcceleration(point_t{});
 
     // Add in the acceleration
     point_t acceleration = source->getAcceleration();
@@ -205,7 +207,7 @@ namespace physics{
       double mu_ij = mu(source,nb,epsilon);
       double viscosity = (-alpha*mu_ij*soundspeed_ij+beta*mu_ij*mu_ij)
         /density_ij;
-      assert(viscosity>=0.0);
+      mpi_assert(viscosity>=0.0);
 
       // Hydro force
       point_t vecPosition = source->getPosition()-nb->getPosition();
@@ -268,10 +270,10 @@ namespace physics{
       double soundspeed_ij = (1./2.)*
         (source->getSoundspeed()+nb->getSoundspeed());
       double mu_ij = mu(source,nb,epsilon);
-      assert(mu_ij <= 0.0); 
+      mpi_assert(mu_ij <= 0.0); 
       double viscosity = (-alpha*mu_ij*soundspeed_ij+beta*mu_ij*mu_ij)
         /density_ij;
-      assert(viscosity>=0.0);
+      mpi_assert(viscosity>=0.0);
 
       internalenergy += nb->getMass()*(
           //nb->getPressure()/(nb->getDensity()*nb->getDensity())+
@@ -419,7 +421,7 @@ namespace physics{
     source->setVelocity(velocity);
     source->setPosition(position);
 
-    assert(!std::isnan(position[0])); 
+    mpi_assert(!std::isnan(position[0])); 
   }
 
   void 
@@ -450,7 +452,7 @@ namespace physics{
     source->setVelocity(velocity);
     source->setPosition(position);
     
-    assert(!std::isnan(position[0])); 
+    mpi_assert(!std::isnan(position[0])); 
   }
 
   void 
@@ -467,6 +469,7 @@ namespace physics{
     }
     accelNorm = sqrt(accelNorm);
     double dt1 = pow(source->getSmoothinglength()/accelNorm,1.0/2.0);
+    //std::cout<<"dt1 = "<<dt1<<std::endl;
   
     // Second based on max mu 
     double max_mu_ij = -9999999;
@@ -479,10 +482,12 @@ namespace physics{
         (source->getSoundspeed()+
          1.2*alpha*source->getSoundspeed()+
          1.2*beta*max_mu_ij);
-    
     dt2 *= 0.1;
 
+    //std::cout<<"dt2 = "<<dt1<<std::endl;
+
     double min = std::min(dt1,dt2);
+  #pragma omp critical 
     physics::dt = std::min(dt,min);
     //return std::min(physics::dt,dt1); 
   }
@@ -490,18 +495,13 @@ namespace physics{
   // Calculate simple linear momentum for checking momentum conservation
   void 
   compute_lin_momentum(
-      body_holder* srch, 
-      std::vector<body_holder*>& nbsh)
+      std::vector<body_holder*>& bodies, 
+      point_t* total) 
   {
-    body* source = srch->getBody();
-    point_t lin_momentum = 0;
-
-    for(auto nbh: nbsh) {
-      body* nb = nbh->getBody();
-      point_t velocity = source->getVelocity();
-      lin_momentum = velocity*nb->getMass(); 
-    }
-    source->setLinMomentum(lin_momentum);   
+    *total = {0};
+    for(auto nbh: bodies) {
+      *total += nbh->getBody()->getLinMomentum(); 
+    }  
   }
 
   void

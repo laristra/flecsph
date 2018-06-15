@@ -353,6 +353,7 @@ void inputDataHDF5(
 
   // Internal Energy  
   #ifdef INTERNAL_ENERGY
+  std::cout<<"Reading internal energy"<<std::endl;
   std::fill(dataX,dataX+nparticlesproc,0.);
   H5PartReadDataFloat64(dataFile,"u",dataX);
   for(int64_t i=0; i<nparticlesproc; ++i){
@@ -476,17 +477,10 @@ void outputDataHDF5(
   // Put the step header
   simio.setTimeStep(step);
   
-  //Flecsi_Sim_IO::Attribute timeValue("time",Flecsi_Sim_IO::timestep,"float",
-  //    physics::totaltime);
-  //simio.timestepAttributes.push_back(timeValue);
-  
-  simio.addTimeStepAttribute(
-      Flecsi_Sim_IO::Attribute(
-        "time",
-       Flecsi_Sim_IO::timestep,
-        "double",
-        totaltime)
-      );
+  Flecsi_Sim_IO::Attribute timeValue("time",Flecsi_Sim_IO::timestep,"double",
+      totaltime);
+  simio.addTimeStepAttribute(timeValue);
+
 
   simio.writeTimestepAttributes();
 

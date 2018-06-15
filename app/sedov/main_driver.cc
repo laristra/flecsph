@@ -41,6 +41,8 @@
 
 #include "eos_analytics.h"
 //#include "physics.h"
+//
+#define INTERNAL_ENERGY
 
 namespace flecsi{
 namespace execution{
@@ -54,7 +56,7 @@ mpi_init_task(int startiteration){
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   
-  int totaliters = 100;
+  int totaliters = 1000;
   int iteroutput = 1;
   double totaltime = 0.0;
   double maxtime = 10.0;
@@ -78,11 +80,15 @@ mpi_init_task(int startiteration){
 
   remove("output_sedov.h5part"); 
 
+#if 1
 #ifdef OUTPUT
   bs.write_bodies("output_sedov",iter);
   //io::outputDataHDF5(rbodies,"output_sodtube.h5part",0);
   //tcolorer.mpi_output_txt(rbodies,iter,"output_sodtube"); 
 #endif
+#endif
+
+  double stopt, startt; 
 
   ++iter; 
   do
@@ -144,11 +150,19 @@ mpi_init_task(int startiteration){
     if(rank==0)
       std::cout<<".done"<<std::endl;
 
-   
+#if 1
 #ifdef OUTPUT
+    MPI_Barrier(MPI_COMM_WORLD);
+    startt = omp_get_wtime();
     if(iter % iteroutput == 0){ 
       bs.write_bodies("output_sedov",iter/iteroutput);
     }
+    stopt = omp_get_wtime();
+    if(rank==0){
+      std::cout<<"Output time: "<<omp_get_wtime()-startt<<"s"<<std::endl;
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif
 #endif
     ++iter;
     

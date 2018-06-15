@@ -1,7 +1,7 @@
 /*~--------------------------------------------------------------------------~*
  * Copyright (c) 2017 Los Alamos National Security, LLC
  * All rights reserved.
- *~--------------------------------------------------------------------------~*\
+ *~--------------------------------------------------------------------------~*/
 
  /*~--------------------------------------------------------------------------~*
  * 
@@ -17,17 +17,26 @@
  *~--------------------------------------------------------------------------~*/
 
 /**
- * @file user.h
+ * @file eos_tabulated.h
  * @author Julien Loiseau
- * @date April 2017
- * @brief User define for dimension and type 
+ * @date June 2017
+ * @brief tabulated EOS implementation
  */
 
-#ifndef _user_h_
-#define _user_h_
+#ifndef _physics_eos_tabulated_h_
+#define _physics_eos_tabulated_h_
 
-#define OUTPUT
-static const size_t gdimension = 2;
-using type_t = double;
+#include <vector>
 
-#endif // _user_h_
+#include "eos.h"
+
+class eos_tabulated: 
+  public eos{
+
+public:
+
+private:
+
+};
+
+#endif // _physics_eos_tabulated_h_

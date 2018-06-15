@@ -33,8 +33,10 @@
 #include <omp.h>
 
 #include "tree.h"
+#include "utils.h"
 
-#define COMPUTE_NEIGHBORS 1
+using namespace mpi_utils;
+
 
 /**
  * @brief       Structure to keep the data during the ghosts sharing.
@@ -285,7 +287,7 @@ public:
 
     // Do a tree search up to a branch 
     // Keep those branches in a list 
-    int criterion = 128;
+    int criterion = 1024;
     std::vector<branch_t*> search_branches; 
     tree.find_sub_cells(
       tree.root(),
@@ -296,7 +298,7 @@ public:
     std::vector<std::array<point_t,2>> send_branches(search_branches.size());
 
     #pragma omp parallel for 
-    for(int i=0;i<search_branches.size();++i){
+    for(long unsigned int i=0;i<search_branches.size();++i){
       send_branches[i][0] = search_branches[i]->bmin();
       send_branches[i][1] = search_branches[i]->bmax();
       //std::cout<<rank<<" - "<<i<<" = "<<send_branches[i][0] <<" - "<< send_branches[i][1] <<std::endl;
@@ -378,7 +380,7 @@ public:
             ent->getPosition(),
             rank,
             ent->getMass(),
-            ent->getId()});
+            ent->getBody()->getId()});
         }
       }
 
@@ -431,85 +433,6 @@ public:
   }
 
 
-
-
-#ifdef COMPUTE_NEIGHBORS
-  /**
-   * @brief      Update the local ghosts data. This function is always use 
-   * after one call of mpi_compute_ghosts. It can be use several time like:
-   * mpi_compute_ghosts 
-   * mpi_refresh_ghosts 
-   * mpi_refresh_ghosts 
-   * As long as the particles did not move. 
-   *
-   * @param      tree   The tree
-   * @param      range  The range
-   */
-  void mpi_refresh_ghosts(
-    tree_topology_t& tree/*,*/ 
-    /*std::array<point_t,2>& range*/)
-  {
-    int rank,size;
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    MPI_Comm_size(MPI_COMM_WORLD,&size);
-  
-#ifdef OUTPUT
-    MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0){
-      std::cout<<"Refresh Ghosts" << std::flush;
-    }
-    double start = omp_get_wtime(); 
-#endif 
-
-    // Refresh the sendbodies with new data
-    auto itsb = ghosts_data.sbodies.begin();
-    for(auto bi: ghosts_data.sholders)
-    {
-      assert(bi->getBody()!=nullptr);
-      *itsb = *(bi->getBody());
-      itsb++;
-    }  
-
-    MPI_Alltoallv(&ghosts_data.sbodies[0],&ghosts_data.nsbodies[0],
-      &ghosts_data.soffsets[0],MPI_BYTE,
-      &ghosts_data.rbodies[0],&ghosts_data.nrbodies[0],
-      &ghosts_data.roffsets[0],MPI_BYTE,MPI_COMM_WORLD);
-
-    // Then link the holders with these bodies
-    auto ents = tree.entities().to_vec(); 
-    int64_t nelem = ents.size(); 
-    
-    int64_t totalfound = 0;
-#pragma omp parallel for reduction(+:totalfound)
-    for(int64_t i=0; i<nelem; ++i)
-    {
-      body_holder* bi = ents[i];
-      if(!bi->is_local())
-      {
-        for(auto& nl: ghosts_data.rbodies)
-        {
-          if(bi->coordinates() == nl.coordinates())
-          {
-            totalfound++;
-            bi->setBody(&(nl));
-            break;
-          }
-        }
-      }
-    }
-    
-    assert(totalfound == (int)ghosts_data.rbodies.size()); 
-  
-#ifdef OUTPUT
-    MPI_Barrier(MPI_COMM_WORLD);
-    double end = omp_get_wtime();
-    if(rank==0)
-      std::cout<<".done "<< end-start << "s "<< std::endl << std::flush;
-
-#endif
-  }
-
-#else // COMPUTE_NEIGHBORS
 
 void mpi_refresh_ghosts(
     tree_topology_t& tree/*,*/ 
@@ -578,165 +501,7 @@ void mpi_refresh_ghosts(
 #endif
   }
 
-#endif // COMPUTE_NEIGHBORS
 
-
-#ifdef COMPUTE_NEIGHBORS
-  /**
-   * @brief      Prepare the buffer for the ghost transfer function. 
-   * Based on the non local particles shared in the mpi_branches_exchange, 
-   * this function extract the really needed particles and find the ghosts. 
-   * Then, as those ghosts can be requested several times in an iteration, 
-   * the buffer are set and can bne use in mpi_refresh_ghosts. 
-   *
-   * @param      tree             The tree
-   * @param[in]  smoothinglength  The smoothinglength
-   * @param      range            The range
-   */
-  void 
-  mpi_compute_ghosts(
-    tree_topology_t& tree,
-    std::vector<body_holder*>& lbodies,
-    std::vector<body_holder*>& neighbors, 
-    std::vector<int64_t>& neighbors_count,
-    double smoothinglength
-  )
-  {    
-    int rank,size;
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    MPI_Comm_size(MPI_COMM_WORLD,&size);
- 
-
-
-#ifdef OUTPUT
-    MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0)
-      std::cout<<"Compute Ghosts" << std::flush;
-    double start = omp_get_wtime();
-#endif
-
-    // Clean the structure 
-    ghosts_data.sbodies.clear();
-    ghosts_data.rbodies.clear();
-    ghosts_data.nsbodies.clear();
-    ghosts_data.nrbodies.clear();
-
-    ghosts_data.nsbodies.resize(size);
-    ghosts_data.nrbodies.resize(size); 
-    std::fill(ghosts_data.nsbodies.begin(),ghosts_data.nsbodies.end(),0); 
-    std::fill(ghosts_data.nrbodies.begin(),ghosts_data.nrbodies.end(),0);
-
-    int64_t nelem = lbodies.size();
-   
-    MPI_Barrier(MPI_COMM_WORLD);
-    //double start_1 = omp_get_wtime();  
-
-    // Count send
-#pragma omp parallel for 
-    for(int64_t i=0; i<nelem;++i)
-    {
-      std::vector<bool> proc(size,false);
-      for(int64_t j=neighbors_count[i]; j<neighbors_count[i+1]; ++j)
-      {
-        auto nb = neighbors[j];
-        if(!nb->is_local() && !proc[nb->getOwner()])
-        {
-          proc[nb->getOwner()] = true;
-#pragma omp atomic update
-          ghosts_data.nsbodies[nb->getOwner()]++; 
-          //localsbodies[nb->getOwner()]++; 
-        } // if
-      } // for
-    } // for 
-
-    int64_t totalsbodies=0;
-    // Total
-    for(int i=0;i<size;++i)
-    {
-      totalsbodies += ghosts_data.nsbodies[i];
-    }
-
-    std::vector<int> offset(size,0);
-    for(int i=1; i<size; ++i)
-    {
-      offset[i] += offset[i-1]+ghosts_data.nsbodies[i-1];
-    }
-
-    assert(totalsbodies>=0); 
-    // Allocate the send array 
-    ghosts_data.sbodies.resize(totalsbodies);
-    ghosts_data.sholders.resize(totalsbodies);
-    // Temp variable to offset in the sbodies array 
-    std::vector<int> spbodies(size,0);
-    // Fill the vector 
-#pragma omp parallel for 
-    for(int64_t i=0; i<nelem; ++i)
-    {
-      std::vector<bool> proc(size,false); 
-      body_holder* bi = lbodies[i];
-      assert(bi->is_local());
-      for(int64_t j=neighbors_count[i]; j<neighbors_count[i+1]; ++j)
-      {
-        auto nb = neighbors[j];
-        if(!nb->is_local() && !proc[nb->getOwner()])
-        {
-          int pos = 0;
-          proc[nb->getOwner()] = true;
-
-#pragma omp atomic capture
-          pos = spbodies[nb->getOwner()]++;
-
-          // Write
-          pos += offset[nb->getOwner()];
-          assert(pos<totalsbodies);
-          ghosts_data.sholders[pos] = bi;
-          ghosts_data.sbodies[pos] = *(bi->getBody());
-        } // if 
-      } // for 
-    } // for 
-
-    MPI_Alltoall(&ghosts_data.nsbodies[0],1,MPI_INT,
-        &ghosts_data.nrbodies[0],1,MPI_INT,MPI_COMM_WORLD);
-
-    int64_t totalsendbodies = 0L; 
-    int64_t totalrecvbodies = 0L; 
-    for(int i=0;i<size;++i){
-      assert(ghosts_data.nsbodies[i]>=0);
-      assert(ghosts_data.nrbodies[i]>=0);
-      totalsendbodies += ghosts_data.nsbodies[i];
-      totalrecvbodies += ghosts_data.nrbodies[i]; 
-    } // for
-  
-    // Prepare offsets for alltoallv
-    ghosts_data.roffsets[0]=0;
-    ghosts_data.soffsets[0]=0;
-
-    for(int i=1;i<size;++i){
-      ghosts_data.roffsets[i] = ghosts_data.nrbodies[i-1]+
-        ghosts_data.roffsets[i-1];
-      ghosts_data.soffsets[i] = ghosts_data.nsbodies[i-1]+
-        ghosts_data.soffsets[i-1]; 
-    }
-
-    ghosts_data.rbodies.resize(totalrecvbodies);
-
-    // Convert the offsets to byte
-    for(int i=0;i<size;++i){
-      ghosts_data.nsbodies[i]*=sizeof(body);
-      ghosts_data.nrbodies[i]*=sizeof(body);
-      ghosts_data.soffsets[i]*=sizeof(body);
-      ghosts_data.roffsets[i]*=sizeof(body);
-    }
-  
-#ifdef OUTPUT 
-    MPI_Barrier(MPI_COMM_WORLD);
-    double end = omp_get_wtime();
-    if(rank==0)
-      std::cout<<".done "<< end-start << "s"<<std::endl;
-#endif
-  }
-
-#else // COMPUTE_NEIGHBORS
 /**
    * @brief      Prepare the buffer for the ghost transfer function. 
    * Based on the non local particles shared in the mpi_branches_exchange, 
@@ -910,7 +675,6 @@ void mpi_refresh_ghosts(
 #endif
   }
 
-#endif // COMPUTE_NEIGHBORS
 
   void 
   mpi_compute_neighbors(
@@ -1117,125 +881,6 @@ void mpi_refresh_ghosts(
 
     range[0] = minposition;
     range[1] = maxposition;
-  }
-
-
-/**
- * @brief      Simple version of all to all 
- * Use to generate the offsets and do the pre exchange 
- * Then realise the MPI_Alltoall call 
- *
- * @param[in]  sendcount   The sendcount
- * @param      sendbuffer  The sendbuffer
- * @param      recvbuffer  The recvbuffer
- *
- * @tparam     M           The type of data sent 
- */
-  template<
-    typename M>
-  void 
-  mpi_alltoallv(
-      std::vector<int> sendcount,
-      std::vector<M>& sendbuffer,
-      std::vector<M>& recvbuffer,
-      std::vector<int>& recvcount_save
-    )
-  {
-    int rank, size; 
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    MPI_Comm_size(MPI_COMM_WORLD,&size); 
-
-    std::vector<int> recvcount(size); 
-    std::vector<int> recvoffsets(size); 
-    std::vector<int> sendoffsets(size); 
-
-    // Exchange the send count 
-    MPI_Alltoall(&sendcount[0],1,MPI_INT,&recvcount[0],1,MPI_INT,
-      MPI_COMM_WORLD);
-    recvcount_save = recvcount;
-    
-    // Generate the send and recv offsets 
-    std::partial_sum(recvcount.begin(),recvcount.end(),&recvoffsets[0]); 
-    // As we need an exscan, add a zero
-    recvoffsets.insert(recvoffsets.begin(),0);
-    
-    // Then send offsets
-    std::partial_sum(sendcount.begin(),sendcount.end(),&sendoffsets[0]);
-    // As we need an exscan, add a zero
-    sendoffsets.insert(sendoffsets.begin(),0);
-    
-    // Set the recvbuffer to the right size
-    recvbuffer.resize(recvoffsets.back()); 
-    
-    // Trnaform the offsets for bytes 
-    for(int i=0;i<size;++i){
-      sendcount[i] *= sizeof(M);
-      recvcount[i] *= sizeof(M);
-      sendoffsets[i] *= sizeof(M);
-      recvoffsets[i] *= sizeof(M);
-    } // for
-    
-    // Use this array for the global buckets communication
-    MPI_Alltoallv(&sendbuffer[0],&sendcount[0],&sendoffsets[0],MPI_BYTE,
-      &recvbuffer[0],&recvcount[0],&recvoffsets[0],MPI_BYTE,MPI_COMM_WORLD);
-  }
-
-  /**
- * @brief      Simple version of all to all 
- * Use to generate the offsets and do the pre exchange 
- * Then realise the MPI_Alltoall call 
- *
- * @param[in]  sendcount   The sendcount
- * @param      sendbuffer  The sendbuffer
- * @param      recvbuffer  The recvbuffer
- *
- * @tparam     M           The type of data sent 
- */
-  template<
-    typename M>
-  void 
-  mpi_alltoallv(
-      std::vector<int> sendcount,
-      std::vector<M>& sendbuffer,
-      std::vector<M>& recvbuffer
-    )
-  {
-    int rank, size; 
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    MPI_Comm_size(MPI_COMM_WORLD,&size); 
-
-    std::vector<int> recvcount(size); 
-    std::vector<int> recvoffsets(size); 
-    std::vector<int> sendoffsets(size); 
-
-    // Exchange the send count 
-    MPI_Alltoall(&sendcount[0],1,MPI_INT,&recvcount[0],1,MPI_INT,
-      MPI_COMM_WORLD);
-    
-    // Generate the send and recv offsets 
-    std::partial_sum(recvcount.begin(),recvcount.end(),&recvoffsets[0]); 
-    // As we need an exscan, add a zero
-    recvoffsets.insert(recvoffsets.begin(),0);
-    
-    // Then send offsets
-    std::partial_sum(sendcount.begin(),sendcount.end(),&sendoffsets[0]);
-    // As we need an exscan, add a zero
-    sendoffsets.insert(sendoffsets.begin(),0);
-    
-    // Set the recvbuffer to the right size
-    recvbuffer.resize(recvoffsets.back()); 
-    
-    // Trnaform the offsets for bytes 
-    for(int i=0;i<size;++i){
-      sendcount[i] *= sizeof(M);
-      recvcount[i] *= sizeof(M);
-      sendoffsets[i] *= sizeof(M);
-      recvoffsets[i] *= sizeof(M);
-    } // for
-    
-    // Use this array for the global buckets communication
-    MPI_Alltoallv(&sendbuffer[0],&sendcount[0],&sendoffsets[0],MPI_BYTE,
-      &recvbuffer[0],&recvcount[0],&recvoffsets[0],MPI_BYTE,MPI_COMM_WORLD);
   }
 
 

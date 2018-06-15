@@ -49,4 +49,3 @@ cache:
 compiler:
   - gcc
 # No openmp  - clang
-
