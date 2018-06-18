@@ -19,7 +19,7 @@
 /**
  * @file utils.h
  * @author Julien Loiseau
- * @date April 2017
+ * @date June 2018
  * @brief Function needed for MPI distribution of the bodies 
  */
 
@@ -127,8 +127,6 @@ namespace mpi_utils{
   {
     MPI_Allreduce(MPI_IN_PLACE,&value,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD);
   }
-
-
 
 
   void reduce_sum(
