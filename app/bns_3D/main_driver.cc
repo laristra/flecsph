@@ -41,8 +41,13 @@
 #include "physics.h"
 #include "analysis.h"
 
-#define FROT 0
-#define ROT 1
+// Define the relaxation 
+// 1 = relaxation = computation of rot force 
+// 0 = non relaxation = rotation applied
+#define RELAXATION 0
+#if RELAXATION == 1
+#warning CAUTION RELAXATION MODE
+#endif
 
 namespace flecsi{
 namespace execution{
@@ -144,7 +149,7 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
         }
     });
 
-#if ROT == 1
+#if RELAXATION == 0
     // Rotation of the stars
     MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0){
@@ -206,7 +211,7 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
     if(rank==0)
       std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
-#if FROT == 1
+#if RELAXATION == 1
     MPI_Barrier(MPI_COMM_WORLD);
     if(rank==0){
       std::cout<<"Accel rot"<<std::flush; 

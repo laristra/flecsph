@@ -1,7 +1,13 @@
+CXX=g++
+CC=gcc
+CXXFLAGS=-O3 --std=c++17
+LDFLAGS=-lm -lhdf5
 
 all: gen
 
+.PHONY: clean
 clean: 
 	rm -rf bns_generator
 
-gen: ; mpiicpc generator_bns_3D.cpp -O3 -o bns_generator -lm -I ~/local/hdf5_intel/include/ -L ~/local/hdf5_intel/lib/ --std=c++17 -lhdf5
+gen: 
+	${CXX} generator_bns_3D.cpp ${CXXFLAGS} -o bns_generator ${LDFLAGS}
