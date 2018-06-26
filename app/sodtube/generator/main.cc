@@ -40,7 +40,7 @@ void set_default_param(int rank, int size) {
   nparticles = 1000;
 
   // equation of state parameters (one so far)
-  localgamma = 5./3.;
+  localgamma = 1.4;//5./3.;
 
   // run Sod test 1 by default
   sodtest_num = 1;
@@ -249,7 +249,7 @@ int main(int argc, char * argv[]){
     u[part] = P[part]/(localgamma-1.)/rho[part];
 
     // particle masses and smoothing length
-    m[part] = rho[part]*middle/(nparticles/2.);
+    m[part] = rho[part]*smoothing_length/10.;
     h[part] = smoothing_length;
 
     // P,Y,Z,VY,VZ,AX,AY,AZ stay 0

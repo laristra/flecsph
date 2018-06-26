@@ -485,6 +485,31 @@ public:
     ef(bodies_,std::forward<ARGS>(args)...);
   }
 
+
+  /**
+   * @brief      Test function using the n^2 algorithm testing 
+   *
+   * @param[in]  <unnamed>  The function to apply
+   * @param[in]  <unnamed>  The arguments of the function   
+   *
+   * @tparam     EF         The function to apply
+   * @tparam     ARGS       The arguments of the function   
+   */
+  template<
+    typename EF,
+    typename... ARGS
+  >
+  void apply_square(
+    EF&& ef, 
+    ARGS&&... args)
+  {
+    int64_t nelem = bodies_.size();
+    #pragma omp parallel for 
+    for(int64_t i = 0 ; i < nelem; ++i){
+      ef(bodies_[i],bodies_,std::forward<ARGS>(args)...);
+    }
+  }
+
   /**
    * @brief      Gets a vector of the local bodies of this process.
    *

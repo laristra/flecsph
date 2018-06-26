@@ -48,7 +48,7 @@ namespace flecsi{
 namespace execution{
 
 void
-mpi_init_task(int startiteration){
+mpi_init_task(int numberiterations){
   // TODO find a way to use the file name from the specialiszation_driver
   
   int rank;
@@ -56,11 +56,11 @@ mpi_init_task(int startiteration){
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   
-  int totaliters = 500;
+  int totaliters = numberiterations;
   int iteroutput = 1;
   double totaltime = 0.0;
   double maxtime = 10.0;
-  int iter = startiteration; 
+  int iter = 0; 
 
   // Init if default values are not ok
   physics::dt = 0.0025;
@@ -68,7 +68,7 @@ mpi_init_task(int startiteration){
   physics::beta = 2; 
   physics::do_boundaries = true;
   physics::stop_boundaries = true;
-  physics::gamma = 5./3.;
+  physics::gamma = 1.4;//5./3.;
 
   const char * inputFile = "hdf5_sodtube.h5part";
   const char * outputFile = "output_sodtube.h5part"; 
@@ -76,7 +76,7 @@ mpi_init_task(int startiteration){
   remove(outputFile); 
 
   body_system<double,gdimension> bs;
-  bs.read_bodies("hdf5_sodtube.h5part",startiteration);
+  bs.read_bodies("hdf5_sodtube.h5part",iter);
   //io::inputDataHDF5(rbodies,"hdf5_sodtube.h5part",totalnbodies,nbodies);
 
   //eos_analytics eos(1.4);
@@ -123,7 +123,7 @@ mpi_init_task(int startiteration){
 
     if(rank==0)
       std::cout<<"compute_density_pressure_soundspeed"<<std::flush; 
-    bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
+    bs.apply_square(physics::compute_density_pressure_soundspeed);
     if(rank==0)
       std::cout<<".done"<<std::endl;
 
@@ -176,20 +176,27 @@ mpi_init_task(int startiteration){
 
 flecsi_register_mpi_task(mpi_init_task);
 
+void usage()
+{
+  std::cerr<<"./sodtube [number of iterations]"<<std::endl;
+}
+
 void 
 specialization_tlt_init(int argc, char * argv[]){
   
   // Default start at iteration 0
-  int startiteration = 0;
+  usage();
+
+  int numberiterations = 100;
   if(argc == 2){
-    startiteration = atoi(argv[1]);
+    numberiterations = atoi(argv[1]);
   }
 
   std::cout << "In user specialization_driver" << std::endl;
   /*const char * filename = argv[1];*/
   /*std::string  filename(argv[1]);
   std::cout<<filename<<std::endl;*/
-  flecsi_execute_mpi_task(mpi_init_task,startiteration); 
+  flecsi_execute_mpi_task(mpi_init_task,numberiterations); 
 } // specialization driver
 
 void 

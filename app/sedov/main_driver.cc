@@ -66,9 +66,8 @@ mpi_init_task(int startiteration){
   physics::dt = 0.001;
   physics::alpha = 1; 
   physics::beta = 2; 
-  //physics::stop_boundaries = true;
-  //physics::min_boundary = {0.1};
-  //physics::max_boundary = {1.0};
+  physics::do_boundaries = true;
+  physics::stop_boundaries = true;
   physics::gamma = 5./3.;
 
   body_system<double,gdimension> bs;
@@ -77,6 +76,16 @@ mpi_init_task(int startiteration){
 
   double h = bs.getSmoothinglength();
   physics::epsilon = 0.01*h*h;
+
+  auto range_boundaries = bs.getRange(); 
+  point_t distance = range_boundaries[1]-range_boundaries[0];
+  for(int i = 0; i < gdimension; ++i){
+    distance[i] = fabs(distance[i]);
+  }
+  physics::min_boundary = {(0.1+2*h)*distance+range_boundaries[0]};
+  physics::max_boundary = {-(0.1-2*h)*distance+range_boundaries[1]};
+  std::cout<<"Limits: "<<physics::min_boundary<<" ; "<<
+  physics::max_boundary<<std::endl;
 
   remove("output_sedov.h5part"); 
 

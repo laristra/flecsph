@@ -47,12 +47,12 @@ namespace kernel{
     if(gdimension == 2){
       sigma = 10./(7.*M_PI*h*h);
     }
-    double result = sigma/pow(h,gdimension);
-    if (0.0 <= rh && rh < 1.0) {
-      result *= 1.0 - (3.0/2.0) * pow(rh,2) + (3.0/4.0) * pow(rh,3); 
+    double result = sigma;
+    if (0.0 <= rh && rh <= 1.0) {
+      result *= 1.0 - (1.5) * pow(rh,2) + (0.75) * pow(rh,3); 
       return result; 
-    }else if (1.0 <= rh && rh < 2.0) {
-      result *= (1.0/4.0) * pow(2-rh, 3);
+    }else if (1.0 < rh && rh <= 2.0) {
+      result *= (0.25) * pow(2-rh, 3);
       return result;
     }
     return 0.0;
@@ -71,7 +71,9 @@ namespace kernel{
     if(gdimension == 2){
       sigma = 10./(7.*M_PI*h*h*h);
     }
-    double coeff = sigma/pow(h,1+gdimension);
+
+    double coeff = sigma;
+
     double r = 0;
     for(size_t i=0;i<gdimension;++i){
       r += vecP[i]*vecP[i];
@@ -80,13 +82,12 @@ namespace kernel{
     double rh = r/h;
 
     point_t result{};
-    if (0.0 <= rh && rh < 1.0){
-      result = coeff*vecP;
-      result *= ((-3.0/h)+(9.0*r/(4.0*h*h)));
-    }else if(1.0 <= rh && rh < 2.0){
-      result = coeff*vecP;
-      result *= ((-3.0/r)+(3.0/h)+(-3.0*r/(4.0*h*h)));
+    if (0.0 <= rh && rh <= 1.0){
+      result = ((-3.0*rh)+(2.25*rh*rh));
+    }else if(1.0 < rh && rh <= 2.0){
+      result = (-0.75/rh)*(2-rh)*(2-rh);
     }
+    result *= coeff*vecP/r;
     return result;
   } // gradKernel 
 
