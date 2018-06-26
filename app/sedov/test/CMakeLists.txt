@@ -32,6 +32,8 @@ cinch_add_unit(sedov_test
     sedov.cc
     ${CMAKE_SOURCE_DIR}/app/sedov/main_driver.cc
     ${FleCSI_RUNTIME}/runtime_driver.cc  
+  INPUTS
+    ${PROJECT_SOURCE_DIR}/data/hdf5_sedov.h5part
   LIBRARIES 
     ${FleCSPH_LIBRARIES}
 )
