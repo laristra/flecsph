@@ -1,4 +1,6 @@
 #!/bin/bash
+
+# TODO: add header and description
  
 for number in `seq -w 0 99999`
 do
