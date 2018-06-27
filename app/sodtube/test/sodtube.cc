@@ -18,6 +18,6 @@ using namespace execution;
 
 TEST(sodtube, working) {
   MPI_Init(NULL,NULL);
-  mpi_init_task(100);
+  mpi_init_task(50);
   MPI_Finalize();
 }
