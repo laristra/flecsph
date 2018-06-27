@@ -87,7 +87,6 @@ RUN cmake -DENABLE_MPI=$MPI \
           -DENABLE_OPENMP=ON \
           -DENABLE_LEGION=ON \
           -DENABLE_DOXYGEN=ON \
-          -DREALM_LIBRARY=/usr/local/lib/librealm.so \
           -DCMAKE_CXX_FLAGS="-fpermissive" \
           ${COVERAGE:+-DENABLE_COVERAGE_BUILD=ON} ..
 
