@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "physics.h"
+#include "logger.h"
 
 namespace analysis{
 
@@ -63,9 +64,25 @@ namespace analysis{
   void 
   display()
   {
-    std::cout<<std::endl<<"Analysis: "<<std::endl;
-    std::cout<<"Linear momentum: "<<linear_momentum<<std::endl;
-    std::cout<<"JULIEN_ENERGY: "<<JULIEN_ENERGY<<std::endl<<std::endl;
+    // TODO: output just a single line on a screen, containing iteration and time;
+    //       output all scalar reductions as single clearly formatted line to a 
+    //       file ("reductions.dat") as well as on the screen. When creating the 
+    //       file, write a header to indicate which quantities are output in which 
+    //       column (because their order and quantity may change between revisions)
+    //       E.g.:
+    //       -- >> example output file >> -----------------------------------------
+    //       # Scalar reductions:
+    //       # 1:iteration 2:time 3:energy 4:mom_x 5:mom_y 6:mom_z
+    //       0  0.0   1.0000000e+03  0.00000000e+00  0.00000000e+00  0.00000000e+00 
+    //       10 0.1   1.0000000e+03  0.00000000e+00  0.00000000e+00  0.00000000e+00 
+    //       20 0.2   1.0000000e+03  0.00000000e+00  0.00000000e+00  0.00000000e+00 
+    //       30 0.3   1.0000000e+03  0.00000000e+00  0.00000000e+00  0.00000000e+00 
+    //       ...
+    //       -- << end output file <<<< -------------------------------------------
+    //
+    LOGGER << std::endl << "Analysis: " <<std::endl
+           << "Linear momentum: " << linear_momentum << std::endl
+           << "JULIEN_ENERGY: " << JULIEN_ENERGY << std::endl<<std::endl;
   }
 
 }; // physics

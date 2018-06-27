@@ -41,6 +41,7 @@
 
 #include "eos_analytics.h"
 //#include "physics.h"
+#include "logger.h"
 
 #define INTERNAL_ENERGY
 
@@ -55,6 +56,7 @@ mpi_init_task(int numberiterations){
   int size;
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  logger::init();
   
   int totaliters = numberiterations;
   int iteroutput = 1;
@@ -87,10 +89,8 @@ mpi_init_task(int numberiterations){
   physics::min_boundary = {range_boundaries[0][0]+distance*0.1+2*h};
   physics::max_boundary = {range_boundaries[1][0]-distance*0.1-2*h};
 
-  if(rank==0){
-    std::cout<<"Boundaries="<<physics::min_boundary<<";"<<
-      physics::max_boundary<<std::endl;
-  }
+  LOGGER << "Boundaries=" << physics::min_boundary << ";"
+         << physics::max_boundary << std::endl;
 
   bs.update_iteration();
 
@@ -102,8 +102,7 @@ mpi_init_task(int numberiterations){
   do
   { 
     MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0)
-      std::cout<<std::endl<<"#### Iteration "<<iter<<std::endl;
+    LOGGER << "#### Iteration " << iter << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
 
     // Compute and prepare the tree for this iteration 
@@ -116,48 +115,33 @@ mpi_init_task(int numberiterations){
     // - Compute and exchange ghosts in real smoothing length 
     bs.update_iteration();
 
-    if(rank==0)
-      std::cout<<"compute_density_pressure_soundspeed"<<std::flush; 
+    LOGGER << "compute_density_pressure_soundspeed" << std::flush; 
     bs.apply_square(physics::compute_density_pressure_soundspeed);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
+    LOGGER << ".done" << std::endl;
 
     bs.update_neighbors();
    
-    if(rank==0)
-      std::cout<<"Hydro acceleration"<<std::flush; 
+    LOGGER << "Hydro acceleration" << std::flush; 
     bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
+    LOGGER << ".done" << std::endl;
  
-    if(rank==0)
-      std::cout<<"Internalenergy"<<std::flush; 
+    LOGGER << "Internalenergy" << std::flush; 
     bs.apply_in_smoothinglength(physics::compute_dudt);
-    if(rank==0)
-      std::cout<<".done"<<std::endl; 
+    LOGGER << ".done" << std::endl;
    
     if(iter==1){ 
-      if(rank==0)
-        std::cout<<"leapfrog"<<std::flush; 
+      LOGGER << "leapfrog" << std::flush; 
       bs.apply_all(physics::leapfrog_integration_first_step);
-      if(rank==0)
-        std::cout<<".done"<<std::endl;
+      LOGGER << ".done" << std::endl;
     }else{
-      if(rank==0)
-        std::cout<<"leapfrog"<<std::flush; 
+      LOGGER << "leapfrog" << std::flush; 
       bs.apply_all(physics::leapfrog_integration);
-      if(rank==0)
-        std::cout<<".done"<<std::endl;
+      LOGGER << ".done" << std::endl;
     }
 
-    if(rank==0){
-      std::cout<<"dudt integration"<<std::flush; 
-    }
+    LOGGER << "dudt integration" << std::flush; 
     bs.apply_all(physics::dudt_integration);
-    if(rank==0){
-      std::cout<<".done"<<std::endl;
-    }
-
+    LOGGER << ".done" << std::endl;
 
 #ifdef OUTPUT
     if(iter % iteroutput == 0){ 
@@ -167,6 +151,8 @@ mpi_init_task(int numberiterations){
     ++iter;
     
   }while(iter<totaliters);
+
+  logger::finalize();
 }
 
 flecsi_register_mpi_task(mpi_init_task);

@@ -277,7 +277,6 @@ namespace physics{
     }
     accelNorm = sqrt(accelNorm);
     double dt1 = pow(source->getSmoothinglength()/accelNorm,1.0/2.0);
-    //std::cout<<"dt1 = "<<dt1<<std::endl;
   
     // Second based on max mu 
     double max_mu_ij = -9999999;
@@ -291,8 +290,6 @@ namespace physics{
          1.2*alpha*source->getSoundspeed()+
          1.2*beta*max_mu_ij);
     dt2 *= 0.1;
-
-    //std::cout<<"dt2 = "<<dt1<<std::endl;
 
     double min = std::min(dt1,dt2);
   #pragma omp critical 
