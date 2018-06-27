@@ -18,6 +18,6 @@ using namespace execution;
 
 TEST(sedov, working) {
   MPI_Init(NULL,NULL);
-  mpi_init_task(100);
+  mpi_init_task(25);
   MPI_Finalize();
 }
