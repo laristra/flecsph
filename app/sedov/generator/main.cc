@@ -9,6 +9,7 @@
 
 #include "hdf5ParticleIO.h"
 #include "kernels.h"
+#include "logger.h"
 
 
 const double ldistance = 0.001;  // Distance between the particles 
@@ -53,25 +54,28 @@ int main(int argc, char * argv[]){
 
 
   int64_t sparticles = 101;
-  if(argc!=2){
-    printf("./sedov_generator [square nParticles]\n");
-    fprintf(stderr,"Generating default number of particles=%ld*%ld=%ld",
-        sparticles,sparticles,sparticles*sparticles);
-  }else{
-    sparticles = atoll(argv[1]);
-  }
-
   int rank, size; 
   int provided; 
   MPI_Init_thread(&argc,&argv,MPI_THREAD_MULTIPLE,&provided);
+  logger::init();
   assert(provided>=MPI_THREAD_MULTIPLE); 
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
 
-  int64_t nparticles = sparticles*sparticles;
+  if (argc != 2) {
+    LOGGER << "WARNING: you have not specified sqrt of the number of particles!" 
+           << std::endl << "Usage: ./sedov_generator [sParticles]" << std::endl
+           << " - generates initial conditions with  sParticles^2 particles."
+           << std::endl << "Generating with the default value: sparticles = " 
+           << sparticles << std::endl;
+  }else{
+    sparticles = atoll(argv[1]);
+    LOGGER << "Square root of the number of particles: sparticles = " 
+           << sparticles << std::endl;
+  }
 
-  printf("Generating %ld particles by %ldx%ld\n",
-        nparticles,sparticles,sparticles);
+  int64_t nparticles = sparticles*sparticles;
+  LOGGER << "Generating " << nparticles << " particles" << std::endl;
 
   // Start on  0 0
 
@@ -144,7 +148,7 @@ int main(int argc, char * argv[]){
 
   }
 
-  std::cout<<"Real number of particles: "<<tparticles<<std::endl;
+  LOGGER << "Real number of particles: " << tparticles << std::endl;
 
   char filename[128];
   //sprintf(filename,"%s_%d.h5part",fileprefix,nparticles);
@@ -241,6 +245,7 @@ int main(int argc, char * argv[]){
   delete[] id;
   delete[] dt;
  
+  logger::finalize();
   MPI_Finalize();
   return 0;
 }
