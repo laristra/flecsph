@@ -24,7 +24,7 @@
 #include <cassert>
 
 #include "hdf5ParticleIO.h"
-#include "kernel.h"
+#include "kernels.h"
 
     
 const double ldistance = 0.001;                     // Distance between the particles 

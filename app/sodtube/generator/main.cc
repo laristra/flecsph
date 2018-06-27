@@ -8,7 +8,7 @@
 #include <cassert>
 
 #include "hdf5ParticleIO.h"
-#include "kernel.h"
+#include "kernels.h"
 
 
 namespace simulation_params {

@@ -48,7 +48,7 @@ namespace flecsi{
 namespace execution{
 
 void
-mpi_init_task(int startiteration){
+mpi_init_task(int totaliterations){
   // TODO find a way to use the file name from the specialiszation_driver
   
   int rank;
@@ -56,11 +56,11 @@ mpi_init_task(int startiteration){
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   
-  int totaliters = 1000;
+  int totaliters = totaliterations;
   int iteroutput = 1;
   double totaltime = 0.0;
   double maxtime = 10.0;
-  int iter = startiteration; 
+  int iter = 0; 
 
   // Init if default values are not ok
   physics::dt = 0.001;
@@ -71,7 +71,7 @@ mpi_init_task(int startiteration){
   physics::gamma = 5./3.;
 
   body_system<double,gdimension> bs;
-  bs.read_bodies("hdf5_sedov.h5part",startiteration);
+  bs.read_bodies("hdf5_sedov.h5part",iter);
   //io::inputDataHDF5(rbodies,"hdf5_sodtube.h5part",totalnbodies,nbodies);
 
   double h = bs.getSmoothinglength();
@@ -135,7 +135,7 @@ mpi_init_task(int startiteration){
  
     if(rank==0)
       std::cout<<"Internalenergy"<<std::flush; 
-    bs.apply_in_smoothinglength(physics::compute_internalenergy);
+    bs.apply_in_smoothinglength(physics::compute_dudt);
     if(rank==0)
       std::cout<<".done"<<std::endl; 
    
@@ -184,16 +184,16 @@ void
 specialization_tlt_init(int argc, char * argv[]){
   
   // Default start at iteration 0
-  int startiteration = 0;
+  int totaliterations = 0;
   if(argc == 2){
-    startiteration = atoi(argv[1]);
+    totaliterations = atoi(argv[1]);
   }
 
   std::cout << "In user specialization_driver" << std::endl;
   /*const char * filename = argv[1];*/
   /*std::string  filename(argv[1]);
   std::cout<<filename<<std::endl;*/
-  flecsi_execute_mpi_task(mpi_init_task,startiteration); 
+  flecsi_execute_mpi_task(mpi_init_task,totaliterations); 
 } // specialization driver
 
 void 

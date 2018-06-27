@@ -28,7 +28,7 @@
 
 #include <vector>
 
-#include "kernel.h"
+#include "kernels.h"
 #include "tree.h"
 
 namespace physics{
@@ -60,8 +60,8 @@ namespace physics{
 
   // Default configuration for kernel
   int kernel_choice = 0;
-  auto kernel = kernel::cubic_spline_kernel;
-  auto gradKernel = kernel::cubic_spline_gradKernel;
+  auto kernel = kernels::cubic_spline;
+  auto gradKernel = kernels::gradient_cubic_spline;
 
   // Compute density based on neighbors
   // The formula used here is:

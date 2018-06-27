@@ -32,7 +32,7 @@
 #include "tree.h"
 #include "io.h"
 
-#include "kernel.h"
+#include "kernels.h"
 
 namespace physics{
 
@@ -56,10 +56,8 @@ namespace physics{
   double maxtime = 10.;
   double outputtime = 0.02;
   double MAC = 0.;
-  
-
-  auto kernel = kernel::quintic_wendland_2D;
-  auto kernel_gradient = kernel::quintic_wendland_2D_gradient;
+  auto kernel = kernels::wendland_quintic;
+  auto kernel_gradient = kernels::gradient_wendland_quintic;
 
   
   void init_physics(
@@ -78,14 +76,6 @@ namespace physics{
     maxtime = io::input_parameter_double(filename,"maxtime");
     outputtime = io::input_parameter_double(filename,"outputtime");
     rest_density = io::input_parameter_double(filename,"rest_density");
-
-    //maxtime = 0.5;
-    // Switch kernel for 3D case
-    if(gdimension == 3){
-        kernel = kernel::quintic_wendland_3D;
-        kernel_gradient = kernel::quintic_wendland_3D_gradient;
-    }
-
     /*printf("\nInput Data:\n"
       "verlet_cstep=%d\n"
       "eta_sq=%g\n"

@@ -68,7 +68,7 @@ mpi_init_task(int numberiterations){
   physics::beta = 2; 
   physics::do_boundaries = true;
   physics::stop_boundaries = true;
-  physics::gamma = 1.4;//5./3.;
+  physics::gamma = 1.4;
 
   const char * inputFile = "hdf5_sodtube.h5part";
   const char * outputFile = "output_sodtube.h5part"; 
@@ -77,9 +77,6 @@ mpi_init_task(int numberiterations){
 
   body_system<double,gdimension> bs;
   bs.read_bodies("hdf5_sodtube.h5part",iter);
-  //io::inputDataHDF5(rbodies,"hdf5_sodtube.h5part",totalnbodies,nbodies);
-
-  //eos_analytics eos(1.4);
 
   double h = bs.getSmoothinglength();
   physics::epsilon = 0.01*h*h;
@@ -99,8 +96,6 @@ mpi_init_task(int numberiterations){
 
 #ifdef OUTPUT
   bs.write_bodies("output_sodtube",iter);
-  //io::outputDataHDF5(rbodies,"output_sodtube.h5part",0);
-  //tcolorer.mpi_output_txt(rbodies,iter,"output_sodtube"); 
 #endif
 
   ++iter; 
@@ -137,7 +132,7 @@ mpi_init_task(int numberiterations){
  
     if(rank==0)
       std::cout<<"Internalenergy"<<std::flush; 
-    bs.apply_in_smoothinglength(physics::compute_internalenergy);
+    bs.apply_in_smoothinglength(physics::compute_dudt);
     if(rank==0)
       std::cout<<".done"<<std::endl; 
    
@@ -191,11 +186,7 @@ specialization_tlt_init(int argc, char * argv[]){
   if(argc == 2){
     numberiterations = atoi(argv[1]);
   }
-
   std::cout << "In user specialization_driver" << std::endl;
-  /*const char * filename = argv[1];*/
-  /*std::string  filename(argv[1]);
-  std::cout<<filename<<std::endl;*/
   flecsi_execute_mpi_task(mpi_init_task,numberiterations); 
 } // specialization driver
 
