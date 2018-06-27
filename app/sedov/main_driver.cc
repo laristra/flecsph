@@ -184,7 +184,7 @@ void
 specialization_tlt_init(int argc, char * argv[]){
   
   // Default start at iteration 0
-  int totaliterations = 0;
+  int totaliterations = 100;
   if(argc == 2){
     totaliterations = atoi(argv[1]);
   }
