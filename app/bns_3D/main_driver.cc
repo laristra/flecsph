@@ -253,6 +253,7 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
 
 
     // Analysis control step 
+    // TODO: this entire block should be a single function call, e.g. analysis::output()
 #ifdef OUTPUT_ANALYSIS
     if(physics::totaltime >= noutput_analysis*outputtime_analysis){
       // Compute the analysis values based on physics 
@@ -263,9 +264,7 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
 
       // Output 
       noutput_analysis++;
-      if(rank == 0){
-        analysis::display();
-      }
+      analysis::display();
     }
 #endif
 

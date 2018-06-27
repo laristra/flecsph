@@ -6,4 +6,6 @@
 #SBATCH -N 1
 #SBATCH -n 1
 
+# TODO: add header and description
+
 mpirun -np 1 ./bin/fluid

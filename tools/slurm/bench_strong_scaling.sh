@@ -4,6 +4,7 @@
 #SBATCH --error=err_strong_scaling
 #SBATCH --time=02:00:00
 #SBATCH --extra-node-info="1:16:1"
+# TODO: add description
 
 echo "Running Strong Scaling"
 START=200000

@@ -41,6 +41,7 @@
 
 #include "eos_analytics.h"
 //#include "physics.h"
+#include "logger.h"
 //
 #define INTERNAL_ENERGY
 
@@ -55,6 +56,7 @@ mpi_init_task(int totaliterations){
   int size;
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  logger::init();
   
   int totaliters = totaliterations;
   int iteroutput = 1;
@@ -84,8 +86,8 @@ mpi_init_task(int totaliterations){
   }
   physics::min_boundary = {(0.1+2*h)*distance+range_boundaries[0]};
   physics::max_boundary = {-(0.1-2*h)*distance+range_boundaries[1]};
-  std::cout<<"Limits: "<<physics::min_boundary<<" ; "<<
-  physics::max_boundary<<std::endl;
+  LOGGER << "Limits: " << physics::min_boundary << " ; "
+         << physics::max_boundary << std::endl;
 
   remove("output_sedov.h5part"); 
 
@@ -103,8 +105,7 @@ mpi_init_task(int totaliterations){
   do
   { 
     MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0)
-      std::cout<<std::endl<<"#### Iteration "<<iter<<std::endl;
+    LOGGER << std::endl << "#### Iteration " << iter << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
 
     // Compute and prepare the tree for this iteration 
@@ -118,46 +119,35 @@ mpi_init_task(int totaliterations){
     bs.update_iteration();
    
     // Do the Sod Tube physics
-    if(rank==0)
-      std::cout<<"compute_density_pressure_soundspeed"<<std::flush; 
+    LOGGER << "compute_density_pressure_soundspeed" << std::flush; 
     bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
+    LOGGER << ".done" << std::endl;
     
     // Refresh the neighbors within the smoothing length 
     bs.update_neighbors(); 
 
-    if(rank==0)
-      std::cout<<"Hydro acceleration"<<std::flush; 
+    LOGGER << "Hydro acceleration" << std::flush; 
     bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
+    LOGGER << ".done" << std::endl;
  
-    if(rank==0)
-      std::cout<<"Internalenergy"<<std::flush; 
+    LOGGER << "Internalenergy"<<std::flush; 
     bs.apply_in_smoothinglength(physics::compute_dudt);
-    if(rank==0)
-      std::cout<<".done"<<std::endl; 
+    LOGGER << ".done" << std::endl;
    
     if(iter==1){ 
-      if(rank==0)
-        std::cout<<"leapfrog"<<std::flush; 
+      LOGGER << "leapfrog" << std::flush; 
       bs.apply_all(physics::leapfrog_integration_first_step);
-      if(rank==0)
-        std::cout<<".done"<<std::endl;
+      LOGGER << ".done" << std::endl;
     }else{
       if(rank==0)
-        std::cout<<"leapfrog"<<std::flush; 
+      LOGGER << "leapfrog" << std::flush; 
       bs.apply_all(physics::leapfrog_integration);
-      if(rank==0)
-        std::cout<<".done"<<std::endl;
+      LOGGER << ".done" << std::endl;
     }
 
-    if(rank==0)
-      std::cout<<"dudt integration"<<std::flush; 
+    LOGGER << "dudt integration" << std::flush; 
     bs.apply_all(physics::dudt_integration);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
+    LOGGER << ".done" << std::endl;
 
 #if 1
 #ifdef OUTPUT
@@ -167,9 +157,7 @@ mpi_init_task(int totaliterations){
       bs.write_bodies("output_sedov",iter/iteroutput);
     }
     stopt = omp_get_wtime();
-    if(rank==0){
-      std::cout<<"Output time: "<<omp_get_wtime()-startt<<"s"<<std::endl;
-    }
+    LOGGER << "Output time: " << omp_get_wtime()-startt << "s" << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
 #endif
@@ -202,7 +190,7 @@ driver(int argc,  char * argv[]){
 } // driver
 
 
-} // namespace
-} // namespace
+} // namespace execution
+} // namespace flesci
 
 
