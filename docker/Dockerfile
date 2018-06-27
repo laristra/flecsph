@@ -73,7 +73,7 @@ RUN autoreconf -i -f
 #ubuntu needs CC=h5pcc amd HDF5_USE_SHLIB=yes is needed for shared lib
 RUN ./configure --disable-static --enable-shared --enable-parallel --prefix=/usr/local CC=h5pcc && HDF5_USE_SHLIB=yes make
 USER root
-RUN make install
+RUN make install --quiet
 USER flecsi
 RUN ldd /usr/local/lib/libH5hut.so
 
