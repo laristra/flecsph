@@ -4,6 +4,7 @@
 #SBATCH --error=err_weak_scaling
 #SBATCH --time=02:00:00
 #SBATCH --extra-node-info="1:16:1"
+# TODO: add header and description
 
 echo "Running Weak Scaling"
 START=200000
