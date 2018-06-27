@@ -105,9 +105,10 @@ include_directories(${HSF_INCLUDE_DIR})
 # Add mpisph tests
 #------------------------------------------------------------------------------#
 cinch_add_application_directory("mpisph/")
-cinch_add_application_directory("include/physics/default/test")
 cinch_add_application_directory("app/sodtube/test")
 cinch_add_application_directory("app/sedov/test")
+cinch_add_application_directory("include/physics/test")
+
 
 
 

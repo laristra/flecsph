@@ -17,8 +17,9 @@
 #~---------------------------------------------------------------------------~*#
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
-include_directories(${CMAKE_SOURCE_DIR}/include/bodies/)
-include_directories(${CMAKE_SOURCE_DIR}/include/physics/default/)
+include_directories(${CMAKE_SOURCE_DIR}/include/bodies)
+include_directories(${CMAKE_SOURCE_DIR}/include/physics)
+include_directories(${CMAKE_SOURCE_DIR}/include/physics/default)
 include_directories(${CMAKE_SOURCE_DIR}/mpisph/test)
 include_directories(${CMAKE_SOURCE_DIR}/mpisph/)
 

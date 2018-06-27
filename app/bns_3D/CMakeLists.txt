@@ -16,6 +16,7 @@ set(CMAKE_CXX_FLAGS_RELEASE
 # Includes
 #------------------------------------------------------------------------------#
 include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/include/physics)
 include_directories(${CMAKE_SOURCE_DIR}/include/physics/BNS)
 include_directories(${CMAKE_SOURCE_DIR}/app/bns_3D/include)
 include_directories(${CMAKE_SOURCE_DIR}/mpisph)

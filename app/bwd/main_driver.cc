@@ -138,7 +138,7 @@ mpi_init_task(int startiteration){
  
     if(rank==0)
       std::cout<<"Internalenergy"<<std::flush; 
-    bs.apply_in_smoothinglength(physics::compute_internalenergy);
+    bs.apply_in_smoothinglength(physics::compute_dudt);
     if(rank==0)
       std::cout<<".done"<<std::endl; 
    

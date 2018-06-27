@@ -28,12 +28,17 @@
 
 #include <vector>
 
-#include "kernel.h"
+#include "kernels.h"
 #include "tree.h"
 
 namespace physics{
 
-  bool fixed_timestep = true;
+  /**
+   * Default values
+   * They are usually modified in the main_driver 
+   * to be application-specific. 
+   * \TODO add a parameter file to be read in the main_driver
+   */
   bool do_boundaries = false;
   bool stop_boundaries = false; 
   bool reflect_boundaries = false;
@@ -41,25 +46,22 @@ namespace physics{
   point_t min_boundary = {};
   double dt = 0.0;
   double alpha = 2; 
-  double beta = 2; // 1; 
-  double gamma = 1.4;//2.0; // 1.4; 
-  double K = 1;
-  double epsilon = 1;
-  double g_strength = 1; 
+  double beta = 2; 
+  double gamma = 1.4;
+  double epsilon = 0.01;
   double damp = 1;
   double totaltime = 0.0;
-  double MAC = 0.;
   double eta = 0.01;
-
-  // Default configuration for kernel
   int kernel_choice = 0;
-  auto kernel = kernel::cubic_spline_kernel;
-  auto gradKernel = kernel::cubic_spline_gradKernel;
+  auto kernel = kernels::cubic_spline;
+  auto gradKernel = kernels::gradient_cubic_spline;
 
-  // Compute density based on neighbors
-  // The formula used here is:
-  // rho_i = \sum_j m_j*cubic\_spline\_kernel\_3D_ij
-  //static
+  /**
+   * @brief      Compute the density 
+   * Based on Fryer/05 eq(10)
+   * @param      srch  The source's body holder
+   * @param      nbsh  The neighbors' body holders
+   */
   void 
   compute_density(
       body_holder* srch, 
@@ -80,11 +82,11 @@ namespace physics{
     source->setDensity(density);
   } // compute_density
 
-  // Computre pressure on a body 
-  // This function does not need the neighbors
-  // Formula is:
-  // P_i = u_i*rho_i^{\Gamma}
-  //static
+  /**
+   * @brief      Compute the pressure
+   * Ideal gas EOS
+   * @param      srch  The source's body holder
+   */
   void 
   compute_pressure(
       body_holder* srch)
@@ -94,6 +96,7 @@ namespace physics{
       source->getDensity()*source->getInternalenergy();
     source->setPressure(pressure);
   } // compute_pressure
+
 
   //For zero temperature white dwarf EOS
   void 
@@ -110,11 +113,14 @@ namespace physics{
     source->setPressure(pressure);
   } // compute_pressure_wd
 
-  // Compute the sound speed on a body 
-  // This function does not need the neighbors
-  // Formula is:
-  // CS_i = (P_i/rho_i)^{1/2}
-  //static
+
+
+  /**
+   * @brief      Compute the sound speed
+   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics 
+   * 
+   * @param      srch  The source's body holder
+   */
   void 
   compute_soundspeed(
       body_holder* srch)
@@ -124,6 +130,13 @@ namespace physics{
     source->setSoundspeed(soundspeed);
   } // computeSoundspeed
 
+  /**
+   * @brief      Compute the density, EOS and spundspeed in the same function 
+   * reduce time to gather the neighbors
+   *
+   * @param      srch  The source's body holder
+   * @param      nbsh  The neighbors' body holders
+   */
   void 
   compute_density_pressure_soundspeed(
     body_holder* srch, 
@@ -134,11 +147,15 @@ namespace physics{
     compute_soundspeed(srch); 
   }
 
-  // mu used in artificial viscosity 
-  // Formula is:
-  // h_ij*(v_i-v_j).(p_i-p_j)/(dist*dist + h_ij+epsi)
-  // with h_ij = (h_i+h_j)/2
-  //static
+  /**
+   * @brief      mu_ij for the artificial viscosity 
+   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics 
+   *
+   * @param      srch  The source particle
+   * @param      nbsh  The neighbor particle
+   *
+   * @return     Contribution for mu_ij of this neighbor
+   */
   double 
   mu(
       body* source, 
@@ -154,7 +171,6 @@ namespace physics{
 
     if(dotproduct >= 0.0)
       return result;
-    // Should add norm to space_vector
     double dist = flecsi::distance(source->getPosition(),nb->getPosition());
     result = h_ij * dotproduct / (dist*dist + epsilon);
     
@@ -162,6 +178,15 @@ namespace physics{
     return result; 
   } // mu
 
+  /**
+   * @brief      Artificial viscosity 
+   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics 
+   *
+   * @param      srch  The source particle
+   * @param      nbsh  The neighbor particle
+   *
+   * @return     The artificial viscosity contribution 
+   */
   double 
   viscosity(
     body* source, 
@@ -176,12 +201,13 @@ namespace physics{
     return res;
   }
 
-  // Compute the hydro force with the artificial viscosity 
-  // Formula is:
-  // f_{hydro}_i = m_j * (\sum_j P_i/rho_i^2 + P_j/rho_j^2 + Pi_{ij})*
-  // gradKernel_{ij}
-  // with Pi_{ij} the artificial viscosity 
-  //static
+  /**
+   * @brief      Calculates the hydro acceleration
+   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics 
+   *
+   * @param      srch  The source's body holder
+   * @param      nbsh  The neighbors' body holders
+   */
   void 
   compute_hydro_acceleration(
     body_holder* srch, 
@@ -189,8 +215,9 @@ namespace physics{
   { 
     body* source = srch->getBody();
 
-    // Add in the acceleration
-    point_t acceleration = point_t{};//source->getAcceleration();
+    // Reset the accelerastion 
+    // \TODO add a function to reset in main_driver
+    point_t acceleration = point_t{};
 
     point_t hydro = {};
     for(auto nbh : ngbsh){ 
@@ -224,16 +251,17 @@ namespace physics{
     hydro = -1.0*hydro;
     acceleration += hydro;
     source->setAcceleration(acceleration);
-    //std::cout<<*source<<std::endl;
-
   } // compute_hydro_acceleration
 
-  // compute u 
-  // Formula is:
-  // u_i = P_i/rho_i^2 \sum_j m_j*v_ij*gradKernel_ij
-  //static
+  /**
+   * @brief      Calculates the dudt, variation of internal energy.
+   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics 
+   *
+   * @param      srch  The source's body holder
+   * @param      nbsh  The neighbors' body holders
+   */
   void
-  compute_internalenergy(
+  compute_dudt(
     body_holder* srch,
     std::vector<body_holder*>& ngbsh)
   {
@@ -277,9 +305,13 @@ namespace physics{
     dudt_pressure+.5*dudt_visc;
 
     source->setDudt(dudt);
-  } // compute_internalenergy
+  } // compute_dudt
 
-
+  /**
+   * @brief      Integrate the internal energy variation, update internal energy
+   *
+   * @param      srch  The source's body holder
+   */
   void dudt_integration(
       body_holder* srch)
   {
@@ -288,7 +320,14 @@ namespace physics{
       source->getInternalenergy()+dt*source->getDudt());
   }
 
-  // Apply boundaries 
+  /**
+   * @brief      Apply boundaries if they are set
+   *
+   * @param      srch  The source's body holder
+   *
+   * @return     True if the particle have been considered outside the 
+   * boundaries
+   */
   bool
   compute_boundaries(
       body_holder* srch)
@@ -343,7 +382,11 @@ namespace physics{
     return considered;
   }
 
-
+  /**
+   * @brief      Leapfrog integration, first step 
+   *
+   * @param      srch  The source's body holder
+   */
   void 
   leapfrog_integration_first_step(
       body_holder* srch)
@@ -375,6 +418,11 @@ namespace physics{
     mpi_assert(!std::isnan(position[0])); 
   }
 
+  /**
+   * @brief      Leapfrog integration
+   *
+   * @param      srch  The source's body holder
+   */
   void 
   leapfrog_integration(
       body_holder* srch)
@@ -406,6 +454,13 @@ namespace physics{
     mpi_assert(!std::isnan(position[0])); 
   }
 
+  /**
+   * @brief      Compute the timestep from acceleration and mu 
+   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics 
+   *
+   * @param      srch   The source's body holder
+   * @param      ngbhs  The neighbors' body holders
+   */
   void 
   compute_dt(
       body_holder* srch,
@@ -420,7 +475,6 @@ namespace physics{
     }
     accelNorm = sqrt(accelNorm);
     double dt1 = pow(source->getSmoothinglength()/accelNorm,1.0/2.0);
-    //std::cout<<"dt1 = "<<dt1<<std::endl;
   
     // Second based on max mu 
     double max_mu_ij = -9999999;
@@ -435,15 +489,18 @@ namespace physics{
          1.2*beta*max_mu_ij);
     dt2 *= 0.1;
 
-    //std::cout<<"dt2 = "<<dt1<<std::endl;
-
     double min = std::min(dt1,dt2);
+    // Critical OMP to avoid outside synchronizations
   #pragma omp critical 
     physics::dt = std::min(dt,min);
-    //return std::min(physics::dt,dt1); 
   }
 
-  // Calculate simple linear momentum for checking momentum conservation
+  /**
+   * @brief      Compute the linear momentum, 
+   *
+   * @param      bodies  Vector of all the local bodies 
+   * @param      total   Total linear momentum 
+   */
   void 
   compute_lin_momentum(
       std::vector<body_holder*>& bodies, 
@@ -453,26 +510,6 @@ namespace physics{
     for(auto nbh: bodies) {
       *total += nbh->getBody()->getLinMomentum(); 
     }  
-  }
-
-  void
-  nsquare_gravitation(
-      std::vector<body_holder*>& bodies){
-    int64_t nelem = bodies.size();
-    #pragma omp parallel for 
-    for(int64_t i = 0; i<nelem; ++i){
-      body * source = bodies[i]->getBody();
-      point_t grav = point_t{};
-      for(auto& n: bodies){
-        body* nb = n->getBody();
-        double dist = flecsi::distance(source->getPosition(),nb->getPosition());
-        point_t pos = source->getPosition() - nb->getPosition();
-        if(dist > 0.){
-          grav += -nb->getMass() / (dist*dist*dist) * pos; 
-        }
-      }
-      source->setAcceleration(source->getAcceleration() + grav);
-    }
   }
 
 }; // physics
