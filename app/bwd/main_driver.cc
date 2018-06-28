@@ -70,26 +70,20 @@ mpi_init_task(int startiteration){
   physics::gamma = 5./3.;
 
   body_system<double,gdimension> bs;
-  bs.read_bodies("dwd_id.h5part",startiteration);
-  //io::inputDataHDF5(rbodies,"hdf5_sodtube.h5part",totalnbodies,nbodies);
-
-  //eos_analytics eos(1.4);
+  bs.read_bodies("bwd_id.h5part",startiteration);
 
   double h = bs.getSmoothinglength();
   physics::epsilon = 0.01*h*h;
 
 #ifdef OUTPUT
-  bs.write_bodies("output_dwd",iter);
-  //io::outputDataHDF5(rbodies,"output_sodtube.h5part",0);
-  //tcolorer.mpi_output_txt(rbodies,iter,"output_sodtube"); 
+  bs.write_bodies("output_bwd",iter);
 #endif
 
   ++iter; 
   do
   { 
     MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0)
-      std::cout<<std::endl<<"#### Iteration "<<iter<<std::endl;
+    clog(info)<<"#### Iteration "<<iter<<std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
 
     // Compute and prepare the tree for this iteration 
@@ -103,69 +97,51 @@ mpi_init_task(int startiteration){
     bs.update_iteration();
    
     // Do the DWD physics
-    if(rank==0)
-      std::cout<<"Density"<<std::flush; 
+    clog(info)<<"Density"<<std::flush; 
     bs.apply_in_smoothinglength(physics::compute_density);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
+    clog(info)<<".done"<<std::endl;
 
-    if(rank==0)
-      std::cout<<"Pressure"<<std::flush; 
+    clog(info)<<"Pressure"<<std::flush; 
     bs.apply_all(physics::compute_pressure_wd);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
+    clog(info)<<".done"<<std::endl;
 
-    if(rank==0)
-      std::cout<<"Linear Momentum"<<std::flush; 
+    clog(info)<<"Linear Momentum"<<std::flush; 
     //bs.apply_all(physics::compute_lin_momentum);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
+    clog(info)<<".done"<<std::endl;
 
-    if(rank==0)
-      std::cout<<"Soundspeed"<<std::flush; 
+    clog(info)<<"Soundspeed"<<std::flush; 
     bs.apply_all(physics::compute_soundspeed);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
+    clog(info)<<".done"<<std::endl;
     
     // Refresh the neighbors within the smoothing length 
     bs.update_neighbors(); 
 
-    if(rank==0)
-      std::cout<<"Hydro acceleration"<<std::flush; 
+    clog(info)<<"Hydro acceleration"<<std::flush; 
     bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
+    clog(info)<<".done"<<std::endl;
  
-    if(rank==0)
-      std::cout<<"Internalenergy"<<std::flush; 
+    clog(info)<<"Internalenergy"<<std::flush; 
     bs.apply_in_smoothinglength(physics::compute_dudt);
-    if(rank==0)
-      std::cout<<".done"<<std::endl; 
+    clog(info)<<".done"<<std::endl; 
    
     if(iter==1){ 
-      if(rank==0)
-        std::cout<<"leapfrog"<<std::flush; 
+      clog(info)<<"leapfrog"<<std::flush; 
       bs.apply_all(physics::leapfrog_integration_first_step);
-      if(rank==0)
-        std::cout<<".done"<<std::endl;
+      clog(info)<<".done"<<std::endl;
     }else{
-      if(rank==0)
-        std::cout<<"leapfrog"<<std::flush; 
+      clog(info)<<"leapfrog"<<std::flush; 
       bs.apply_all(physics::leapfrog_integration);
-      if(rank==0)
-        std::cout<<".done"<<std::endl;
+      clog(info)<<".done"<<std::endl;
     }
 
-    if(rank==0)
-      std::cout<<"dudt integration"<<std::flush; 
+    clog(info)<<"dudt integration"<<std::flush; 
     bs.apply_all(physics::dudt_integration);
-    if(rank==0)
-      std::cout<<".done"<<std::endl;
+    clog(info)<<".done"<<std::endl;
 
    
 #ifdef OUTPUT
     if(iter % iteroutput == 0){ 
-      bs.write_bodies("output_dwd",iter/iteroutput);
+      bs.write_bodies("output_bwd",iter/iteroutput);
     }
 #endif
     ++iter;
@@ -184,16 +160,14 @@ specialization_tlt_init(int argc, char * argv[]){
     startiteration = atoi(argv[1]);
   }
 
-  std::cout << "In user specialization_driver" << std::endl;
-  /*const char * filename = argv[1];*/
-  /*std::string  filename(argv[1]);
-  std::cout<<filename<<std::endl;*/
+  clog(warn) << "In user specialization_driver" << std::endl;
+
   flecsi_execute_mpi_task(mpi_init_task,startiteration); 
 } // specialization driver
 
 void 
 driver(int argc,  char * argv[]){
-  std::cout << "In user driver" << std::endl;
+  clog(warn) << "In user driver" << std::endl;
 } // driver
 
 

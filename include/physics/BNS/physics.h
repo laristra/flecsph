@@ -48,6 +48,7 @@ namespace physics{
   double g_strength = 1; 
   double damp = 1;
   double totaltime = 0.0;
+  int64_t iteration = 0;
   double MAC = 0.;
   double eta = 0.01;
   double A = 0.6366197723675814;

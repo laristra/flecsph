@@ -230,10 +230,8 @@ public:
 
     assert(send_particles_count_[rank] == 0);
     MPI_Barrier(MPI_COMM_WORLD);
-    if(rank == 0){
-      std::cout<<"mpi_compute_fmm in "<<omp_get_wtime()-time<<
+    clog(trace)<<"mpi_compute_fmm in "<<omp_get_wtime()-time<<
       "s"<<std::endl<<std::flush;
-    }
   }
 
   /**
@@ -397,12 +395,10 @@ public:
     MPI_Allgatherv(&vcells[0],nrecvCOM_[rank],MPI_BYTE,
       &recvCOM_[0],&nrecvCOM_[0],&noffsets[0],MPI_BYTE,MPI_COMM_WORLD);
     
-    if(rank == 0){
-        std::cout<<"FMM COM = ";
-      for(auto v: nrecvCOM_)
-        std::cout<<v/sizeof(mpi_cell_t)<<";";
-      std::cout<<std::endl;
-    }   
+    clog(trace)<<"FMM COM = ";
+    for(auto v: nrecvCOM_)
+     clog(trace)<<v/sizeof(mpi_cell_t)<<";";
+    clog(trace)<<std::endl;
 
     // Check if mine are in the right order 
     #pragma omp parallel for 
@@ -412,10 +408,8 @@ public:
     }// for
 
     MPI_Barrier(MPI_COMM_WORLD);
-    if(rank == 0){
-      std::cout<<"mpi_exchange_cells in "<<omp_get_wtime()-time<<
+    clog(trace)<<"mpi_exchange_cells in "<<omp_get_wtime()-time<<
       "s"<<std::endl<<std::flush;
-    }
   } // mpi_exchange_cells
 
 
@@ -524,10 +518,8 @@ public:
       assert(recvcells[i].ninterations == totalnbodies);
     }
     MPI_Barrier(MPI_COMM_WORLD);
-    if(rank == 0){
-      std::cout<<"mpi_gather_cells in "<<omp_get_wtime()-time<<
+    clog(trace)<<"mpi_gather_cells in "<<omp_get_wtime()-time<<
       "s"<<std::endl<<std::flush;
-    }
   } // mpi_gather_cells
 
 private:

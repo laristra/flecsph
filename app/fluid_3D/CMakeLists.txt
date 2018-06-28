@@ -20,8 +20,7 @@ include_directories(${CMAKE_SOURCE_DIR}/include/physics/fluids)
 include_directories(${CMAKE_SOURCE_DIR}/include/physics)
 include_directories(${CMAKE_SOURCE_DIR}/app/fluid_3D/include)
 include_directories(${CMAKE_SOURCE_DIR}/mpisph)
-include_directories(
-  ${CMAKE_SOURCE_DIR}/third-party-libraries/ScalingFramework/IOTests)
+include_directories(${CMAKE_SOURCE_DIR}/third-party-libraries/ScalingFramework/IOTests)
 
 #------------------------------------------------------------------------------#
 # Executables    

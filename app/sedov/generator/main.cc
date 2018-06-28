@@ -9,19 +9,14 @@
 
 #include "hdf5ParticleIO.h"
 #include "kernels.h"
-#include "logger.h"
 
 
 const double ldistance = 0.001;  // Distance between the particles 
 const double localgamma = 5./3.;
 const double rho_1 = 1;
-//const double rho_2 = 0.125;
 const double pressure_1 = 10e-7;
-//const double pressure_2 = 0.1;
 const double u_1 = 0.0001;
-//const double u_2 = 2;
 const double m_1 = 1.0e-7;
-//const double m_2 = 1.0e-5;
 const double smoothing_length = 5.*ldistance;
 const char* fileprefix = "hdf5_sedov";
 
@@ -57,25 +52,24 @@ int main(int argc, char * argv[]){
   int rank, size; 
   int provided; 
   MPI_Init_thread(&argc,&argv,MPI_THREAD_MULTIPLE,&provided);
-  logger::init();
   assert(provided>=MPI_THREAD_MULTIPLE); 
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
 
   if (argc != 2) {
-    LOGGER << "WARNING: you have not specified sqrt of the number of particles!" 
+    clog(warn) << "WARNING: you have not specified sqrt of the number of particles!" 
            << std::endl << "Usage: ./sedov_generator [sParticles]" << std::endl
            << " - generates initial conditions with  sParticles^2 particles."
            << std::endl << "Generating with the default value: sparticles = " 
            << sparticles << std::endl;
   }else{
     sparticles = atoll(argv[1]);
-    LOGGER << "Square root of the number of particles: sparticles = " 
+    clog(info) << "Square root of the number of particles: sparticles = " 
            << sparticles << std::endl;
   }
 
   int64_t nparticles = sparticles*sparticles;
-  LOGGER << "Generating " << nparticles << " particles" << std::endl;
+  clog(info) << "Generating " << nparticles << " particles" << std::endl;
 
   // Start on  0 0
 
@@ -121,7 +115,6 @@ int main(int argc, char * argv[]){
   double xposition = 0;//*/x_topproc; 
   int64_t tparticles = 0;
   double yposition = 0;//*/y_topproc;
-  //int xpos = 0;
   for(int64_t part=0; part<nparticles; ++part){
     
     tparticles++;
@@ -130,7 +123,7 @@ int main(int argc, char * argv[]){
          
     P[part] = pressure_1;
     rho[part] = rho_1; 
-    m[part] = m_1;//density(x[part],y[part],x_c,y_c);
+    m[part] = m_1;
     u[part] = u_1;
     h[part] = smoothing_length;
     id[part] = posid++;
@@ -144,11 +137,9 @@ int main(int argc, char * argv[]){
       xposition = 0.;
       yposition+=ldistance;
     }
-
-
   }
 
-  LOGGER << "Real number of particles: " << tparticles << std::endl;
+  clog(info) << "Real number of particles: " << tparticles << std::endl;
 
   char filename[128];
   //sprintf(filename,"%s_%d.h5part",fileprefix,nparticles);
@@ -245,7 +236,6 @@ int main(int argc, char * argv[]){
   delete[] id;
   delete[] dt;
  
-  logger::finalize();
   MPI_Finalize();
   return 0;
 }

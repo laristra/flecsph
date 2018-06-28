@@ -33,13 +33,6 @@ add_executable(bwd
   ${FleCSI_RUNTIME}/runtime_driver.cc
 )
 
-# MPILEGION version
-#add_executable(bwd_generator 
-#  generator/main.cc 
-#)
-
-#target_link_libraries(bwd_generator ${MPI_LIBRARIES} 
-#  ${HDF5_LIBRARIES} ${H5HUT_LIBRARIES})
 target_link_libraries(bwd ${FleCSPH_LIBRARIES})
 
 add_definitions(-DFLECSI_ENABLE_SPECIALIZATION_TLT_INIT)

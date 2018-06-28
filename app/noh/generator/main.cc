@@ -51,9 +51,9 @@ int main(int argc, char * argv[]){
   int64_t sparticles = 100;         // Default number of particles
 
   if (argc != 2) {
-    printf("./noh_generator [square nParticles]\n");
-    fprintf(stderr,"Generating default number of particles=%ld*%ld=%ld",
-    sparticles,sparticles,sparticles*sparticles);
+    clog(warn) << "./noh_generator [square nParticles]\n" << std::endl;
+    clog(warn) << "Generating default number of particles"<<
+      sparticles<<"*"<<sparticles<<"="<<sparticles*sparticles<<std::endl;
   }
   else sparticles = atoll(argv[1]);
 
@@ -79,12 +79,10 @@ int main(int argc, char * argv[]){
   // Particle mass given the initial density and number of particles
   double m_in = rho_in * radius * radius * 4.0 / nparticles; 
 
-  std::cout<<"Sphere: r="<<radius<<" pos=["<<x_c<<";"<<y_c<<"]"<<std::endl;
+  clog(info)<<"Sphere: r="<<radius<<" pos=["<<x_c<<";"<<y_c<<"]"<<std::endl;
 
-  //if(rank==0){
-    printf("Generating %ld particles by %ldx%ld in sphere r=%.4f\n",
-        nparticles,sparticles,sparticles,radius);
-  //}
+  clog(info) << "Generating" <<nparticles<<" particles by "<<
+    sparticles<<"x"<<sparticles<<" in sphere r="<<radius<<std::endl;
 
 
   // Start on  0 0
@@ -141,7 +139,8 @@ int main(int argc, char * argv[]){
   double timestep = 0.001;
   int dimension = 2;
   
-  std::cout << "top_X=" << x_topproc << " top_Y=" << y_topproc << " maxX=" << maxxposition << " maxY=" << maxyposition << std::endl;
+  clog(info) << "top_X=" << x_topproc << " top_Y=" << y_topproc << 
+    " maxX=" << maxxposition << " maxY=" << maxyposition << std::endl;
 
   double xposition = x_topproc; 
   double yposition = y_topproc;
@@ -212,7 +211,7 @@ int main(int argc, char * argv[]){
     }
   }
 
-  std::cout << "Real Number of Particles: " << tparticles << std::endl;
+  clog(info) << "Real Number of Particles: " << tparticles << std::endl;
 
   char filename[128];
   sprintf(filename,"%s.h5part",fileprefix);
