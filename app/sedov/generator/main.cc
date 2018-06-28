@@ -42,9 +42,12 @@ const double localgamma = 1.4;   // Set to fit value in default_physics.h
 const double rho_in = 1;
 const double pressure_in = 1.0e-7;
 const double u_in = pressure_in/(rho_in*(localgamma - 1.0));
-const double u_blast = 1.0;
 const double smoothing_length = 5.*ldistance;
 const char* fileprefix = "hdf5_sedov";
+
+const double u_blast = 1.0;             // Injected total blast energy
+const double r_blast = 0.5*ldistance;   // Radius of injection region 
+
 
 bool 
 in_radius(
@@ -166,8 +169,7 @@ int main(int argc, char * argv[]){
     m[part] = mass;
 
     // Count particles in the blast zone and sum their masses 
-    if(sqrt((x[part]-x_c)*(x[part]-x_c) + (y[part]-y_c)*(y[part]-y_c)) 
-       < 0.5*ldistance){
+    if(sqrt((x[part]-x_c)*(x[part]-x_c)+(y[part]-y_c)*(y[part]-y_c)) < r_blast){
        particles_blast++;
        mass_blast += m[part];
     }
@@ -192,8 +194,7 @@ int main(int argc, char * argv[]){
     h[part] = smoothing_length;
     id[part] = posid++;
  
-    if(sqrt((x[part]-x_c)*(x[part]-x_c) + (y[part]-y_c)*(y[part]-y_c))
-       < 0.5*ldistance){
+    if(sqrt((x[part]-x_c)*(x[part]-x_c)+(y[part]-y_c)*(y[part]-y_c)) < r_blast){
        u[part] = u_blast/particles_blast;
        P[part] = u[part]*rho[part]*(localgamma - 1.0);
     }
