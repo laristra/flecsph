@@ -108,8 +108,6 @@ namespace mpi_utils{
       &recvbuffer[0],&recvcount[0],&recvoffsets[0],MPI_BYTE,MPI_COMM_WORLD);
   }
 
-
-
   void reduce_min(
     double& value)
   {
@@ -152,6 +150,141 @@ namespace mpi_utils{
   {
     MPI_Allreduce(MPI_IN_PLACE,&value[0],gdimension,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
   }
+
+
+  /**
+   * @brief      Export to a file the current tree in memory 
+   * This is useful for small number of particles to help representing the tree 
+   *
+   * @param      tree   The tree to output
+   * @param      range  The range of the particles, use to construct entity_keys
+   */
+  void mpi_tree_traversal_graphviz(
+    tree_topology_t & tree/*,*/
+    /*std::array<point_t,2>& range*/)
+  {
+    int rank = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+
+    //static int noutput = 0;
+
+    char fname[64];
+    sprintf(fname,"output_graphviz_%02d.gv",rank);
+    std::ofstream output;
+    output.open(fname);
+    output<<"digraph G {"<<std::endl<<"forcelabels=true;"<<std::endl;
+
+    std::stack<branch_t*> stk;
+    // Get root
+    auto rt = tree.root();
+    stk.push(rt);
+
+    while(!stk.empty()){
+      branch_t* cur = stk.top();
+      stk.pop();
+      if(!cur->is_leaf()){
+        if(gdimension == 3){
+          output<<std::oct<<cur->id().value_()<<" [label=\""<< 
+          cur->id().value_()<<std::dec<< "\", xlabel=\"" << cur->sub_entities() 
+          <<"\"];"<<std::endl;
+        }
+        if(gdimension == 2){
+          output<<cur->id().value_()<<" [label=\""<< cur->id().value_() 
+          << "\", xlabel=\"" << cur->sub_entities() <<"\"];"<<std::endl;
+
+        }
+
+        // Add the child to the stack and add for display 
+        for(size_t i=0;i<(1<<gdimension);++i)
+        {
+          auto br = tree.child(cur,i);
+          stk.push(br);
+          if(gdimension == 3){
+            output<<std::oct<<cur->id().value_()
+              <<"->"<<br->id().value_()<<std::dec<<std::endl;
+          }
+          if(gdimension == 2){
+            output<<cur->id().value_()
+              <<"->"<<br->id().value_()<<std::dec<<std::endl;  
+          }
+        }
+      }else{
+        if(gdimension == 3){
+          output<<std::oct<<cur->id().value_()<<" [label=\""<< 
+          cur->id().value_() <<std::dec<< "\", xlabel=\"" << cur->sub_entities() 
+          <<"\"];"<<std::endl;
+        }
+        if(gdimension == 2){
+          output<<cur->id().value_()<<" [label=\""<< cur->id().value_() 
+          << "\", xlabel=\"" << cur->sub_entities() <<"\"];"<<std::endl; 
+        }    
+        for(auto ent: *cur)
+        {
+          entity_key_t key(ent->coordinates());
+          int64_t key_int = key.truncate_value(tree.max_depth()+2);
+          if(gdimension == 3){
+            output<<std::oct<<cur->id().value_()<<
+              "->"<<key_int<<std::endl;
+          }
+          if(gdimension == 2){
+            output<<cur->id().value_()<<
+              "->"<<key_int<<std::endl;
+          }
+          switch (ent->getLocality())
+          {
+            case 2:
+              output<<key_int<<" [shape=box,color=blue]"<<std::endl;
+              break;
+            case 3:
+              output<<key_int<<" [shape=box,color=red]"<<std::endl;
+              //fprintf(output,"\"%lo\" [shape=box,color=red]\n",
+              //  key.truncate_value(17));
+              break;
+            case 1:
+              output<<key_int<<" [shape=box,color=green]"<<std::endl;
+              //fprintf(output,"\"%lo\" [shape=box,color=green]\n",
+              //  key.truncate_value(17));
+              break;
+            default:
+              output<<key_int<<" [shape=circle,color=black]"<<std::endl;
+              //fprintf(output,"\"%lo\" [shape=circle,color=black]\n",
+              //  key.truncate_value(17));
+              break;
+          }
+          output<<std::dec;
+        }
+      } 
+    }
+    output<<"}"<<std::endl;
+    output.close();
+  }
+
+  /**
+ * @brief      Compute the local range of particles
+ * range 0 = min range 1 = max
+ *
+ * @param      bodies  The bodies
+ * @param      range   The range
+ */
+  void 
+  local_range(
+    std::vector<std::pair<entity_key_t,body>>& bodies,
+    std::array<point_t,2>& range)
+  {
+    
+    range[1] = bodies.back().second.coordinates();
+    range[0] = bodies.back().second.coordinates();
+    
+    for(auto bi: bodies){
+      for(size_t i=0;i<gdimension;++i){
+        if(bi.second.coordinates()[i]>range[1][i])
+          range[1][i] = bi.second.coordinates()[i];
+        if(bi.second.coordinates()[i]<range[0][i])
+          range[0][i] = bi.second.coordinates()[i];
+      }
+    }
+  }
+
 
 }; // utils
 

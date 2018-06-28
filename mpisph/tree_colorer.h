@@ -77,7 +77,9 @@ private:
   // To share the ghosts data within the radius
   mpi_ghosts_t ghosts_data;
 
-  const size_t noct = 256*1024; // Number of octets used for quicksort    
+  const int criterion_branches = 1024; // Number of branches to share in 
+                                       // exchange_branches
+  const size_t noct = 256*1024;        // Number of octets used for quicksort    
 
   void reset_buffers()
   {
@@ -189,7 +191,7 @@ public:
         std::cout<<"Weight function"<<std::endl;
       generate_splitters_weight(splitters,rbodies,totalnbodies,neighbors_count); 
     }else{
-      generate_splitters_samples_v2(splitters,rbodies,totalnbodies);
+      generate_splitters_samples(splitters,rbodies,totalnbodies);
       if(rank == 0)
         std::cout<<"Normal function"<<std::endl;
     }
@@ -287,11 +289,11 @@ public:
 
     // Do a tree search up to a branch 
     // Keep those branches in a list 
-    int criterion = 1024;
+    
     std::vector<branch_t*> search_branches; 
     tree.find_sub_cells(
       tree.root(),
-      criterion,
+      criterion_branches,
       search_branches);
 
     // Make a list of boundaries
@@ -319,7 +321,7 @@ public:
     );
 
     if(rank==0){
-      std::cout<<"Packets with ncrit="<<criterion<<" = ";
+      std::cout<<"Packets with ncrit="<<criterion_branches<<" = ";
       for(auto v: count_search_branches){
         std::cout<<v<<";";
       }
@@ -675,163 +677,9 @@ void mpi_refresh_ghosts(
 #endif
   }
 
-
-  void 
-  mpi_compute_neighbors(
-    tree_topology_t& tree,
-    std::vector<body_holder*>& lbodies,
-    std::vector<body_holder*>& neighbors,
-    std::vector<int64_t>& neighbors_count,
-    double smoothinglength
-  ){
-    int rank,size;
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    MPI_Comm_size(MPI_COMM_WORLD,&size);
-
-#ifdef OUTPUT
-    MPI_Barrier(MPI_COMM_WORLD);
-    double start = omp_get_wtime();
-    if(rank==0)
-      std::cout<<"Compute Neighbors"<<std::flush;
-#endif
-
-    double t1, t2, t3, t4, t5; 
-    t1 = omp_get_wtime();
-
-    neighbors.clear();
-    neighbors_count.clear();
-    int64_t nelem = lbodies.size();
-    neighbors_count.resize(nelem);
-
-    //MPI_Barrier(MPI_COMM_WORLD);
-    t2 = omp_get_wtime(); 
-
-    double MAC = 0.;
-    // Index them?????????
-    #pragma omp parallel for 
-    for(int64_t i=0; i<nelem;++i){
-      lbodies[i]->set_index(i);
-    } 
-
-    auto count = [](
-      body_holder* source,
-      const std::vector<body_holder*>& nb,
-      std::vector<int64_t>& nbc){
-        nbc[source->index()] = nb.size();
-    };
-
-    int criterion = 64;
-
-    // 1 compute the neigbors for each 
-    tree.apply_sub_cells(
-        tree.root(),
-        2*smoothinglength,
-        MAC,
-        criterion,
-        count,
-        neighbors_count
-    );
-
-    //MPI_Barrier(MPI_COMM_WORLD);
-    t3 = omp_get_wtime();
-
-    // Compute the prefix array 
-    std::partial_sum(neighbors_count.begin(),neighbors_count.end(),
-        neighbors_count.begin());
-    neighbors_count.insert(neighbors_count.begin(),0);
-    assert(neighbors_count[0]==0);
-
-    int64_t totalneighbors = neighbors_count[nelem];
-    //std::cout<<"totalneighbors/totalbodies="<<
-    //  totalneighbors<<"/"<<nelem<<" Moyenne="<<totalneighbors/nelem<<std::endl<<std::flush;
-
-    neighbors.resize(totalneighbors); 
-
-    //MPI_Barrier(MPI_COMM_WORLD);
-    t4 = omp_get_wtime();
-
-    auto record = [](
-      body_holder* source,
-      std::vector<body_holder*>& nb,
-      std::vector<int64_t>& nbc,
-      std::vector<body_holder*>& nba)
-    {
-      int pos = 0;
-      for(auto n: nb){
-        nba[nbc[source->index()] + pos++] = n;
-      }
-    };
-
-    //std::cout<<"End indexing"<<std::endl;
-
-    std::vector<int64_t> count_array(nelem);
-
-    // 1 compute the neigbors for each 
-    tree.apply_sub_cells(
-        tree.root(),
-        2*smoothinglength,
-        MAC,
-        criterion,
-        record,
-        neighbors_count,
-        neighbors
-    );
-
-    //MPI_Barrier(MPI_COMM_WORLD);
-    t5 = omp_get_wtime();
-
-    std::vector<int64_t> neighbors_global(size);
-    int64_t value = neighbors_count.back();
-    // Get the neighbors on the process 0 
-    MPI_Gather(&value,1,MPI_INT64_T, &(neighbors_global[0]), 1, MPI_INT64_T,
-               0, MPI_COMM_WORLD);
-    if(rank==0){
-      std::cout<<"Neighbors count:";
-      for(int i = 0; i < size; ++i){
-        std::cout<<neighbors_global[i]<<";";
-      }
-      std::cout<<std::endl;
-    }
-
-    std::cout<<rank<<" t="<<t5-t1<<"s"<<std::endl<<std::flush;
-
-#ifdef OUTPUT
-    MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0)
-      std::cout<<".done "<< omp_get_wtime()-start<<"s"<<std::endl<<std::flush;
-#endif 
-  }
-
 /*~---------------------------------------------------------------------------*
  * Utils functions
  *~---------------------------------------------------------------------------*/
-
-
-/**
- * @brief      Compute the local range of particles
- * range 0 = min range 1 = max
- *
- * @param      bodies  The bodies
- * @param      range   The range
- */
-  void 
-  local_range(
-    std::vector<std::pair<entity_key_t,body>>& bodies,
-    std::array<point_t,2>& range)
-  {
-    
-    range[1] = bodies.back().second.coordinates();
-    range[0] = bodies.back().second.coordinates();
-    
-    for(auto bi: bodies){
-      for(size_t i=0;i<dimension;++i){
-        if(bi.second.coordinates()[i]>range[1][i])
-          range[1][i] = bi.second.coordinates()[i];
-        if(bi.second.coordinates()[i]<range[0][i])
-          range[0][i] = bi.second.coordinates()[i];
-      }
-    }
-  }
 
   /**
    * @brief      Compute the global range of all the particle system 
@@ -883,106 +731,6 @@ void mpi_refresh_ghosts(
     range[1] = maxposition;
   }
 
-
-/**
- * @brief      Use in mpi_qsort to generate the splitters to sort the particles 
- * in the quick sort algorithm 
- * In this function we take some samplers of the total particles and the root 
- * determines the splitters
- * This version is based on the sample splitter algorithm 
- *
- * @param      splitters  The splitters used in the qsort in mpi_qsort
- * @param[in]  rbodies  The local bodies of the process
- */
-  void
-  generate_splitters_samples(
-    std::vector<std::pair<entity_key_t,int64_t>>& splitters,
-    std::vector<std::pair<entity_key_t,body>>& rbodies, 
-    const int64_t totalnbodies
-  ){ 
-    int rank, size; 
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    MPI_Comm_size(MPI_COMM_WORLD,&size); 
-
-    // Create a vector for the samplers 
-    std::vector<std::pair<entity_key_t,int64_t>> keys_sample;
-    // Number of elements for sampling 
-    // In this implementation we share up to 256KB to 
-    // the master. 
-    size_t nsample = size-1;
-    int64_t nvalues = rbodies.size();
-    if(nvalues<(int64_t)nsample){nsample = nvalues;}
-    
-    for(size_t i=0;i<nsample;++i){
-      int64_t position = nvalues*((i+1.)/(double)size);
-      keys_sample.push_back(std::make_pair(rbodies[position].first,
-      rbodies[position].second.getId()));
-    } // for
-    assert(keys_sample.size()==nsample);
-
-    std::vector<std::pair<entity_key_t,int64_t>> master_keys;
-    std::vector<int> master_recvcounts;
-    std::vector<int> master_offsets;
-    int master_nkeys = 0; 
-
-    if(rank==0){
-      master_recvcounts.resize(size);
-    } // if
-
-    // Echange the number of samples
-    MPI_Gather(&nsample,1,MPI_INT,
-      &master_recvcounts[0],1,MPI_INT,0,MPI_COMM_WORLD);
-
-    // Master 
-    // Sort the received keys and create the pivots
-    if(rank == 0){
-      master_offsets.resize(size); 
-      master_nkeys = size*(size-1);
-      if(totalnbodies<master_nkeys){master_nkeys=totalnbodies;}
-      // Number to receiv from each process
-      for(int i=0;i<size;++i){
-        master_recvcounts[i]*=sizeof(std::pair<entity_key_t,int64_t>);
-      } // for
-      std::partial_sum(master_recvcounts.begin(),master_recvcounts.end(),
-        &master_offsets[0]); 
-      master_offsets.insert(master_offsets.begin(),0);
-      master_keys.resize(master_nkeys);
-    } // if
-
-    MPI_Gatherv(&keys_sample[0],nsample*sizeof(std::pair<entity_key_t,int64_t>)
-      ,MPI_BYTE,&master_keys[0],&master_recvcounts[0],&master_offsets[0]
-      ,MPI_BYTE,0,MPI_COMM_WORLD);
-
-    // Generate the splitters
-    splitters.resize(size-1);
-    if(rank==0){
-      std::sort(master_keys.begin(),master_keys.end(),
-        [](auto& left, auto& right){
-          if(left.first < right.first){
-            return true; 
-          }
-          if(left.first == right.first){
-            return left.second < right.second; 
-          }
-          return false; 
-        });
-
-      //std::cout<<entity_key_t::first_key()<<std::endl;
-      for(int i=0;i<size-1;++i){
-        int64_t position = size*(i+1./2.);
-        splitters[i] = master_keys[position];
-        //std::cout<<splitters[i].first<<std::endl;
-      } // for
-      // Last key 
-      //std::cout<<entity_key_t::last_key()<<std::endl;
-    } // if
-
-    // Bradcast the splitters 
-    MPI_Bcast(&splitters[0],(size-1)*sizeof(std::pair<entity_key_t,int64_t>)
-    ,MPI_BYTE,0,MPI_COMM_WORLD);
-  }
-
-
   void
   generate_splitters_weight(
     std::vector<std::pair<entity_key_t,int64_t>>& splitters,
@@ -1025,15 +773,6 @@ void mpi_refresh_ghosts(
 
     size_t nsample = keys_sample.size();
   
-    //if(nvalues<(int64_t)nsample){nsample = nvalues;}
-    
-    //for(size_t i=0;i<nsample;++i){
-    //  int64_t position = (nvalues/(nsample+1.))*(i+1.);
-    //  keys_sample.push_back(std::make_pair(rbodies[position].first,
-    //  rbodies[position].second.getId()));
-    //} // for
-    //assert(keys_sample.size()==(size_t)nsample);
-
     std::vector<std::pair<entity_key_t,int64_t>> master_keys;
     std::vector<int> master_recvcounts;
     std::vector<int> master_offsets;
@@ -1112,7 +851,7 @@ void mpi_refresh_ghosts(
  * @param[in]  rbodies  The local bodies of the process
  */
   void
-  generate_splitters_samples_v2(
+  generate_splitters_samples(
     std::vector<std::pair<entity_key_t,int64_t>>& splitters,
     std::vector<std::pair<entity_key_t,body>>& rbodies, 
     const int64_t totalnbodies
@@ -1202,132 +941,6 @@ void mpi_refresh_ghosts(
     MPI_Bcast(&splitters[0],(size-1)*sizeof(std::pair<entity_key_t,int64_t>)
     ,MPI_BYTE,0,MPI_COMM_WORLD);
   }
-
-
-/**
- * @brief      Best algorithm for scalability 
- * \TODO Need to bed implemented 
- *
- * @param      splitters  The splitters used in the qsort in mpi_qsort
- * @param[in]  rbodies  The local bodies of the process
- */
-  void
-  generate_splitters_histogram(
-    std::vector<std::pair<entity_key_t,int64_t>>& splitters,
-    std::vector<std::pair<entity_key_t,body>>& rbodies, 
-    const int64_t totalnbodies
-  ){ 
-    int rank, size; 
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    MPI_Comm_size(MPI_COMM_WORLD,&size); 
-  }
-
-  /**
-   * @brief      Export to a file the current tree in memory 
-   * This is useful for small number of particles to help representing the tree 
-   *
-   * @param      tree   The tree to output
-   * @param      range  The range of the particles, use to construct entity_keys
-   */
-  void mpi_tree_traversal_graphviz(
-    tree_topology_t & tree/*,*/
-    /*std::array<point_t,2>& range*/)
-  {
-    int rank = 0;
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-
-    //static int noutput = 0;
-
-    char fname[64];
-    sprintf(fname,"output_graphviz_%02d.gv",rank);
-    std::ofstream output;
-    output.open(fname);
-    output<<"digraph G {"<<std::endl<<"forcelabels=true;"<<std::endl;
-
-    std::stack<branch_t*> stk;
-    // Get root
-    auto rt = tree.root();
-    stk.push(rt);
-
-    while(!stk.empty()){
-      branch_t* cur = stk.top();
-      stk.pop();
-      if(!cur->is_leaf()){
-
-        if(dimension == 3){
-          output<<std::oct<<cur->id().value_()<<" [label=\""<< cur->id().value_() 
-          <<std::dec<< "\", xlabel=\"" << cur->sub_entities() <<"\"];"<<std::endl;
-        }
-        if(dimension == 2){
-          output<<cur->id().value_()<<" [label=\""<< cur->id().value_() 
-          << "\", xlabel=\"" << cur->sub_entities() <<"\"];"<<std::endl;
-
-        }
-
-        // Add the child to the stack and add for display 
-        for(size_t i=0;i<(1<<dimension);++i)
-        {
-          auto br = tree.child(cur,i);
-          stk.push(br);
-          if(dimension == 3){
-            output<<std::oct<<cur->id().value_()
-              <<"->"<<br->id().value_()<<std::dec<<std::endl;
-          }
-          if(dimension == 2){
-            output<<cur->id().value_()
-              <<"->"<<br->id().value_()<<std::dec<<std::endl;  
-          }
-        }
-      }else{
-        if(dimension == 3){
-          output<<std::oct<<cur->id().value_()<<" [label=\""<< cur->id().value_() 
-          <<std::dec<< "\", xlabel=\"" << cur->sub_entities() <<"\"];"<<std::endl;
-        }
-        if(dimension == 2){
-          output<<cur->id().value_()<<" [label=\""<< cur->id().value_() 
-          << "\", xlabel=\"" << cur->sub_entities() <<"\"];"<<std::endl; 
-        }    
-        for(auto ent: *cur)
-        {
-          entity_key_t key(ent->coordinates());
-          int64_t key_int = key.truncate_value(tree.max_depth()+2);
-          if(dimension == 3){
-            output<<std::oct<<cur->id().value_()<<
-              "->"<<key_int<<std::endl;
-          }
-          if(dimension == 2){
-            output<<cur->id().value_()<<
-              "->"<<key_int<<std::endl;
-          }
-          switch (ent->getLocality())
-          {
-            case 2:
-              output<<key_int<<" [shape=box,color=blue]"<<std::endl;
-              break;
-            case 3:
-              output<<key_int<<" [shape=box,color=red]"<<std::endl;
-              //fprintf(output,"\"%lo\" [shape=box,color=red]\n",
-              //  key.truncate_value(17));
-              break;
-            case 1:
-              output<<key_int<<" [shape=box,color=green]"<<std::endl;
-              //fprintf(output,"\"%lo\" [shape=box,color=green]\n",
-              //  key.truncate_value(17));
-              break;
-            default:
-              output<<key_int<<" [shape=circle,color=black]"<<std::endl;
-              //fprintf(output,"\"%lo\" [shape=circle,color=black]\n",
-              //  key.truncate_value(17));
-              break;
-          }
-          output<<std::dec;
-        }
-      } 
-    }
-    output<<"}"<<std::endl;
-    output.close();
-  }
-
 
 }; // class tree_colorer 
 
