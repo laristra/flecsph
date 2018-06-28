@@ -208,6 +208,17 @@ To compile your project, you need to add it in `flecsph/config/project.cmake`: A
 
 Then, `cmake` links your project and you can compile it. 
 
+# Logs 
+
+Cinch Log is the logging tool for this project. 
+In order to display log set the environement variable as: 
+```{engine=sh} 
+export CLOG_ENABLE_STDLOG=1
+```
+
+You can set the level of output from trace, info, warn, error and fatal.
+Refer to the documentation at: 
+https://github.com/laristra/cinch/blob/master/logging/README.md
 
  # Contacts
 

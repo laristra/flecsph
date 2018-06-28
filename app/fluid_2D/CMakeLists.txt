@@ -34,11 +34,11 @@ add_executable(fluid_2D
 )
 
 # Fluid generator
-add_executable(fluid_generator_2D 
+add_executable(fluid_2D_generator 
   generator/main.cc 
 )
 
-target_link_libraries(fluid_generator_2D ${MPI_LIBRARIES} 
+target_link_libraries(fluid_2D_generator ${MPI_LIBRARIES} 
   ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 target_link_libraries(fluid_2D ${FleCSPH_LIBRARIES})
 

@@ -40,8 +40,6 @@
 #include <bodies_system.h>
 
 #include "eos_analytics.h"
-//#include "physics.h"
-#include "logger.h"
 //
 #define INTERNAL_ENERGY
 
@@ -56,7 +54,6 @@ mpi_init_task(int totaliterations){
   int size;
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  logger::init();
   
   int totaliters = totaliterations;
   int iteroutput = 1;
@@ -74,7 +71,6 @@ mpi_init_task(int totaliterations){
 
   body_system<double,gdimension> bs;
   bs.read_bodies("hdf5_sedov.h5part",iter);
-  //io::inputDataHDF5(rbodies,"hdf5_sodtube.h5part",totalnbodies,nbodies);
 
   double h = bs.getSmoothinglength();
   physics::epsilon = 0.01*h*h;
@@ -86,17 +82,13 @@ mpi_init_task(int totaliterations){
   }
   physics::min_boundary = {(0.1+2*h)*distance+range_boundaries[0]};
   physics::max_boundary = {-(0.1-2*h)*distance+range_boundaries[1]};
-  LOGGER << "Limits: " << physics::min_boundary << " ; "
+  clog(info) << "Limits: " << physics::min_boundary << " ; "
          << physics::max_boundary << std::endl;
 
   remove("output_sedov.h5part"); 
 
-#if 1
 #ifdef OUTPUT
   bs.write_bodies("output_sedov",iter);
-  //io::outputDataHDF5(rbodies,"output_sodtube.h5part",0);
-  //tcolorer.mpi_output_txt(rbodies,iter,"output_sodtube"); 
-#endif
 #endif
 
   double stopt, startt; 
@@ -105,7 +97,7 @@ mpi_init_task(int totaliterations){
   do
   { 
     MPI_Barrier(MPI_COMM_WORLD);
-    LOGGER << std::endl << "#### Iteration " << iter << std::endl;
+    clog(info) << "#### Iteration " << iter << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
 
     // Compute and prepare the tree for this iteration 
@@ -118,38 +110,36 @@ mpi_init_task(int totaliterations){
     // - Compute and exchange ghosts in real smoothing length 
     bs.update_iteration();
    
-    // Do the Sod Tube physics
-    LOGGER << "compute_density_pressure_soundspeed" << std::flush; 
+    clog(info) << "compute_density_pressure_soundspeed" << std::flush; 
     bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
-    LOGGER << ".done" << std::endl;
+    clog(info) << ".done" << std::endl;
     
     // Refresh the neighbors within the smoothing length 
     bs.update_neighbors(); 
 
-    LOGGER << "Hydro acceleration" << std::flush; 
+    clog(info) << "Hydro acceleration" << std::flush; 
     bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
-    LOGGER << ".done" << std::endl;
+    clog(info) << ".done" << std::endl;
  
-    LOGGER << "Internalenergy"<<std::flush; 
+    clog(info) << "Internalenergy"<<std::flush; 
     bs.apply_in_smoothinglength(physics::compute_dudt);
-    LOGGER << ".done" << std::endl;
+    clog(info) << ".done" << std::endl;
    
     if(iter==1){ 
-      LOGGER << "leapfrog" << std::flush; 
+      clog(info) << "leapfrog" << std::flush; 
       bs.apply_all(physics::leapfrog_integration_first_step);
-      LOGGER << ".done" << std::endl;
+      clog(info) << ".done" << std::endl;
     }else{
       if(rank==0)
-      LOGGER << "leapfrog" << std::flush; 
+      clog(info) << "leapfrog" << std::flush; 
       bs.apply_all(physics::leapfrog_integration);
-      LOGGER << ".done" << std::endl;
+      clog(info) << ".done" << std::endl;
     }
 
-    LOGGER << "dudt integration" << std::flush; 
+    clog(info) << "dudt integration" << std::flush; 
     bs.apply_all(physics::dudt_integration);
-    LOGGER << ".done" << std::endl;
+    clog(info) << ".done" << std::endl;
 
-#if 1
 #ifdef OUTPUT
     MPI_Barrier(MPI_COMM_WORLD);
     startt = omp_get_wtime();
@@ -157,9 +147,8 @@ mpi_init_task(int totaliterations){
       bs.write_bodies("output_sedov",iter/iteroutput);
     }
     stopt = omp_get_wtime();
-    LOGGER << "Output time: " << omp_get_wtime()-startt << "s" << std::endl;
+    clog(info) << "Output time: " << omp_get_wtime()-startt << "s" << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
-#endif
 #endif
     ++iter;
     
@@ -177,16 +166,14 @@ specialization_tlt_init(int argc, char * argv[]){
     totaliterations = atoi(argv[1]);
   }
 
-  std::cout << "In user specialization_driver" << std::endl;
-  /*const char * filename = argv[1];*/
-  /*std::string  filename(argv[1]);
-  std::cout<<filename<<std::endl;*/
+  clog(trace) << "In user specialization_driver" << std::endl;
+
   flecsi_execute_mpi_task(mpi_init_task,totaliterations); 
 } // specialization driver
 
 void 
 driver(int argc,  char * argv[]){
-  std::cout << "In user driver" << std::endl;
+  clog(trace) << "In user driver" << std::endl;
 } // driver
 
 

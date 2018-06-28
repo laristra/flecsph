@@ -56,7 +56,7 @@ public:
     {
       #pragma omp parallel 
       #pragma omp single 
-      std::cout<<"OMP: "<<omp_get_num_threads()<<std::endl;
+      clog(warn)<<"USING OMP THREADS: "<<omp_get_num_threads()<<std::endl;
     }
   };
 
@@ -201,13 +201,7 @@ public:
     MPI_Allreduce(MPI_IN_PLACE,&smoothinglength_,1,MPI_DOUBLE,MPI_MAX,
         MPI_COMM_WORLD);
 
-    #ifdef DEBUG
-    #ifdef OUTPUT
-    if(rank==0){
-      std::cout<<"H="<<smoothinglength_<<std::endl;
-    }
-    #endif
-    #endif 
+    clog(trace)<<"H="<<smoothinglength_<<std::endl;
 
     return smoothinglength_;
 
@@ -235,13 +229,8 @@ public:
     MPI_Allreduce(MPI_IN_PLACE,&smoothinglength_,1,MPI_DOUBLE,MPI_MAX,
         MPI_COMM_WORLD);
 
-    #ifdef DEBUG
-    #ifdef OUTPUT
-    if(rank==0){
-      std::cout<<"H="<<smoothinglength_<<std::endl;
-    }
-    #endif
-    #endif
+    clog(trace)<<"H="<<smoothinglength_<<std::endl;
+
     tcolorer_.mpi_compute_range(localbodies_,range_,smoothinglength_);
     return range_;
   }
@@ -273,9 +262,7 @@ public:
     // Choose the smoothing length to be the biggest from everyone 
     smoothinglength_ = getSmoothinglength();
 
-    if(rank==0){
-      std::cout<<"H="<<smoothinglength_<<std::endl;
-    }
+    clog(trace)<<"H="<<smoothinglength_<<std::endl;
 
     // Then compute the range of the system 
     tcolorer_.mpi_compute_range(localbodies_,range_,smoothinglength_);
@@ -328,12 +315,11 @@ public:
       MPI_COMM_WORLD
       );
 
-    if(rank == 0){
-      std::cout<<rank<<" sub_entities before="; 
+    clog(trace)<<rank<<" sub_entities before="; 
       for(auto v: nentities){
-        std::cout<<v<<";";
+        clog(trace)<<v<<";";
       }
-      std::cout<<std::endl;
+      clog(trace)<<std::endl;
     }
 #endif
 
@@ -358,12 +344,11 @@ public:
       MPI_COMM_WORLD
       );
 
-    if(rank == 0){
-      std::cout<<rank<<" sub_entities after="; 
+    clog(trace)<<rank<<" sub_entities after="; 
       for(auto v: nentities){
-        std::cout<<v<<";";
+        clog(trace)<<v<<";";
       }
-      std::cout<<std::endl;
+      clog(trace)<<std::endl;
     }
 #endif
     
@@ -393,9 +378,7 @@ public:
     MPI_Comm_size(MPI_COMM_WORLD,&size);
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
-    if(rank == 0){
-      std::cout<<"FMM: mmass="<<maxmasscell_<<" angle="<<macangle_<<std::endl;
-    }
+    clog(trace)<<"FMM: mmass="<<maxmasscell_<<" angle="<<macangle_<<std::endl;
 
     // Just consider the local particles in the tree for FMM 
     tree_->update_branches_local(smoothinglength_);
