@@ -39,9 +39,7 @@
 
 #include <bodies_system.h>
 
-#include "eos_analytics.h"
-//
-#define INTERNAL_ENERGY
+#include "default_physics.h"
 
 namespace flecsi{
 namespace execution{

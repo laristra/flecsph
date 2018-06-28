@@ -6,11 +6,6 @@
 [![Quality Gate](https://sonarqube.com/api/badges/gate?key=flecsph%3A%2Fmaster)](https://sonarqube.com/dashboard?id=flecsph%3A%2Fmaster)
 --->
 
-<aside class="warning">
-The distributed version of gravitation with FMM is not working yet
-Working on it
-</aside>
-
 # SPH on FleCSI
 
 This project is an implementation of SPH problem using FleCSI framework.

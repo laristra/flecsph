@@ -28,13 +28,18 @@
 
 #include <vector>
 
-#include "physics.h"
+//#include "physics.h"
 
 namespace analysis{
 
   point_t linear_momentum;
 
-  // Calculate simple linear momentum for checking momentum conservation
+  /**
+   * @brief      Compute the linear momentum, 
+   *
+   * @param      bodies  Vector of all the local bodies 
+   * @param      total   Total linear momentum 
+   */  
   void 
   compute_lin_momentum(
       std::vector<body_holder*>& bodies) 

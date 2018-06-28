@@ -47,7 +47,7 @@ TEST(io, write_N_read) {
     // Create body to check the class too 
     bodies[i].second.setPosition(p);
     bodies[i].second.setMass(mass);
-    bodies[i].second.setInternalenergy(u);  
+    bodies[i].second.setSmoothinglength(u);  
   }
 
   // Write that to file

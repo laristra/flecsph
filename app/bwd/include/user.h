@@ -26,6 +26,7 @@
 #ifndef _user_h_
 #define _user_h_
 
+#define INTERNAL_ENERGY
 #define OUTPUT
 static const size_t gdimension = 3;
 using type_t = double;

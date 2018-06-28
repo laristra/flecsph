@@ -14,9 +14,7 @@ set(CMAKE_CXX_FLAGS_RELEASE
 
 # includes 
 include_directories(${CMAKE_SOURCE_DIR}/include)
-include_directories(${CMAKE_SOURCE_DIR}/include/bodies)
 include_directories(${CMAKE_SOURCE_DIR}/include/physics)
-include_directories(${CMAKE_SOURCE_DIR}/include/physics/default)
 include_directories(${CMAKE_SOURCE_DIR}/app/bwd/include)
 include_directories(${CMAKE_SOURCE_DIR}/mpisph)
 include_directories(${CMAKE_SOURCE_DIR}/third-party-libraries/ScalingFramework/IOTests)

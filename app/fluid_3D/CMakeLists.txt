@@ -16,7 +16,7 @@ set(CMAKE_CXX_FLAGS_RELEASE
 # Includes
 #------------------------------------------------------------------------------#
 include_directories(${CMAKE_SOURCE_DIR}/include)
-include_directories(${CMAKE_SOURCE_DIR}/include/physics/fluids)
+include_directories(${CMAKE_SOURCE_DIR}/include/physics/specific)
 include_directories(${CMAKE_SOURCE_DIR}/include/physics)
 include_directories(${CMAKE_SOURCE_DIR}/app/fluid_3D/include)
 include_directories(${CMAKE_SOURCE_DIR}/mpisph)

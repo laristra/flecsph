@@ -38,7 +38,7 @@
 #include "flecsi/data/data.h"
 
 #include <bodies_system.h>
-#include "physics.h"
+#include "fluids_physics.h"
 
 namespace flecsi{
 namespace execution{

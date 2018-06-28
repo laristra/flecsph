@@ -23,11 +23,12 @@
  * @brief Basic physics implementation
  */
 
-#ifndef _physics_physics_h_
-#define _physics_physics_h_
+#ifndef _default_physics_h_
+#define _default_physics_h_
 
 #include <vector>
 
+#include "utils.h"
 #include "kernels.h"
 #include "tree.h"
 
@@ -52,7 +53,9 @@ namespace physics{
   double damp = 1;
   double totaltime = 0.0;
   double eta = 0.01;
-  int kernel_choice = 0;
+  double A = 1.0;
+  double MAC = 1.;
+  int64_t iteration = 0;
   auto kernel = kernels::cubic_spline;
   auto gradKernel = kernels::gradient_cubic_spline;
 
@@ -97,8 +100,28 @@ namespace physics{
     source->setPressure(pressure);
   } // compute_pressure
 
+#ifdef ADIABATIC
+  /**
+   * @brief      Compute the pressure based on adiabatic index
+   *
+   * @param      srch  The source's body holder
+   */
+  void 
+  compute_pressure_adiabatic(
+      body_holder* srch)
+  { 
+    body* source = srch->getBody();
+    double pressure = source->getAdiabatic()*
+      pow(source->getDensity(),gamma);
+    source->setPressure(pressure);
+  } // compute_pressure
+#endif 
 
-  //For zero temperature white dwarf EOS
+  /**
+   * @brief      \TODO NEED COMMENTS
+   *
+   * @param      srch  The srch
+   */
   void 
   compute_pressure_wd(
       body_holder* srch)
@@ -146,6 +169,18 @@ namespace physics{
     compute_pressure(srch);
     compute_soundspeed(srch); 
   }
+
+#ifdef ADIABATIC
+  void 
+  compute_density_pressure_adiabatic_soundspeed(
+    body_holder* srch, 
+    std::vector<body_holder*>& nbsh)
+  {
+    compute_density(srch,nbsh);
+    compute_pressure_adiabatic(srch);
+    compute_soundspeed(srch); 
+  }
+#endif
 
   /**
    * @brief      mu_ij for the artificial viscosity 
@@ -307,6 +342,65 @@ namespace physics{
     source->setDudt(dudt);
   } // compute_dudt
 
+
+
+#ifdef ADIABATIC
+  /**
+   * @brief      Compute the adiabatic index for the particles 
+   *
+   * @param      srch   The source's body holder
+   * @param      ngbsh  The neighbors' body holders
+   */
+  void 
+  compute_dadt(
+    body_holder* srch, 
+    std::vector<body_holder*>& ngbsh)
+  { 
+    body* source = srch->getBody();
+    
+    // Compute the adiabatic factor here 
+    double dadt = 0;
+    
+    for(auto nbh : ngbsh){ 
+      body* nb = nbh->getBody();
+
+      if(nb->getPosition() == source->getPosition()){
+        continue;
+      }
+
+      // Artificial viscosity
+      double density_ij = (1./2.)*(source->getDensity()+nb->getDensity());
+      double soundspeed_ij = (1./2.)*
+        (source->getSoundspeed()+nb->getSoundspeed());
+      double mu_ij = mu(source,nb);
+      double viscosity = (-alpha*mu_ij*soundspeed_ij+beta*mu_ij*mu_ij)
+        /density_ij;
+      mpi_assert(viscosity>=0.0);
+
+      point_t vecPosition = source->getPosition()-nb->getPosition();
+      point_t sourcekernelgradient = gradKernel(
+          vecPosition,source->getSmoothinglength());
+      point_t nbkernelgradient = gradKernel(
+          vecPosition,nb->getSmoothinglength());
+      point_t resultkernelgradient = (1./2.)*
+        (sourcekernelgradient+nbkernelgradient);
+
+      
+      // Compute the adiabatic factor evolution 
+      dadt += nb->getMass() * viscosity * 
+        flecsi::dot(
+          flecsi::point_to_vector(source->getVelocity()-nb->getVelocity()),
+          flecsi::point_to_vector(resultkernelgradient)
+        );
+    }
+    
+    dadt *= (gamma - 1)/(2*pow(source->getDensity(),gamma-1));
+    source->setDadt(dadt);
+ 
+
+  } // compute_hydro_acceleration
+#endif 
+
   /**
    * @brief      Integrate the internal energy variation, update internal energy
    *
@@ -319,6 +413,21 @@ namespace physics{
     source->setInternalenergy(
       source->getInternalenergy()+dt*source->getDudt());
   }
+
+#ifdef ADIABATIC 
+    /**
+   * @brief      Integrate the internal energy variation, update internal energy
+   *
+   * @param      srch  The source's body holder
+   */
+  void dadt_integration(
+      body_holder* srch)
+  {
+    body* source = srch->getBody(); 
+    source->setAdiabatic(
+      source->getAdiabatic()+dt*source->getDadt());
+  }
+#endif 
 
   /**
    * @brief      Apply boundaries if they are set
@@ -381,6 +490,32 @@ namespace physics{
     source->setVelocityhalf(velocityHalf);
     return considered;
   }
+
+#if 0 
+  // \TODO VERSION USED IN THE BNS, CHECK VALIDITY REGARDING THE OTHER ONE 
+  void 
+  leapfrog_integration(
+      body_holder* srch)
+  {
+    body* source = srch->getBody();
+    
+
+    point_t velocity = source->getVelocityhalf()+
+      source->getAcceleration() * dt / 2.;
+    point_t velocityHalf = velocity+
+      source->getAcceleration() * dt / 2.;
+    point_t position = source->getPosition()+velocityHalf*dt;
+    // integrate dadt 
+    double adiabatic_factor = source->getAdiabatic() + source->getDadt()* dt;
+
+    source->setVelocity(velocity);
+    source->setVelocityhalf(velocityHalf);
+    source->setPosition(position);
+    source->setAdiabatic(adiabatic_factor);
+    
+    mpi_assert(!std::isnan(position[0])); 
+  }
+#endif
 
   /**
    * @brief      Leapfrog integration, first step 
@@ -495,23 +630,9 @@ namespace physics{
     physics::dt = std::min(dt,min);
   }
 
-  /**
-   * @brief      Compute the linear momentum, 
-   *
-   * @param      bodies  Vector of all the local bodies 
-   * @param      total   Total linear momentum 
-   */
-  void 
-  compute_lin_momentum(
-      std::vector<body_holder*>& bodies, 
-      point_t* total) 
-  {
-    *total = {0};
-    for(auto nbh: bodies) {
-      *total += nbh->getBody()->getLinMomentum(); 
-    }  
-  }
+
+
 
 }; // physics
 
-#endif // _physics_physics_h_
+#endif // _default_physics_h_

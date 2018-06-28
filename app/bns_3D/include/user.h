@@ -26,6 +26,9 @@
 #ifndef _user_h_
 #define _user_h_
 
+#define ADIABATIC
+#define INTERNAL_ENERGY
+
 #define OUTPUT
 #define OUTPUT_ANALYSIS
 static const size_t gdimension = 3;

@@ -37,14 +37,15 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/data/data.h"
 
-#include <bodies_system.h>
-#include "physics.h"
+#include "bodies_system.h"
+#include "default_physics.h"
+#include "BNS_physics.h"
 #include "analysis.h"
 
 // Define the relaxation 
 // 1 = relaxation = computation of rot force 
 // 0 = non relaxation = rotation applied
-#define RELAXATION 0
+#define RELAXATION 1
 #if RELAXATION == 1
 #warning CAUTION RELAXATION MODE
 #endif
@@ -82,7 +83,16 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
     // For OMP time, just used on 0, initialized for others
   double start = 0;
   double start_iteration = 0;
+
+// Setting physics data 
   physics::dt = 1.0e-8;
+  physics::gamma = 2.0;
+  physics::A = 0.6366197723675814;
+  // Load angular momentum from data file 
+  physics::angular_moment = bs.get_attribute<double>("hdf5_bns_3D.h5part", 
+    "angularMomentum");
+//
+
   bs.setMacangle(macangle);
   bs.setMaxmasscell(10e-5);
 
@@ -94,14 +104,14 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
     // Set adiabatic value 
     bs.apply_all([](body_holder* source){
         source->getBody()->setAdiabatic(physics::A);
-        physics::compute_internal_energy(source);
+        physics::compute_internal_energy_from_adiabatic(source);
       });
 
   }else{
     clog(info) << "Recomputing A from u"<<std::endl; 
     clog(info) << "Considering velocityHalf = velocity" << std::endl;
     // Convert internal energy to A ratio 
-    bs.apply_all(physics::compute_adiabatic_from_u);
+    bs.apply_all(physics::compute_adiabatic_from_internal_energy);
     bs.apply_all([](body_holder* source){
         source->getBody()->setVelocityhalf(
           source->getBody()->getVelocity());
@@ -112,7 +122,7 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
   bs.write_bodies(outputname,startiteration);
 #endif
 
-  ++physics::iteration; 
+  ++(physics::iteration); 
   do
   { 
     MPI_Barrier(MPI_COMM_WORLD);
@@ -162,10 +172,10 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
     bs.update_iteration();
 
     MPI_Barrier(MPI_COMM_WORLD);
-    clog(info)<<"compute_density_pressure_soundspeed"<<std::flush; 
+    clog(info)<<"compute_density_pressure_adiabatic_soundspeed"<<std::flush; 
     start = omp_get_wtime(); 
     bs.apply_in_smoothinglength(
-      physics::compute_density_pressure_soundspeed); 
+      physics::compute_density_pressure_adiabatic_soundspeed); 
     clog(info)<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
     bs.update_neighbors();
@@ -184,6 +194,11 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
     clog(info)<<"Accel hydro"<<std::flush; 
     start = omp_get_wtime(); 
     bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
+    clog(info)<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+
+    clog(info)<<"dadt"<<std::flush; 
+    start = omp_get_wtime(); 
+    bs.apply_in_smoothinglength(physics::compute_dadt);
     clog(info)<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
 #if RELAXATION == 1
@@ -209,7 +224,7 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
     physics::totaltime += physics::dt;
 
     // Compute internal energy for output 
-    bs.apply_all(physics::compute_internal_energy);
+    bs.apply_all(physics::compute_internal_energy_from_adiabatic);
     clog(info)<<"Total time="<<physics::totaltime<<"s / "<<maxtime<<"s"
       <<std::endl;
 
@@ -237,7 +252,7 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
       noutput++;
     }
 #endif
-    ++physics::iteration;
+    ++(physics::iteration);
     
     MPI_Barrier(MPI_COMM_WORLD);
     clog(info)<<"Iteration time = "<<omp_get_wtime()-start_iteration<< "s" 

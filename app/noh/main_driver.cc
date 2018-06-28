@@ -37,7 +37,8 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/data/data.h"
 
-#include <bodies_system.h>
+#include "bodies_system.h"
+#include "default_physics.h"
 
 namespace flecsi{
 namespace execution{
