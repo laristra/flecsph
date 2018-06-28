@@ -104,8 +104,9 @@ int main(int argc, char * argv[]){
 
 
   // Central coordinates 
-  double x_c = (sparticles-1)*ldistance/2.0;
-  double y_c = (sparticles-1)*ldistance/2.0;
+  double x_c = maxxposition/2.0; 
+  double y_c = maxyposition/2.0; 
+
 
   // Particle mass from number of particles and density 
   double mass = rho_in * maxxposition * maxyposition/nparticles;  
@@ -164,12 +165,11 @@ int main(int argc, char * argv[]){
     y[part] = yposition;
     m[part] = mass;
 
-
     // Count particles in the blast zone and sum their masses 
-    if(sqrt((x[part]-x_c-0.5*ldistance)*(x[part]-x_c-0.5*ldistance) + (y[part]-y_c-0.5*ldistance)*(y[part]-y_c-0.5*ldistance))
-    < 0.5*ldistance){
-      particles_blast++;
-      mass_blast += m[part];
+    if(sqrt((x[part]-x_c)*(x[part]-x_c) + (y[part]-y_c)*(y[part]-y_c)) 
+       < 0.5*ldistance){
+       particles_blast++;
+       mass_blast += m[part];
     }
 
     xposition+= ldistance;
@@ -191,9 +191,9 @@ int main(int argc, char * argv[]){
     u[part] = u_in;
     h[part] = smoothing_length;
     id[part] = posid++;
-
-    if(sqrt((x[part]-x_c-0.5*ldistance)*(x[part]-x_c-0.5*ldistance) + (y[part]-y_c-0.5*ldistance)*(y[part]-y_c-0.5*ldistance))
-    < 0.5*ldistance){
+ 
+    if(sqrt((x[part]-x_c)*(x[part]-x_c) + (y[part]-y_c)*(y[part]-y_c))
+       < 0.5*ldistance){
        u[part] = u_blast/particles_blast;
        P[part] = u[part]*rho[part]*(localgamma - 1.0);
     }
