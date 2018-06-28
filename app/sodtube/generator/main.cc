@@ -9,6 +9,7 @@
 
 #include "hdf5ParticleIO.h"
 #include "kernels.h"
+#include "logger.h"
 
 
 namespace simulation_params {
@@ -52,8 +53,7 @@ void set_default_param(int rank, int size) {
 //
 void print_usage(int rank) {
   using namespace std;
-  if (rank == 0)
-    cout << "Initial data generator for Sod shocktube test in 1D" << endl
+  LOGGER << "Initial data generator for Sod shocktube test in 1D" << endl
          << "Usage: ./sodtube_generator [OPTIONS]" << endl
          << " -h: this help" << endl
          << " -n <number of particles>" << endl
@@ -167,12 +167,13 @@ int main(int argc, char * argv[]){
   using namespace std;
   using namespace simulation_params;
 
-  // launch MPI
+  // launch MPI and initialize logger
   int rank, size, provided;
   MPI_Init_thread(&argc,&argv,MPI_THREAD_MULTIPLE,&provided);
   assert(provided>=MPI_THREAD_MULTIPLE);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
+  logger::init();
 
   // set simulation parameters
   set_default_param(rank,size);
@@ -180,12 +181,10 @@ int main(int argc, char * argv[]){
   set_param(rank,size);
 
   // screen output
-  if(rank==0){
-    cout << "Sod test #" << sodtest_num << " in 1D:" << endl
+  LOGGER << "Sod test #" << sodtest_num << " in 1D:" << endl
          << " - number of particles: " << nparticles << endl
          << " - particles per core:  " << nparticlesproc << endl
          << " - output file: " << output_filename << endl;
-  }
 
   // allocate arrays
 
@@ -350,6 +349,7 @@ int main(int argc, char * argv[]){
   delete[] id;
   delete[] dt;
 
+  logger::finalize();
   MPI_Finalize();
   return 0;
 }
