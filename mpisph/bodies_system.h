@@ -316,11 +316,10 @@ public:
       );
 
     clog(trace)<<rank<<" sub_entities before="; 
-      for(auto v: nentities){
-        clog(trace)<<v<<";";
-      }
-      clog(trace)<<std::endl;
+    for(auto v: nentities){
+      clog(trace)<<v<<";";
     }
+    clog(trace)<<std::endl;
 #endif
 
     // Exchnage usefull body_holder from my tree to other processes
@@ -345,11 +344,10 @@ public:
       );
 
     clog(trace)<<rank<<" sub_entities after="; 
-      for(auto v: nentities){
-        clog(trace)<<v<<";";
-      }
-      clog(trace)<<std::endl;
+    for(auto v: nentities){
+      clog(trace)<<v<<";";
     }
+    clog(trace)<<std::endl;
 #endif
     
     tcolorer_.mpi_compute_ghosts(*tree_,bodies_,smoothinglength_/*,range_*/);

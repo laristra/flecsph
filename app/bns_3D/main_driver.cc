@@ -224,6 +224,7 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
       // Only add the header in the first iteration
       analysis::display("analysis_bns_3D.dat",
         physics::iteration == startiteration+1);
+      
     }
 #endif
 
