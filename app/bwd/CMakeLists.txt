@@ -14,9 +14,7 @@ set(CMAKE_CXX_FLAGS_RELEASE
 
 # includes 
 include_directories(${CMAKE_SOURCE_DIR}/include)
-include_directories(${CMAKE_SOURCE_DIR}/include/bodies)
 include_directories(${CMAKE_SOURCE_DIR}/include/physics)
-include_directories(${CMAKE_SOURCE_DIR}/include/physics/default)
 include_directories(${CMAKE_SOURCE_DIR}/app/bwd/include)
 include_directories(${CMAKE_SOURCE_DIR}/mpisph)
 include_directories(${CMAKE_SOURCE_DIR}/third-party-libraries/ScalingFramework/IOTests)
@@ -33,13 +31,6 @@ add_executable(bwd
   ${FleCSI_RUNTIME}/runtime_driver.cc
 )
 
-# MPILEGION version
-#add_executable(bwd_generator 
-#  generator/main.cc 
-#)
-
-#target_link_libraries(bwd_generator ${MPI_LIBRARIES} 
-#  ${HDF5_LIBRARIES} ${H5HUT_LIBRARIES})
 target_link_libraries(bwd ${FleCSPH_LIBRARIES})
 
 add_definitions(-DFLECSI_ENABLE_SPECIALIZATION_TLT_INIT)

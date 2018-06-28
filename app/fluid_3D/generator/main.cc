@@ -3,15 +3,15 @@
  * All rights reserved.
  *~--------------------------------------------------------------------------~*/
 
- #include <iostream>
+#include <iostream>
 #include <algorithm>
 #include <cmath>
 #include <cassert>
 
 #include "hdf5ParticleIO.h"
+#include "kernels.h"
 
-
-const double distance = 0.05;  // Distance between the particles 
+const double ldistance = 0.05;  // Distance between the particles 
 const double m_ = 1.0e-5;
 const double rho_ = 0.0;
 const double u_ = 2.0; 
@@ -28,8 +28,9 @@ int main(int argc, char * argv[]){
 
 
   if(argc!=4){
-    printf("./fluid_generator nx ny nz\n");
-    fprintf(stderr,"Generation with default values= 10*10*10=1000 particles");
+    clog(warn)<<"./fluid_generator nx ny nz"<<std::endl;
+    clog(warn)<<"Generation with default values= 10*10*10=1000 particles"
+      <<std::endl;
   }else{
     nx = atoi(argv[1]);
     ny = atoi(argv[2]);
@@ -43,17 +44,15 @@ int main(int argc, char * argv[]){
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
 
-   int64_t nparticles = nx*ny*nz;
+  int64_t nparticles = nx*ny*nz;
   int64_t nparticlesproc = nparticles/size;
   if(rank==size-1){
     nparticlesproc = nparticles - nparticlesproc*(size-1);
   }
 
-  if(rank==0){
-    printf("Generating %ld particles\n",nparticles);
-    printf("%ld particles per proc (last %ld)\n",nparticlesproc,
-        nparticles-nparticlesproc*(size-1));
-  }
+  clog(info)<<"Generating "<<nparticles<<" particles"<<std::endl;
+  clog(info)<<nparticlesproc<<" particles per proc (last "<<
+    nparticles-nparticlesproc*(size-1)<<")"<<std::endl;
 
   if(nz == 0){
     dimension = 2;
@@ -90,10 +89,10 @@ int main(int argc, char * argv[]){
   double nlines = nx; 
   double nlinesproc = nlines/size;
   double ncols = ny;
-  double linestart = rank * nlinesproc * distance;
+  double linestart = rank * nlinesproc * ldistance;
   double ndepth = nz;
 
-  std::cout<<"Generating: "<<nlines<<"*"<<ncols<<std::endl;
+  clog(info)<<"Generating: "<<nlines<<"*"<<ncols<<std::endl;
 
   // Id of my first particle 
   int64_t posid = nparticlesproc*rank;
@@ -122,25 +121,24 @@ int main(int argc, char * argv[]){
     // P stay to 0
     id[part] = posid++; 
     
-    curcol += distance;
+    curcol += ldistance;
     //curdepth += distance; 
     col++;
     //depth++;
     // Move to the next particle
     if(col == ncols){
-      curdepth += distance; 
+      curdepth += ldistance; 
       depth++;
       col = 0;
       curcol = 0.0;
       if( depth == ndepth  ){
-        curline += distance; 
+        curline += ldistance; 
         curcol = 0.0;
         curdepth = 0.0;
         col = 0;
         depth = 0;
       }
     }
-    //std::cout<<x[part]<<": "<<h[part]<<std::endl;
   }
   
   char filename[128];

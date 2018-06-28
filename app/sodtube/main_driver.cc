@@ -37,13 +37,8 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/data/data.h"
 
-#include <bodies_system.h>
-
-#include "eos_analytics.h"
-//#include "physics.h"
-#include "logger.h"
-
-#define INTERNAL_ENERGY
+#include "bodies_system.h"
+#include "default_physics.h"
 
 namespace flecsi{
 namespace execution{
@@ -56,7 +51,6 @@ mpi_init_task(int numberiterations){
   int size;
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  logger::init();
   
   int totaliters = numberiterations;
   int iteroutput = 1;
@@ -89,7 +83,7 @@ mpi_init_task(int numberiterations){
   physics::min_boundary = {range_boundaries[0][0]+distance*0.1+2*h};
   physics::max_boundary = {range_boundaries[1][0]-distance*0.1-2*h};
 
-  LOGGER << "Boundaries=" << physics::min_boundary << ";"
+  clog(info) << "Boundaries=" << physics::min_boundary << ";"
          << physics::max_boundary << std::endl;
 
   bs.update_iteration();
@@ -102,7 +96,7 @@ mpi_init_task(int numberiterations){
   do
   { 
     MPI_Barrier(MPI_COMM_WORLD);
-    LOGGER << "#### Iteration " << iter << std::endl;
+    clog(info) << "#### Iteration " << iter << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
 
     // Compute and prepare the tree for this iteration 
@@ -115,33 +109,33 @@ mpi_init_task(int numberiterations){
     // - Compute and exchange ghosts in real smoothing length 
     bs.update_iteration();
 
-    LOGGER << "compute_density_pressure_soundspeed" << std::flush; 
+    clog(info) << "compute_density_pressure_soundspeed" << std::flush; 
     bs.apply_square(physics::compute_density_pressure_soundspeed);
-    LOGGER << ".done" << std::endl;
+    clog(info) << ".done" << std::endl;
 
     bs.update_neighbors();
    
-    LOGGER << "Hydro acceleration" << std::flush; 
+    clog(info) << "Hydro acceleration" << std::flush; 
     bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
-    LOGGER << ".done" << std::endl;
+    clog(info) << ".done" << std::endl;
  
-    LOGGER << "Internalenergy" << std::flush; 
+    clog(info) << "Internalenergy" << std::flush; 
     bs.apply_in_smoothinglength(physics::compute_dudt);
-    LOGGER << ".done" << std::endl;
+    clog(info) << ".done" << std::endl;
    
     if(iter==1){ 
-      LOGGER << "leapfrog" << std::flush; 
+      clog(info) << "leapfrog" << std::flush; 
       bs.apply_all(physics::leapfrog_integration_first_step);
-      LOGGER << ".done" << std::endl;
+      clog(info) << ".done" << std::endl;
     }else{
-      LOGGER << "leapfrog" << std::flush; 
+      clog(info) << "leapfrog" << std::flush; 
       bs.apply_all(physics::leapfrog_integration);
-      LOGGER << ".done" << std::endl;
+      clog(info) << ".done" << std::endl;
     }
 
-    LOGGER << "dudt integration" << std::flush; 
+    clog(info) << "dudt integration" << std::flush; 
     bs.apply_all(physics::dudt_integration);
-    LOGGER << ".done" << std::endl;
+    clog(info) << ".done" << std::endl;
 
 #ifdef OUTPUT
     if(iter % iteroutput == 0){ 
@@ -151,15 +145,13 @@ mpi_init_task(int numberiterations){
     ++iter;
     
   }while(iter<totaliters);
-
-  logger::finalize();
 }
 
 flecsi_register_mpi_task(mpi_init_task);
 
 void usage()
 {
-  std::cerr<<"./sodtube [number of iterations]"<<std::endl;
+  clog(warn)<<"./sodtube [number of iterations]"<<std::endl;
 }
 
 void 
@@ -172,13 +164,13 @@ specialization_tlt_init(int argc, char * argv[]){
   if(argc == 2){
     numberiterations = atoi(argv[1]);
   }
-  std::cout << "In user specialization_driver" << std::endl;
+  clog(info) << "In user specialization_driver" << std::endl;
   flecsi_execute_mpi_task(mpi_init_task,numberiterations); 
 } // specialization driver
 
 void 
 driver(int argc,  char * argv[]){
-  std::cout << "In user driver" << std::endl;
+  clog(info) << "In user driver" << std::endl;
 } // driver
 
 

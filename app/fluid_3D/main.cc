@@ -45,13 +45,7 @@ int main(int argc, char * argv[]){
      "GASNet MPI conduit with the Legion-MPI Interop!\n");
   assert(provided == MPI_THREAD_MULTIPLE);
 
-  std::cout << "MPI_Init done, Initialize" << std::endl;
   auto retval = flecsi::execution::context_t::instance().initialize(argc,argv);
-  //std::cout << "Initialize done" << std::endl;
-
-//#ifndef GASNET_CONDUIT_MPI
-  //MPI_Finalize();
-//#endif
 
   return retval;
 

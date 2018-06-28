@@ -28,17 +28,18 @@
 
 #include <vector>
 
-#include "physics.h"
-#include "logger.h"
+//#include "physics.h"
 
 namespace analysis{
 
   point_t linear_momentum;
-  double JULIEN_ENERGY; 
 
-  double lambda_julien = 4.5;
-
-  // Calculate simple linear momentum for checking momentum conservation
+  /**
+   * @brief      Compute the linear momentum, 
+   *
+   * @param      bodies  Vector of all the local bodies 
+   * @param      total   Total linear momentum 
+   */  
   void 
   compute_lin_momentum(
       std::vector<body_holder*>& bodies) 
@@ -50,19 +51,7 @@ namespace analysis{
   }
 
   void 
-  compute_JULIEN_ENERGY(
-    std::vector<body_holder*>& bodies)
-  {
-    JULIEN_ENERGY = 0;
-    for(auto nbh: bodies){
-      JULIEN_ENERGY += lambda_julien* 
-      nbh->getBody()->getDensity() / nbh->getBody()->getMass()
-      * nbh->getBody()->getInternalenergy() * nbh->getBody()->getSmoothinglength(); 
-    }
-  }
-
-  void 
-  display()
+  display(const char * filename = NULL, bool header = false)
   {
     // TODO: output just a single line on a screen, containing iteration and time;
     //       output all scalar reductions as single clearly formatted line to a 
@@ -79,10 +68,49 @@ namespace analysis{
     //       30 0.3   1.0000000e+03  0.00000000e+00  0.00000000e+00  0.00000000e+00 
     //       ...
     //       -- << end output file <<<< -------------------------------------------
-    //
-    LOGGER << std::endl << "Analysis: " <<std::endl
-           << "Linear momentum: " << linear_momentum << std::endl
-           << "JULIEN_ENERGY: " << JULIEN_ENERGY << std::endl<<std::endl;
+    
+    // For screen otuput, generate the header anyways 
+    std::ostringstream oss_header;
+    oss_header
+      << "# Scalar reductions: " <<std::endl
+      << "# 1:iteration 2:time 3:mom_x ";
+    // The momentum depends on dimension 
+    if(gdimension > 1){
+      oss_header<<"4:mom_y ";
+    }
+    if(gdimension == 3){
+      oss_header<<"5:mom_z ";
+    }
+    oss_header<<std::endl;
+
+    std::ostringstream oss_data;
+    oss_data << std::setprecision(10);
+    oss_data << physics::iteration <<" "<< physics::totaltime<< " ";
+    for(int i = 0 ; i < gdimension ; ++i){
+      oss_data<<linear_momentum[i]<<" ";
+    }
+    oss_data<<std::endl;
+
+    // Output to screen 
+    clog(info)<<oss_header.str();
+    clog(info)<<oss_data.str();
+
+    // If file output 
+    // Header in file 
+    if(filename != NULL){
+      // Print header if needed, in this case erase content
+      if(header == true){
+        std::ofstream out(filename);
+        out << oss_header.str();
+        out << oss_data.str();
+        out.close(); 
+      }else{
+        // Print the new line of data in this case append
+        std::ofstream out(filename,std::ios_base::app);
+        out << oss_data.str();
+        out.close();
+      }
+    }
   }
 
 }; // physics

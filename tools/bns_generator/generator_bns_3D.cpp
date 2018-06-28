@@ -9,7 +9,7 @@
 /**
  * Binary Neutron Star Initial Data generator 
  */
-const int64_t nneighbs = 12;
+const int64_t nneighbs = 6;
 const double solarMass = 1.9885 * pow(10,30) * pow(10,3);
 const double gravConst = 1;
 const double ksi_1 = M_PI;
@@ -170,6 +170,22 @@ write_attribute(
 }
 
 void 
+write_attribute(
+	hid_t file, 
+	const char * name,
+	double value)
+{
+	hsize_t size = 1;
+	hid_t space_id = H5Screate_simple(1,&size,NULL);
+	hid_t attribute = H5Acreate(
+		file, name, H5T_IEEE_F64LE,space_id,
+		H5P_DEFAULT,H5P_DEFAULT);
+	herr_t status = H5Awrite(attribute,H5T_IEEE_F64LE,&value);
+	status = H5Sclose (space_id);
+    status = H5Aclose (attribute);
+}
+
+void 
 compute_angular_momentum(
 	std::vector<particle>& v)
 {
@@ -218,6 +234,9 @@ int main(int argc, char* argv[])
 
 	std::cout<<"Generating two stars = "<<nparticles*2<<std::endl;
 
+	compute_angular_momentum(particles);
+
+
 	char name[128]; 
 	sprintf(name,"hdf5_bns_3D_%d.h5part",nparticles*2);
 
@@ -230,7 +249,9 @@ int main(int argc, char* argv[])
 
 
 
-	write_attribute(dataFile,"/dimension",3);
+	write_attribute(dataFile,"dimension",3);
+	write_attribute(dataFile,"angularMomentum",angularMomentum);
+
 
 	// Output in HDF5 format 
 	std::vector<double> data1(nparticles*2); 
@@ -290,7 +311,6 @@ int main(int argc, char* argv[])
 	H5Gclose(step_id);
 	H5Fclose(dataFile);
 
-	compute_angular_momentum(particles);
 
 	return EXIT_SUCCESS; 
 }

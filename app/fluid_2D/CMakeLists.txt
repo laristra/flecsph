@@ -17,7 +17,7 @@ set(CMAKE_CXX_FLAGS_RELEASE
 #------------------------------------------------------------------------------#
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/include/physics)
-include_directories(${CMAKE_SOURCE_DIR}/include/physics/fluids)
+include_directories(${CMAKE_SOURCE_DIR}/include/physics/specific)
 include_directories(${CMAKE_SOURCE_DIR}/app/fluid_2D/include)
 include_directories(${CMAKE_SOURCE_DIR}/mpisph)
 include_directories(
@@ -34,11 +34,11 @@ add_executable(fluid_2D
 )
 
 # Fluid generator
-add_executable(fluid_generator_2D 
+add_executable(fluid_2D_generator 
   generator/main.cc 
 )
 
-target_link_libraries(fluid_generator_2D ${MPI_LIBRARIES} 
+target_link_libraries(fluid_2D_generator ${MPI_LIBRARIES} 
   ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 target_link_libraries(fluid_2D ${FleCSPH_LIBRARIES})
 

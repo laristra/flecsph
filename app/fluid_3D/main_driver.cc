@@ -38,7 +38,7 @@
 #include "flecsi/data/data.h"
 
 #include <bodies_system.h>
-#include "physics.h"
+#include "fluids_physics.h"
 
 namespace flecsi{
 namespace execution{
@@ -73,25 +73,18 @@ mpi_init_task(int startiteration){
 
   // Apply EOS once 
   MPI_Barrier(MPI_COMM_WORLD);
-  if(rank==0){
-    std::cout<<"Init EOS"<<std::flush; 
-    start = omp_get_wtime(); 
-  }
+  clog(info)<<"Init EOS"<<std::flush; 
+  start = omp_get_wtime(); 
   bs.apply_all(physics::EOS); 
   MPI_Barrier(MPI_COMM_WORLD);
-  if(rank==0)
-    std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+  clog(info)<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
   // Apply EOS once 
-  MPI_Barrier(MPI_COMM_WORLD);
-  if(rank==0){
-    std::cout<<"Init Density Velocity"<<std::flush; 
-    start = omp_get_wtime(); 
-  }
+  clog(info)<<"Init Density Velocity"<<std::flush; 
+  start = omp_get_wtime(); 
   bs.apply_all(physics::init_density_velocity); 
   MPI_Barrier(MPI_COMM_WORLD);
-  if(rank==0)
-    std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+  clog(info)<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
 #ifdef OUTPUT
   bs.write_bodies("output_fluid_3D",startiteration);
@@ -101,8 +94,7 @@ mpi_init_task(int startiteration){
   do
   { 
     MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0)
-      std::cout<<std::endl<<"#### Iteration "<<iter<<std::endl;
+    clog(info)<<"#### Iteration "<<iter<<std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
 
     // Compute and prepare the tree for this iteration 
@@ -116,61 +108,38 @@ mpi_init_task(int startiteration){
     bs.update_iteration();
     
     // Do the Sod Tube physics
-    MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0){
-      std::cout<<"Accel"<<std::flush; 
-      start = omp_get_wtime(); 
-    }
+    clog(info)<<"Accel"<<std::flush; 
+    start = omp_get_wtime(); 
     bs.apply_in_smoothinglength(physics::compute_accel);
-    MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0)
-      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+    clog(info)<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0){
-      std::cout<<"DT"<<std::flush; 
-      start = omp_get_wtime(); 
-    }
+    clog(info)<<"DT"<<std::flush; 
+    start = omp_get_wtime(); 
     bs.get_all(physics::update_dt); 
-    MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0)
-      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+    clog(info)<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
     // Reduce the local DT 
     MPI_Allreduce(MPI_IN_PLACE,&physics::dt,1,MPI_DOUBLE,MPI_MIN,MPI_COMM_WORLD); 
-    if(rank == 0){
-      std::cout<<"New DT = "<<physics::dt<<std::endl;
-    }
+    clog(info)<<"New DT = "<<physics::dt<<std::endl;
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0){
-      std::cout<<"Verlet integration EOS"<<std::flush; 
-      start = omp_get_wtime(); 
-    }
+    clog(info)<<"Verlet integration EOS"<<std::flush; 
+    start = omp_get_wtime(); 
     bs.apply_all(physics::verlet_integration_EOS);
-    MPI_Barrier(MPI_COMM_WORLD);
-    if(rank==0)
-      std::cout<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+    clog(info)<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
     physics::totaltime += physics::dt;
-    if(rank == 0){
-      std::cout<<"Total time="<<physics::totaltime<<"s / "<<physics::maxtime<<"s"<<std::endl;
-    }
+    clog(info)<<"Total time="<<physics::totaltime<<"s / "<<physics::maxtime<<"s"<<std::endl;
+
 #ifdef OUTPUT
     if(physics::totaltime > noutput*physics::outputtime){
       bs.write_bodies("output_fluid_3D",noutput);
       noutput++;
     }
-    
-    //if(iter % iteroutput == 0){ 
-    //  bs.write_bodies("output_fluid",iter/iteroutput);
-    //}
 #endif
     ++iter;
     
   }while(iter<40);
-  //}while(physics::totaltime<physics::maxtime);
 }
 
 flecsi_register_mpi_task(mpi_init_task);
@@ -184,16 +153,14 @@ specialization_tlt_init(int argc, char * argv[]){
     startiteration = atoi(argv[1]);
   }
 
-  std::cout << "In user specialization_driver" << std::endl;
-  /*const char * filename = argv[1];*/
-  /*std::string  filename(argv[1]);
-  std::cout<<filename<<std::endl;*/
+  clog(trace)<< "In user specialization_driver" << std::endl;
+
   flecsi_execute_mpi_task(mpi_init_task,startiteration); 
 } // specialization driver
 
 void 
 driver(int argc,  char * argv[]){
-  std::cout << "In user driver" << std::endl;
+  clog(trace) << "In user driver" << std::endl;
 } // driver
 
 

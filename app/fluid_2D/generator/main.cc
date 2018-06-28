@@ -9,6 +9,7 @@
 #include <cassert>
 
 #include "hdf5ParticleIO.h"
+#include "kernels.h"
 
 enum type {WALL=1, SIMPLE=0};
 
@@ -16,7 +17,7 @@ const double rest_density = 998.29;
 const double m_ = 0.02;
 const double rho_ = rest_density;
 const double smoothing_length = 0.0457;
-const double distance = smoothing_length;  // Distance between the particles 
+const double ldistance = smoothing_length;  // Distance between the particles 
 const char* fileprefix = "hdf5_fluid_2D";
 int32_t dimension = 2;
 
@@ -27,10 +28,10 @@ void generate_wall(
     std::vector<double>& vy,
     double x0, double y0, 
     double x1, double y1,
-    double distance){
+    double ldistance){
   double dist_points = sqrt((x1-x0)*(x1-x0)+(y1-y0)*(y1-y0));
-  printf("Distance: %.4f",dist_points);
-  int nelements = dist_points/distance;
+  clog(info)<<"Distance: "<<dist_points<<std::endl;
+  int nelements = dist_points/ldistance;
   double xcur = x0;
   double ycur = y0;
   double xincr = (x1-x0)/(double)nelements;
@@ -58,32 +59,29 @@ int main(int argc, char * argv[]){
   int provided; 
   MPI_Init_thread(&argc,&argv,MPI_THREAD_MULTIPLE,&provided);
   if(provided<MPI_THREAD_MULTIPLE){
-	fprintf(stderr,"Error MPI version: MPI_THREAD_MULTIPLE provided: %d",provided);
-       	MPI_Finalize(); 
-	exit(EXIT_FAILURE); 	
+	 clog(error)<<"Error MPI version: MPI_THREAD_MULTIPLE provided: "
+    <<provided<<std::endl;
+    MPI_Finalize(); 
+	 exit(EXIT_FAILURE); 	
   }
  
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
-  
+
   // Use only one process for generation in this version
   if(size > 1){
-    if(rank==0){
-      std::cerr<<
+    clog(error)<<
         "Use only one process for generation in this version"<<std::endl;
-    }
     MPI_Finalize();
     exit(EXIT_FAILURE);
   }
 
-
   int nx = 10;//atoi(argv[1]);
   int ny = 10;//atoi(argv[2]);
 
-
   if(argc!=3){
-    printf("./fluid_generator nx ny\n");
-    fprintf(stderr,"Generation with default values= 10*10=100 particles");
+    clog(warn)<<"./fluid_generator nx ny"<<std::endl;
+    clog(warn)<<"Generation with default values= 10*10=100 particles"<<std::endl;
   }else{
     nx = atoi(argv[1]);
     ny = atoi(argv[2]);
@@ -95,22 +93,20 @@ int main(int argc, char * argv[]){
     nparticlesproc = nparticles - nparticlesproc*(size-1);
   }
 
-  if(rank==0){
-    printf("Generating %ld particles\n",nparticles);
-    printf("%ld particles per proc (last %ld)\n",nparticlesproc,
-        nparticles-nparticlesproc*(size-1));
-  }
+  clog(info)<<"Generating "<<nparticles<<" particles "<<std::endl;
+  clog(info)<<nparticlesproc<<" particles per proc (last "<<
+    nparticles-nparticlesproc*(size-1)<<")"<<std::endl;
  
   // Generate data
   double nlines = nx; 
   double nlinesproc = nlines/size;
   double ncols = ny;
-  double linestart = rank * nlinesproc * distance;
+  double linestart = rank * nlinesproc * ldistance;
 
-  double minX = -2.*distance;
-  double minY = -2.*distance;
-  double maxX = nx*distance + 100.*distance; 
-  double maxY = ny*distance + 100.*distance;
+  double minX = -2.*ldistance;
+  double minY = -2.*ldistance;
+  double maxX = nx*ldistance + 100.*ldistance; 
+  double maxY = ny*ldistance + 100.*ldistance;
   
 
   // Generate wall particles position 
@@ -127,30 +123,30 @@ int main(int argc, char * argv[]){
   //  |
   //  |
   generate_wall(vec_x,vec_y,vec_vx,vec_vy,
-      minX,minY-5.*distance,
-      minX,maxY+5.*distance,
+      minX,minY-5.*ldistance,
+      minX,maxY+5.*ldistance,
       smoothing_length); 
   //  |      |
   //  |      |
   //  |      |  
   generate_wall(vec_x,vec_y,vec_vx,vec_vy,
-      maxX+10.*distance,minY-5.*distance,
-      maxX+10.*distance,maxY+5.*distance,
+      maxX+10.*ldistance,minY-5.*ldistance,
+      maxX+10.*ldistance,maxY+5.*ldistance,
       smoothing_length);
   //  |      |
   //  |      |
   //  |______|
   generate_wall(vec_x,vec_y,vec_vx,vec_vy,
-      minX-10.*distance,minY,
-      maxX+10.*distance,minY,
+      minX-10.*ldistance,minY,
+      maxX+10.*ldistance,minY,
       smoothing_length);
   //  ________
   //  |      |
   //  |      |
   //  |______|  
   generate_wall(vec_x,vec_y,vec_vx,vec_vy,
-      minX-10.*distance,maxY+5.*distance,
-      maxX+10.*distance,maxY+5.*distance,
+      minX-10.*ldistance,maxY+5.*ldistance,
+      maxX+10.*ldistance,maxY+5.*ldistance,
       smoothing_length);
 
   int64_t nwall = vec_x.size(); 
@@ -159,9 +155,7 @@ int main(int argc, char * argv[]){
     nwall_proc = nwall - nwall_proc*(size-1);
   }
 
-  if(rank==0){
-    std::cout<<"Wall particles="<<nwall<<" per proc="<<nwall_proc <<std::endl; 
-  }
+  clog(info)<<"Wall particles="<<nwall<<" per proc="<<nwall_proc <<std::endl; 
 
   int64_t totalpart = nparticlesproc+nwall_proc; 
 
@@ -195,7 +189,7 @@ int main(int argc, char * argv[]){
   // Timestep 
   double* dt = new double[totalpart]();
 
-  std::cout<<"Generating: "<<nlines<<"*"<<ncols<<std::endl;
+  clog(info)<<"Generating: "<<nlines<<"*"<<ncols<<std::endl;
 
   // Id of my first particle 
   int64_t posid = nparticlesproc*rank;
@@ -223,12 +217,12 @@ int main(int argc, char * argv[]){
 
     type[part] = SIMPLE; 
 
-    curcol += distance;
+    curcol += ldistance;
     col++;
     
     // Move to the next particle
     if(col == ncols){
-      curline += distance; 
+      curline += ldistance; 
       curcol = 0.0;
       col = 0;
     }
@@ -251,13 +245,13 @@ int main(int argc, char * argv[]){
 
   char filename[128];
   sprintf(filename,"%s.h5part",fileprefix);
-  std::cout<<"Writing to: "<<filename<<std::endl;
+  clog(info)<<"Writing to: "<<filename<<std::endl;
   remove(filename);
 
   Flecsi_Sim_IO::HDF5ParticleIO testDataSet;
   testDataSet.createDataset(filename,MPI_COMM_WORLD);
   
-  std::cout<<"Writing total of "<<nparticles+nwall<<" particles"<<std::endl
+  clog(info)<<"Writing total of "<<nparticles+nwall<<" particles"<<std::endl
     <<std::flush;
 
   // add the global attributes
@@ -276,7 +270,6 @@ int main(int argc, char * argv[]){
   _d2.createVariable("y",Flecsi_Sim_IO::point,"double",totalpart,y);
   _d3.createVariable("z",Flecsi_Sim_IO::point,"double",totalpart,z);
 
-  std::cout<<"Pos writed"<<std::endl;
 
   testDataSet.vars.push_back(_d1);
   testDataSet.vars.push_back(_d2);
