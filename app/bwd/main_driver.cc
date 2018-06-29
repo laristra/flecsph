@@ -68,12 +68,10 @@ mpi_init_task(int startiteration){
   physics::min_boundary = {0.1};
   physics::max_boundary = {1.0};
   physics::gamma = 5./3.;
+  physics::epsilon = 0.01;
 
   body_system<double,gdimension> bs;
   bs.read_bodies("bwd_id.h5part",startiteration);
-
-  double h = bs.getSmoothinglength();
-  physics::epsilon = 0.01*h*h;
 
 #ifdef OUTPUT
   bs.write_bodies("output_bwd",physics::iteration);
