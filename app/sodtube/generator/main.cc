@@ -9,101 +9,31 @@
 
 #include "hdf5ParticleIO.h"
 #include "kernels.h"
+#include "params.h"
 
+static int64_t nparticlesproc;    // number of particles per proc
+static double ldistance;          // particles spacing
+static double smoothing_length;   // constant smoothing length
 
-namespace simulation_params {
-  int64_t nparticles;        // global number of particles
-  int64_t nparticlesproc;    // number of particles per proc
-  double ldistance;          // particles spacing
-  double localgamma;         // polytropic index
-  double smoothing_length;   // constant smoothing length
-
-  // test conditions for two sides of the domain
-  int    sodtest_num;            // which Sod test to generate
-  double rho_1, rho_2;           // densities
-  double vx_1, vx_2;             // velocities
-  double pressure_1, pressure_2; // pressures
-
-  // output filename
-  const char* fileprefix = "hdf5_sodtube";
-  char output_filename[128];
-}
-
-
-//
-// setup parameter defaults
-//
-void set_default_param(int rank, int size) {
-  using namespace simulation_params;
-
-  // number of particles
-  nparticles = 1000;
-
-  // equation of state parameters (one so far)
-  localgamma = 1.4;//5./3.;
-
-  // run Sod test 1 by default
-  sodtest_num = 1;
-}
-
+static double rho_1, rho_2;           // densities
+static double vx_1, vx_2;             // velocities
+static double pressure_1, pressure_2; // pressures
 
 //
 // help message
 //
-void print_usage(int rank) {
+void print_usage() {
   using namespace std;
   clog_one(warn) << "Initial data generator for Sod shocktube test in 1D" << endl
-         << "Usage: ./sodtube_generator [OPTIONS]" << endl
-         << " -h: this help" << endl
-         << " -n <number of particles>" << endl
-         << " -t <Sod test (integer from 1 to 5)>" << endl;
+         << "Usage: ./sodtube_generator <parameter-file.par>" << endl;
 }
 
-
 //
-// option parser
+// setup derived parameters
 //
-void parse_command_line_options(int rank, int size, int argc, char* argv[]) {
+void set_derived_params(int rank, int size) {
   using namespace std;
-  using namespace simulation_params;
-
-  for (int i=1; i<argc; ++i)
-    if (argv[i][0] == '-')
-      switch(argv[i][1]) {
-      case 'h':
-        print_usage(rank);
-        MPI_Finalize();
-        exit(0);
-        break;
-
-      case 'n':
-        nparticles = atoll(argv[++i]);
-        nparticlesproc = nparticles/size;
-        if(rank==size-1)
-          nparticlesproc = nparticles - nparticlesproc*(size-1);
-        break;
-
-      case 't':
-        sodtest_num = atoi(argv[++i]);
-        assert(sodtest_num>=1 && sodtest_num<=6);
-        break;
-
-      default:
-        clog_one(error) << "ERROR: unknown option '-" << argv[i][1] << "'" << endl;
-        MPI_Finalize();
-        exit(-1);
-
-      } // switch argv[i][1]
-
-}
-
-
-//
-// setup simulation parameters
-//
-void set_param(int rank, int size) {
-  using namespace std;
-  using namespace simulation_params;
+  using namespace param;
 
   // number of particles per core
   nparticlesproc = nparticles/size + 1;
@@ -154,17 +84,14 @@ void set_param(int rank, int size) {
       exit(-1);
   }
 
-  // output file
-  sprintf(output_filename,"%s.h5part",fileprefix);
-
 }
 
 //----------------------------------------------------------------------------//
 int main(int argc, char * argv[]){
   using namespace std;
-  using namespace simulation_params;
+  using namespace param;
 
-  // launch MPI 
+  // launch MPI
   int rank, size, provided;
   MPI_Init_thread(&argc,&argv,MPI_THREAD_MULTIPLE,&provided);
   assert(provided>=MPI_THREAD_MULTIPLE);
@@ -172,16 +99,24 @@ int main(int argc, char * argv[]){
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   clog_set_output_rank(0);
 
+  // check options list: exactly one option is allowed
+  if (argc != 2) {
+    print_usage();
+    MPI_Finalize();
+    exit(0);
+  }
+
   // set simulation parameters
-  set_default_param(rank,size);
-  parse_command_line_options(rank,size,argc,argv);
-  set_param(rank,size);
+  set_default_params(rank,size);
+  string parfile(argv[1]);
+  read_params(parfile);
+  set_derived_params(rank,size);
 
   // screen output
   clog_one(info) << "Sod test #" << sodtest_num << " in 1D:" << endl
          << " - number of particles: " << nparticles << endl
          << " - particles per core:  " << nparticlesproc << endl
-         << " - output file: " << output_filename << endl;
+         << " - output file: " << initial_data_h5part << endl;
 
   // allocate arrays
 
@@ -221,7 +156,7 @@ int main(int argc, char * argv[]){
   int64_t posid = nparticlesproc*rank;
 
   // max. value for the speed of sound
-  double cs = sqrt(localgamma*max(pressure_1/rho_1,pressure_2/rho_2));
+  double cs = sqrt(poly_gamma*max(pressure_1/rho_1,pressure_2/rho_2));
 
   // The value for constant timestep
   double timestep = 0.5*ldistance/cs;
@@ -242,7 +177,7 @@ int main(int argc, char * argv[]){
     }
 
     // compute internal energy using gamma-law eos
-    u[part] = P[part]/(localgamma-1.)/rho[part];
+    u[part] = P[part]/(poly_gamma-1.)/rho[part];
 
     // particle masses and smoothing length
     m[part] = rho[part]*smoothing_length/10.;
@@ -255,12 +190,12 @@ int main(int argc, char * argv[]){
   } // for part=0..nparticles
 
   // delete the output file if exists
-  remove(output_filename);
+  remove(initial_data_h5part);
 
   // Header data
   // the number of particles = nparticles
   Flecsi_Sim_IO::HDF5ParticleIO testDataSet;
-  testDataSet.createDataset(output_filename,MPI_COMM_WORLD);
+  testDataSet.createDataset(initial_data_h5part,MPI_COMM_WORLD);
 
   // add the global attributes
   testDataSet.writeDatasetAttribute("nparticles","int64_t",nparticles);
