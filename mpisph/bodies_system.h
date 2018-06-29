@@ -49,15 +49,10 @@ public:
   body_system():totalnbodies_(0L),localnbodies_(0L),macangle_(0.0),
   maxmasscell_(1.0e-40),tree_(nullptr)
   {
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank); 
     // Display the number of threads in DEBUG mode
-    if(rank==0)
-    {
-      #pragma omp parallel 
-      #pragma omp single 
-      clog(warn)<<"USING OMP THREADS: "<<omp_get_num_threads()<<std::endl;
-    }
+    #pragma omp parallel 
+    #pragma omp single 
+    clog_one(warn)<<"USING OMP THREADS: "<<omp_get_num_threads()<<std::endl;
   };
 
   /**
@@ -201,7 +196,7 @@ public:
     MPI_Allreduce(MPI_IN_PLACE,&smoothinglength_,1,MPI_DOUBLE,MPI_MAX,
         MPI_COMM_WORLD);
 
-    clog(trace)<<"H="<<smoothinglength_<<std::endl;
+    clog_one(trace)<<"H="<<smoothinglength_<<std::endl;
 
     return smoothinglength_;
 
@@ -229,7 +224,7 @@ public:
     MPI_Allreduce(MPI_IN_PLACE,&smoothinglength_,1,MPI_DOUBLE,MPI_MAX,
         MPI_COMM_WORLD);
 
-    clog(trace)<<"H="<<smoothinglength_<<std::endl;
+    clog_one(trace)<<"H="<<smoothinglength_<<std::endl;
 
     tcolorer_.mpi_compute_range(localbodies_,range_,smoothinglength_);
     return range_;
@@ -262,7 +257,7 @@ public:
     // Choose the smoothing length to be the biggest from everyone 
     smoothinglength_ = getSmoothinglength();
 
-    clog(trace)<<"H="<<smoothinglength_<<std::endl;
+    clog_one(trace)<<"H="<<smoothinglength_<<std::endl;
 
     // Then compute the range of the system 
     tcolorer_.mpi_compute_range(localbodies_,range_,smoothinglength_);
@@ -315,11 +310,11 @@ public:
       MPI_COMM_WORLD
       );
 
-    clog(trace)<<rank<<" sub_entities before="; 
+    clog_one(trace)<<rank<<" sub_entities before="; 
     for(auto v: nentities){
-      clog(trace)<<v<<";";
+      clog_one(trace)<<v<<";";
     }
-    clog(trace)<<std::endl;
+    clog_one(trace)<<std::endl;
 #endif
 
     // Exchnage usefull body_holder from my tree to other processes
@@ -343,11 +338,11 @@ public:
       MPI_COMM_WORLD
       );
 
-    clog(trace)<<rank<<" sub_entities after="; 
+    clog_one(trace)<<rank<<" sub_entities after="; 
     for(auto v: nentities){
-      clog(trace)<<v<<";";
+      clog_one(trace)<<v<<";";
     }
-    clog(trace)<<std::endl;
+    clog_one(trace)<<std::endl;
 #endif
     
     tcolorer_.mpi_compute_ghosts(*tree_,bodies_,smoothinglength_/*,range_*/);
@@ -376,7 +371,7 @@ public:
     MPI_Comm_size(MPI_COMM_WORLD,&size);
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
-    clog(trace)<<"FMM: mmass="<<maxmasscell_<<" angle="<<macangle_<<std::endl;
+    clog_one(trace)<<"FMM: mmass="<<maxmasscell_<<" angle="<<macangle_<<std::endl;
 
     // Just consider the local particles in the tree for FMM 
     tree_->update_branches_local(smoothinglength_);

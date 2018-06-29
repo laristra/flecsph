@@ -32,7 +32,8 @@ TEST(tree_colorer, mpi_qsort){
   double jacobi[9]={};
   double hessian[27]={};
 
-  clog(info)<<"test pSink="<<sinkPosition<<" pSource="<<sourcePosition<<std::endl;
+  clog_one(info) << "test pSink=" << sinkPosition
+                 << " pSource="   << sourcePosition << std::endl;
 
   point_t fc_res(1./(3*sqrt(3)),1./(3*sqrt(3)),1./(3*sqrt(3)));
 
@@ -60,14 +61,17 @@ TEST(tree_colorer, mpi_qsort){
 
   for(int i = 0; i<27; ++i){
     if(i<3){
-      clog(info)<<"fc i="<<i<<": code="<<fc[i]<<" res="<<fc_res[i]<<std::endl;
+      clog_one(info) << "fc i=" << i << ": code=" << fc[i] 
+                     << " res=" << fc_res[i]<<std::endl;
       ASSERT_TRUE(fabs(fc[i]-fc_res[i]) < 1.0e-10);
     }
     if(i<9){
-      clog(info)<<"dfcdr i="<<i<<": code="<<jacobi[i]<<" res="<<jacobi_res[i]<<std::endl;
+      clog_one(info) << "dfcdr i=" << i << ": code=" << jacobi[i] 
+                     << " res=" << jacobi_res[i] << std::endl;
       ASSERT_TRUE(fabs(jacobi[i]-jacobi_res[i]) < 1.0e-10);
     }
-    clog(info)<<"dfcdrdr i="<<i<<": code="<<hessian[i]<<" res="<<hessian_res[i]<<std::endl;
+    clog_one(info) << "dfcdrdr i=" << i << ": code=" << hessian[i]
+                   << " res=" << hessian_res[i] << std::endl;
     ASSERT_TRUE(fabs(hessian[i]-hessian_res[i]) < 1.0e-4);
 
   }
@@ -80,8 +84,9 @@ TEST(tree_colorer, mpi_qsort){
   memset(hessian,0.,sizeof(double)*27);
 
 
-  clog(info)<<std::endl;
-  clog(info)<<"test pSink="<<sinkPosition<<" pSource="<<sourcePosition<<std::endl;
+  clog_one(info) << std::endl;
+  clog_one(info) << "test pSink=" << sinkPosition 
+                 << " pSource=" << sourcePosition << std::endl;
 
 
   point_t fc_res_2 = point_t(-1./(3*sqrt(3)),-1./(3*sqrt(3)),-1./(3*sqrt(3)));
@@ -111,14 +116,17 @@ TEST(tree_colorer, mpi_qsort){
 
   for(int i = 0; i<27; ++i){
     if(i<3){
-      clog(info)<<"fc i="<<i<<": code="<<fc[i]<<" res="<<fc_res_2[i]<<std::endl;
+      clog_one(info) << "fc i=" << i << ": code=" << fc[i]
+                      << " res=" << fc_res_2[i] << std::endl;
       ASSERT_TRUE(fabs(fc[i]-fc_res_2[i]) < 1.0e-4);
     }
     if(i<9){
-      clog(info)<<"dfcdr i="<<i<<": code="<<jacobi[i]<<" res="<<jacobi_res_2[i]<<std::endl;
+      clog_one(info) << "dfcdr i=" << i << ": code=" << jacobi[i] 
+                     << " res=" << jacobi_res_2[i] << std::endl;
       ASSERT_TRUE(fabs(jacobi[i]-jacobi_res_2[i]) < 1.0e-4);
     }
-    clog(info)<<"dfcdrdr i="<<i<<": code="<<hessian[i]<<" res="<<hessian_res_2[i]<<std::endl;
+    clog_one(info) << "dfcdrdr i=" << i << ": code=" << hessian[i]
+                   << " res=" << hessian_res_2[i] << std::endl;
     ASSERT_TRUE(fabs(hessian[i]-hessian_res_2[i]) < 1.0e-4);
   }
 
@@ -131,8 +139,9 @@ TEST(tree_colorer, mpi_qsort){
   memset(hessian,0.,sizeof(double)*27);
 
 
-  clog(info)<<std::endl;
-  clog(info)<<"test pSink="<<sinkPosition<<" pSource="<<sourcePosition<<std::endl;
+  clog_one(info)<< std::endl
+                << "test pSink=" << sinkPosition
+                << " pSource="   << sourcePosition<<std::endl;
 
 
   point_t fc_res_3 = point_t(-1.20281,-1.20281,-1.20281);
@@ -162,14 +171,17 @@ TEST(tree_colorer, mpi_qsort){
 
     for(int i = 0; i<27; ++i){
     if(i<3){
-      clog(info)<<"fc i="<<i<<": code="<<fc[i]<<" res="<<fc_res_3[i]<<std::endl;
+      clog_one(info)<<"fc i="<<i<<": code="<<fc[i]
+                    <<" res="<<fc_res_3[i]<<std::endl;
       ASSERT_TRUE(fabs(fc[i]-fc_res_3[i]) < 1.0e-4);
     }
     if(i<9){
-      clog(info)<<"dfcdr i="<<i<<": code="<<jacobi[i]<<" res="<<jacobi_res_3[i]<<std::endl;
+      clog_one(info)<<"dfcdr i="<<i<<": code="<<jacobi[i]
+                    <<" res="<<jacobi_res_3[i]<<std::endl;
       ASSERT_TRUE(fabs(jacobi[i]-jacobi_res_3[i]) < 1.0e-4);
     }
-    clog(info)<<"dfcdrdr i="<<i<<": code="<<hessian[i]<<" res="<<hessian_res_3[i]<<std::endl;
+    clog_one(info)<<"dfcdrdr i="<<i<<": code="<<hessian[i]
+                  <<" res="<<hessian_res_3[i]<<std::endl;
     ASSERT_TRUE(fabs(hessian[i]-hessian_res_3[i]) < 1.0e-4);
   }
 }
