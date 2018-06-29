@@ -22,14 +22,22 @@ int32_t dimension = 3;
 
 int main(int argc, char * argv[]){
  
+  int rank, size; 
+  int provided; 
+  MPI_Init_thread(&argc,&argv,MPI_THREAD_MULTIPLE,&provided);
+  assert(provided>=MPI_THREAD_MULTIPLE); 
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  MPI_Comm_size(MPI_COMM_WORLD,&size);
+  clog_set_output_rank(0);
+
   int nx = 10;//atoi(argv[1]);
   int ny = 10;//atoi(argv[2]);
   int nz = 10;//atoi(argv[3]);
 
 
   if(argc!=4){
-    clog(warn)<<"./fluid_generator nx ny nz"<<std::endl;
-    clog(warn)<<"Generation with default values= 10*10*10=1000 particles"
+    clog_one(warn)<<"./fluid_generator nx ny nz"<<std::endl;
+    clog_one(warn)<<"Generation with default values= 10*10*10=1000 particles"
       <<std::endl;
   }else{
     nx = atoi(argv[1]);
@@ -37,21 +45,14 @@ int main(int argc, char * argv[]){
     nz = atoi(argv[3]);
   }
 
-  int rank, size; 
-  int provided; 
-  MPI_Init_thread(&argc,&argv,MPI_THREAD_MULTIPLE,&provided);
-  assert(provided>=MPI_THREAD_MULTIPLE); 
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  MPI_Comm_size(MPI_COMM_WORLD,&size);
-
   int64_t nparticles = nx*ny*nz;
   int64_t nparticlesproc = nparticles/size;
   if(rank==size-1){
     nparticlesproc = nparticles - nparticlesproc*(size-1);
   }
 
-  clog(info)<<"Generating "<<nparticles<<" particles"<<std::endl;
-  clog(info)<<nparticlesproc<<" particles per proc (last "<<
+  clog_one(info)<<"Generating "<<nparticles<<" particles"<<std::endl;
+  clog_one(info)<<nparticlesproc<<" particles per proc (last "<<
     nparticles-nparticlesproc*(size-1)<<")"<<std::endl;
 
   if(nz == 0){
@@ -92,7 +93,7 @@ int main(int argc, char * argv[]){
   double linestart = rank * nlinesproc * ldistance;
   double ndepth = nz;
 
-  clog(info)<<"Generating: "<<nlines<<"*"<<ncols<<std::endl;
+  clog_one(info)<<"Generating: "<<nlines<<"*"<<ncols<<std::endl;
 
   // Id of my first particle 
   int64_t posid = nparticlesproc*rank;
