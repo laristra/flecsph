@@ -42,6 +42,8 @@
 #include "default_physics.h"
 #include "analysis.h"
 
+#define OUTPUT_ANALYSIS
+
 namespace flecsi{
 namespace execution{
 
@@ -135,6 +137,14 @@ mpi_init_task(int totaliterations){
     clog_one(trace) << "dudt integration" << std::flush; 
     bs.apply_all(physics::dudt_integration);
     clog_one(trace) << ".done" << std::endl;
+
+#ifdef OUTPUT_ANALYSIS
+    // Compute the analysis values based on physics 
+    bs.get_all(analysis::compute_lin_momentum);
+    bs.get_all(analysis::compute_total_mass);
+    // Only add the header in the first iteration
+    analysis::scalar_output("scalar_sedov.dat");
+#endif
 
 #ifdef OUTPUT
     MPI_Barrier(MPI_COMM_WORLD);

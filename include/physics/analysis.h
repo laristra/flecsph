@@ -33,12 +33,12 @@
 namespace analysis{
 
   point_t linear_momentum;
+  double total_mass; 
 
   /**
-   * @brief      Compute the linear momentum,
+   * @brief      Compute the linear momentum
    *
    * @param      bodies  Vector of all the local bodies
-   * @param      total   Total linear momentum
    */
   void
   compute_lin_momentum(
@@ -48,6 +48,23 @@ namespace analysis{
     for(auto nbh: bodies) {
       linear_momentum += nbh->getBody()->getLinMomentum();
     }
+    reduce_sum(linear_momentum);
+  }
+
+  /**
+   * @brief      Compute the total mass
+   *
+   * @param      bodies  Vector of all the local bodies
+   */
+  void
+  compute_total_mass(
+      std::vector<body_holder*>& bodies)
+  {
+    total_mass = 0.;
+    for(auto nbh: bodies) {
+      total_mass += nbh->getBody()->getMass();
+    }
+    reduce_sum(total_mass);
   }
 
 
@@ -95,14 +112,14 @@ namespace analysis{
       std::ostringstream oss_header;
       oss_header
         << "# Scalar reductions: " <<std::endl
-        << "# 1:iteration 2:time 3:mom_x ";
+        << "# 1:iteration 2:time 3:mass 4:mom_x ";
 
       // The momentum depends on dimension
       if(gdimension > 1){
-        oss_header<<"4:mom_y ";
+        oss_header<<"5:mom_y ";
       }
       if(gdimension == 3){
-        oss_header<<"5:mom_z ";
+        oss_header<<"6:mom_z ";
       }
       oss_header<<std::endl;
 
@@ -116,7 +133,7 @@ namespace analysis{
     std::ostringstream oss_data;
     oss_data << std::setw(14) << physics::iteration
       << std::setw(20) << std::scientific << std::setprecision(12)
-      << physics::totaltime;
+      << physics::totaltime << std::setw(20) << total_mass;
     for(int i = 0 ; i < gdimension ; ++i){
       oss_data
         << std::setw(20) << std::scientific << std::setprecision(12)
