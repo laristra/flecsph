@@ -40,6 +40,7 @@
 #include <bodies_system.h>
 
 #include "default_physics.h"
+#include "analysis.h"
 
 namespace flecsi{
 namespace execution{
@@ -52,12 +53,10 @@ mpi_init_task(int totaliterations){
   int size;
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  clog_set_output_rank(0);
   
-  int totaliters = totaliterations;
   int iteroutput = 1;
-  double totaltime = 0.0;
   double maxtime = 10.0;
-  int iter = 0; 
 
   // Init if default values are not ok
   physics::dt = 0.001;
@@ -68,7 +67,7 @@ mpi_init_task(int totaliterations){
   physics::gamma = 5./3.;
 
   body_system<double,gdimension> bs;
-  bs.read_bodies("hdf5_sedov.h5part",iter);
+  bs.read_bodies("hdf5_sedov.h5part",physics::iteration);
 
   double h = bs.getSmoothinglength();
   physics::epsilon = 0.01*h*h;
@@ -80,22 +79,21 @@ mpi_init_task(int totaliterations){
   }
   physics::min_boundary = {(0.1+2*h)*distance+range_boundaries[0]};
   physics::max_boundary = {-(0.1-2*h)*distance+range_boundaries[1]};
-  clog(info) << "Limits: " << physics::min_boundary << " ; "
+  clog_one(info) << "Limits: " << physics::min_boundary << " ; "
          << physics::max_boundary << std::endl;
 
   remove("output_sedov.h5part"); 
 
 #ifdef OUTPUT
-  bs.write_bodies("output_sedov",iter);
+  bs.write_bodies("output_sedov",physics::iteration);
 #endif
 
   double stopt, startt; 
 
-  ++iter; 
+  ++physics::iteration; 
   do
   { 
-    MPI_Barrier(MPI_COMM_WORLD);
-    clog(info) << "#### Iteration " << iter << std::endl;
+    analysis::screen_output();
     MPI_Barrier(MPI_COMM_WORLD);
 
     // Compute and prepare the tree for this iteration 
@@ -108,49 +106,50 @@ mpi_init_task(int totaliterations){
     // - Compute and exchange ghosts in real smoothing length 
     bs.update_iteration();
    
-    clog(info) << "compute_density_pressure_soundspeed" << std::flush; 
+    clog_one(trace) << "compute_density_pressure_soundspeed" << std::flush; 
     bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
-    clog(info) << ".done" << std::endl;
+    clog_one(trace) << ".done" << std::endl;
     
     // Refresh the neighbors within the smoothing length 
     bs.update_neighbors(); 
 
-    clog(info) << "Hydro acceleration" << std::flush; 
+    clog_one(trace) << "Hydro acceleration" << std::flush; 
     bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
-    clog(info) << ".done" << std::endl;
+    clog_one(trace) << ".done" << std::endl;
  
-    clog(info) << "Internalenergy"<<std::flush; 
+    clog_one(trace) << "Internalenergy"<<std::flush; 
     bs.apply_in_smoothinglength(physics::compute_dudt);
-    clog(info) << ".done" << std::endl;
+    clog_one(trace) << ".done" << std::endl;
    
-    if(iter==1){ 
-      clog(info) << "leapfrog" << std::flush; 
+    if(physics::iteration==1){ 
+      clog_one(trace) << "leapfrog" << std::flush; 
       bs.apply_all(physics::leapfrog_integration_first_step);
-      clog(info) << ".done" << std::endl;
+      clog_one(trace) << ".done" << std::endl;
     }else{
       if(rank==0)
-      clog(info) << "leapfrog" << std::flush; 
+      clog_one(trace) << "leapfrog" << std::flush; 
       bs.apply_all(physics::leapfrog_integration);
-      clog(info) << ".done" << std::endl;
+      clog_one(trace) << ".done" << std::endl;
     }
 
-    clog(info) << "dudt integration" << std::flush; 
+    clog_one(trace) << "dudt integration" << std::flush; 
     bs.apply_all(physics::dudt_integration);
-    clog(info) << ".done" << std::endl;
+    clog_one(trace) << ".done" << std::endl;
 
 #ifdef OUTPUT
     MPI_Barrier(MPI_COMM_WORLD);
     startt = omp_get_wtime();
-    if(iter % iteroutput == 0){ 
-      bs.write_bodies("output_sedov",iter/iteroutput);
+    if(physics::iteration % iteroutput == 0){ 
+      bs.write_bodies("output_sedov",physics::iteration/iteroutput);
     }
     stopt = omp_get_wtime();
-    clog(info) << "Output time: " << omp_get_wtime()-startt << "s" << std::endl;
+    clog_one(trace) << "Output time: " << omp_get_wtime()-startt << "s" << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
-    ++iter;
+    ++physics::iteration;
+    physics::totaltime += physics::dt;
     
-  }while(iter<totaliters);
+  }while(physics::iteration<totaliterations);
 }
 
 flecsi_register_mpi_task(mpi_init_task);
@@ -164,14 +163,14 @@ specialization_tlt_init(int argc, char * argv[]){
     totaliterations = atoi(argv[1]);
   }
 
-  clog(trace) << "In user specialization_driver" << std::endl;
+  clog_one(trace) << "In user specialization_driver" << std::endl;
 
   flecsi_execute_mpi_task(mpi_init_task,totaliterations); 
 } // specialization driver
 
 void 
 driver(int argc,  char * argv[]){
-  clog(trace) << "In user driver" << std::endl;
+  clog_one(trace) << "In user driver" << std::endl;
 } // driver
 
 

@@ -52,7 +52,7 @@ void set_default_param(int rank, int size) {
 //
 void print_usage(int rank) {
   using namespace std;
-  clog(warn) << "Initial data generator for Sod shocktube test in 1D" << endl
+  clog_one(warn) << "Initial data generator for Sod shocktube test in 1D" << endl
          << "Usage: ./sodtube_generator [OPTIONS]" << endl
          << " -h: this help" << endl
          << " -n <number of particles>" << endl
@@ -89,7 +89,7 @@ void parse_command_line_options(int rank, int size, int argc, char* argv[]) {
         break;
 
       default:
-        clog(error) << "ERROR: unknown option '-" << argv[i][1] << "'" << endl;
+        clog_one(error) << "ERROR: unknown option '-" << argv[i][1] << "'" << endl;
         MPI_Finalize();
         exit(-1);
 
@@ -149,7 +149,7 @@ void set_param(int rank, int size) {
       break;
 
     default:
-      clog(error) << "ERROR: invalid test (" << sodtest_num << ")." << endl;
+      clog_one(error) << "ERROR: invalid test (" << sodtest_num << ")." << endl;
       MPI_Finalize();
       exit(-1);
   }
@@ -170,6 +170,7 @@ int main(int argc, char * argv[]){
   assert(provided>=MPI_THREAD_MULTIPLE);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
+  clog_set_output_rank(0);
 
   // set simulation parameters
   set_default_param(rank,size);
@@ -177,7 +178,7 @@ int main(int argc, char * argv[]){
   set_param(rank,size);
 
   // screen output
-  clog(info) << "Sod test #" << sodtest_num << " in 1D:" << endl
+  clog_one(info) << "Sod test #" << sodtest_num << " in 1D:" << endl
          << " - number of particles: " << nparticles << endl
          << " - particles per core:  " << nparticlesproc << endl
          << " - output file: " << output_filename << endl;

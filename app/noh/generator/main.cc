@@ -50,13 +50,6 @@ int main(int argc, char * argv[]){
 
   int64_t sparticles = 100;         // Default number of particles
 
-  if (argc != 2) {
-    clog(warn) << "./noh_generator [square nParticles]\n" << std::endl;
-    clog(warn) << "Generating default number of particles"<<
-      sparticles<<"*"<<sparticles<<"="<<sparticles*sparticles<<std::endl;
-  }
-  else sparticles = atoll(argv[1]);
-
   int rank, size; 
   int provided; 
 
@@ -64,6 +57,16 @@ int main(int argc, char * argv[]){
   assert(provided>=MPI_THREAD_MULTIPLE); 
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
+  clog_set_output_rank(0);
+
+  if (argc != 2) {
+    clog_one(warn) << "WARNING: number of particles not specitifed!" << std::endl
+                   << "Usage: ./noh_generator [sqrt {nParticles}]"   << std::endl
+                   << "Generating default number of particles: "     
+                   << sparticles<<"*"<<sparticles << " => "
+                   << sparticles*sparticles << std::endl;
+  }
+  else sparticles = atoll(argv[1]);
 
 
   // Total number of initialized particles
@@ -79,10 +82,10 @@ int main(int argc, char * argv[]){
   // Particle mass given the initial density and number of particles
   double m_in = rho_in * radius * radius * 4.0 / nparticles; 
 
-  clog(info)<<"Sphere: r="<<radius<<" pos=["<<x_c<<";"<<y_c<<"]"<<std::endl;
-
-  clog(info) << "Generating" <<nparticles<<" particles by "<<
-    sparticles<<"x"<<sparticles<<" in sphere r="<<radius<<std::endl;
+  clog_one(info) << "Sphere: r=" << radius << std::endl
+                 << "origin: pos=["<<x_c<<";"<<y_c<<"]" << std::endl
+                 << "Generating "  << nparticles 
+                 << " particles (="<< sparticles<<"^2) " << std::endl;
 
 
   // Start on  0 0
@@ -139,8 +142,8 @@ int main(int argc, char * argv[]){
   double timestep = 0.001;
   int dimension = 2;
   
-  clog(info) << "top_X=" << x_topproc << " top_Y=" << y_topproc << 
-    " maxX=" << maxxposition << " maxY=" << maxyposition << std::endl;
+  clog_one(info) << "top_X=" << x_topproc << " top_Y="  << y_topproc    << std::endl 
+                 << "maxX=" << maxxposition << " maxY=" << maxyposition << std::endl;
 
   double xposition = x_topproc; 
   double yposition = y_topproc;
@@ -211,7 +214,8 @@ int main(int argc, char * argv[]){
     }
   }
 
-  clog(info) << "Real Number of Particles: " << tparticles << std::endl;
+  clog_one(info) << "Actual number of particles inside the sphere: " 
+                 << tparticles << std::endl;
 
   char filename[128];
   sprintf(filename,"%s.h5part",fileprefix);

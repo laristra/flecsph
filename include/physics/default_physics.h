@@ -186,6 +186,7 @@ namespace physics{
    * @brief      mu_ij for the artificial viscosity 
    * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics 
    *
+   * @uses       epsilon:= eta^2 (global parmeter)
    * @param      srch  The source particle
    * @param      nbsh  The neighbor particle
    *
@@ -207,7 +208,7 @@ namespace physics{
     if(dotproduct >= 0.0)
       return result;
     double dist = flecsi::distance(source->getPosition(),nb->getPosition());
-    result = h_ij * dotproduct / (dist*dist + epsilon);
+    result = h_ij * dotproduct / (dist*dist + epsilon*h_ij*h_ij);
     
     mpi_assert(result < 0.0);
     return result; 

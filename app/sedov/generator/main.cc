@@ -3,7 +3,7 @@
  * All rights reserved.
  *~--------------------------------------------------------------------------~*/
 
- #include <iostream>
+#include <iostream>
 #include <algorithm>
 #include <cassert>
 
@@ -55,21 +55,22 @@ int main(int argc, char * argv[]){
   assert(provided>=MPI_THREAD_MULTIPLE); 
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
+  clog_set_output_rank(0);
 
   if (argc != 2) {
-    clog(warn) << "WARNING: you have not specified sqrt of the number of particles!" 
+    clog_one(warn) << "WARNING: you have not specified sqrt of the number of particles!" 
            << std::endl << "Usage: ./sedov_generator [sParticles]" << std::endl
            << " - generates initial conditions with  sParticles^2 particles."
            << std::endl << "Generating with the default value: sparticles = " 
            << sparticles << std::endl;
   }else{
     sparticles = atoll(argv[1]);
-    clog(info) << "Square root of the number of particles: sparticles = " 
+    clog_one(info) << "Square root of the number of particles: sparticles = " 
            << sparticles << std::endl;
   }
 
   int64_t nparticles = sparticles*sparticles;
-  clog(info) << "Generating " << nparticles << " particles" << std::endl;
+  clog_one(info) << "Generating " << nparticles << " particles" << std::endl;
 
   // Start on  0 0
 
@@ -139,7 +140,7 @@ int main(int argc, char * argv[]){
     }
   }
 
-  clog(info) << "Real number of particles: " << tparticles << std::endl;
+  clog_one(info) << "Real number of particles: " << tparticles << std::endl;
 
   char filename[128];
   //sprintf(filename,"%s_%d.h5part",fileprefix,nparticles);
