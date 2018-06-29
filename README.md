@@ -203,16 +203,33 @@ To compile your project, you need to add it in `flecsph/config/project.cmake`: A
 
 Then, `cmake` links your project and you can compile it. 
 
+# Style guide
+
+FleCSPH follows the FleCSI coding style, which in turn follows (in general) the Google coding conventions.
+FleCSI coding style is documented here:
+https://github.com/laristra/flecsi/blob/master/flecsi/style.md
+
 # Logs 
 
 Cinch Log is the logging tool for this project. 
 In order to display log set the environement variable as: 
-```{engine=sh} 
+```bash 
 export CLOG_ENABLE_STDLOG=1
 ```
 
-You can set the level of output from trace, info, warn, error and fatal.
-Refer to the documentation at: 
+In the code, you can set the level of output from trace(0) and info(1) to warn(2), error(3) and fatal(4).
+You can then control the level of output at compile time by setting the flag `CLOG_STRIP_LEVEL`:
+by default it is set to 0 (trace), but for simulations it is perhaps preferrable to set it to 1 (info).
+In the code, if you only want a single rank (e.g. rank 0) to output, you need to use `clog_one` command,
+and indicate the output rank using the `clog_set_output_rank(rank)` macro right after MPI initialization:
+```cpp
+clog_set_output_rank(0);
+clog_one(info) << "This is essential output (level 1)" << std::endl;
+clog_one(trace) << "This is verbose output  (level 0)" << std::endl;
+clog_one(fatal) << "Farewell!" << std::endl; 
+```
+
+For further details, refer to the documentation at: 
 https://github.com/laristra/cinch/blob/master/logging/README.md
 
  # Contacts
