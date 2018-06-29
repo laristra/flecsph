@@ -36,6 +36,7 @@
 
 namespace physics{
 
+  int64_t iteration = 0;
   double dt = 0.000001;
   double K = 3.5;
   double gravity_cste = 9.80665; 

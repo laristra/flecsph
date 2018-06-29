@@ -184,12 +184,15 @@ namespace physics{
 
   /**
    * @brief      mu_ij for the artificial viscosity 
-   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics 
+   * From Rosswog'09 (arXiv:0903.5075) - 
+   * Astrophysical Smoothed Particle Hydrodynamics, eq.(60) 
    *
-   * @param      srch  The source particle
-   * @param      nbsh  The neighbor particle
+   * @param      srch     The source particle
+   * @param      nbsh     The neighbor particle
    *
    * @return     Contribution for mu_ij of this neighbor
+   *
+   * @uses       epsilon  global parmeter
    */
   double 
   mu(
@@ -207,7 +210,7 @@ namespace physics{
     if(dotproduct >= 0.0)
       return result;
     double dist = flecsi::distance(source->getPosition(),nb->getPosition());
-    result = h_ij * dotproduct / (dist*dist + epsilon);
+    result = h_ij * dotproduct / (dist*dist + epsilon*h_ij*h_ij);
     
     mpi_assert(result < 0.0);
     return result; 
@@ -215,7 +218,8 @@ namespace physics{
 
   /**
    * @brief      Artificial viscosity 
-   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics 
+   * From Rosswog'09 (arXiv:0903.5075) - 
+   * Astrophysical Smoothed Particle Hydrodynamics, eq.(59) 
    *
    * @param      srch  The source particle
    * @param      nbsh  The neighbor particle
