@@ -184,13 +184,15 @@ namespace physics{
 
   /**
    * @brief      mu_ij for the artificial viscosity 
-   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics 
+   * From Rosswog'09 (arXiv:0903.5075) - 
+   * Astrophysical Smoothed Particle Hydrodynamics, eq.(60) 
    *
-   * @uses       epsilon:= eta^2 (global parmeter)
-   * @param      srch  The source particle
-   * @param      nbsh  The neighbor particle
+   * @param      srch     The source particle
+   * @param      nbsh     The neighbor particle
    *
    * @return     Contribution for mu_ij of this neighbor
+   *
+   * @uses       epsilon  global parmeter
    */
   double 
   mu(
@@ -216,7 +218,8 @@ namespace physics{
 
   /**
    * @brief      Artificial viscosity 
-   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics 
+   * From Rosswog'09 (arXiv:0903.5075) - 
+   * Astrophysical Smoothed Particle Hydrodynamics, eq.(59) 
    *
    * @param      srch  The source particle
    * @param      nbsh  The neighbor particle

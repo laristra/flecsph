@@ -63,12 +63,10 @@ mpi_init_task(int startiteration){
   physics::alpha = 1; 
   physics::beta  = 2; 
   physics::gamma = 5./3.;
+  physics::epsilon = 0.01;
 
   body_system<double,gdimension> bs;
   bs.read_bodies("hdf5_noh.h5part",startiteration);
-
-  double h = bs.getSmoothinglength();
-  physics::epsilon = 0.01*h*h;
 
   remove("output_noh.h5part"); 
 

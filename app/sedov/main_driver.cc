@@ -67,18 +67,18 @@ mpi_init_task(int totaliterations){
   physics::do_boundaries = true;
   physics::stop_boundaries = true;
   physics::gamma = 5./3.;
+  physics::epsilon = 0.01;
 
   body_system<double,gdimension> bs;
   bs.read_bodies("hdf5_sedov.h5part",physics::iteration);
 
-  double h = bs.getSmoothinglength();
-  physics::epsilon = 0.01*h*h;
 
   auto range_boundaries = bs.getRange(); 
   point_t distance = range_boundaries[1]-range_boundaries[0];
   for(int i = 0; i < gdimension; ++i){
     distance[i] = fabs(distance[i]);
   }
+  double h = bs.getSmoothinglength();
   physics::min_boundary = {(0.1+2*h)*distance+range_boundaries[0]};
   physics::max_boundary = {-(0.1-2*h)*distance+range_boundaries[1]};
   clog_one(info) << "Limits: " << physics::min_boundary << " ; "
