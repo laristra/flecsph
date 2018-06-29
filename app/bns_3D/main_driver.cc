@@ -232,13 +232,11 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
     if(physics::totaltime >= noutput_analysis*outputtime_analysis){
       // Compute the analysis values based on physics 
       bs.get_all(analysis::compute_lin_momentum);
-      mpi_utils::reduce_sum(analysis::linear_momentum);
-
+      bs.get_all(analysis::compute_total_mass);
       // Output 
       noutput_analysis++;
       // Only add the header in the first iteration
-      analysis::scalar_output("scalar.dat");
-      
+      analysis::scalar_output("scalar_bns_3D.dat");
     }
 #endif
 

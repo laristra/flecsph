@@ -41,6 +41,8 @@
 #include "default_physics.h"
 #include "analysis.h"
 
+#define OUTPUT_ANALYSIS
+
 namespace flecsi{
 namespace execution{
 
@@ -110,7 +112,7 @@ mpi_init_task(int numberiterations){
     bs.update_iteration();
 
     clog_one(trace) << "compute_density_pressure_soundspeed" << std::flush; 
-    bs.apply_square(physics::compute_density_pressure_soundspeed);
+    bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
     clog_one(trace) << ".done" << std::endl;
 
     bs.update_neighbors();
@@ -136,6 +138,14 @@ mpi_init_task(int numberiterations){
     clog_one(trace) << "dudt integration" << std::flush; 
     bs.apply_all(physics::dudt_integration);
     clog_one(trace) << ".done" << std::endl;
+
+#ifdef OUTPUT_ANALYSIS
+    // Compute the analysis values based on physics 
+    bs.get_all(analysis::compute_lin_momentum);
+    bs.get_all(analysis::compute_total_mass);
+    // Only add the header in the first iteration
+    analysis::scalar_output("scalar_sodtube.dat");
+#endif
 
 #ifdef OUTPUT
     if(physics::iteration % iteroutput == 0){ 
