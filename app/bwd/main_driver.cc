@@ -40,6 +40,7 @@
 #include <bodies_system.h>
 
 #include "default_physics.h"
+#include "analysis.h"
 
 namespace flecsi{
 namespace execution{
@@ -52,12 +53,12 @@ mpi_init_task(int startiteration){
   int size;
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  clog_set_output_rank(0);
   
   int totaliters = 100;
   int iteroutput = 1;
   double totaltime = 0.0;
   double maxtime = 10.0;
-  int iter = startiteration; 
 
   // Init if default values are not ok
   physics::dt = 1.0e-10;
@@ -75,14 +76,13 @@ mpi_init_task(int startiteration){
   physics::epsilon = 0.01*h*h;
 
 #ifdef OUTPUT
-  bs.write_bodies("output_bwd",iter);
+  bs.write_bodies("output_bwd",physics::iteration);
 #endif
 
-  ++iter; 
+  ++physics::iteration; 
   do
   { 
-    MPI_Barrier(MPI_COMM_WORLD);
-    clog(info)<<"#### Iteration "<<iter<<std::endl;
+    analysis::screen_output();
     MPI_Barrier(MPI_COMM_WORLD);
 
     // Compute and prepare the tree for this iteration 
@@ -96,56 +96,56 @@ mpi_init_task(int startiteration){
     bs.update_iteration();
    
     // Do the DWD physics
-    clog(info)<<"Density"<<std::flush; 
+    clog_one(trace)<<"Density"<<std::flush; 
     bs.apply_in_smoothinglength(physics::compute_density);
-    clog(info)<<".done"<<std::endl;
+    clog_one(trace)<<".done"<<std::endl;
 
-    clog(info)<<"Pressure"<<std::flush; 
+    clog_one(trace)<<"Pressure"<<std::flush; 
     bs.apply_all(physics::compute_pressure_wd);
-    clog(info)<<".done"<<std::endl;
+    clog_one(trace)<<".done"<<std::endl;
 
-    clog(info)<<"Linear Momentum"<<std::flush; 
+    clog_one(trace)<<"Linear Momentum"<<std::flush; 
     //bs.apply_all(physics::compute_lin_momentum);
-    clog(info)<<".done"<<std::endl;
+    clog_one(trace)<<".done"<<std::endl;
 
-    clog(info)<<"Soundspeed"<<std::flush; 
+    clog_one(trace)<<"Soundspeed"<<std::flush; 
     bs.apply_all(physics::compute_soundspeed);
-    clog(info)<<".done"<<std::endl;
+    clog_one(trace)<<".done"<<std::endl;
     
     // Refresh the neighbors within the smoothing length 
     bs.update_neighbors(); 
 
-    clog(info)<<"Hydro acceleration"<<std::flush; 
+    clog_one(trace)<<"Hydro acceleration"<<std::flush; 
     bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
-    clog(info)<<".done"<<std::endl;
+    clog_one(trace)<<".done"<<std::endl;
  
-    clog(info)<<"Internalenergy"<<std::flush; 
+    clog_one(trace)<<"Internalenergy"<<std::flush; 
     bs.apply_in_smoothinglength(physics::compute_dudt);
-    clog(info)<<".done"<<std::endl; 
+    clog_one(trace)<<".done"<<std::endl; 
    
-    if(iter==1){ 
-      clog(info)<<"leapfrog"<<std::flush; 
+    if(physics::iteration==1){ 
+      clog_one(trace)<<"leapfrog"<<std::flush; 
       bs.apply_all(physics::leapfrog_integration_first_step);
-      clog(info)<<".done"<<std::endl;
+      clog_one(trace)<<".done"<<std::endl;
     }else{
-      clog(info)<<"leapfrog"<<std::flush; 
+      clog_one(trace)<<"leapfrog"<<std::flush; 
       bs.apply_all(physics::leapfrog_integration);
-      clog(info)<<".done"<<std::endl;
+      clog_one(trace)<<".done"<<std::endl;
     }
 
-    clog(info)<<"dudt integration"<<std::flush; 
+    clog_one(trace)<<"dudt integration"<<std::flush; 
     bs.apply_all(physics::dudt_integration);
-    clog(info)<<".done"<<std::endl;
+    clog_one(trace)<<".done"<<std::endl;
 
    
 #ifdef OUTPUT
-    if(iter % iteroutput == 0){ 
-      bs.write_bodies("output_bwd",iter/iteroutput);
+    if(physics::iteration % iteroutput == 0){ 
+      bs.write_bodies("output_bwd",physics::iteration/iteroutput);
     }
 #endif
-    ++iter;
+    ++physics::iteration;
     
-  }while(iter<totaliters);
+  }while(physics::iteration<totaliters);
 }
 
 flecsi_register_mpi_task(mpi_init_task);
@@ -159,14 +159,14 @@ specialization_tlt_init(int argc, char * argv[]){
     startiteration = atoi(argv[1]);
   }
 
-  clog(warn) << "In user specialization_driver" << std::endl;
+  clog_one(warn) << "In user specialization_driver" << std::endl;
 
   flecsi_execute_mpi_task(mpi_init_task,startiteration); 
 } // specialization driver
 
 void 
 driver(int argc,  char * argv[]){
-  clog(warn) << "In user driver" << std::endl;
+  clog_one(warn) << "In user driver" << std::endl;
 } // driver
 
 
