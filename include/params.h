@@ -31,6 +31,9 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#ifndef PARAMS_H
+#define PARAMS_H
+
 #define MAXLEN_FNAME 255
 
 namespace param {
@@ -199,3 +202,4 @@ void read_params(std::string parfile) {
 
 } // namespace params
 
+#endif // PARAMS_H
