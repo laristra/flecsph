@@ -9,6 +9,14 @@
 
 #include "hdf5ParticleIO.h"
 #include "kernels.h"
+
+// parameters: #define here, or read from a parameter file
+namespace param {
+//# define nparticles 1000
+//# define sodtest_num  1
+//# define poly_gamma  1.4
+//# define initial_data_h5part "sodtube_initial_t1n100.h5part"
+}
 #include "params.h"
 
 static int64_t nparticlesproc;    // number of particles per proc
@@ -107,7 +115,6 @@ int main(int argc, char * argv[]){
   }
 
   // set simulation parameters
-  set_default_params(rank,size);
   string parfile(argv[1]);
   read_params(parfile);
   set_derived_params(rank,size);

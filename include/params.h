@@ -4,7 +4,7 @@
  *~--------------------------------------------------------------------------~*/
 
  /*~--------------------------------------------------------------------------~*
- * 
+ *
  * /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
  * /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
  * /@@       /@@  @@@@@  @@    // /@@       /@@   /@@/@@     /@@
@@ -12,7 +12,7 @@
  * /@@////   /@@/@@@@@@@/@@       ////////@@/@@////  /@@//////@@
  * /@@       /@@/@@//// //@@    @@       /@@/@@      /@@     /@@
  * /@@       @@@//@@@@@@ //@@@@@@  @@@@@@@@ /@@      /@@     /@@
- * //       ///  //////   //////  ////////  //       //      //  
+ * //       ///  //////   //////  ////////  //       //      //
  *
  *~--------------------------------------------------------------------------~*/
 
@@ -20,7 +20,54 @@
  * @file params.h
  * @author Oleg Korobkin
  * @date June 2018
- * @brief Handle global parameters: parsing parameter files, default vals etc. 
+ * @brief Handle global parameters: parsing parameter files, default vals etc.
+ *
+ * Parameters are essential for maintaining data in scientific numerical
+ * experiments. They allow to launch and keep track of a battery of experiments
+ * without recompiling the code. State-of-the-art simulation codes contain
+ * hundreds, sometimes thousands of parameters. Clearly, it is impossible to
+ * remember what are their optimal values, which also may vary case-tocase.
+ * This is why it is important to store parameters in separate files.
+ *
+ * For FleCSPH, we picked a simple ASCII format, which is easy to read in any
+ * system. The format contains pairs of "PARAM = VALUE". There are four types
+ * of parameters: integer, real, string and boolean. Integer and real
+ * parameters are intialized as usual, e.g.:
+ *
+ *   nparticles = 250
+ *   poly_gamma = 1.4
+ *
+ * Boolean parameters are set with "yes" or "no", and string ones are set with
+ * strings, which can be enclosed in single or double quotes:
+ *
+ *   output_conserved = yes                      # produce scalar output
+ *   input_file_h5part = "sodtube_n400k.h5part"  # name of the input file
+ *
+ * Comments can be added to parameter files: everything which starts with '#',
+ * is considered a comment and ignored. Blank spaces and empty lines are
+ * ignored.
+ *
+ * All parameters in a parfile have exactly the same name as in the code, to
+ * avoid confusion. All parameters are declared as const references in the
+ * param:: namespace. It is also possible to #define a parameter instead; this
+ * presumably speeds up the code. Note that in this case, i.e. when a 
+ * parameter has been defined via macro, it needs to be commented out in a 
+ * parametre file.  An example of #defining parameters:
+
+ namespace param {
+ #   define nparticles 1000
+ #   define sodtest_num  1
+ #   define poly_gamma  1.4
+ #   define initial_data_h5part "sodtube_initial_t1n100.h5part"
+ } // namespace param
+ #include "params.h" // Note how "params.h" is included *after* the 
+                     // definitions
+
+ * To introduce a new parameter:
+ *  - add its declaration below using DECLARE_PARAM or DECLARE_STRING_PARAM 
+ *    macro (see below);
+ *  - add REAL_NUMERIC_PARAM, READ_BOOLEAN_PARAM or READ_STRING_PARAM
+ *    to the set_param() function -- see examples below.
  */
 
 #include <iostream>
@@ -34,17 +81,68 @@
 #ifndef PARAMS_H
 #define PARAMS_H
 
-#define MAXLEN_FNAME 255
+//////////////////////////////////////////////////////////////////////
+#define DECLARE_PARAM(PTYPE,PNAME,PDEF) \
+  PTYPE _##PNAME = (PDEF); \
+  const PTYPE & PNAME = _##PNAME;
+
+#define STRING_MAXLEN 511
+#define DECLARE_STRING_PARAM(PNAME,PDEF) \
+  char _##PNAME[STRING_MAXLEN] = (PDEF); \
+  const char * PNAME = _##PNAME;
+
+#define DO_QUOTE(str) #str
+#define QUOTE(str) DO_QUOTE(str)
+
+#define READ_BOOLEAN_PARAM(PNAME) \
+  if (param_name == QUOTE(PNAME)) { \
+    (_##PNAME) = lparam_value; unknown_param=false;}
+
+#define READ_NUMERIC_PARAM(PNAME) \
+  if (param_name == QUOTE(PNAME)) { \
+    iss >> (_##PNAME); unknown_param=false;}
+
+#define READ_STRING_PARAM(PNAME) \
+  if (param_name == QUOTE(PNAME)) { \
+    strcpy(_##PNAME, str_value.c_str()); unknown_param = false;}
+
+//\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\]\\\\\\\\\\\\\\\
 
 namespace param {
 
-  // --- list of global parameters ------------------------------------------
-  int64_t nparticles;        //< global number of particles
-  int    sodtest_num;        //< Sod test number (1..5)
-  double poly_gamma;         //< polytropic index
-  double initial_dt;         //< intial timestep
-  char   initial_data_h5part[MAXLEN_FNAME]; //< h5part output filename
-  // ---
+// --- list of global parameters ------------------------------------------
+/// global number of particles
+#ifndef nparticles
+  DECLARE_PARAM(int64_t,nparticles,1000)
+#endif
+
+/// number of Sodtest to run (1..5)
+#ifndef sodtest_num
+  DECLARE_PARAM(unsigned short,sodtest_num,1)
+#endif
+
+/// polytropic index
+#ifndef poly_gamma
+  DECLARE_PARAM(double,poly_gamma,1.4)
+#endif
+
+/// inital timestep
+#ifndef initial_dt
+  DECLARE_PARAM(double,initial_dt,0.001)
+#endif
+
+/// h5part output filename
+#ifndef initial_data_h5part
+  DECLARE_STRING_PARAM(initial_data_h5part,"input.h5part")
+#endif
+
+/// a test boolean parameter
+#ifndef run_job
+  DECLARE_PARAM(bool,run_job,false)
+#endif
+
+//  char   initial_data_h5part[STRING_MAXLEN]; //< h5part output filename
+// ---
 
 /*!
    trim whitespace from the begging and end of line
@@ -59,18 +157,6 @@ std::string trim(const std::string& str) {
 }
 
 
-/*!
-   setup global defaults
- */
-void set_default_params(int rank, int size) {
-  nparticles = 1000;
-  poly_gamma = 1.4;
-  sodtest_num = 1;
-  initial_dt = 1.0;
-  sprintf(initial_data_h5part,"%s","init.h5part");
-}
-
-
 /**
  * @brief Sets a global parameter param_name to the value, given by its
  *        string representation param_value
@@ -79,56 +165,60 @@ void set_param(const std::string& param_name,
                const std::string& param_value) {
   using namespace std;
   bool run_job;
+  bool unknown_param = true;
 
   // strip trailing comments
   size_t i2 = param_value.find("#");
   string str_value;
-  if (i2 != string::npos) 
+  if (i2 != string::npos)
     str_value = trim(param_value.substr(0,i2));
   else
     str_value = param_value;
 
-  // remove (single or double) quotes 
-  if (str_value[0]=='\'' or str_value[0]=='\"') 
+  // remove (single or double) quotes
+  if (str_value[0]=='\'' or str_value[0]=='\"')
     str_value = str_value.substr(1,str_value.length()-2);
   istringstream iss(str_value);
 
   // boolean parameters ------------------------------
-  bool lparam_value = (str_value == "yes" 
-                    or str_value == "'yes'" 
+  bool lparam_value = (str_value == "yes"
+                    or str_value == "'yes'"
                     or str_value == "\"yes\"");
-  if (param_name == "run_job") {
-    run_job = lparam_value;
-  }
- 
+# ifndef run_job
+    READ_BOOLEAN_PARAM(run_job)
+# endif
+
   // integer parameters ------------------------------
-  else if (param_name == "nparticles") {
-    iss >> nparticles;
-  }
-  else if (param_name == "sodtest_num") {
-    iss >> sodtest_num;
-  }
+# ifndef nparticles
+    READ_NUMERIC_PARAM(nparticles)
+# endif
+
+# ifndef sodtest_num
+    READ_NUMERIC_PARAM(sodtest_num)
+# endif
 
   // real parameters ---------------------------------
-  else if (param_name == "poly_gamma") {
-    iss >> poly_gamma;
-  }
-  else if (param_name == "intial_dt") {
-    iss >> initial_dt;
-  }
+# ifndef poly_gamma
+    READ_NUMERIC_PARAM(poly_gamma)
+# endif
+
+# ifndef initial_dt
+    READ_NUMERIC_PARAM(initial_dt)
+# endif
 
   // string parameters -------------------------------
-  else if (param_name == "initial_data_h5part") {
-    strcpy(initial_data_h5part, str_value.c_str());
-  }
+# ifndef initial_data_h5part
+    READ_STRING_PARAM(initial_data_h5part)
+# endif
+
   // unknown parameter -------------------------------
-  else { 
+  if (unknown_param) {
     clog_one(fatal) << "ERROR: unknown parameter " << param_name << endl;
     exit(2);
   }
- 
+
   clog_one(trace) << param_name << ": " << param_value << endl;
-}               
+}
 
 /**
  * @brief Parameter file parser
@@ -136,11 +226,11 @@ void set_param(const std::string& param_name,
  * Simulation parameter file contains strings of pairs:
  *  param = value
  *
- * assigining values to specific parameters. Parameters can have four 
- * different types: logical (boolean), integer, real and string. 
- * Parameter file can contain comments. Comments begin with '#'; 
- * everything after '#' is ignored. Strings can be embraced in single 
- * quotes (') or double quotes ("). Logical parameters are initialized 
+ * assigining values to specific parameters. Parameters can have four
+ * different types: logical (boolean), integer, real and string.
+ * Parameter file can contain comments. Comments begin with '#';
+ * everything after '#' is ignored. Strings can be embraced in single
+ * quotes (') or double quotes ("). Logical parameters are initialized
  * with "yes" or "no".
  *
  * Example of a parameter file snippet:
