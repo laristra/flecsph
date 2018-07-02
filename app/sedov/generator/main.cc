@@ -11,14 +11,43 @@
 #include "kernels.h"
 
 
+
+/*
+The Sedov test is set up with uniform density and vanishingly small pressure.
+An explosion is initialized via a point-like deposition of energy E_blast in
+the center of the simulation space. The resulting spherically symmetric shock 
+waves moves outwards with a radial distance given by
+
+r_shock = (E_blast * t^2 / (alpha * n_0))^(1/(2*d))
+
+where alpha is a constant of the order one with its exact value given by the 
+adiabatic index gamma. The peak density of the shock is given by: 
+
+n_shock = n_0 ((gamma + 1)/(gamma -1)) 
+
+The velocity of shocked matter has a radial dependence approximately ~ r/t. 
+As the shock wave moves away from the center it leaves behind matter at 
+vanishingly low density. With the pressure staying finite for r=0, the 
+temperature grows and becomes infinitely large at the origin of the blast wave . 
+
+Reference:
+G.  Taylor, “The Formation of a Blast Wave by a Very Intense Explosion.  
+I.  Theoretical  Discussion,” Royal Society of London Proceedings Series A
+, vol. 201, pp. 159–174, Mar. 1950.
+*/
+
+
 const double ldistance = 0.001;  // Distance between the particles 
-const double localgamma = 5./3.;
-const double rho_1 = 1;
-const double pressure_1 = 10e-7;
-const double u_1 = 0.0001;
-const double m_1 = 1.0e-7;
+const double localgamma = 1.4;   // Set to fit value in default_physics.h
+const double rho_in = 1;
+const double pressure_in = 1.0e-7;
+const double u_in = pressure_in/(rho_in*(localgamma - 1.0));
 const double smoothing_length = 5.*ldistance;
 const char* fileprefix = "hdf5_sedov";
+
+const double u_blast = 1.0;             // Injected total blast energy
+const double r_blast = 0.5*ldistance;   // Radius of injection region 
+
 
 bool 
 in_radius(
@@ -76,7 +105,16 @@ int main(int argc, char * argv[]){
 
   double maxxposition = (sparticles)*ldistance;
   double maxyposition = (sparticles)*ldistance;
-  
+
+
+  // Central coordinates 
+  double x_c = maxxposition/2.0; 
+  double y_c = maxyposition/2.0; 
+
+
+  // Particle mass from number of particles and density 
+  double mass = rho_in * maxxposition * maxyposition/nparticles;  
+
   // Position
   double* x = new double[nparticles]();
   double* y = new double[nparticles]();
@@ -112,38 +150,58 @@ int main(int argc, char * argv[]){
   // The value for constant timestep 
   double timestep = 0.001;
   int dimension = 2;
-  
-  double xposition = 0;//*/x_topproc; 
+
+  // Number of particles in the blast zone
+  int64_t particles_blast = 0;
+
+  // Total mass of particles in the blast zone
+  double mass_blast = 0;  
+
+  double xposition = 0;
   int64_t tparticles = 0;
-  double yposition = 0;//*/y_topproc;
-  for(int64_t part=0; part<nparticles; ++part){
-    
+  double yposition = 0;
+
+  
+  for (int64_t part=0; part<nparticles; ++part) {
+
     tparticles++;
     x[part] = xposition;
     y[part] = yposition;
-         
-    P[part] = pressure_1;
-    rho[part] = rho_1; 
-    m[part] = m_1;
-    u[part] = u_1;
-    h[part] = smoothing_length;
-    id[part] = posid++;
+    m[part] = mass;
 
-    if(part == nparticles/2){
-      u[part] = 5.;
+    // Count particles in the blast zone and sum their masses 
+    if(sqrt((x[part]-x_c)*(x[part]-x_c)+(y[part]-y_c)*(y[part]-y_c)) < r_blast){
+       particles_blast++;
+       mass_blast += m[part];
     }
-   
-    xposition+= ldistance; 
+
+    xposition+= ldistance;
     if(xposition > maxxposition){
       xposition = 0.;
       yposition+=ldistance;
     }
   }
+  
+  // Assign density, pressure and specific internal energy to particles, 
+  // including the particles in the blast zone
+  for(int64_t part=0; part<nparticles; ++part){
+    
+    P[part] = pressure_in;
+    rho[part] = rho_in; 
+    u[part] = u_in;
+    h[part] = smoothing_length;
+    id[part] = posid++;
+ 
+    if(sqrt((x[part]-x_c)*(x[part]-x_c)+(y[part]-y_c)*(y[part]-y_c)) < r_blast){
+       u[part] = u_blast/particles_blast;
+       P[part] = u[part]*rho[part]*(localgamma - 1.0);
+    }
+  }
 
   clog_one(info) << "Real number of particles: " << tparticles << std::endl;
+  clog_one(info) << "Total blast energy (E_blast = u_blast * total mass): " << u_blast * mass_blast << std::endl;
 
   char filename[128];
-  //sprintf(filename,"%s_%d.h5part",fileprefix,nparticles);
   sprintf(filename,"%s.h5part",fileprefix);
   // Remove the previous file 
   remove(filename); 
@@ -158,8 +216,6 @@ int main(int argc, char * argv[]){
   testDataSet.writeDatasetAttribute("dimension","int32_t",dimension);
   testDataSet.writeDatasetAttribute("use_fixed_timestep","int32_t",1);
 
-  //const char * simName = "sodtube_1D";
-  //testDataSet.writeDatasetAttributeArray("name","string",simName);
   testDataSet.closeFile();
 
   testDataSet.openFile(MPI_COMM_WORLD);

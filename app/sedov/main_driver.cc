@@ -57,16 +57,18 @@ mpi_init_task(int totaliterations){
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   clog_set_output_rank(0);
   
-  int iteroutput = 1;
+  int totaliters = totaliterations;
+  int iteroutput = 10;
+  //double totaltime = 0.0;
   double maxtime = 10.0;
 
   // Init if default values are not ok
   physics::dt = 0.001;
-  physics::alpha = 1; 
+  physics::alpha = 2;   // Set to fit value in default_physics.h 
   physics::beta = 2; 
   physics::do_boundaries = true;
   physics::stop_boundaries = true;
-  physics::gamma = 5./3.;
+  physics::gamma = 1.4; // Set to fit value in default_physics.h
   physics::epsilon = 0.01;
 
   body_system<double,gdimension> bs;
