@@ -54,14 +54,11 @@
  * parameter has been defined via macro, it needs to be commented out in a 
  * parametre file.  An example of #defining parameters:
 
- namespace param {
- #   define nparticles 1000
- #   define sodtest_num  1
- #   define poly_gamma  1.4
- #   define initial_data_h5part "sodtube_initial_t1n100.h5part"
- } // namespace param
- #include "params.h" // Note how "params.h" is included *after* the 
-                     // definitions
+ #define nparticles 1000
+ #define sodtest_num  1
+ #define poly_gamma  1.4
+ #define initial_data_h5part "sodtube_initial_t1n100.h5part"
+ #include "params.h" // "params.h" is included *after* definitions
 
  * To introduce a new parameter:
  *  - add its declaration below using DECLARE_PARAM or DECLARE_STRING_PARAM 

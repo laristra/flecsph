@@ -57,7 +57,6 @@ mpi_init_task(int totaliterations){
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   clog_set_output_rank(0);
   
-  int totaliters = totaliterations;
   int iteroutput = 10;
   //double totaltime = 0.0;
   double maxtime = 10.0;

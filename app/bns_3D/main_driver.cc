@@ -95,7 +95,7 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
 //
 
   bs.setMacangle(macangle);
-  bs.setMaxmasscell(10e-5);
+  bs.setMaxmasscell(10e-5); // TODO: hardcoded value, turn to a parameter
 
   clog_one(trace)<<"MacAngle="<<macangle<<std::endl;
 
@@ -141,7 +141,7 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
         body * src = source->getBody();
         point_t pos = src->getPosition();
         for(size_t i = 0 ; i < gdimension ; ++i){
-          if(pos[i] > 10){
+          if(pos[i] > 10){ // TODO: 10 is hardcoded, turn to a parameter
             pos[i] = 10;
             src->setVelocity(point_t{});
           }

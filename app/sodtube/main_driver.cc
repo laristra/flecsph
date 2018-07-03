@@ -56,9 +56,8 @@ mpi_init_task(int numberiterations){
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   clog_set_output_rank(0);
   
-  int totaliters = numberiterations;
   int iteroutput = 1;
-  double maxtime = 10.0;
+  double maxtime = 10.0; // TODO: this is never used.
 
   // Init if default values are not ok
   physics::dt = 0.0025;
@@ -154,7 +153,7 @@ mpi_init_task(int numberiterations){
     ++physics::iteration;
     physics::totaltime += physics::dt;
     
-  }while(physics::iteration<totaliters);
+  }while(physics::iteration<numberiterations);
 }
 
 flecsi_register_mpi_task(mpi_init_task);

@@ -158,7 +158,7 @@ driver(int argc,  char * argv[]){
 } // driver
 
 
-} // namespace
-} // namespace
+} // namespace execution
+} // namespace flecsi
 
 

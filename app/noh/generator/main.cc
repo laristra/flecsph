@@ -7,7 +7,7 @@
 /*
  * Noh Collapse test
  * -----------------
- * The tet is initialized as disk / sphere of particles with homogeneous density, 
+ * The test is initialized as a disk / sphere of particles with homogeneous density, 
  * vanishingly small pressure, and inward velocity. As particles move inwards, they
  * pile up at the center at forming a region with constant density that is dependent 
  * on gamma and the dimensionality of the problem. 

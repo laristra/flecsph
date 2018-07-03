@@ -13,8 +13,8 @@
 
 enum type {WALL=1, SIMPLE=0};
 
-const double rest_density = 998.29;
-const double m_ = 0.02;
+const double rest_density = 998.29;         // initial density
+const double m_ = 0.02;                     // mass of an individual particle
 const double rho_ = rest_density;
 const double smoothing_length = 0.0457;
 const double ldistance = smoothing_length;  // Distance between the particles 
