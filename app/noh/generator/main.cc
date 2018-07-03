@@ -23,7 +23,7 @@
 #include <algorithm>
 #include <cassert>
 
-///#define poly_gamma 5./3. // Gamma for ideal gas eos
+#define poly_gamma 5./3. // Gamma for ideal gas eos
 #include "params.h"
 #include "hdf5ParticleIO.h"
 #include "kernels.h"

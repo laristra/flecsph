@@ -37,6 +37,7 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/data/data.h"
 
+#define poly_gamma 5./3.
 #include "params.h"
 #include "bodies_system.h"
 #include "default_physics.h"
