@@ -107,6 +107,11 @@ namespace analysis{
   {
     static bool first_time = true;
 
+    // output only from rank #0
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    if (rank != 0) return; 
+
     if (first_time) {
       // Generate and output the header
       std::ostringstream oss_header;
