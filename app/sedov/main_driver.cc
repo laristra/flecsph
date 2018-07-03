@@ -66,8 +66,8 @@ mpi_init_task(int totaliterations){
   physics::dt = 0.001;
   physics::alpha = 2;   // Set to fit value in default_physics.h 
   physics::beta = 2; 
-  physics::do_boundaries = true;
-  physics::stop_boundaries = true;
+  physics::do_boundaries = false;
+  physics::stop_boundaries = false;
   physics::gamma = 1.4; // Set to fit value in default_physics.h
   physics::epsilon = 0.01;
 
