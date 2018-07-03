@@ -3,29 +3,14 @@
  * All rights reserved.
  *~--------------------------------------------------------------------------~*/
 
+
 #include <iostream>
 #include <algorithm>
 #include <cassert>
 
+#include "params.h"
 #include "hdf5ParticleIO.h"
 #include "kernels.h"
-
-// parameters: #define here, or read from a parameter file
-namespace param {
-//# define nparticles 1000
-//# define sodtest_num  1
-//# define poly_gamma  1.4
-//# define initial_data_h5part "sodtube_initial_t1n100.h5part"
-}
-#include "params.h"
-
-static int64_t nparticlesproc;    // number of particles per proc
-static double ldistance;          // particles spacing
-static double smoothing_length;   // constant smoothing length
-
-static double rho_1, rho_2;           // densities
-static double vx_1, vx_2;             // velocities
-static double pressure_1, pressure_2; // pressures
 
 //
 // help message
@@ -37,8 +22,17 @@ void print_usage() {
 }
 
 //
-// setup derived parameters
+// derived parameters
 //
+static int64_t nparticlesproc;    // number of particles per proc
+static double ldistance;          // particles spacing
+static double smoothing_length;   // constant smoothing length
+
+static double rho_1, rho_2;           // densities
+static double vx_1, vx_2;             // velocities
+static double pressure_1, pressure_2; // pressures
+static std::string initial_data_file; // = initial_data_prefix + ".h5part"       
+
 void set_derived_params(int rank, int size) {
   using namespace std;
   using namespace param;
@@ -92,6 +86,11 @@ void set_derived_params(int rank, int size) {
       exit(-1);
   }
 
+  // file to be generated
+  std::ostringstream oss;
+  oss << initial_data_prefix << ".h5part";
+  initial_data_file = oss.str();
+
 }
 
 //----------------------------------------------------------------------------//
@@ -123,7 +122,8 @@ int main(int argc, char * argv[]){
   clog_one(info) << "Sod test #" << sodtest_num << " in 1D:" << endl
          << " - number of particles: " << nparticles << endl
          << " - particles per core:  " << nparticlesproc << endl
-         << " - output file: " << initial_data_h5part << endl;
+         << " - generated initial data file: " 
+         << initial_data_file << endl;
 
   // allocate arrays
 
@@ -197,12 +197,12 @@ int main(int argc, char * argv[]){
   } // for part=0..nparticles
 
   // delete the output file if exists
-  remove(initial_data_h5part);
+  remove(initial_data_file.c_str());
 
   // Header data
   // the number of particles = nparticles
   Flecsi_Sim_IO::HDF5ParticleIO testDataSet;
-  testDataSet.createDataset(initial_data_h5part,MPI_COMM_WORLD);
+  testDataSet.createDataset(initial_data_file,MPI_COMM_WORLD);
 
   // add the global attributes
   testDataSet.writeDatasetAttribute("nparticles","int64_t",nparticles);

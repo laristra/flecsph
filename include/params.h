@@ -40,8 +40,8 @@
  * Boolean parameters are set with "yes" or "no", and string ones are set with
  * strings, which can be enclosed in single or double quotes:
  *
- *   output_conserved = yes                      # produce scalar output
- *   input_file_h5part = "sodtube_n400k.h5part"  # name of the input file
+ *   output_conserved = yes                # produce scalar output
+ *   initial_data_prefix = "sodtube_n10k"  # name of the input file
  *
  * Comments can be added to parameter files: everything which starts with '#',
  * is considered a comment and ignored. Blank spaces and empty lines are
@@ -49,22 +49,27 @@
  *
  * All parameters in a parfile have exactly the same name as in the code, to
  * avoid confusion. All parameters are declared as const references in the
- * param:: namespace. It is also possible to #define a parameter instead; this
- * presumably speeds up the code. Note that in this case, i.e. when a 
- * parameter has been defined via macro, it needs to be commented out in a 
- * parametre file.  An example of #defining parameters:
-
- #define nparticles 1000
- #define sodtest_num  1
- #define poly_gamma  1.4
- #define initial_data_h5part "sodtube_initial_t1n100.h5part"
- #include "params.h" // "params.h" is included *after* definitions
-
+ * param:: namespace. It is also possible to #define a parameter instead to
+ * ioptimze the performance. In this case, when a parameter has been defined via 
+ * a macro, it needs to be commented out in a parametre file. 
+ *
+ * Example of #define-ing parameters:
+ * 
+ *  #define nparticles 1000
+ *  #define sodtest_num  1
+ *  #define poly_gamma  1.4
+ *  #define initial_data_prefix "sodtube_n10k"
+ * 
  * To introduce a new parameter:
  *  - add its declaration below using DECLARE_PARAM or DECLARE_STRING_PARAM 
  *    macro (see below);
  *  - add REAL_NUMERIC_PARAM, READ_BOOLEAN_PARAM or READ_STRING_PARAM
  *    to the set_param() function -- see examples below.
+ *
+ * TODO: introduce a set of macros to do both declaration and reading:
+ *       REGISTER_BOOLEAN_PARAM, REGISTER_INTEGER_PARAM, 
+ *       REGISTER_STRING_PARAM, REGISTER_REAL_PARAM
+ *       instead of DECLARE/READ pair
  */
 
 #include <iostream>
@@ -74,6 +79,7 @@
 #include <sstream>
 #include <stdlib.h>
 #include <assert.h>
+#include "cinchlog.h"
 
 #ifndef PARAMS_H
 #define PARAMS_H
@@ -103,11 +109,17 @@
   if (param_name == QUOTE(PNAME)) { \
     strcpy(_##PNAME, str_value.c_str()); unknown_param = false;}
 
-//\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\]\\\\\\\\\\\\\\\
+//\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+///
+/// Parameter #define-s: uncomment to fix parameters at compile time:
+///
+//#define nparticles 1000
+//#define sodtest_num  1
+//#define poly_gamma  1.4
+//#define initial_data_prefix "initial_data"
 
 namespace param {
 
-// --- list of global parameters ------------------------------------------
 /// global number of particles
 #ifndef nparticles
   DECLARE_PARAM(int64_t,nparticles,1000)
@@ -128,17 +140,15 @@ namespace param {
   DECLARE_PARAM(double,initial_dt,0.001)
 #endif
 
-/// h5part output filename
-#ifndef initial_data_h5part
-  DECLARE_STRING_PARAM(initial_data_h5part,"input.h5part")
+/// file prefix for input and intiial data file[s]
+#ifndef initial_data_prefix
+  DECLARE_STRING_PARAM(initial_data_prefix,"initial_data")
 #endif
 
 /// a test boolean parameter
 #ifndef run_job
   DECLARE_PARAM(bool,run_job,false)
 #endif
-
-//  char   initial_data_h5part[STRING_MAXLEN]; //< h5part output filename
 // ---
 
 /*!
@@ -204,8 +214,8 @@ void set_param(const std::string& param_name,
 # endif
 
   // string parameters -------------------------------
-# ifndef initial_data_h5part
-    READ_STRING_PARAM(initial_data_h5part)
+# ifndef initial_data_prefix
+    READ_STRING_PARAM(initial_data_prefix)
 # endif
 
   // unknown parameter -------------------------------
@@ -230,14 +240,14 @@ void set_param(const std::string& param_name,
  * quotes (') or double quotes ("). Logical parameters are initialized
  * with "yes" or "no".
  *
- * Example of a parameter file snippet:
+ * Example parameter file:
  * --->>> sodtube_N100.par ---------------
   # Sodtube test #1 for 100 particles
   nparticles= 1000    # global number of particles
   poly_gamma = 1.4    # polytropic index
   sodtest_num  = 1    # which Sod test to generate
   output_singlefile = yes
-  intial_data_h5part  = "hdf5_sodtube.h5part"
+  initial_data_prefix  = "sodtube_np10k"
  * ---<<<  --------------------------------
  */
 void read_params(std::string parfile) {

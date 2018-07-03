@@ -2,6 +2,6 @@
   nparticles= 1000    # global number of particles                                                                    
   poly_gamma = 1.4    # polytropic index
   sodtest_num  = 1    # which test to generate                                                                    
-  initial_data_h5part= "hdf5_sodtube.h5part"
- # initial_data_h5part = "sodtube_initial_t1n100.h5part"
+  initial_data_prefix = "hdf5_sodtube"
+ # initial_data_prefix = "sodtube_initial_t1n100"
 
