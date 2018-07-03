@@ -37,6 +37,7 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/data/data.h"
 
+#include "params.h"
 #include <bodies_system.h>
 
 #include "default_physics.h"
@@ -67,7 +68,7 @@ mpi_init_task(int startiteration){
   physics::stop_boundaries = true;
   physics::min_boundary = {0.1};
   physics::max_boundary = {1.0};
-  physics::gamma = 5./3.;
+  ///physics::gamma = 5./3.; // converted to a parameter (poly_gamma)
   physics::epsilon = 0.01;
 
   body_system<double,gdimension> bs;

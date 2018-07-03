@@ -37,6 +37,7 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/data/data.h"
 
+#include "params.h"
 #include "bodies_system.h"
 #include "default_physics.h"
 #include "BNS_physics.h"
@@ -87,7 +88,7 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
 
 // Setting physics data 
   physics::dt = 1.0e-8;
-  physics::gamma = 2.0;
+  //physics::gamma = 2.0;  // converted to a parameter (poly_gamma)
   physics::A = 0.6366197723675814;
   // Load angular momentum from data file 
   physics::angular_moment = bs.get_attribute<double>("hdf5_bns_3D.h5part", 

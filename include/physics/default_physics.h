@@ -28,6 +28,7 @@
 
 #include <vector>
 
+#include "params.h"
 #include "utils.h"
 #include "kernels.h"
 #include "tree.h"
@@ -48,7 +49,6 @@ namespace physics{
   double dt = 0.0;
   double alpha = 2; 
   double beta = 2; 
-  double gamma = 1.4;
   double epsilon = 0.01;
   double damp = 1;
   double totaltime = 0.0;
@@ -94,8 +94,9 @@ namespace physics{
   compute_pressure(
       body_holder* srch)
   { 
+    using namespace param;
     body* source = srch->getBody();
-    double pressure = (gamma-1.0)*
+    double pressure = (poly_gamma-1.0)*
       source->getDensity()*source->getInternalenergy();
     source->setPressure(pressure);
   } // compute_pressure
@@ -110,9 +111,10 @@ namespace physics{
   compute_pressure_adiabatic(
       body_holder* srch)
   { 
+    using namespace param;
     body* source = srch->getBody();
     double pressure = source->getAdiabatic()*
-      pow(source->getDensity(),gamma);
+      pow(source->getDensity(),poly_gamma);
     source->setPressure(pressure);
   } // compute_pressure
 #endif 
@@ -148,8 +150,10 @@ namespace physics{
   compute_soundspeed(
       body_holder* srch)
   {
+    using namespace param;
     body* source = srch->getBody();
-    double soundspeed = sqrt(gamma*source->getPressure()/source->getDensity());
+    double soundspeed = sqrt(poly_gamma*source->getPressure()
+                                       /source->getDensity());
     source->setSoundspeed(soundspeed);
   } // computeSoundspeed
 
@@ -360,6 +364,7 @@ namespace physics{
     body_holder* srch, 
     std::vector<body_holder*>& ngbsh)
   { 
+    using namespace param;
     body* source = srch->getBody();
     
     // Compute the adiabatic factor here 
@@ -398,7 +403,8 @@ namespace physics{
         );
     }
     
-    dadt *= (gamma - 1)/(2*pow(source->getDensity(),gamma-1));
+    dadt *= (poly_gamma - 1) / 
+            (2*pow(source->getDensity(),poly_gamma-1));
     source->setDadt(dadt);
  
 

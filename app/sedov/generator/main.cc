@@ -7,10 +7,9 @@
 #include <algorithm>
 #include <cassert>
 
+#include "params.h"
 #include "hdf5ParticleIO.h"
 #include "kernels.h"
-
-
 
 /*
 The Sedov test is set up with uniform density and vanishingly small pressure.
@@ -37,16 +36,33 @@ I.  Theoretical  Discussion,” Royal Society of London Proceedings Series A
 */
 
 
-const double ldistance = 0.001;  // Distance between the particles
-const double localgamma = 1.4;   // Set to fit value in default_physics.h
-const double rho_in = 1;
-const double pressure_in = 1.0e-7;
-const double u_in = pressure_in/(rho_in*(localgamma - 1.0));
-const double smoothing_length = 5.*ldistance;
-const char* fileprefix = "hdf5_sedov";
+//
+// derived parameters
+//
+static double ldistance;    // Distance between the particles
+///const double localgamma = 1.4;   // converted to a parameter (poly_gamma)
+static double rho_in;       // initial density
+static double pressure_in;  // initial pressure
+static double u_in;         // initial specific internal energy
+static double smoothing_length; // constant smoothing length
+static char* fileprefix;    // output file (TODO: replace with a parmeter)
 
-const double u_blast = 1.0;             // Injected total blast energy
-const double r_blast = ldistance;   // Radius of injection region
+static double u_blast;      // Injected total blast energy
+static double r_blast;      // Radius of injection region
+
+void set_derived_params(int rank, int size) {
+  using namespace param;
+
+  ldistance = 0.001;  // Distance between the particles
+  rho_in = 1;
+  pressure_in = 1.0e-7;
+  u_in = pressure_in/(rho_in*(poly_gamma - 1.0));
+  smoothing_length = 5.*ldistance;
+  fileprefix = "hdf5_sedov";
+
+  u_blast = 1.0;         // Injected total blast energy
+  r_blast = ldistance;   // Radius of injection region
+}
 
 
 bool
@@ -61,7 +77,7 @@ in_radius(
 }
 
 int main(int argc, char * argv[]){
-
+  using namespace param;
 
   int64_t sparticles = 101;
   int rank, size;
@@ -84,6 +100,7 @@ int main(int argc, char * argv[]){
            << sparticles << std::endl;
   }
 
+  set_derived_params(rank,size);
   int64_t nparticles = sparticles*sparticles;
 
   // Start on  0 0
@@ -202,7 +219,7 @@ int main(int argc, char * argv[]){
 
     if(sqrt((x[part]-x_c)*(x[part]-x_c)+(y[part]-y_c)*(y[part]-y_c)) < r_blast){
        u[part] = u[part]+u_blast/particles_blast;
-       P[part] = u[part]*rho[part]*(localgamma - 1.0);
+       P[part] = u[part]*rho[part]*(poly_gamma - 1.0);
     }
   }
 

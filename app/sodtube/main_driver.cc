@@ -49,6 +49,7 @@ namespace execution{
 
 void
 mpi_init_task(){
+  using namespace param;
   
   int rank;
   int size;
@@ -65,7 +66,6 @@ mpi_init_task(){
   physics::beta = 2; 
   physics::do_boundaries = true;
   physics::stop_boundaries = true;
-  physics::gamma = 1.4;
   physics::epsilon = 0.01;
 
   const char * inputFile = "hdf5_sodtube.h5part";
@@ -153,7 +153,7 @@ mpi_init_task(){
     ++physics::iteration;
     physics::totaltime += physics::dt;
     
-  }while(physics::iteration <= param::final_iteration);
+  }while(physics::iteration <= final_iteration);
 }
 
 flecsi_register_mpi_task(mpi_init_task);

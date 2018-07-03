@@ -37,6 +37,7 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/data/data.h"
 
+#include "params.h"
 #include "bodies_system.h"
 #include "default_physics.h"
 #include "analysis.h"
@@ -62,7 +63,7 @@ mpi_init_task(int startiteration){
   physics::dt = 0.001;
   physics::alpha = 1; 
   physics::beta  = 2; 
-  physics::gamma = 5./3.;
+  ///physics::gamma = 5./3.; // converted to a parameter poly_gamma
   physics::epsilon = 0.01;
 
   body_system<double,gdimension> bs;

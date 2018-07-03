@@ -28,6 +28,7 @@
 
 #include <vector>
 
+#include "params.h"
 #include "kernels.h"
 #include "tree.h"
 
@@ -94,9 +95,10 @@ namespace physics{
   compute_internal_energy_from_adiabatic(
     body_holder* srch)
   {
+    using namespace param;
     body* source = srch->getBody();
-    double u = source->getAdiabatic()/(gamma-1)*
-      pow(source->getDensity(),gamma-1);
+    double u = source->getAdiabatic()/(poly_gamma-1)*
+      pow(source->getDensity(),poly_gamma-1);
     source->setInternalenergy(u);
   }
 
@@ -105,9 +107,10 @@ namespace physics{
   compute_adiabatic_from_internal_energy(
     body_holder* srch)
   {
+    using namespace param;
     body* source = srch->getBody();
-    double A = (gamma-1)*source->getInternalenergy()/
-      pow(source->getDensity(),gamma-1);
+    double A = (poly_gamma-1)*source->getInternalenergy()/
+      pow(source->getDensity(),poly_gamma-1);
     source->setAdiabatic(A);
   }
 

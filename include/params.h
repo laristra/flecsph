@@ -48,26 +48,19 @@
  * ignored.
  *
  * All parameters in a parfile have exactly the same name as in the code, to
- * avoid confusion. All parameters are declared as const references in the
- * param:: namespace. It is also possible to #define a parameter instead to
- * ioptimze the performance. In this case, when a parameter has been defined via 
- * a macro, it needs to be commented out in a parametre file. 
+ * avoid confusion. Parameters are read-only (const references) in the param::
+ * namespace. It is also possible to #define a parameter instead for optimized
+ * performance -- in this case, however, this parameter needs to be commented out
+ * in the parameter file. 
  *
- * Example of #define-ing parameters:
- * 
- *  #define nparticles 1000
- *  #define sodtest_num  1
- *  #define poly_gamma  1.4
- *  #define initial_data_prefix "sodtube_n10k"
- * 
  * To introduce a new parameter:
- *  - add its declaration below using DECLARE_PARAM or DECLARE_STRING_PARAM 
+ *  - add its declaration below using DECLARE_PARAM or DECLARE_STRING_PARAM
  *    macro (see below);
  *  - add REAL_NUMERIC_PARAM, READ_BOOLEAN_PARAM or READ_STRING_PARAM
  *    to the set_param() function -- see examples below.
  *
  * TODO: introduce a set of macros to do both declaration and reading:
- *       REGISTER_BOOLEAN_PARAM, REGISTER_INTEGER_PARAM, 
+ *       REGISTER_BOOLEAN_PARAM, REGISTER_INTEGER_PARAM,
  *       REGISTER_STRING_PARAM, REGISTER_REAL_PARAM
  *       instead of DECLARE/READ pair
  */
@@ -108,15 +101,7 @@
 #define READ_STRING_PARAM(PNAME) \
   if (param_name == QUOTE(PNAME)) { \
     strcpy(_##PNAME, str_value.c_str()); unknown_param = false;}
-
-//\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-///
-/// Parameter #define-s: uncomment to fix parameters at compile time:
-///
-//#define nparticles 1000
-//#define sodtest_num  1
-//#define poly_gamma  1.4
-//#define initial_data_prefix "initial_data"
+//////////////////////////////////////////////////////////////////////
 
 namespace param {
 

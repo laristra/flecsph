@@ -23,12 +23,13 @@
 #include <algorithm>
 #include <cassert>
 
+///#define poly_gamma 5./3. // Gamma for ideal gas eos
+#include "params.h"
 #include "hdf5ParticleIO.h"
 #include "kernels.h"
 
     
 const double ldistance = 0.001;                     // Distance between the particles 
-const double localgamma = 5./3.;                    // Gamma for ideal gas eos
 const double rho_in = 1;                            // Initial density 
 const double P_in = 1.0e-6;                         // Initial pressure
 const double smoothing_length = 2.0*ldistance;      
@@ -47,6 +48,7 @@ bool in_radius(
 
 
 int main(int argc, char * argv[]){
+  using namespace param;
 
   int64_t sparticles = 100;         // Default number of particles
 
@@ -194,7 +196,7 @@ int main(int argc, char * argv[]){
     m[part] = m_in;
 
     // Assign particle internal energy 
-    u[part] = P[part]/(localgamma-1.)/rho[part];
+    u[part] = P[part]/(poly_gamma-1.)/rho[part];
 
     // Assign particle smoothing length
     h[part] = smoothing_length;
