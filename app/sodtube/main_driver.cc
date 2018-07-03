@@ -37,6 +37,7 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/data/data.h"
 
+#include "params.h"
 #include "bodies_system.h"
 #include "default_physics.h"
 #include "analysis.h"
@@ -47,8 +48,7 @@ namespace flecsi{
 namespace execution{
 
 void
-mpi_init_task(int numberiterations){
-  // TODO find a way to use the file name from the specialiszation_driver
+mpi_init_task(){
   
   int rank;
   int size;
@@ -153,28 +153,36 @@ mpi_init_task(int numberiterations){
     ++physics::iteration;
     physics::totaltime += physics::dt;
     
-  }while(physics::iteration<numberiterations);
+  }while(physics::iteration <= param::final_iteration);
 }
 
 flecsi_register_mpi_task(mpi_init_task);
 
-void usage()
-{
-  clog_one(warn)<<"./sodtube [number of iterations]"<<std::endl;
+//
+// help message
+//
+void usage() {
+  clog_one(warn) << "Usage: ./sodtube <parameter-file.par>" 
+                 << std::endl << std::flush;
 }
 
 void 
 specialization_tlt_init(int argc, char * argv[]){
   
-  // Default start at iteration 0
-  usage();
-
-  int numberiterations = 100;
-  if(argc == 2){
-    numberiterations = atoi(argv[1]);
+  // check options list: exactly one option is allowed
+  if (argc != 2) {
+    clog_one(error) << "ERROR: parameter file not specified!" << std::endl;
+    usage();
+    return;
   }
+
+  // set simulation parameters
+  std::string parfile(argv[1]);
+  param::read_params(parfile);
+  //set_derived_params(rank,size);
+
   clog_one(trace) << "In user specialization_driver" << std::endl;
-  flecsi_execute_mpi_task(mpi_init_task,numberiterations); 
+  flecsi_execute_mpi_task(mpi_init_task); 
 } // specialization driver
 
 void 

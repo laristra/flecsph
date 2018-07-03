@@ -120,6 +120,11 @@
 
 namespace param {
 
+/// final iteration (= total iterations + 1, if counting from 0)
+#ifndef final_iteration
+  DECLARE_PARAM(int64_t,final_iteration,10)
+#endif
+
 /// global number of particles
 #ifndef nparticles
   DECLARE_PARAM(int64_t,nparticles,1000)
@@ -196,6 +201,10 @@ void set_param(const std::string& param_name,
 # endif
 
   // integer parameters ------------------------------
+# ifndef final_iteration
+    READ_NUMERIC_PARAM(final_iteration)
+# endif
+
 # ifndef nparticles
     READ_NUMERIC_PARAM(nparticles)
 # endif

@@ -4,4 +4,5 @@
   sodtest_num  = 1    # which test to generate                                                                    
   initial_data_prefix = "hdf5_sodtube"
  # initial_data_prefix = "sodtube_initial_t1n100"
+  final_iteration = 50
 
