@@ -105,16 +105,86 @@
 
 namespace param {
 
-/// final iteration (= total iterations + 1, if counting from 0)
+//
+// Parameters controlling timestepping and iterations
+// 
+//- initial iteration
+#ifndef initial_iteration
+  DECLARE_PARAM(int64_t,initial_iteration,0)
+#endif
+
+//- final iteration (= total iterations + 1, if counting from 0)
 #ifndef final_iteration
   DECLARE_PARAM(int64_t,final_iteration,10)
 #endif
 
-/// global number of particles
+#ifndef initial_time
+  DECLARE_PARAM(int64_t,initial_time,0)
+#endif
+
+#ifndef final_time
+  DECLARE_PARAM(int64_t,final_time,1.0)
+#endif
+
+//- inital timestep
+#ifndef initial_dt
+  DECLARE_PARAM(double,initial_dt,0.001)
+#endif
+
+//
+// Parameters related to particle number and density
+// 
+//- global number of particles
 #ifndef nparticles
   DECLARE_PARAM(int64_t,nparticles,1000)
 #endif
 
+//- SPH eta parameter, eta = h (rho/m)^1/D (Rosswog'09, eq.51)
+#ifndef sph_eta
+  DECLARE_PARAM(double,sph_eta,1.5)
+#endif
+
+//- if smoothing length is constant: value of the smoothing length
+#ifndef sph_smoothing_length
+  DECLARE_PARAM(double,sph_smoothing_length,-1.0) // POISONED DEFAULT
+#endif
+
+//- minimum interparticle distance (for some initial data problems)
+#ifndef sph_separation
+  DECLARE_PARAM(double,sph_separation,-1.0) // POISONED DEFAULT
+#endif
+
+//
+// I/O parameters
+// 
+//- file prefix for input and intiial data file[s]
+#ifndef initial_data_prefix
+  DECLARE_STRING_PARAM(initial_data_prefix,"initial_data")
+#endif
+
+//- file prefix for HDF5 output data file[s]
+#ifndef output_h5data_prefix
+  DECLARE_STRING_PARAM(output_h5data_prefix,"output_data")
+#endif
+
+//- screen output frequency
+#ifndef out_screen_every
+  DECLARE_PARAM(int32_t,out_screen_every,1)
+#endif
+
+//- scalar reductions output frequency
+#ifndef out_scalar_every
+  DECLARE_PARAM(int32_t,out_scalar_every,10)
+#endif
+
+//- HDF5 output frequency
+#ifndef out_h5data_every
+  DECLARE_PARAM(int32_t,out_h5data_every,10)
+#endif
+
+//
+// Specific apps
+// 
 /// number of Sodtest to run (1..5)
 #ifndef sodtest_num
   DECLARE_PARAM(unsigned short,sodtest_num,1)
@@ -123,16 +193,6 @@ namespace param {
 /// polytropic index
 #ifndef poly_gamma
   DECLARE_PARAM(double,poly_gamma,1.4)
-#endif
-
-/// inital timestep
-#ifndef initial_dt
-  DECLARE_PARAM(double,initial_dt,0.001)
-#endif
-
-/// file prefix for input and intiial data file[s]
-#ifndef initial_data_prefix
-  DECLARE_STRING_PARAM(initial_data_prefix,"initial_data")
 #endif
 
 /// a test boolean parameter
@@ -177,39 +237,82 @@ void set_param(const std::string& param_name,
     str_value = str_value.substr(1,str_value.length()-2);
   istringstream iss(str_value);
 
-  // boolean parameters ------------------------------
+  // for boolean parameters 
   bool lparam_value = (str_value == "yes"
                     or str_value == "'yes'"
                     or str_value == "\"yes\"");
-# ifndef run_job
-    READ_BOOLEAN_PARAM(run_job)
+  // timestepping and iterations --------------------------------------------
+# ifndef initial_iteration
+  READ_NUMERIC_PARAM(initial_iteration)
 # endif
 
-  // integer parameters ------------------------------
 # ifndef final_iteration
-    READ_NUMERIC_PARAM(final_iteration)
+  READ_NUMERIC_PARAM(final_iteration)
 # endif
 
-# ifndef nparticles
-    READ_NUMERIC_PARAM(nparticles)
+# ifndef initial_time
+  READ_NUMERIC_PARAM(initial_time)
 # endif
 
-# ifndef sodtest_num
-    READ_NUMERIC_PARAM(sodtest_num)
-# endif
-
-  // real parameters ---------------------------------
-# ifndef poly_gamma
-    READ_NUMERIC_PARAM(poly_gamma)
+# ifndef final_time
+  READ_NUMERIC_PARAM(final_time)
 # endif
 
 # ifndef initial_dt
-    READ_NUMERIC_PARAM(initial_dt)
+  READ_NUMERIC_PARAM(initial_dt)
 # endif
 
-  // string parameters -------------------------------
+
+  // particle number and density --------------------------------------------
+# ifndef nparticles
+  READ_NUMERIC_PARAM(nparticles)
+# endif
+
+# ifndef sph_eta
+  READ_NUMERIC_PARAM(sph_eta)
+# endif
+
+# ifndef sph_smoothing_length
+  READ_NUMERIC_PARAM(sph_smoothing_length)
+# endif
+
+# ifndef sph_separation
+  READ_NUMERIC_PARAM(sph_separation)
+# endif
+
+
+  // i/o parameters  --------------------------------------------------------
 # ifndef initial_data_prefix
-    READ_STRING_PARAM(initial_data_prefix)
+  READ_STRING_PARAM(initial_data_prefix)
+# endif
+
+# ifndef output_h5data_prefix
+  READ_STRING_PARAM(output_h5data_prefix)
+# endif
+
+# ifndef out_screen_every
+  READ_NUMERIC_PARAM(out_screen_every)
+# endif
+
+# ifndef out_scalar_every
+  READ_NUMERIC_PARAM(out_scalar_every)
+# endif
+
+# ifndef out_h5data_every
+  READ_NUMERIC_PARAM(out_h5data_every)
+# endif
+
+  // specific apps  ---------------------------------------------------------
+# ifndef sodtest_num
+  READ_NUMERIC_PARAM(sodtest_num)
+# endif
+
+# ifndef poly_gamma
+  READ_NUMERIC_PARAM(poly_gamma)
+# endif
+
+# ifndef run_job
+  READ_BOOLEAN_PARAM(run_job)
 # endif
 
   // unknown parameter -------------------------------
