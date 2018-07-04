@@ -183,16 +183,35 @@ namespace param {
 #endif
 
 //
+// Viscosity and equation of state
+// 
+//- polytropic index
+#ifndef poly_gamma
+  DECLARE_PARAM(double,poly_gamma,1.4)
+#endif
+
+//- artificial viscosity: parameter alpha (Rosswog'09, eq.59)
+#ifndef sph_viscosity_alpha
+  DECLARE_PARAM(double,sph_viscosity_alpha,1.0)
+#endif
+
+//- artificial viscosity: parameter beta (Rosswog'09, eq.59)
+#ifndef sph_viscosity_beta
+  DECLARE_PARAM(double,sph_viscosity_beta,2.0)
+#endif
+
+//- artificial viscosity: parameter eta (Rosswog'09, eq.59)
+#ifndef sph_viscosity_beta
+  DECLARE_PARAM(double,sph_viscosity_eta,0.01)
+#endif
+
+
+//
 // Specific apps
 // 
 /// number of Sodtest to run (1..5)
 #ifndef sodtest_num
   DECLARE_PARAM(unsigned short,sodtest_num,1)
-#endif
-
-/// polytropic index
-#ifndef poly_gamma
-  DECLARE_PARAM(double,poly_gamma,1.4)
 #endif
 
 /// a test boolean parameter
@@ -300,6 +319,23 @@ void set_param(const std::string& param_name,
 
 # ifndef out_h5data_every
   READ_NUMERIC_PARAM(out_h5data_every)
+# endif
+
+  // viscosity and equation of state ----------------------------------------
+# ifndef poly_gamma
+  READ_NUMERIC_PARAM(poly_gamma)
+# endif
+
+# ifndef sph_viscosity_alpha
+  READ_NUMERIC_PARAM(sph_viscosity_alpha)
+# endif
+
+# ifndef sph_viscosity_beta
+  READ_NUMERIC_PARAM(sph_viscosity_beta)
+# endif
+
+# ifndef sph_viscosity_beta
+  READ_NUMERIC_PARAM(sph_viscosity_eta)
 # endif
 
   // specific apps  ---------------------------------------------------------
