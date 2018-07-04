@@ -31,7 +31,7 @@ static double smoothing_length;   // constant smoothing length
 static double rho_1, rho_2;           // densities
 static double vx_1, vx_2;             // velocities
 static double pressure_1, pressure_2; // pressures
-static std::string initial_data_file; // = initial_data_prefix + ".h5part"       
+static std::string initial_data_file; // = initial_data_prefix + ".h5part"
 
 void set_derived_params(int rank, int size) {
   using namespace std;
@@ -114,15 +114,14 @@ int main(int argc, char * argv[]){
   }
 
   // set simulation parameters
-  string parfile(argv[1]);
-  read_params(parfile);
+  param::mpi_read_params();
   set_derived_params(rank,size);
 
   // screen output
   clog_one(info) << "Sod test #" << sodtest_num << " in 1D:" << endl
          << " - number of particles: " << nparticles << endl
          << " - particles per core:  " << nparticlesproc << endl
-         << " - generated initial data file: " 
+         << " - generated initial data file: "
          << initial_data_file << endl;
 
   // allocate arrays

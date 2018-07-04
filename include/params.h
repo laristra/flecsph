@@ -394,24 +394,27 @@ void set_param(const std::string& param_name,
  * with "yes" or "no".
  *
  * Example parameter file:
- * --->>> sodtube_N100.par ---------------
-  # Sodtube test #1 for 100 particles
-  nparticles= 1000    # global number of particles
+ * --->>> sodtube_np10k.par ---------------
+  # Sodtube test #1 for 10000 particles
+  nparticles= 10000   # global number of particles
   poly_gamma = 1.4    # polytropic index
   sodtest_num  = 1    # which Sod test to generate
   output_singlefile = yes
   initial_data_prefix  = "sodtube_np10k"
  * ---<<<  --------------------------------
  */
-void read_params(std::string parfile) {
+void read_params(const char * parfile) {
   using namespace std;
   ifstream infile;
   string line;
-  infile.open(parfile.c_str());
+
+  // attempt to open the file
+  infile.open (parfile);
   if (!infile) {
-    cerr << "ERROR: Unable to open file " << parfile << endl;
+    cerr << "ERROR: Unable to open parameter file 'input.par'" << endl;
     exit(1);
   }
+
 
   for (int ln=1; std::getline(infile,line); ++ln) {
 
@@ -448,7 +451,48 @@ void read_params(std::string parfile) {
     set_param(lhs,rhs);
   }
   infile.close();
+
 }
+
+/**
+ * @brief MPI parameter file reader
+ * @todo  Use FleCSI infrastructure instead (e.g. Flecsi_Sim_IO?)
+ */
+void mpi_read_params(const char * parameter_file) {
+  const int MAXLEN = 2048;
+  char buffer[MAXLEN];
+  char * parfile = buffer;
+  int len, rank, size, parfile_free = 0;
+
+  MPI_Comm_size(MPI_COMM_WORLD,&size);
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  MPI_Status status;
+
+  // the char* array pointer is only valid on rank 0;
+  // broadcast parfile name from rank 0 to other ranks
+  if (rank == 0) {
+    strcpy(parfile,parameter_file);
+    len = strlen(parfile);
+  }
+  MPI_Bcast(&len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(parfile, len+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+
+  clog(trace) << "Parameter file name on rank " << rank
+              << ": " << parfile << std::endl;
+
+  // queue ranks to read the parfile sequentially;
+  // wait for a message from previous rank, unless this is rank 0
+  if (rank > 0)
+    MPI_Recv(&parfile_free,1,MPI_INT,rank-1,1,MPI_COMM_WORLD,&status);
+
+  // read parameters
+  read_params (parfile);
+
+  // inform the next rank that the file is free to read
+  if (rank + 1 < size)
+    MPI_Send(&parfile_free,1,MPI_INT,rank+1,1,MPI_COMM_WORLD);
+
+} // mpi_read_param
 
 } // namespace params
 

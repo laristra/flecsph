@@ -48,7 +48,7 @@ namespace flecsi{
 namespace execution{
 
 void
-mpi_init_task(){
+mpi_init_task(const char * parameter_file){
   using namespace param;
   
   int rank;
@@ -56,6 +56,11 @@ mpi_init_task(){
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   clog_set_output_rank(0);
+
+  // set simulation parameters
+  param::mpi_read_params(parameter_file);
+  //set_derived_params(rank,size);
+
   
   // Init if default values are not ok
   physics::dt = 0.0025;
@@ -173,13 +178,8 @@ specialization_tlt_init(int argc, char * argv[]){
     return;
   }
 
-  // set simulation parameters
-  std::string parfile(argv[1]);
-  param::read_params(parfile);
-  //set_derived_params(rank,size);
-
   clog_one(trace) << "In user specialization_driver" << std::endl;
-  flecsi_execute_mpi_task(mpi_init_task); 
+  flecsi_execute_mpi_task(mpi_init_task, argv[1]); 
 } // specialization driver
 
 void 
