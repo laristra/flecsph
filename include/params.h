@@ -51,7 +51,7 @@
  * avoid confusion. Parameters are read-only (const references) in the param::
  * namespace. It is also possible to #define a parameter instead for optimized
  * performance -- in this case, however, this parameter needs to be commented out
- * in the parameter file. 
+ * in the parameter file.
  *
  * To introduce a new parameter:
  *  - add its declaration below using DECLARE_PARAM or DECLARE_STRING_PARAM
@@ -107,7 +107,7 @@ namespace param {
 
 //
 // Parameters controlling timestepping and iterations
-// 
+//
 //- initial iteration
 #ifndef initial_iteration
   DECLARE_PARAM(int64_t,initial_iteration,0)
@@ -133,7 +133,7 @@ namespace param {
 
 //
 // Parameters related to particle number and density
-// 
+//
 //- global number of particles
 #ifndef nparticles
   DECLARE_PARAM(int64_t,nparticles,1000)
@@ -155,8 +155,26 @@ namespace param {
 #endif
 
 //
+// Boundary conditions
+//
+//- TODO: add description
+#ifndef do_boundaries
+  DECLARE_PARAM(bool,do_boundaries,false)
+#endif
+
+//- TODO: add description
+#ifndef stop_boundaries
+  DECLARE_PARAM(bool,stop_boundaries,false)
+#endif
+
+//- TODO: add description
+#ifndef reflect_boundaries
+  DECLARE_PARAM(bool,reflect_boundaries,false)
+#endif
+
+//
 // I/O parameters
-// 
+//
 //- file prefix for input and intiial data file[s]
 #ifndef initial_data_prefix
   DECLARE_STRING_PARAM(initial_data_prefix,"initial_data")
@@ -184,7 +202,7 @@ namespace param {
 
 //
 // Viscosity and equation of state
-// 
+//
 //- polytropic index
 #ifndef poly_gamma
   DECLARE_PARAM(double,poly_gamma,1.4)
@@ -208,15 +226,10 @@ namespace param {
 
 //
 // Specific apps
-// 
+//
 /// number of Sodtest to run (1..5)
 #ifndef sodtest_num
   DECLARE_PARAM(unsigned short,sodtest_num,1)
-#endif
-
-/// a test boolean parameter
-#ifndef run_job
-  DECLARE_PARAM(bool,run_job,false)
 #endif
 // ---
 
@@ -240,7 +253,6 @@ std::string trim(const std::string& str) {
 void set_param(const std::string& param_name,
                const std::string& param_value) {
   using namespace std;
-  bool run_job;
   bool unknown_param = true;
 
   // strip trailing comments
@@ -256,7 +268,7 @@ void set_param(const std::string& param_name,
     str_value = str_value.substr(1,str_value.length()-2);
   istringstream iss(str_value);
 
-  // for boolean parameters 
+  // for boolean parameters
   bool lparam_value = (str_value == "yes"
                     or str_value == "'yes'"
                     or str_value == "\"yes\"");
@@ -299,6 +311,18 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(sph_separation)
 # endif
 
+  // boundary conditions  ---------------------------------------------------
+# ifndef do_boundaries
+  READ_BOOLEAN_PARAM(do_boundaries)
+# endif
+
+# ifndef stop_boundaries
+  READ_BOOLEAN_PARAM(stop_boundaries)
+# endif
+
+# ifndef reflect_boundaries
+  READ_BOOLEAN_PARAM(reflect_boundaries)
+# endif
 
   // i/o parameters  --------------------------------------------------------
 # ifndef initial_data_prefix
@@ -345,10 +369,6 @@ void set_param(const std::string& param_name,
 
 # ifndef poly_gamma
   READ_NUMERIC_PARAM(poly_gamma)
-# endif
-
-# ifndef run_job
-  READ_BOOLEAN_PARAM(run_job)
 # endif
 
   // unknown parameter -------------------------------
