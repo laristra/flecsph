@@ -57,9 +57,6 @@ mpi_init_task(){
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   clog_set_output_rank(0);
   
-  int iteroutput = 1;
-  double maxtime = 10.0; // TODO: this is never used.
-
   // Init if default values are not ok
   physics::dt = 0.0025;
   physics::alpha = 1; 
@@ -146,8 +143,8 @@ mpi_init_task(){
 #endif
 
 #ifdef OUTPUT
-    if(physics::iteration % iteroutput == 0){ 
-      bs.write_bodies("output_sodtube",physics::iteration/iteroutput);
+    if(out_h5data_every > 0 && physics::iteration % out_h5data_every == 0){ 
+      bs.write_bodies("output_sodtube",physics::iteration/out_h5data_every);
     }
 #endif
     ++physics::iteration;
