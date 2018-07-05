@@ -102,7 +102,7 @@
   if (param_name == QUOTE(PNAME)) { \
     strcpy(_##PNAME, str_value.c_str()); unknown_param = false;}
 
-#define SET_PARAM(PNAME,EXPR) _##PNAME = (EXPR); 
+#define SET_PARAM(PNAME,EXPR) _##PNAME = (EXPR);
 // TODO: the macro above won't work for strings!
 
 //////////////////////////////////////////////////////////////////////
@@ -222,14 +222,14 @@ namespace param {
   DECLARE_PARAM(double,sph_viscosity_alpha,1.0)
 #endif
 
-//- artificial viscosity: parameter beta (Rosswog'09, eq.59)
+//- artificial viscosity: parameter beta
 #ifndef sph_viscosity_beta
   DECLARE_PARAM(double,sph_viscosity_beta,2.0)
 #endif
 
-//- artificial viscosity: parameter eta (Rosswog'09, eq.59)
-#ifndef sph_viscosity_beta
-  DECLARE_PARAM(double,sph_viscosity_eta,0.01)
+//- artificial viscosity: parameter eta
+#ifndef sph_viscosity_epsilon
+  DECLARE_PARAM(double,sph_viscosity_epsilon,0.01)
 #endif
 
 
@@ -398,8 +398,8 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(sph_viscosity_beta)
 # endif
 
-# ifndef sph_viscosity_beta
-  READ_NUMERIC_PARAM(sph_viscosity_eta)
+# ifndef sph_viscosity_epsilon
+  READ_NUMERIC_PARAM(sph_viscosity_epsilon)
 # endif
 
   // specific apps  ---------------------------------------------------------
