@@ -43,6 +43,8 @@
 #include "default_physics.h"
 #include "analysis.h"
 
+#define OUTPUT_ANALYSIS
+
 static std::string initial_data_file;  // = initial_data_prefix  + ".h5part"
 static std::string output_h5data_file; // = output_h5data_prefix + ".h5part"
 
