@@ -133,7 +133,7 @@ public:
   void 
   read_bodies(
       const char * filename,
-      int startiteration)
+      const int startiteration)
   {
 
     io::inputDataHDF5(localbodies_,filename,totalnbodies_,localnbodies_,
