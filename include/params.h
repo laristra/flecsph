@@ -256,6 +256,17 @@ namespace param {
   DECLARE_PARAM(double,uint_initial,1.0)
 # endif
 
+// in Sedov test: total injected blast enregy
+# ifndef sedov_blast_energy
+  DECLARE_PARAM(double,sedov_blast_energy,1.0)
+# endif
+
+// in Sedov test: radius of energy injection
+// (in units of particle separation)
+# ifndef sedov_blast_radius
+  DECLARE_PARAM(double,sedov_blast_radius,1.0)
+# endif
+
 // ---
 
 /*!
@@ -406,6 +417,14 @@ void set_param(const std::string& param_name,
 
 # ifndef uint_initial
   READ_NUMERIC_PARAM(uint_initial)
+# endif
+
+# ifndef sedov_blast_energy
+  READ_NUMERIC_PARAM(sedov_blast_energy)
+# endif
+
+# ifndef sedov_blast_radius
+  READ_NUMERIC_PARAM(sedov_blast_radius)
 # endif
 
   // unknown parameter -------------------------------
