@@ -54,7 +54,6 @@ static double rho_in;       // initial density
 static double pressure_in;  // initial pressure
 static double u_in;         // initial specific internal energy
 static double smoothing_length; // constant smoothing length
-static char* fileprefix;    // output file (TODO: replace with a parmeter)
 
 static double u_blast;      // Injected total blast energy
 static double r_blast;      // Radius of injection region
