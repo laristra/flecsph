@@ -45,6 +45,31 @@
 
 #define OUTPUT_ANALYSIS
 
+static std::string initial_data_file;  // = initial_data_prefix  + ".h5part"
+static std::string output_h5data_file; // = output_h5data_prefix + ".h5part"
+
+void set_derived_params() {
+  using namespace param;
+
+  // filenames (this will change for multiple files output)
+  std::ostringstream oss;
+  oss << initial_data_prefix << ".h5part";
+  initial_data_file = oss.str();
+  oss << output_h5data_prefix << ".h5part";
+  output_h5data_file = oss.str();
+
+  // iteration and time
+  physics::iteration = initial_iteration;
+  physics::totaltime = initial_time;
+  physics::dt = initial_dt; // TODO: use particle separation and Courant factor
+
+  // artificial SPH viscosity
+  physics::alpha = 2;       // TODO: sph_viscosity_alpha
+  physics::beta = 2;        // TODO: sph_viscosity_beta
+  physics::epsilon = 0.01;  // TODO: sph_viscosity_eps
+
+}
+
 namespace flecsi{
 namespace execution{
 
@@ -60,18 +85,16 @@ mpi_init_task(const char * parameter_file){
 
   // set simulation parameters
   param::mpi_read_params(parameter_file);
+  set_derived_params();
 
-  // Init if default values are not ok
-  physics::dt = initial_dt;
-  physics::alpha = 2;   // Set to fit value in default_physics.h
-  physics::beta = 2;
-  ///physics::gamma = 1.4; // converted to a parameter (poly_gamma)
-  physics::epsilon = 0.01;
+  // remove output file
+  remove(output_h5data_file.c_str());
 
+  // read input file
   body_system<double,gdimension> bs;
-  bs.read_bodies("hdf5_sedov.h5part",physics::iteration);
+  bs.read_bodies(initial_data_file.c_str(),initial_iteration);
 
-
+  // boundaries
   auto range_boundaries = bs.getRange();
   point_t distance = range_boundaries[1]-range_boundaries[0];
   for(int i = 0; i < gdimension; ++i){
@@ -83,10 +106,8 @@ mpi_init_task(const char * parameter_file){
   clog_one(info) << "Limits: " << physics::min_boundary << " ; "
          << physics::max_boundary << std::endl;
 
-  remove("output_sedov.h5part");
-
 #ifdef OUTPUT
-  bs.write_bodies("output_sedov",physics::iteration);
+  bs.write_bodies(output_h5data_prefix,physics::iteration);
 #endif
 
   double stopt, startt;
@@ -122,7 +143,7 @@ mpi_init_task(const char * parameter_file){
     bs.apply_in_smoothinglength(physics::compute_dudt);
     clog_one(trace) << ".done" << std::endl;
 
-    if(physics::iteration==1){
+    if(physics::iteration == initial_iteration + 1){
       clog_one(trace) << "leapfrog" << std::flush;
       bs.apply_all(physics::leapfrog_integration_first_step);
       clog_one(trace) << ".done" << std::endl;
@@ -142,13 +163,13 @@ mpi_init_task(const char * parameter_file){
     bs.get_all(analysis::compute_lin_momentum);
     bs.get_all(analysis::compute_total_mass);
     // Only add the header in the first iteration
-    analysis::scalar_output("scalar_sedov.dat");
+    analysis::scalar_output("scalar_reductions.dat");
 #endif
 
 #ifdef OUTPUT
     if(out_h5data_every > 0 && physics::iteration % out_h5data_every == 0){
       startt = omp_get_wtime();
-      bs.write_bodies("output_sedov",physics::iteration/out_h5data_every);
+      bs.write_bodies(output_h5data_prefix,physics::iteration/out_h5data_every);
       stopt = omp_get_wtime();
       clog_one(trace) << "Output time: " << omp_get_wtime()-startt << "s"
                       << std::endl;
@@ -163,10 +184,8 @@ mpi_init_task(const char * parameter_file){
 
 flecsi_register_mpi_task(mpi_init_task);
 
-//
-// help message
-//
-void usage() {
+void 
+usage() {
   clog_one(warn) << "Usage: ./sedov <parameter-file.par>"
                  << std::endl << std::flush;
 }

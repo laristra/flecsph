@@ -47,7 +47,7 @@
 static std::string initial_data_file;  // = initial_data_prefix  + ".h5part"
 static std::string output_h5data_file; // = output_h5data_prefix + ".h5part"
 
-void set_derived_params(int rank, int size) {
+void set_derived_params() {
   using namespace param;
 
   // filenames (this will change for multiple files output)
@@ -84,7 +84,7 @@ mpi_init_task(const char * parameter_file){
 
   // set simulation parameters
   param::mpi_read_params(parameter_file);
-  set_derived_params(rank,size);
+  set_derived_params();
 
   // remove output file
   remove(output_h5data_file.c_str());
@@ -140,7 +140,7 @@ mpi_init_task(const char * parameter_file){
     bs.apply_in_smoothinglength(physics::compute_dudt);
     clog_one(trace) << ".done" << std::endl;
 
-    if(physics::iteration==1){
+    if(physics::iteration == initial_iteration + 1){
       clog_one(trace) << "leapfrog" << std::flush;
       bs.apply_all(physics::leapfrog_integration_first_step);
       clog_one(trace) << ".done" << std::endl;

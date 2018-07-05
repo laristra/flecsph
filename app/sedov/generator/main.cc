@@ -40,7 +40,7 @@ I.  Theoretical  Discussion,” Royal Society of London Proceedings Series A
 // help message
 //
 void print_usage() {
-  clog_one(warn) 
+  clog_one(warn)
       << "Initial data generator for the 2D Sedov blast wave" << std::endl
       << "Usage: ./sedov_generator <parameter-file.par>"      << std::endl;
 }
@@ -58,22 +58,28 @@ static char* fileprefix;    // output file (TODO: replace with a parmeter)
 
 static double u_blast;      // Injected total blast energy
 static double r_blast;      // Radius of injection region
+static std::string initial_data_file; // = initial_data_prefix + ".h5part"
 
 void set_derived_params() {
   using namespace param;
 
   // total number of particles
   SET_PARAM(nparticles, sqrt_nparticles*sqrt_nparticles);
-  
+
   ldistance = 0.001;  // Distance between the particles (TODO: sph_separation)
   rho_in = 1;                                       //  (TODO: rho_intial)
   pressure_in = 1.0e-7;                             //  (TODO: pressure_initial)
   u_in = pressure_in/(rho_in*(poly_gamma - 1.0));   //  (TODO: u_intial)
   smoothing_length = 5.*ldistance;                  //  (TODO: sph_smoothing_length)
-  fileprefix = "hdf5_sedov";                        //  (TODO: initial_data_prefix)
 
   u_blast = 1.0;         // Injected total blast energy (TODO: sedov_blast_energy)
   r_blast = ldistance;   // Radius of injection region  (TODO: sedov_blast_radius)
+
+  // file to be generated
+  std::ostringstream oss;
+  oss << initial_data_prefix << ".h5part";
+  initial_data_file = oss.str();
+
 }
 
 
@@ -233,17 +239,14 @@ int main(int argc, char * argv[]){
   }
 
   clog_one(info) << "Real number of particles: " << tparticles << std::endl;
-  clog_one(info) << "Total blast energy (E_blast = u_blast * total mass): " 
+  clog_one(info) << "Total blast energy (E_blast = u_blast * total mass): "
                  << u_blast * mass_blast << std::endl;
 
-  char filename[128];
-  sprintf(filename,"%s.h5part",fileprefix);
   // Remove the previous file
-  remove(filename);
-
+  remove(initial_data_file.c_str());
 
   Flecsi_Sim_IO::HDF5ParticleIO testDataSet;
-  testDataSet.createDataset(filename,MPI_COMM_WORLD);
+  testDataSet.createDataset(initial_data_file.c_str(),MPI_COMM_WORLD);
 
   // add the global attributes
   testDataSet.writeDatasetAttribute("nparticles","int64_t",tparticles);
