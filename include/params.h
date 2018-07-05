@@ -101,6 +101,10 @@
 #define READ_STRING_PARAM(PNAME) \
   if (param_name == QUOTE(PNAME)) { \
     strcpy(_##PNAME, str_value.c_str()); unknown_param = false;}
+
+#define SET_PARAM(PNAME,EXPR) _##PNAME = (EXPR); 
+// TODO: the macro above won't work for strings!
+
 //////////////////////////////////////////////////////////////////////
 
 namespace param {
@@ -236,6 +240,22 @@ namespace param {
 #ifndef sodtest_num
   DECLARE_PARAM(unsigned short,sodtest_num,1)
 #endif
+
+// characteristic density for an initial conditions
+# ifndef rho_initial
+  DECLARE_PARAM(double,rho_initial,1.0)
+# endif
+
+// characteristic pressure
+# ifndef pressure_initial
+  DECLARE_PARAM(double,pressure_initial,1.0)
+# endif
+
+// characteristic specific internal energy
+# ifndef uint_initial
+  DECLARE_PARAM(double,uint_initial,1.0)
+# endif
+
 // ---
 
 /*!
@@ -376,8 +396,16 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(sodtest_num)
 # endif
 
-# ifndef poly_gamma
-  READ_NUMERIC_PARAM(poly_gamma)
+# ifndef rho_initial
+  READ_NUMERIC_PARAM(rho_initial)
+# endif
+
+# ifndef pressure_initial
+  READ_NUMERIC_PARAM(pressure_initial)
+# endif
+
+# ifndef uint_initial
+  READ_NUMERIC_PARAM(uint_initial)
 # endif
 
   // unknown parameter -------------------------------
@@ -487,7 +515,7 @@ void mpi_read_params(const char * parameter_file) {
   MPI_Bcast(parfile, len+1, MPI_CHAR, 0, MPI_COMM_WORLD);
 
   clog(trace) << "Parameter file name on rank " << rank
-              << ": " << parfile << std::endl;
+              << ": " << parfile << std::endl << std::flush;
 
   // queue ranks to read the parfile sequentially;
   // wait for a message from previous rank, unless this is rank 0
