@@ -477,7 +477,7 @@ void read_params(const char * parfile) {
     // skip comments (lines starting with '#' at any position)
     // and blank lines
     bool is_blank = true, is_comment = false;
-    for (int i=0;i<line.length();i++) {
+    for (size_t i=0;i<line.length();i++) {
       char c = line[i];
       is_comment = (c == '#');
       is_blank = (c == ' ' || c == '\t');

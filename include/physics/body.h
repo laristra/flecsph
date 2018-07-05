@@ -93,7 +93,7 @@ public:
 
   point_t getLinMomentum() const { 
     point_t res = {};
-    for(int i = 0 ; i < dimension; ++i){
+    for(size_t i = 0 ; i < dimension; ++i){
       res[i] = velocity_[i] * mass_;
     }
     return res;

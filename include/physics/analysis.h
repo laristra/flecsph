@@ -144,7 +144,7 @@ namespace analysis{
     oss_data << std::setw(14) << physics::iteration
       << std::setw(20) << std::scientific << std::setprecision(12)
       << physics::totaltime << std::setw(20) << total_mass;
-    for(int i = 0 ; i < gdimension ; ++i){
+    for(size_t i = 0 ; i < gdimension ; ++i){
       oss_data
         << std::setw(20) << std::scientific << std::setprecision(12)
         << linear_momentum[i] <<" ";

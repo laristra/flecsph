@@ -457,7 +457,7 @@ namespace physics{
 
     if(stop_boundaries){
       bool stop = false; 
-      for(int i = 0; i < gdimension; ++i){
+      for(size_t i = 0; i < gdimension; ++i){
         if(position[i] < min_boundary[i] ||
           position[i] > max_boundary[i]){
           stop = true; 
