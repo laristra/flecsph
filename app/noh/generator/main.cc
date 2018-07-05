@@ -23,7 +23,7 @@
 #include <algorithm>
 #include <cassert>
 
-#define poly_gamma 5./3. // Gamma for ideal gas eos
+// #define poly_gamma 5./3. // Gamma for ideal gas eos
 #include "params.h"
 #include "hdf5ParticleIO.h"
 #include "kernels.h"
@@ -41,10 +41,6 @@ void print_usage() {
 //
 // derived parameters
 //
-static double ldistance;      // Distance between the particles
-static double rho_in;         // Initial density
-static double P_in;           // Initial pressure
-static double smoothing_length;
 static std::string initial_data_file; // = initial_data_prefix + ".h5part"
 
 void set_derived_params() {
@@ -52,11 +48,7 @@ void set_derived_params() {
 
   // total number of particles
   SET_PARAM(nparticles, sqrt_nparticles*sqrt_nparticles);
-
-  ldistance = 0.001;  // Distance between the particles (TODO: sph_separation)
-  rho_in = 1;                                       //  (TODO: rho_intial)
-  P_in = 1.0e-6;                                    //  (TODO: pressure_initial)
-  smoothing_length = 2.*ldistance;                  //  (TODO: sph_smoothing_length)
+  SET_PARAM(sph_smoothing_length, (2.*sph_separation));
 
   // file to be generated
   std::ostringstream oss;
@@ -100,14 +92,14 @@ int main(int argc, char * argv[]){
   set_derived_params();
 
   // Radius of the disk given the number of particles
-  double radius = (ldistance*(sqrt_nparticles - 1))/2.0;
+  double radius = (sph_separation*(sqrt_nparticles - 1))/2.0;
 
   // Center of disk
-  double x_c = (sqrt_nparticles - 1)*ldistance/2.0;
+  double x_c = (sqrt_nparticles - 1)*sph_separation/2.0;
   double y_c = x_c;
 
   // Particle mass given the initial density and number of particles
-  double m_in = rho_in * radius * radius * 4.0 / nparticles;
+  double m_in = rho_initial * radius * radius * 4.0 / nparticles;
 
   clog_one(info) << "Sphere: r=" << radius << std::endl
                  << "origin: pos=["<<x_c<<";"<<y_c<<"]" << std::endl
@@ -182,11 +174,11 @@ int main(int argc, char * argv[]){
 
     // Checks if particle is in the disk and creates position coordinates
     while (!in_radius(xposition, yposition, x_c, y_c, radius)) {
-      xposition += ldistance;
+      xposition += sph_separation;
       if (xposition > maxxposition) {
         if (yposition > maxyposition) {break;}
         xposition  = x_topproc;
-        yposition += ldistance;
+        yposition += sph_separation;
       }
     }
     if (xposition > maxxposition) {
@@ -199,18 +191,18 @@ int main(int argc, char * argv[]){
     x[part] = xposition;
     y[part] = yposition;
 
-    xposition += ldistance;
+    xposition += sph_separation;
     if (xposition > maxxposition) {
       if (yposition > maxyposition) {break;}
       xposition  = x_topproc;
-      yposition += ldistance;
+      yposition += sph_separation;
     }
 
     // Assign particle pressure
-    P[part] = P_in;
+    P[part] = pressure_initial;
 
     // Assign particle density
-    rho[part] = rho_in;
+    rho[part] = rho_initial;
 
     // Assign particle accelerations
     ax[part] = 0.0;
@@ -224,7 +216,7 @@ int main(int argc, char * argv[]){
     u[part] = P[part]/(poly_gamma-1.)/rho[part];
 
     // Assign particle smoothing length
-    h[part] = smoothing_length;
+    h[part] = sph_smoothing_length;
 
     // Assign particle ID
     id[part] = posid++;

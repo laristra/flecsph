@@ -48,14 +48,6 @@ void print_usage() {
 //
 // derived parameters
 //
-static double ldistance;    // Distance between the particles
-///const double localgamma = 1.4;   // converted to a parameter (poly_gamma)
-static double rho_in;       // initial density
-static double pressure_in;  // initial pressure
-static double u_in;         // initial specific internal energy
-static double smoothing_length; // constant smoothing length
-
-static double u_blast;      // Injected total blast energy
 static double r_blast;      // Radius of injection region
 static std::string initial_data_file; // = initial_data_prefix + ".h5part"
 
@@ -64,15 +56,9 @@ void set_derived_params() {
 
   // total number of particles
   SET_PARAM(nparticles, sqrt_nparticles*sqrt_nparticles);
-
-  ldistance = 0.001;  // Distance between the particles (TODO: sph_separation)
-  rho_in = 1;                                       //  (TODO: rho_intial)
-  pressure_in = 1.0e-7;                             //  (TODO: pressure_initial)
-  u_in = pressure_in/(rho_in*(poly_gamma - 1.0));   //  (TODO: u_intial)
-  smoothing_length = 5.*ldistance;                  //  (TODO: sph_smoothing_length)
-
-  u_blast = 1.0;         // Injected total blast energy (TODO: sedov_blast_energy)
-  r_blast = ldistance;   // Radius of injection region  (TODO: sedov_blast_radius)
+  SET_PARAM(uint_initial, (pressure_initial/(rho_initial*(poly_gamma-1.0))));
+  SET_PARAM(sph_smoothing_length, (5.*sph_separation));
+  r_blast = sedov_blast_radius * sph_separation;   // Radius of injection region
 
   // file to be generated
   std::ostringstream oss;
@@ -118,11 +104,11 @@ int main(int argc, char * argv[]){
   set_derived_params();
 
   // Start on  0 0
-  double radius = (ldistance*(sqrt_nparticles-1.))/2.;
+  double radius = (sph_separation*(sqrt_nparticles-1.))/2.;
 
   // Central coordinates
-  double x_c = (sqrt_nparticles-1.)*ldistance/2.;
-  double y_c = x_c;//(sqrt_nparticles-1)*ldistance/2.;
+  double x_c = (sqrt_nparticles-1.)*sph_separation/2.;
+  double y_c = x_c;//(sqrt_nparticles-1)*sph_separation/2.;
 
   double maxxposition = x_c + radius;
   double maxyposition = y_c + radius;
@@ -183,13 +169,13 @@ int main(int argc, char * argv[]){
 
   for (int64_t part=0; part<nparticles; ++part) {
     while(!in_radius(xposition,yposition,x_c,y_c,radius)){
-      xposition+= ldistance;
+      xposition+= sph_separation;
       if(xposition > maxxposition){
         if(yposition > maxyposition){
           break;
         }
         xposition=x_topproc;
-        yposition+=ldistance;
+        yposition+=sph_separation;
       }
     }
 
@@ -203,17 +189,17 @@ int main(int argc, char * argv[]){
     x[part] = xposition;
     y[part] = yposition;
 
-    xposition+=ldistance;
+    xposition+=sph_separation;
     if(xposition > maxxposition){
       if(yposition > maxyposition){
         break;
       }
       xposition=x_topproc;
-      yposition+=ldistance;
+      yposition+=sph_separation;
     }
 
   }
-  double mass = rho_in * M_PI*pow(radius,2.)/tparticles;
+  double mass = rho_initial * M_PI*pow(radius,2.)/tparticles;
   // Assign density, pressure and specific internal energy to particles,
   // including the particles in the blast zone
   for(int64_t part=0; part<tparticles; ++part){
@@ -225,21 +211,21 @@ int main(int argc, char * argv[]){
        particles_blast++;
        mass_blast += m[part];
     }
-    P[part] = pressure_in;
-    rho[part] = rho_in;
-    u[part] = u_in;
-    h[part] = smoothing_length;
+    P[part] = pressure_initial;
+    rho[part] = rho_initial;
+    u[part] = uint_initial;
+    h[part] = sph_smoothing_length;
     id[part] = posid++;
 
     if(sqrt((x[part]-x_c)*(x[part]-x_c)+(y[part]-y_c)*(y[part]-y_c)) < r_blast){
-       u[part] = u[part]+u_blast/particles_blast;
+       u[part] = u[part]+sedov_blast_energy/particles_blast;
        P[part] = u[part]*rho[part]*(poly_gamma - 1.0);
     }
   }
 
   clog_one(info) << "Real number of particles: " << tparticles << std::endl;
   clog_one(info) << "Total blast energy (E_blast = u_blast * total mass): "
-                 << u_blast * mass_blast << std::endl;
+                 << sedov_blast_energy * mass_blast << std::endl;
 
   // remove the previous file
   remove(initial_data_file.c_str());

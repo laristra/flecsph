@@ -24,10 +24,7 @@ void print_usage() {
 //
 // derived parameters
 //
-static int64_t nparticlesproc;    // number of particles per proc
-static double ldistance;          // particles spacing  (TODO: sph_separation)
-static double smoothing_length;   // constant smoothing length (TODO: sph_smoothing_length)
-
+static int64_t nparticlesproc;        // number of particles per proc
 static double rho_1, rho_2;           // densities
 static double vx_1, vx_2;             // velocities
 static double pressure_1, pressure_2; // pressures
@@ -44,8 +41,8 @@ void set_derived_params(int rank, int size) {
   }
 
   // particle spacing and smoothing length
-  ldistance = 1.0/(double)nparticles;
-  smoothing_length = ldistance*10; // TODO: introduce \eta parameter
+  SET_PARAM(sph_separation, 1.0/(double)nparticles);
+  SET_PARAM(sph_smoothing_length, (sph_separation*10)); // TODO: use sph_eta instead
 
   // test selector
   switch (sodtest_num) {
@@ -155,9 +152,9 @@ int main(int argc, char * argv[]){
 
   // Generate data
   // Find middle to switch m, u and rho
-  double middle = nparticles*ldistance/2.;
+  double middle = nparticles*sph_separation/2.;
   // Find my first particle position
-  double lposition = ldistance*nparticlesproc*rank;
+  double lposition = sph_separation*nparticlesproc*rank;
   // Id of my first particle
   int64_t posid = nparticlesproc*rank;
 
@@ -165,7 +162,7 @@ int main(int argc, char * argv[]){
   double cs = sqrt(poly_gamma*max(pressure_1/rho_1,pressure_2/rho_2));
 
   // The value for constant timestep
-  double timestep = 0.5*ldistance/cs;
+  double timestep = 0.5*sph_separation/cs;
 
 
   for(int64_t part=0; part<nparticlesproc; ++part){
@@ -186,12 +183,12 @@ int main(int argc, char * argv[]){
     u[part] = P[part]/(poly_gamma-1.)/rho[part];
 
     // particle masses and smoothing length
-    m[part] = rho[part]*smoothing_length/10.;
-    h[part] = smoothing_length;
+    m[part] = rho[part]*sph_smoothing_length/10.;
+    h[part] = sph_smoothing_length;
 
     // P,Y,Z,VY,VZ,AX,AY,AZ stay 0
     // Move to the next particle
-    lposition += ldistance;
+    lposition += sph_separation;
 
   } // for part=0..nparticles
 

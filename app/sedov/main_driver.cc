@@ -91,7 +91,7 @@ mpi_init_task(const char * parameter_file){
   // boundaries
   auto range_boundaries = bs.getRange();
   point_t distance = range_boundaries[1]-range_boundaries[0];
-  for(int i = 0; i < gdimension; ++i){
+  for(unsigned short i = 0; i < gdimension; ++i){
     distance[i] = fabs(distance[i]);
   }
   double h = bs.getSmoothinglength();
