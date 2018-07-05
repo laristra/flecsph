@@ -139,6 +139,11 @@ namespace param {
   DECLARE_PARAM(int64_t,nparticles,1000)
 #endif
 
+//- square root of the total number of particles (for 2D setups)
+#ifndef sqrt_nparticles
+  DECLARE_PARAM(int64_t,sqrt_nparticles,100)
+#endif
+
 //- SPH eta parameter, eta = h (rho/m)^1/D (Rosswog'09, eq.51)
 #ifndef sph_eta
   DECLARE_PARAM(double,sph_eta,1.5)
@@ -297,6 +302,10 @@ void set_param(const std::string& param_name,
   // particle number and density --------------------------------------------
 # ifndef nparticles
   READ_NUMERIC_PARAM(nparticles)
+# endif
+
+# ifndef sqrt_nparticles
+  READ_NUMERIC_PARAM(sqrt_nparticles)
 # endif
 
 # ifndef sph_eta
