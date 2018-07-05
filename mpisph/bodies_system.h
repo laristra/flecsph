@@ -248,6 +248,7 @@ public:
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
+    std::ostringstream oss;
 
     // Destroy the previous tree
     if(tree_ !=  nullptr){
@@ -310,11 +311,12 @@ public:
       MPI_COMM_WORLD
       );
 
-    clog_one(trace)<<rank<<" sub_entities before="; 
+    oss << rank << " sub_entities before="; 
     for(auto v: nentities){
-      clog_one(trace)<<v<<";";
+      oss << v << ";";
     }
-    clog_one(trace)<<std::endl;
+    oss << std::endl;
+    clog_one(trace) << oss.str() << std::flush;
 #endif
 
     // Exchnage usefull body_holder from my tree to other processes
@@ -338,11 +340,12 @@ public:
       MPI_COMM_WORLD
       );
 
-    clog_one(trace)<<rank<<" sub_entities after="; 
+    oss << rank << " sub_entities after="; 
     for(auto v: nentities){
-      clog_one(trace)<<v<<";";
+      oss << v << ";";
     }
-    clog_one(trace)<<std::endl;
+    oss << std::endl;
+    clog_one(trace) << oss.str() << std::flush;
 #endif
     
     tcolorer_.mpi_compute_ghosts(*tree_,bodies_,smoothinglength_/*,range_*/);
