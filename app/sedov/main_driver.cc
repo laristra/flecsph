@@ -49,8 +49,8 @@ namespace flecsi{
 namespace execution{
 
 void
-mpi_init_task(int totaliterations){
-  // TODO find a way to use the file name from the specialiszation_driver
+mpi_init_task(const char * parameter_file){
+  using namespace param;
   
   int rank;
   int size;
@@ -58,16 +58,13 @@ mpi_init_task(int totaliterations){
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   clog_set_output_rank(0);
   
-  int iteroutput = 10;
-  //double totaltime = 0.0;
-  double maxtime = 10.0;
-
+  // set simulation parameters
+  param::mpi_read_params(parameter_file);
+  
   // Init if default values are not ok
-  physics::dt = 0.001;
+  physics::dt = initial_dt;
   physics::alpha = 2;   // Set to fit value in default_physics.h 
   physics::beta = 2; 
-  physics::do_boundaries = false;
-  physics::stop_boundaries = false;
   ///physics::gamma = 1.4; // converted to a parameter (poly_gamma)
   physics::epsilon = 0.01;
 
@@ -149,35 +146,44 @@ mpi_init_task(int totaliterations){
 #endif
 
 #ifdef OUTPUT
-    MPI_Barrier(MPI_COMM_WORLD);
-    startt = omp_get_wtime();
-    if(physics::iteration % iteroutput == 0){ 
-      bs.write_bodies("output_sedov",physics::iteration/iteroutput);
+    if(out_h5data_every > 0 && physics::iteration % out_h5data_every == 0){ 
+      startt = omp_get_wtime();
+      bs.write_bodies("output_sedov",physics::iteration/out_h5data_every);
+      stopt = omp_get_wtime();
+      clog_one(trace) << "Output time: " << omp_get_wtime()-startt << "s" 
+                      << std::endl;
     }
-    stopt = omp_get_wtime();
-    clog_one(trace) << "Output time: " << omp_get_wtime()-startt << "s" << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
     ++physics::iteration;
     physics::totaltime += physics::dt;
     
-  }while(physics::iteration<totaliterations);
+  } while(physics::iteration <= final_iteration);
 }
 
 flecsi_register_mpi_task(mpi_init_task);
 
+//
+// help message
+//
+void usage() {
+  clog_one(warn) << "Usage: ./sedov <parameter-file.par>" 
+                 << std::endl << std::flush;
+}
+
 void 
 specialization_tlt_init(int argc, char * argv[]){
+  clog_one(trace) << "In user specialization_driver" << std::endl;
   
-  // Default start at iteration 0
-  int totaliterations = 100;
-  if(argc == 2){
-    totaliterations = atoi(argv[1]);
+  // check options list: exactly one option is allowed
+  if (argc != 2) {
+    clog_one(error) << "ERROR: parameter file not specified!" << std::endl;
+    usage();
+    return;
   }
 
-  clog_one(trace) << "In user specialization_driver" << std::endl;
+  flecsi_execute_mpi_task(mpi_init_task, argv[1]); 
 
-  flecsi_execute_mpi_task(mpi_init_task,totaliterations); 
 } // specialization driver
 
 void 

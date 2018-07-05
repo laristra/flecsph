@@ -65,7 +65,7 @@ mpi_init_task(int startiteration){
   physics::dt = 1.0e-10;
   physics::alpha = 1; 
   physics::beta = 2; 
-  physics::stop_boundaries = true;
+  //physics::stop_boundaries = true; // converted to a parameter
   physics::min_boundary = {0.1};
   physics::max_boundary = {1.0};
   ///physics::gamma = 5./3.; // converted to a parameter (poly_gamma)

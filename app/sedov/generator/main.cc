@@ -37,6 +37,15 @@ I.  Theoretical  Discussion,” Royal Society of London Proceedings Series A
 
 
 //
+// help message
+//
+void print_usage() {
+  clog_one(warn) 
+      << "Initial data generator for the 2D Sedov blast wave" << std::endl
+      << "Usage: ./sedov_generator <parameter-file.par>"      << std::endl;
+}
+
+//
 // derived parameters
 //
 static double ldistance;    // Distance between the particles
@@ -50,18 +59,21 @@ static char* fileprefix;    // output file (TODO: replace with a parmeter)
 static double u_blast;      // Injected total blast energy
 static double r_blast;      // Radius of injection region
 
-void set_derived_params(int rank, int size) {
+void set_derived_params() {
   using namespace param;
 
-  ldistance = 0.001;  // Distance between the particles
-  rho_in = 1;
-  pressure_in = 1.0e-7;
-  u_in = pressure_in/(rho_in*(poly_gamma - 1.0));
-  smoothing_length = 5.*ldistance;
-  fileprefix = "hdf5_sedov";
+  // total number of particles
+  SET_PARAM(nparticles, sqrt_nparticles*sqrt_nparticles);
+  
+  ldistance = 0.001;  // Distance between the particles (TODO: sph_separation)
+  rho_in = 1;                                       //  (TODO: rho_intial)
+  pressure_in = 1.0e-7;                             //  (TODO: pressure_initial)
+  u_in = pressure_in/(rho_in*(poly_gamma - 1.0));   //  (TODO: u_intial)
+  smoothing_length = 5.*ldistance;                  //  (TODO: sph_smoothing_length)
+  fileprefix = "hdf5_sedov";                        //  (TODO: initial_data_prefix)
 
-  u_blast = 1.0;         // Injected total blast energy
-  r_blast = ldistance;   // Radius of injection region
+  u_blast = 1.0;         // Injected total blast energy (TODO: sedov_blast_energy)
+  r_blast = ldistance;   // Radius of injection region  (TODO: sedov_blast_radius)
 }
 
 
@@ -79,7 +91,7 @@ in_radius(
 int main(int argc, char * argv[]){
   using namespace param;
 
-  int64_t sparticles = 101;
+  // launch MPI
   int rank, size;
   int provided;
   MPI_Init_thread(&argc,&argv,MPI_THREAD_MULTIPLE,&provided);
@@ -88,37 +100,34 @@ int main(int argc, char * argv[]){
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   clog_set_output_rank(0);
 
+  // check options list: exactly one option is allowed
   if (argc != 2) {
-    clog_one(warn) << "WARNING: you have not specified sqrt of the number of particles!"
-           << std::endl << "Usage: ./sedov_generator [sParticles]" << std::endl
-           << " - generates initial conditions with  sParticles^2 particles."
-           << std::endl << "Generating with the default value: sparticles = "
-           << sparticles << std::endl;
-  }else{
-    sparticles = atoll(argv[1]);
-    clog_one(info) << "Square root of the number of particles: sparticles = "
-           << sparticles << std::endl;
+    clog_one(error) << "ERROR: parameter file not specified!" << std::endl;
+    print_usage();
+    MPI_Finalize();
+    exit(0);
   }
 
-  set_derived_params(rank,size);
-  int64_t nparticles = sparticles*sparticles;
+  // set simulation parameters
+  param::mpi_read_params(argv[1]);
+  set_derived_params();
 
   // Start on  0 0
-  double radius = (ldistance*(sparticles-1.))/2.;
+  double radius = (ldistance*(sqrt_nparticles-1.))/2.;
 
   // Central coordinates
-  double x_c = (sparticles-1.)*ldistance/2.;
-  double y_c = x_c;//(sparticles-1)*ldistance/2.;
+  double x_c = (sqrt_nparticles-1.)*ldistance/2.;
+  double y_c = x_c;//(sqrt_nparticles-1)*ldistance/2.;
 
-  double maxxposition = x_c+radius;
-  double maxyposition = y_c+radius;
+  double maxxposition = x_c + radius;
+  double maxyposition = y_c + radius;
 
   clog_one(info) <<"Sphere: r="<<radius<<" pos=["<<x_c<<";"<<y_c<<"]"<<std::endl
          << "Attempting to generate " << nparticles << " particles" << std::endl;
 
 
-  double x_topproc = x_c-radius;
-  double y_topproc = y_c-radius;
+  double x_topproc = x_c - radius;
+  double y_topproc = y_c - radius;
 
   // Position
   double* x = new double[nparticles]();
@@ -153,8 +162,8 @@ int main(int argc, char * argv[]){
   // Header data
   // the number of particles = nparticles
   // The value for constant timestep
-  double timestep = 0.001;
-  int dimension = 2;
+  double timestep = 0.001;  // TODO: replace with parameter initial_dt
+  int dimension = 2;        // TODO: use global dimension parameter
 
   // Number of particles in the blast zone
   int64_t particles_blast = 0;
@@ -224,7 +233,8 @@ int main(int argc, char * argv[]){
   }
 
   clog_one(info) << "Real number of particles: " << tparticles << std::endl;
-  clog_one(info) << "Total blast energy (E_blast = u_blast * total mass): " << u_blast * mass_blast << std::endl;
+  clog_one(info) << "Total blast energy (E_blast = u_blast * total mass): " 
+                 << u_blast * mass_blast << std::endl;
 
   char filename[128];
   sprintf(filename,"%s.h5part",fileprefix);

@@ -25,8 +25,8 @@ void print_usage() {
 // derived parameters
 //
 static int64_t nparticlesproc;    // number of particles per proc
-static double ldistance;          // particles spacing
-static double smoothing_length;   // constant smoothing length
+static double ldistance;          // particles spacing  (TODO: sph_separation)
+static double smoothing_length;   // constant smoothing length (TODO: sph_smoothing_length)
 
 static double rho_1, rho_2;           // densities
 static double vx_1, vx_2;             // velocities
@@ -114,7 +114,7 @@ int main(int argc, char * argv[]){
   }
 
   // set simulation parameters
-  param::mpi_read_params();
+  param::mpi_read_params(argv[1]);
   set_derived_params(rank,size);
 
   // screen output

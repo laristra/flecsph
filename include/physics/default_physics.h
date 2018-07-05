@@ -34,6 +34,7 @@
 #include "tree.h"
 
 namespace physics{
+  using namespace param;
 
   /**
    * Default values
@@ -41,9 +42,6 @@ namespace physics{
    * to be application-specific. 
    * \TODO add a parameter file to be read in the main_driver
    */
-  bool do_boundaries = false;
-  bool stop_boundaries = false; 
-  bool reflect_boundaries = false;
   point_t max_boundary = {};
   point_t min_boundary = {};
   double dt = 0.0;
