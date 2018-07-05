@@ -4,7 +4,7 @@
  *~--------------------------------------------------------------------------~*/
 
  /*~--------------------------------------------------------------------------~*
- * 
+ *
  * /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
  * /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
  * /@@       /@@  @@@@@  @@    // /@@       /@@   /@@/@@     /@@
@@ -12,7 +12,7 @@
  * /@@////   /@@/@@@@@@@/@@       ////////@@/@@////  /@@//////@@
  * /@@       /@@/@@//// //@@    @@       /@@/@@      /@@     /@@
  * /@@       @@@//@@@@@@ //@@@@@@  @@@@@@@@ /@@      /@@     /@@
- * //       ///  //////   //////  ////////  //       //      //  
+ * //       ///  //////   //////  ////////  //       //      //
  *
  *~--------------------------------------------------------------------------~*/
 
@@ -20,9 +20,9 @@
  * @file main_driver.cc
  * @author Julien Loiseau
  * @date April 2017
- * @brief Specialization and Main driver used in FleCSI. 
- * The Specialization Driver is normally used to register data and the main 
- * code is in the Driver.  
+ * @brief Specialization and Main driver used in FleCSI.
+ * The Specialization Driver is normally used to register data and the main
+ * code is in the Driver.
  */
 
 #include <iostream>
@@ -51,20 +51,20 @@ namespace execution{
 void
 mpi_init_task(const char * parameter_file){
   using namespace param;
-  
+
   int rank;
   int size;
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   clog_set_output_rank(0);
-  
+
   // set simulation parameters
   param::mpi_read_params(parameter_file);
-  
+
   // Init if default values are not ok
   physics::dt = initial_dt;
-  physics::alpha = 2;   // Set to fit value in default_physics.h 
-  physics::beta = 2; 
+  physics::alpha = 2;   // Set to fit value in default_physics.h
+  physics::beta = 2;
   ///physics::gamma = 1.4; // converted to a parameter (poly_gamma)
   physics::epsilon = 0.01;
 
@@ -72,7 +72,7 @@ mpi_init_task(const char * parameter_file){
   bs.read_bodies("hdf5_sedov.h5part",physics::iteration);
 
 
-  auto range_boundaries = bs.getRange(); 
+  auto range_boundaries = bs.getRange();
   point_t distance = range_boundaries[1]-range_boundaries[0];
   for(int i = 0; i < gdimension; ++i){
     distance[i] = fabs(distance[i]);
@@ -83,62 +83,62 @@ mpi_init_task(const char * parameter_file){
   clog_one(info) << "Limits: " << physics::min_boundary << " ; "
          << physics::max_boundary << std::endl;
 
-  remove("output_sedov.h5part"); 
+  remove("output_sedov.h5part");
 
 #ifdef OUTPUT
   bs.write_bodies("output_sedov",physics::iteration);
 #endif
 
-  double stopt, startt; 
+  double stopt, startt;
 
-  ++physics::iteration; 
+  ++physics::iteration;
   do
-  { 
+  {
     analysis::screen_output();
     MPI_Barrier(MPI_COMM_WORLD);
 
-    // Compute and prepare the tree for this iteration 
-    // - Compute the Max smoothing length 
+    // Compute and prepare the tree for this iteration
+    // - Compute the Max smoothing length
     // - Compute the range of the system using the smoothinglength
-    // - Cmopute the keys 
-    // - Distributed qsort and sharing 
+    // - Cmopute the keys
+    // - Distributed qsort and sharing
     // - Generate and feed the tree
-    // - Exchange branches for smoothing length 
-    // - Compute and exchange ghosts in real smoothing length 
+    // - Exchange branches for smoothing length
+    // - Compute and exchange ghosts in real smoothing length
     bs.update_iteration();
-   
-    clog_one(trace) << "compute_density_pressure_soundspeed" << std::flush; 
+
+    clog_one(trace) << "compute_density_pressure_soundspeed" << std::flush;
     bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
     clog_one(trace) << ".done" << std::endl;
-    
-    // Refresh the neighbors within the smoothing length 
-    bs.update_neighbors(); 
 
-    clog_one(trace) << "Hydro acceleration" << std::flush; 
+    // Refresh the neighbors within the smoothing length
+    bs.update_neighbors();
+
+    clog_one(trace) << "Hydro acceleration" << std::flush;
     bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
     clog_one(trace) << ".done" << std::endl;
- 
-    clog_one(trace) << "Internalenergy"<<std::flush; 
+
+    clog_one(trace) << "Internalenergy"<<std::flush;
     bs.apply_in_smoothinglength(physics::compute_dudt);
     clog_one(trace) << ".done" << std::endl;
-   
-    if(physics::iteration==1){ 
-      clog_one(trace) << "leapfrog" << std::flush; 
+
+    if(physics::iteration==1){
+      clog_one(trace) << "leapfrog" << std::flush;
       bs.apply_all(physics::leapfrog_integration_first_step);
       clog_one(trace) << ".done" << std::endl;
     }else{
       if(rank==0)
-      clog_one(trace) << "leapfrog" << std::flush; 
+      clog_one(trace) << "leapfrog" << std::flush;
       bs.apply_all(physics::leapfrog_integration);
       clog_one(trace) << ".done" << std::endl;
     }
 
-    clog_one(trace) << "dudt integration" << std::flush; 
+    clog_one(trace) << "dudt integration" << std::flush;
     bs.apply_all(physics::dudt_integration);
     clog_one(trace) << ".done" << std::endl;
 
 #ifdef OUTPUT_ANALYSIS
-    // Compute the analysis values based on physics 
+    // Compute the analysis values based on physics
     bs.get_all(analysis::compute_lin_momentum);
     bs.get_all(analysis::compute_total_mass);
     // Only add the header in the first iteration
@@ -146,18 +146,18 @@ mpi_init_task(const char * parameter_file){
 #endif
 
 #ifdef OUTPUT
-    if(out_h5data_every > 0 && physics::iteration % out_h5data_every == 0){ 
+    if(out_h5data_every > 0 && physics::iteration % out_h5data_every == 0){
       startt = omp_get_wtime();
       bs.write_bodies("output_sedov",physics::iteration/out_h5data_every);
       stopt = omp_get_wtime();
-      clog_one(trace) << "Output time: " << omp_get_wtime()-startt << "s" 
+      clog_one(trace) << "Output time: " << omp_get_wtime()-startt << "s"
                       << std::endl;
     }
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
     ++physics::iteration;
     physics::totaltime += physics::dt;
-    
+
   } while(physics::iteration <= final_iteration);
 }
 
@@ -167,14 +167,14 @@ flecsi_register_mpi_task(mpi_init_task);
 // help message
 //
 void usage() {
-  clog_one(warn) << "Usage: ./sedov <parameter-file.par>" 
+  clog_one(warn) << "Usage: ./sedov <parameter-file.par>"
                  << std::endl << std::flush;
 }
 
-void 
+void
 specialization_tlt_init(int argc, char * argv[]){
   clog_one(trace) << "In user specialization_driver" << std::endl;
-  
+
   // check options list: exactly one option is allowed
   if (argc != 2) {
     clog_one(error) << "ERROR: parameter file not specified!" << std::endl;
@@ -182,11 +182,11 @@ specialization_tlt_init(int argc, char * argv[]){
     return;
   }
 
-  flecsi_execute_mpi_task(mpi_init_task, argv[1]); 
+  flecsi_execute_mpi_task(mpi_init_task, argv[1]);
 
 } // specialization driver
 
-void 
+void
 driver(int argc,  char * argv[]){
   clog_one(trace) << "In user driver" << std::endl;
 } // driver
