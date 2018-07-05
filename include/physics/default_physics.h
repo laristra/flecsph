@@ -45,12 +45,8 @@ namespace physics{
   point_t max_boundary = {};
   point_t min_boundary = {};
   double dt = 0.0;
-  double alpha = 2; 
-  double beta = 2; 
-  double epsilon = 0.01;
   double damp = 1;
   double totaltime = 0.0;
-  double eta = 0.01;
   double A = 1.0;
   double MAC = 1.;
   int64_t iteration = 0;
@@ -194,13 +190,14 @@ namespace physics{
    *
    * @return     Contribution for mu_ij of this neighbor
    *
-   * @uses       epsilon  global parmeter
+   * @uses       epsilon  global parameter
    */
   double 
   mu(
       body* source, 
       body* nb)
   {  
+    using namespace param;
     double result = 0.0;
     double h_ij = .5*(source->getSmoothinglength()+nb->getSmoothinglength()); 
     space_vector_t vecVelocity = flecsi::point_to_vector(
@@ -212,7 +209,7 @@ namespace physics{
     if(dotproduct >= 0.0)
       return result;
     double dist = flecsi::distance(source->getPosition(),nb->getPosition());
-    result = h_ij * dotproduct / (dist*dist + epsilon*h_ij*h_ij);
+    result = h_ij*dotproduct / (dist*dist + sph_viscosity_epsilon*h_ij*h_ij);
     
     mpi_assert(result < 0.0);
     return result; 
@@ -233,11 +230,13 @@ namespace physics{
     body* source, 
     body* nb)
   {
+    using namespace param;
     double rho_ij = (1./2.)*(source->getDensity()+nb->getDensity());
     double c_ij = (1./2.)*
         (source->getSoundspeed()+nb->getSoundspeed());
     double mu_ij = mu(source,nb);
-    double res = (-alpha*c_ij*mu_ij+beta*mu_ij*mu_ij)/rho_ij;
+    double res = ( -sph_viscosity_alpha*c_ij*mu_ij
+                  + sph_viscosity_beta*mu_ij*mu_ij)/rho_ij;
     mpi_assert(res>=0.0);
     return res;
   }
@@ -380,8 +379,8 @@ namespace physics{
       double soundspeed_ij = (1./2.)*
         (source->getSoundspeed()+nb->getSoundspeed());
       double mu_ij = mu(source,nb);
-      double viscosity = (-alpha*mu_ij*soundspeed_ij+beta*mu_ij*mu_ij)
-        /density_ij;
+      double viscosity = ( -sph_viscosity_alpha*mu_ij*soundspeed_ij
+                          + sph_viscosity_beta*mu_ij*mu_ij)/density_ij;
       mpi_assert(viscosity>=0.0);
 
       point_t vecPosition = source->getPosition()-nb->getPosition();
@@ -628,8 +627,8 @@ namespace physics{
     }
     double dt2 = source->getSmoothinglength()/
         (source->getSoundspeed()+
-         1.2*alpha*source->getSoundspeed()+
-         1.2*beta*max_mu_ij);
+         1.2*sph_viscosity_alpha*source->getSoundspeed()+
+         1.2*sph_viscosity_beta*max_mu_ij);
     dt2 *= 0.1;
 
     double min = std::min(dt1,dt2);

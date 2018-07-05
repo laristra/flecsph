@@ -62,12 +62,6 @@ void set_derived_params() {
   physics::iteration = initial_iteration;
   physics::totaltime = initial_time;
   physics::dt = initial_dt; // TODO: use particle separation and Courant factor
-
-  // artificial SPH viscosity
-  physics::alpha = 2;       // TODO: sph_viscosity_alpha
-  physics::beta = 2;        // TODO: sph_viscosity_beta
-  physics::epsilon = 0.01;  // TODO: sph_viscosity_eps
-
 }
 
 namespace flecsi{

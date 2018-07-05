@@ -241,7 +241,7 @@ int main(int argc, char * argv[]){
   clog_one(info) << "Total blast energy (E_blast = u_blast * total mass): "
                  << u_blast * mass_blast << std::endl;
 
-  // Remove the previous file
+  // remove the previous file
   remove(initial_data_file.c_str());
 
   Flecsi_Sim_IO::HDF5ParticleIO testDataSet;
