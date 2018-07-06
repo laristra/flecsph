@@ -73,6 +73,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include "cinchlog.h"
+#include "mpi.h"
 
 #ifndef PARAMS_H
 #define PARAMS_H
