@@ -3,107 +3,36 @@
  * All rights reserved.
  *~--------------------------------------------------------------------------~*/
 
+
 #include <iostream>
 #include <algorithm>
 #include <cassert>
 
+#include "params.h"
 #include "hdf5ParticleIO.h"
 #include "kernels.h"
-
-
-namespace simulation_params {
-  int64_t nparticles;        // global number of particles
-  int64_t nparticlesproc;    // number of particles per proc
-  double ldistance;          // particles spacing
-  double localgamma;         // polytropic index
-  double smoothing_length;   // constant smoothing length
-
-  // test conditions for two sides of the domain
-  int    sodtest_num;            // which Sod test to generate
-  double rho_1, rho_2;           // densities
-  double vx_1, vx_2;             // velocities
-  double pressure_1, pressure_2; // pressures
-
-  // output filename
-  const char* fileprefix = "hdf5_sodtube";
-  char output_filename[128];
-}
-
-
-//
-// setup parameter defaults
-//
-void set_default_param(int rank, int size) {
-  using namespace simulation_params;
-
-  // number of particles
-  nparticles = 1000;
-
-  // equation of state parameters (one so far)
-  localgamma = 1.4;//5./3.;
-
-  // run Sod test 1 by default
-  sodtest_num = 1;
-}
-
 
 //
 // help message
 //
-void print_usage(int rank) {
+void print_usage() {
   using namespace std;
   clog_one(warn) << "Initial data generator for Sod shocktube test in 1D" << endl
-         << "Usage: ./sodtube_generator [OPTIONS]" << endl
-         << " -h: this help" << endl
-         << " -n <number of particles>" << endl
-         << " -t <Sod test (integer from 1 to 5)>" << endl;
+         << "Usage: ./sodtube_generator <parameter-file.par>" << endl;
 }
 
+//
+// derived parameters
+//
+static int64_t nparticlesproc;        // number of particles per proc
+static double rho_1, rho_2;           // densities
+static double vx_1, vx_2;             // velocities
+static double pressure_1, pressure_2; // pressures
+static std::string initial_data_file; // = initial_data_prefix + ".h5part"
 
-//
-// option parser
-//
-void parse_command_line_options(int rank, int size, int argc, char* argv[]) {
+void set_derived_params(int rank, int size) {
   using namespace std;
-  using namespace simulation_params;
-
-  for (int i=1; i<argc; ++i)
-    if (argv[i][0] == '-')
-      switch(argv[i][1]) {
-      case 'h':
-        print_usage(rank);
-        MPI_Finalize();
-        exit(0);
-        break;
-
-      case 'n':
-        nparticles = atoll(argv[++i]);
-        nparticlesproc = nparticles/size;
-        if(rank==size-1)
-          nparticlesproc = nparticles - nparticlesproc*(size-1);
-        break;
-
-      case 't':
-        sodtest_num = atoi(argv[++i]);
-        assert(sodtest_num>=1 && sodtest_num<=6);
-        break;
-
-      default:
-        clog_one(error) << "ERROR: unknown option '-" << argv[i][1] << "'" << endl;
-        MPI_Finalize();
-        exit(-1);
-
-      } // switch argv[i][1]
-
-}
-
-
-//
-// setup simulation parameters
-//
-void set_param(int rank, int size) {
-  using namespace std;
-  using namespace simulation_params;
+  using namespace param;
 
   // number of particles per core
   nparticlesproc = nparticles/size + 1;
@@ -112,8 +41,8 @@ void set_param(int rank, int size) {
   }
 
   // particle spacing and smoothing length
-  ldistance = 1.0/(double)nparticles;
-  smoothing_length = ldistance*10; // TODO: introduce \eta parameter
+  SET_PARAM(sph_separation, 1.0/(double)nparticles);
+  SET_PARAM(sph_smoothing_length, (sph_separation*10)); // TODO: use sph_eta instead
 
   // test selector
   switch (sodtest_num) {
@@ -154,17 +83,19 @@ void set_param(int rank, int size) {
       exit(-1);
   }
 
-  // output file
-  sprintf(output_filename,"%s.h5part",fileprefix);
+  // file to be generated
+  std::ostringstream oss;
+  oss << initial_data_prefix << ".h5part";
+  initial_data_file = oss.str();
 
 }
 
 //----------------------------------------------------------------------------//
 int main(int argc, char * argv[]){
   using namespace std;
-  using namespace simulation_params;
+  using namespace param;
 
-  // launch MPI 
+  // launch MPI
   int rank, size, provided;
   MPI_Init_thread(&argc,&argv,MPI_THREAD_MULTIPLE,&provided);
   assert(provided>=MPI_THREAD_MULTIPLE);
@@ -172,16 +103,23 @@ int main(int argc, char * argv[]){
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   clog_set_output_rank(0);
 
+  // check options list: exactly one option is allowed
+  if (argc != 2) {
+    print_usage();
+    MPI_Finalize();
+    exit(0);
+  }
+
   // set simulation parameters
-  set_default_param(rank,size);
-  parse_command_line_options(rank,size,argc,argv);
-  set_param(rank,size);
+  param::mpi_read_params(argv[1]);
+  set_derived_params(rank,size);
 
   // screen output
   clog_one(info) << "Sod test #" << sodtest_num << " in 1D:" << endl
          << " - number of particles: " << nparticles << endl
          << " - particles per core:  " << nparticlesproc << endl
-         << " - output file: " << output_filename << endl;
+         << " - generated initial data file: "
+         << initial_data_file << endl;
 
   // allocate arrays
 
@@ -214,17 +152,17 @@ int main(int argc, char * argv[]){
 
   // Generate data
   // Find middle to switch m, u and rho
-  double middle = nparticles*ldistance/2.;
+  double middle = nparticles*sph_separation/2.;
   // Find my first particle position
-  double lposition = ldistance*nparticlesproc*rank;
+  double lposition = sph_separation*nparticlesproc*rank;
   // Id of my first particle
   int64_t posid = nparticlesproc*rank;
 
   // max. value for the speed of sound
-  double cs = sqrt(localgamma*max(pressure_1/rho_1,pressure_2/rho_2));
+  double cs = sqrt(poly_gamma*max(pressure_1/rho_1,pressure_2/rho_2));
 
   // The value for constant timestep
-  double timestep = 0.5*ldistance/cs;
+  double timestep = 0.5*sph_separation/cs;
 
 
   for(int64_t part=0; part<nparticlesproc; ++part){
@@ -242,25 +180,25 @@ int main(int argc, char * argv[]){
     }
 
     // compute internal energy using gamma-law eos
-    u[part] = P[part]/(localgamma-1.)/rho[part];
+    u[part] = P[part]/(poly_gamma-1.)/rho[part];
 
     // particle masses and smoothing length
-    m[part] = rho[part]*smoothing_length/10.;
-    h[part] = smoothing_length;
+    m[part] = rho[part]*sph_smoothing_length/10.;
+    h[part] = sph_smoothing_length;
 
     // P,Y,Z,VY,VZ,AX,AY,AZ stay 0
     // Move to the next particle
-    lposition += ldistance;
+    lposition += sph_separation;
 
   } // for part=0..nparticles
 
   // delete the output file if exists
-  remove(output_filename);
+  remove(initial_data_file.c_str());
 
   // Header data
   // the number of particles = nparticles
   Flecsi_Sim_IO::HDF5ParticleIO testDataSet;
-  testDataSet.createDataset(output_filename,MPI_COMM_WORLD);
+  testDataSet.createDataset(initial_data_file,MPI_COMM_WORLD);
 
   // add the global attributes
   testDataSet.writeDatasetAttribute("nparticles","int64_t",nparticles);

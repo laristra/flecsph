@@ -37,6 +37,7 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/data/data.h"
 
+#include "params.h"
 #include <bodies_system.h>
 
 #include "default_physics.h"
@@ -62,13 +63,13 @@ mpi_init_task(int startiteration){
 
   // Init if default values are not ok
   physics::dt = 1.0e-10;
-  physics::alpha = 1; 
-  physics::beta = 2; 
-  physics::stop_boundaries = true;
+  ///physics::alpha = 1; // converted to a parameter: sph_viscosity_alpha
+  ///physics::beta = 2;  // converted to sph_viscosity_beta
+  ///physics::stop_boundaries = true; // converted to a parameter
   physics::min_boundary = {0.1};
   physics::max_boundary = {1.0};
-  physics::gamma = 5./3.;
-  physics::epsilon = 0.01;
+  ///physics::gamma = 5./3.; // converted to a parameter (poly_gamma)
+  ///physics::epsilon = 0.01; // converted to sph_viscosity_epsilon
 
   body_system<double,gdimension> bs;
   bs.read_bodies("bwd_id.h5part",startiteration);

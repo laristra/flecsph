@@ -1,0 +1,17 @@
+#
+# Sodtube test #1 for 1000 particles
+#
+# initial data
+  nparticles= 1000    # global number of particles                                                                    
+  poly_gamma = 1.4    # polytropic index
+  sodtest_num  = 1    # which test to generate                                                                    
+  initial_data_prefix = "sodtube_t1_n100"
+
+# evolution
+  initial_dt = 0.0025
+  final_iteration = 50
+  out_screen_every = 1
+  out_scalar_every = 10
+  out_h5data_every = 10
+  output_h5data_prefix = "sodtube_evolution"
+

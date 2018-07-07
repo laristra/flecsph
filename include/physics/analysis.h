@@ -23,10 +23,11 @@
  * @brief Basic analysis
  */
 
-#ifndef _physics_analysis_h_
-#define _physics_analysis_h_
+#ifndef _PHYSICS_ANALYSIS_H_
+#define _PHYSICS_ANALYSIS_H_
 
 #include <vector>
+#include "params.h"
 
 //#include "physics.h"
 
@@ -74,13 +75,17 @@ namespace analysis{
   void
   screen_output() 
   {
+    using namespace param;
+    static int count = 0;
     const int screen_length = 40;  
-    (physics::iteration-1)%screen_length  ||
-    clog_one(info)<< "#-- iteration:               time:" <<std::endl;
-    clog_one(info)
-      << std::setw(14) << physics::iteration
-      << std::setw(20) << std::scientific << std::setprecision(12)
-      << physics::totaltime << std::endl;
+    if (out_screen_every > 0 || physics::iteration % out_screen_every == 0) {
+      (++count-1)%screen_length  ||
+      clog_one(info)<< "#-- iteration:               time:" <<std::endl;
+      clog_one(info)
+        << std::setw(14) << physics::iteration
+        << std::setw(20) << std::scientific << std::setprecision(12)
+        << physics::totaltime << std::endl;
+    }
   }
 
 
@@ -139,7 +144,7 @@ namespace analysis{
     oss_data << std::setw(14) << physics::iteration
       << std::setw(20) << std::scientific << std::setprecision(12)
       << physics::totaltime << std::setw(20) << total_mass;
-    for(int i = 0 ; i < gdimension ; ++i){
+    for(size_t i = 0 ; i < gdimension ; ++i){
       oss_data
         << std::setw(20) << std::scientific << std::setprecision(12)
         << linear_momentum[i] <<" ";
@@ -155,4 +160,4 @@ namespace analysis{
 
 }; // physics
 
-#endif // _physics_analysis_h_
+#endif // _PHYSICS_ANALYSIS_H_

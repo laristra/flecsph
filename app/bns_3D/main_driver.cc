@@ -37,6 +37,7 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/data/data.h"
 
+#include "params.h"
 #include "bodies_system.h"
 #include "default_physics.h"
 #include "BNS_physics.h"
@@ -87,7 +88,7 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
 
 // Setting physics data 
   physics::dt = 1.0e-8;
-  physics::gamma = 2.0;
+  //physics::gamma = 2.0;  // converted to a parameter (poly_gamma)
   physics::A = 0.6366197723675814;
   // Load angular momentum from data file 
   physics::angular_moment = bs.get_attribute<double>("hdf5_bns_3D.h5part", 
@@ -95,7 +96,7 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
 //
 
   bs.setMacangle(macangle);
-  bs.setMaxmasscell(10e-5);
+  bs.setMaxmasscell(10e-5); // TODO: hardcoded value, turn to a parameter
 
   clog_one(trace)<<"MacAngle="<<macangle<<std::endl;
 
@@ -141,7 +142,7 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
         body * src = source->getBody();
         point_t pos = src->getPosition();
         for(size_t i = 0 ; i < gdimension ; ++i){
-          if(pos[i] > 10){
+          if(pos[i] > 10){ // TODO: 10 is hardcoded, turn to a parameter
             pos[i] = 10;
             src->setVelocity(point_t{});
           }

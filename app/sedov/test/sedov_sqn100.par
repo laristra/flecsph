@@ -1,0 +1,22 @@
+#
+# Sedov blast wave test
+#
+## initial data
+  initial_data_prefix = "sedov_sqn100"
+  sqrt_nparticles = 100   # sqrt of the total number of particles
+  poly_gamma = 1.4        # polytropic index
+  rho_initial = 1.0
+  pressure_initial = 1.0e-7
+  sph_separation = 0.001  # TODO: use sph_eta instead
+  #sph_eta = 1.5
+  sedov_blast_energy = 1.0
+  sedov_blast_radius = 1.0 # in units of particle separation
+
+# evolution parameters:
+  initial_dt = 0.0025 # TODO: better use Courant factor X sph_separation
+  final_iteration = 50
+  out_screen_every = 1
+  out_scalar_every = 10
+  out_h5data_every = 10
+  output_h5data_prefix = "sedov_evolution"
+
