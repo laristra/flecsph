@@ -8,7 +8,7 @@
 
 namespace flecsi{
 namespace execution{
-  void mpi_init_task(int numberiterations);
+  void mpi_init_task(const char * parameter_file);
 
 }
 }
@@ -18,6 +18,6 @@ using namespace execution;
 
 TEST(sodtube, working) {
   MPI_Init(NULL,NULL);
-  mpi_init_task(50);
+  mpi_init_task("sodtube_t1_n100.par");
   MPI_Finalize();
 }

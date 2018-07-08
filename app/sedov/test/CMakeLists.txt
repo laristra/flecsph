@@ -36,6 +36,7 @@ cinch_add_unit(sedov_test
     ${FleCSI_RUNTIME}/runtime_driver.cc  
   INPUTS
     ${PROJECT_SOURCE_DIR}/data/hdf5_sedov.h5part
+    ${PROJECT_SOURCE_DIR}/data/sedov_sqn100.par
   LIBRARIES 
     ${FleCSPH_LIBRARIES}
 )

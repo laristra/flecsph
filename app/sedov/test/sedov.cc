@@ -8,8 +8,7 @@
 
 namespace flecsi{
 namespace execution{
-  void mpi_init_task(int numberiterations);
-
+  void mpi_init_task(const char * parameter_file);
 }
 }
 
@@ -18,6 +17,6 @@ using namespace execution;
 
 TEST(sedov, working) {
   MPI_Init(NULL,NULL);
-  mpi_init_task(25);
+  mpi_init_task("sedov_sqn100.par");
   MPI_Finalize();
 }
