@@ -19,16 +19,17 @@ namespace execution{
 }
 }
 
+const double h = 2.;
+const double step = 0.01;
+const double max_step = h * 4.;
+
+const size_t n = max_step / step;
+const double start_step = -max_step/2.;
+
 
 TEST(kernel, cubic_spline) {
 
-  // Generate particles, write to file, read and compare 
-  double h = 1.;
-  double step = 0.01;
-  double max = h * 6.;
-  size_t n = max / step;
-  
-  double current = -3.*h;
+  double current = start_step;
 
   point_t p;
 
@@ -51,13 +52,7 @@ TEST(kernel, cubic_spline) {
 
 TEST(kernel, gaussian) {
 
-  // Generate particles, write to file, read and compare 
-  double h = 1.;
-  double step = 0.01;
-  double max = h * 6.;
-  size_t n = max / step;
-  
-  double current = -3.*h;
+  double current = start_step;
 
   point_t p;
 
@@ -80,13 +75,7 @@ TEST(kernel, gaussian) {
 
 TEST(kernel, quintic_spline) {
 
-  // Generate particles, write to file, read and compare 
-  double h = 1.;
-  double step = 0.01;
-  double max = h * 6.;
-  size_t n = max / step;
-  
-  double current = -3.*h;
+  double current = start_step;
 
   point_t p;
 
@@ -108,14 +97,8 @@ TEST(kernel, quintic_spline) {
 }
 
 TEST(kernel, wendland_quintic) {
-
-  // Generate particles, write to file, read and compare 
-  double h = 1.;
-  double step = 0.01;
-  double max = h * 6.;
-  size_t n = max / step;
   
-  double current = -3.*h;
+  double current = start_step;
 
   point_t p;
 

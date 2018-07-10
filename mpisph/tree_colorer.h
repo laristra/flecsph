@@ -557,7 +557,7 @@ void mpi_refresh_ghosts(
       assert(bi->is_local());  
       auto nbs = tree.find_in_radius_b(
             bi->coordinates(), 
-            2.*bi->getBody()->getSmoothinglength()
+            bi->getBody()->getSmoothinglength()
         );
       for(auto nb: nbs)
       {
@@ -605,7 +605,7 @@ void mpi_refresh_ghosts(
       assert(bi->is_local());
       auto nbs = tree.find_in_radius_b(
           bi->coordinates(),
-          2.*bi->getBody()->getSmoothinglength()
+          bi->getBody()->getSmoothinglength()
       );
       for(auto nb: nbs)
       {
@@ -710,8 +710,8 @@ void mpi_refresh_ghosts(
     point_t maxposition; 
 
     for(size_t i=0;i<dimension;++i){
-      minposition[i] = min[i]-2*smoothinglength;
-      maxposition[i] = max[i]+2*smoothinglength;
+      minposition[i] = min[i]-smoothinglength;
+      maxposition[i] = max[i]+smoothinglength;
     }
 
 #ifdef OUTPUT_TREE_INFO

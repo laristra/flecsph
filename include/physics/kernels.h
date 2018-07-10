@@ -73,6 +73,9 @@ namespace kernels{
       double r, 
       double h)
   {
+    // Normalization
+    h*=.5;
+
     double rh = r/h;
     // \TODO need to use solution based on template 
     double sigma = cubic_spline_sigma[gdimension-1]/pow(h,gdimension);
@@ -102,6 +105,9 @@ namespace kernels{
       point_t vecP, 
       double h)
   {
+    // Normalization
+    h*=.5;
+
     double sigma = cubic_spline_sigma[gdimension-1]/pow(h,gdimension+1);
     // Compute distance of particles 
     double r = vector_size(vecP);
@@ -137,6 +143,9 @@ namespace kernels{
     double r, 
     double h)
   {
+    // Normalization
+    h*=.3333;
+
     double rh = r/h;
     double sigma = gaussian_sigma[gdimension-1]/pow(h,gdimension);
     double result = 0.;
@@ -160,6 +169,10 @@ namespace kernels{
     point_t vecP,
     double h)
   {
+    // Normalization
+    h*=.3333;
+
+
     double sigma = gaussian_sigma[gdimension-1]/pow(h,gdimension+1);
     // Compute distance of particles 
     double r = vector_size(vecP);
@@ -192,6 +205,9 @@ namespace kernels{
     double r, 
     double h)
   {
+    // Normalization
+    h*=.3333;
+
     double rh = r/h;
     double sigma = quintic_spline_sigma[gdimension-1]/pow(h,gdimension);
     double result = 0.;
@@ -219,6 +235,9 @@ namespace kernels{
     point_t vecP,
     double h)
   {
+    // Normalization
+    h*=.3333;
+
     double sigma = quintic_spline_sigma[gdimension-1]/pow(h,gdimension+1);
     // Compute distance of particles 
     double r = vector_size(vecP);
@@ -257,6 +276,9 @@ namespace kernels{
     double r, 
     double h)
   {
+    // Normalization
+    h*=.5;
+
     double rh = r/h;
     double sigma = wendland_quintic_sigma[gdimension-1]/pow(h,gdimension);
     double result = 0.;
@@ -287,6 +309,9 @@ namespace kernels{
     point_t vecP,
     double h)
   {
+    // Normalization
+    h*=.5;
+
     double sigma = wendland_quintic_sigma[gdimension-1]/pow(h,gdimension+1);
     // Compute distance of particles 
     double r = vector_size(vecP);
