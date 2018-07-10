@@ -73,18 +73,17 @@ namespace kernels{
       double r, 
       double h)
   {
-    // Normalization
-    h*=.5;
-
     double rh = r/h;
+    rh *= 2.;
+
     // \TODO need to use solution based on template 
     double sigma = cubic_spline_sigma[gdimension-1]/pow(h,gdimension);
     double result = 0.;
 
-    if (0.0 <= rh && rh <= 1.0) {
+    if (rh <= 1.0) {
       result = 1.0 - 1.5*rh*rh + .75*rh*rh*rh;
       result *= sigma;  
-    }else if (1.0 < rh && rh <= 2.0) {
+    }else if (rh <= 2.0) {
       result = 0.25 * (2-rh)*(2-rh)*(2-rh);
       result *= sigma; 
     }
@@ -105,21 +104,19 @@ namespace kernels{
       point_t vecP, 
       double h)
   {
-    // Normalization
-    h*=.5;
-
     double sigma = cubic_spline_sigma[gdimension-1]/pow(h,gdimension+1);
     // Compute distance of particles 
     double r = vector_size(vecP);
     // Normalize vector 
     point_t eab = vecP / r;
     double rh = r/h;
+    rh *= 2;
 
     point_t result{};
-    if (0.0 <= rh && rh <= 1.0){
+    if (rh <= 1.0){
       result = sigma*eab;
       result *= -3.0*rh + 9./4.*rh*rh;
-    }else if(1.0 < rh && rh <= 2.0){
+    }else if(rh <= 2.0){
       result = sigma*eab;
       result *= -.75*(2-rh)*(2-rh);
     }
@@ -143,10 +140,10 @@ namespace kernels{
     double r, 
     double h)
   {
-    // Normalization
-    h*=.3333;
-
     double rh = r/h;
+    // Normalization
+    rh *= 3.;
+
     double sigma = gaussian_sigma[gdimension-1]/pow(h,gdimension);
     double result = 0.;
     if(rh <= 3.){
@@ -169,16 +166,14 @@ namespace kernels{
     point_t vecP,
     double h)
   {
-    // Normalization
-    h*=.3333;
-
-
     double sigma = gaussian_sigma[gdimension-1]/pow(h,gdimension+1);
     // Compute distance of particles 
     double r = vector_size(vecP);
     // Normalize vector 
     point_t eab = vecP / r;
     double rh = r/h;
+    // Normalization
+    rh *= 3.;
 
     point_t result{};
     if (rh <= 3.){
@@ -205,10 +200,10 @@ namespace kernels{
     double r, 
     double h)
   {
-    // Normalization
-    h*=.3333;
-
     double rh = r/h;
+    // Normalization
+    rh *= 3.;
+
     double sigma = quintic_spline_sigma[gdimension-1]/pow(h,gdimension);
     double result = 0.;
     if(0 <= rh && rh <= 1){
@@ -235,8 +230,6 @@ namespace kernels{
     point_t vecP,
     double h)
   {
-    // Normalization
-    h*=.3333;
 
     double sigma = quintic_spline_sigma[gdimension-1]/pow(h,gdimension+1);
     // Compute distance of particles 
@@ -244,6 +237,8 @@ namespace kernels{
     // Normalize vector 
     point_t eab = vecP / r;
     double rh = r/h;
+    // Normalization
+    rh *= 3.;
 
     point_t result{};
     if(0 <= rh && rh <= 1){
@@ -276,10 +271,9 @@ namespace kernels{
     double r, 
     double h)
   {
-    // Normalization
-    h*=.5;
-
     double rh = r/h;
+    // Normalization
+    rh *= 2.;
     double sigma = wendland_quintic_sigma[gdimension-1]/pow(h,gdimension);
     double result = 0.;
     // Different cases for 1D and 2D/3D 
@@ -309,15 +303,14 @@ namespace kernels{
     point_t vecP,
     double h)
   {
-    // Normalization
-    h*=.5;
-
     double sigma = wendland_quintic_sigma[gdimension-1]/pow(h,gdimension+1);
     // Compute distance of particles 
     double r = vector_size(vecP);
     // Normalize vector 
     point_t eab = vecP / r;
     double rh = r/h;
+    // Normalization
+    rh *= 2.;
 
     point_t result{};
     if(gdimension == 1){

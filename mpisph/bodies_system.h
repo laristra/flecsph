@@ -15,7 +15,6 @@
 
 #include "tree_colorer.h"
 #include "tree_fmm.h"
-//#include "physics.h"
 #include "io.h"
 #include "utils.h"
 

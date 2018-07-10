@@ -42,7 +42,7 @@ void set_derived_params(int rank, int size) {
 
   // particle spacing and smoothing length
   SET_PARAM(sph_separation, 1.0/(double)nparticles);
-  SET_PARAM(sph_smoothing_length, (sph_separation*10)); // TODO: use sph_eta instead
+  SET_PARAM(sph_smoothing_length, (sph_separation*20)); // TODO: use sph_eta instead
 
   // test selector
   switch (sodtest_num) {

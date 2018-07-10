@@ -19,9 +19,9 @@ namespace execution{
 }
 }
 
-const double h = 2.;
+const double h = 1.;
 const double step = 0.01;
-const double max_step = h * 4.;
+const double max_step = h * 2.;
 
 const size_t n = max_step / step;
 const double start_step = -max_step/2.;
