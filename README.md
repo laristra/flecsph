@@ -92,7 +92,7 @@ Clone FleCSI repo and change to FlecSPH branch:
    cd $HOME/FLECSPH
    git clone --recursive git@github.com:laristra/flecsi.git
    cd flecsi
-   git checkout FleCSPH
+   git checkout stable/flecsph-compatible
    git submodule update
    mkdir build ; cd build
    ccmake ..
