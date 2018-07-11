@@ -47,7 +47,7 @@ USER flecsi
 
 #build flecsi
 WORKDIR /home/flecsi
-RUN git clone -b FleCSPH --depth 1 --recursive https://github.com/laristra/flecsi flecsi 
+RUN git clone -b stable/flecsph-compatible --depth 1 --recursive https://github.com/laristra/flecsi flecsi 
 RUN  cd flecsi && mkdir build && cd build
 WORKDIR flecsi/build
 RUN  cmake .. -DFLECSI_RUNTIME_MODEL=legion \
