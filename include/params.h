@@ -268,6 +268,11 @@ namespace param {
   DECLARE_PARAM(double,sedov_blast_radius,1.0)
 # endif
 
+// in Sedov test: set the lattice types
+# ifndef lattice_type
+  DECLARE_PARAM(std::string,lattice_type,"rectangular")
+# endif
+
 // ---
 
 /*!
@@ -428,6 +433,9 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(sedov_blast_radius)
 # endif
 
+# ifndef lattice_type
+  READ_NUMERIC_PARAM(lattice_type)
+# endif
   // unknown parameter -------------------------------
   if (unknown_param) {
     clog_one(fatal) << "ERROR: unknown parameter " << param_name << endl;

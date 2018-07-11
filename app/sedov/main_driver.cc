@@ -156,6 +156,8 @@ mpi_init_task(const char * parameter_file){
     // Compute the analysis values based on physics
     bs.get_all(analysis::compute_lin_momentum);
     bs.get_all(analysis::compute_total_mass);
+    bs.get_all(analysis::compute_total_energy);
+    bs.get_all(analysis::compute_total_ang_mom);
     // Only add the header in the first iteration
     analysis::scalar_output("scalar_reductions.dat");
 #endif
@@ -178,7 +180,7 @@ mpi_init_task(const char * parameter_file){
 
 flecsi_register_mpi_task(mpi_init_task);
 
-void 
+void
 usage() {
   clog_one(warn) << "Usage: ./sedov <parameter-file.par>"
                  << std::endl << std::flush;
@@ -207,5 +209,3 @@ driver(int argc,  char * argv[]){
 
 } // namespace execution
 } // namespace flesci
-
-
