@@ -40,13 +40,14 @@ namespace kernels{
    *
    * @return     The size of the vector
    */
-  double vector_size(
-    point_t& p){
-    double result = 0.;
-    for(size_t i = 0 ; i < gdimension; ++i){
-      result += p[i]*p[i];
-    }
-    return sqrt(result);
+  double vector_norm(
+    const point_t& p){
+    if (gdimension == 3)
+      return sqrt(p[0]*p[0] + p[1]*p[1] + p[2]*p[2]);
+    else if (gdimension == 2)
+      return sqrt(p[0]*p[0] + p[1]*p[1]);
+    else
+      return abs(p[0]);
   }
 
   // Coefficient for the kernels in 1d, 2d and 3d without h 
@@ -60,7 +61,7 @@ namespace kernels{
 /*   Cubic spline                                                             */
 /*============================================================================*/
   /**
-   * @brief      Cubic splein kernel
+   * @brief      Cubic spline kernel
    * From Monaghan/92
    *
    * @param[in]  r     Distance between the particles 
@@ -70,22 +71,22 @@ namespace kernels{
    */
   double 
   cubic_spline(
-      double r, 
-      double h)
+      const double r, 
+      const double h)
   {
-    double rh = r/h;
-    rh *= 2.;
+    double rh = 2.*r/h;
 
     // \TODO need to use solution based on template 
-    double sigma = cubic_spline_sigma[gdimension-1]/pow(h,gdimension);
     double result = 0.;
 
-    if (rh <= 1.0) {
-      result = 1.0 - 1.5*rh*rh + .75*rh*rh*rh;
-      result *= sigma;  
-    }else if (rh <= 2.0) {
-      result = 0.25 * (2-rh)*(2-rh)*(2-rh);
-      result *= sigma; 
+    if (rh < 2.0) {
+      if (rh < 1.0) 
+        result = 1.0 - 1.5*rh*rh + .75*rh*rh*rh;
+      else
+        result = 0.25*(2 - rh)*(2 - rh)*(2 - rh);
+
+      result *= cubic_spline_sigma[gdimension-1]
+              / pow(h,gdimension);
     }
     return result;
   } // kernel
@@ -101,26 +102,26 @@ namespace kernels{
    */
   point_t 
   gradient_cubic_spline(
-      point_t vecP, 
-      double h)
+      const point_t & vecP, 
+      const double h)
   {
-    double sigma = cubic_spline_sigma[gdimension-1]/pow(h,gdimension+1);
-    // Compute distance of particles 
-    double r = vector_size(vecP);
-    // Normalize vector 
-    point_t eab = vecP / r;
-    double rh = r/h;
-    rh *= 2;
+    double r = vector_norm(vecP);
+    double rh = 2.*r/h;
 
-    point_t result{};
-    if (rh <= 1.0){
-      result = sigma*eab;
-      result *= -3.0*rh + 9./4.*rh*rh;
-    }else if(rh <= 2.0){
-      result = sigma*eab;
-      result *= -.75*(2-rh)*(2-rh);
+    point_t result = 0.0;
+    if (rh < 2.0) {
+      double dWdr;
+      double sigma = cubic_spline_sigma[gdimension-1]
+                   / pow(h,gdimension+1);
+      if (rh < 1.0)
+        dWdr = -3.0*rh + 9./4.*rh*rh;
+      else
+        dWdr = -.75*(2-rh)*(2-rh);
+
+      result = vecP*sigma*dWdr/r;
     }
     return result;
+
   } // gradKernel 
 
 /*============================================================================*/
@@ -137,16 +138,15 @@ namespace kernels{
    */
   double 
   gaussian(
-    double r, 
-    double h)
+    const double r, 
+    const double h)
   {
-    double rh = r/h;
-    // Normalization
-    rh *= 3.;
+    double rh = 3.*r/h;
 
-    double sigma = gaussian_sigma[gdimension-1]/pow(h,gdimension);
     double result = 0.;
     if(rh <= 3.){
+      double sigma = gaussian_sigma[gdimension-1]
+                   / pow(h,gdimension);
       result = sigma*exp(-rh*rh);
     }
     return result; 
@@ -163,22 +163,18 @@ namespace kernels{
    */
   point_t 
   gradient_gaussian(
-    point_t vecP,
-    double h)
+    const point_t & vecP,
+    const double h)
   {
-    double sigma = gaussian_sigma[gdimension-1]/pow(h,gdimension+1);
-    // Compute distance of particles 
-    double r = vector_size(vecP);
-    // Normalize vector 
-    point_t eab = vecP / r;
-    double rh = r/h;
-    // Normalization
-    rh *= 3.;
+    double r = vector_norm(vecP);
+    double rh = 3.*r/h;
 
-    point_t result{};
-    if (rh <= 3.){
-      result = sigma*eab; 
-      result *= -2.*rh*exp(-rh*rh);
+    point_t result = 0.0;
+    if (rh < 3.0) {
+      double sigma = gaussian_sigma[gdimension-1]
+                   / pow(h,gdimension+1);
+      double dWdr = -2.*rh*exp(-rh*rh);
+      result = vecP*sigma*dWdr/r;
     }
     return result;
   }
@@ -197,23 +193,25 @@ namespace kernels{
    */
   double 
   quintic_spline(
-    double r, 
-    double h)
+    const double r, 
+    const double h)
   {
-    double rh = r/h;
-    // Normalization
-    rh *= 3.;
+    double rh = 3.*r/h;
 
-    double sigma = quintic_spline_sigma[gdimension-1]/pow(h,gdimension);
     double result = 0.;
-    if(0 <= rh && rh <= 1){
-      result = sigma*(pow(3-rh,5)-6*pow(2-rh,5)+15*pow(1-rh,5));
-    }else if(1 < rh && rh <= 2){
-      result = sigma*(pow(3-rh,5)-6*pow(2-rh,5));
-    }else if(2 < rh && rh <= 3){
-      result = sigma*(pow(3-rh,5));
+    if(rh < 3.) {
+      result = pow(3-rh,5);
+      if (rh < 2.)
+        result += -6*pow(2-rh,5);
+
+      if (rh < 1.)
+        result += 15*pow(1-rh,5);
+
+      double sigma = quintic_spline_sigma[gdimension-1]
+                   / pow(h,gdimension);
+      result *= sigma;
     }
-    return result; 
+    return result;
   }
 
   /**
@@ -227,30 +225,26 @@ namespace kernels{
    */
   point_t 
   gradient_quintic_spline(
-    point_t vecP,
-    double h)
+    const point_t & vecP,
+    const double h)
   {
+    const double r = vector_norm(vecP);
+    double rh = 3.*r/h;
 
-    double sigma = quintic_spline_sigma[gdimension-1]/pow(h,gdimension+1);
-    // Compute distance of particles 
-    double r = vector_size(vecP);
-    // Normalize vector 
-    point_t eab = vecP / r;
-    double rh = r/h;
-    // Normalization
-    rh *= 3.;
+    point_t result = 0.0;
+    if (rh < 3.) {
+      double sigma = quintic_spline_sigma[gdimension-1]
+                   / pow(h,gdimension+1);
+      double dWdr = -5.*pow(3-rh,4);
+      if(rh < 2.)
+        dWdr += 30.*pow(2-rh,4);
 
-    point_t result{};
-    if(0 <= rh && rh <= 1){
-      result = sigma*eab;
-      result *= (-5.*pow(3-rh,4)+30.*pow(2-rh,4)-75.*pow(1-rh,4));
-    }else if(1 < rh && rh <= 2){
-      result = sigma*eab;
-      result *= (-5.*pow(3-rh,4)+30.*pow(2-rh,4));
-    }else if(2 < rh && rh <= 3){
-      result = sigma*eab;
-      result *= (-5.*(pow(3-rh,4)));
+      if(rh < 1.)
+        dWdr += -75.*pow(1-rh,4);
+
+      result = vecP*sigma*dWdr/r;
     }
+
     return result; 
   }
 
@@ -268,29 +262,28 @@ namespace kernels{
    */
   double 
   wendland_quintic(
-    double r, 
-    double h)
+    const double r, 
+    const double h)
   {
     double rh = r/h;
-    // Normalization
-    rh *= 2.;
-    double sigma = wendland_quintic_sigma[gdimension-1]/pow(h,gdimension);
     double result = 0.;
-    // Different cases for 1D and 2D/3D 
-    if(gdimension == 1){
-      if(0 <= rh && rh <= 2){
-        result = sigma*(pow(1-rh/2.,3)*(1.5*rh+1));
-      }
-    }else{
-      if(0 <= rh && rh <= 2){
-        result = sigma*(pow(1-rh/2.,4)*(2 *rh+1));
-      }
+
+    if(rh < 1.0) {
+      double rh2 = (1 - rh)*(1 - rh);
+      double sigma = wendland_quintic_sigma[gdimension-1]
+                   / pow(h,gdimension);
+
+      // Different cases for 1D and 2D/3D 
+      if(gdimension == 1)
+        result = sigma*rh2*(1 - rh)*(3*rh + 1);
+      else
+        result = sigma*rh2*rh2*(4*rh + 1);
     }
     return result; 
   }
 
   /**
-   * @brief      Gradient of quintic spline kernel
+   * @brief      Gradient of Wendland quintic kernel
    * \TODO add the ref
    *
    * @param[in]  vecP  The vector pab = pa - pb 
@@ -300,30 +293,26 @@ namespace kernels{
    */
   point_t 
   gradient_wendland_quintic(
-    point_t vecP,
-    double h)
+    const point_t & vecP,
+    const double h)
   {
-    double sigma = wendland_quintic_sigma[gdimension-1]/pow(h,gdimension+1);
-    // Compute distance of particles 
-    double r = vector_size(vecP);
-    // Normalize vector 
-    point_t eab = vecP / r;
+    double r = vector_norm(vecP);
     double rh = r/h;
-    // Normalization
-    rh *= 2.;
+    point_t result = 0.0;
 
-    point_t result{};
-    if(gdimension == 1){
-      if(0 <= rh && rh <= 2){
-        result = sigma*eab; 
-        result *= -3.*rh*pow(1.-rh/2.,2);
-      }
-    }else{
-      if(0 <= rh && rh <= 2){
-        result = sigma*eab; 
-        result *= -5.*rh*pow(1.-rh/2.,3);
-      }
+    if(rh < 1.0) {
+      double rh2 = (1 - rh)*(1 - rh);
+      double sigma = wendland_quintic_sigma[gdimension-1]
+                   / pow(h,gdimension+1);
+      double dWdr;
+      if(gdimension == 1)
+        dWdr = -6.*rh*rh2;
+      else 
+        dWdr = -10.*rh*rh2*(1 - rh);
+
+      result = vecP*sigma*dWdr/r; 
     }
+
     return result; 
   }
 
