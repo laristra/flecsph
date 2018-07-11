@@ -50,8 +50,8 @@ namespace physics{
   double A = 1.0;
   double MAC = 1.;
   int64_t iteration = 0;
-  auto kernel = kernels::cubic_spline;
-  auto gradKernel = kernels::gradient_cubic_spline;
+  auto kernel = kernels::wendland_quintic;
+  auto gradKernel = kernels::gradient_wendland_quintic;
 
   /**
    * @brief      Compute the density 
@@ -279,10 +279,7 @@ namespace physics{
       // Kernel computation
       point_t sourcekernelgradient = gradKernel(
           vecPosition,source->getSmoothinglength());
-      point_t nbkernelgradient = gradKernel(
-          vecPosition,nb->getSmoothinglength());
-      point_t resultkernelgradient = (1./2.)*
-        (sourcekernelgradient+nbkernelgradient);
+      point_t resultkernelgradient = sourcekernelgradient;
 
       hydro += nb->getMass()*(pressureDensity+visc)
         *resultkernelgradient;
@@ -323,13 +320,10 @@ namespace physics{
     
       // Compute the gradKernel ij      
       point_t vecPosition = source->getPosition()-nb->getPosition();
-
       point_t sourcekernelgradient = gradKernel(
           vecPosition,source->getSmoothinglength());
-      point_t nbkernelgradient = gradKernel(
-          vecPosition,nb->getSmoothinglength());
-      space_vector_t resultkernelgradient = flecsi::point_to_vector((1./2.)*
-          (sourcekernelgradient+nbkernelgradient));
+      space_vector_t resultkernelgradient = 
+          flecsi::point_to_vector(sourcekernelgradient);
 
       // Velocity vector 
       space_vector_t vecVelocity = flecsi::point_to_vector(
@@ -386,10 +380,7 @@ namespace physics{
       point_t vecPosition = source->getPosition()-nb->getPosition();
       point_t sourcekernelgradient = gradKernel(
           vecPosition,source->getSmoothinglength());
-      point_t nbkernelgradient = gradKernel(
-          vecPosition,nb->getSmoothinglength());
-      point_t resultkernelgradient = (1./2.)*
-        (sourcekernelgradient+nbkernelgradient);
+      point_t resultkernelgradient = sourcekernelgradient;
 
       
       // Compute the adiabatic factor evolution 

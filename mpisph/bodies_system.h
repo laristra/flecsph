@@ -15,7 +15,6 @@
 
 #include "tree_colorer.h"
 #include "tree_fmm.h"
-//#include "physics.h"
 #include "io.h"
 #include "utils.h"
 
@@ -294,7 +293,7 @@ public:
     MPI_SUM,MPI_COMM_WORLD); 
     assert(checknparticles==totalnbodies_);
 
-    tree_->update_branches(2*smoothinglength_); 
+    tree_->update_branches(smoothinglength_); 
 
 #ifdef DEBUG
     std::vector<int> nentities(size);
@@ -324,7 +323,7 @@ public:
         range_,smoothinglength_);
 
     // Update the tree 
-    tree_->update_branches(2*smoothinglength_);
+    tree_->update_branches(smoothinglength_);
 
 #ifdef DEBUG
     lentities = tree_->root()->sub_entities();
@@ -385,7 +384,7 @@ public:
     tfmm_.mpi_gather_cells(*tree_,macangle_,totalnbodies_);
     
     // Reset the tree to normal before leaving
-    tree_->update_branches(2*smoothinglength_);
+    tree_->update_branches(smoothinglength_);
   }
 
   /**
@@ -413,7 +412,7 @@ public:
     int64_t ncritical = 32; 
     tree_->apply_sub_cells(
         tree_->root(),
-        bodies_[0]->getBody()->getSmoothinglength()*2.,
+        smoothinglength_,
         0.,
         ncritical,
         ef,

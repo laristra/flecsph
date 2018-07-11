@@ -36,7 +36,7 @@ cinch_add_unit(sodtube_test
     ${CMAKE_SOURCE_DIR}/app/sodtube/main_driver.cc
     ${FleCSI_RUNTIME}/runtime_driver.cc 
   INPUTS
-    ${PROJECT_SOURCE_DIR}/data/hdf5_sodtube.h5part 
+    ${PROJECT_SOURCE_DIR}/data/sodtube_t1_n100.h5part 
     ${PROJECT_SOURCE_DIR}/data/sodtube_t1_n100.par 
   LIBRARIES 
     ${FleCSPH_LIBRARIES}
