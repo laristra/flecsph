@@ -16,7 +16,7 @@
 #
 #~---------------------------------------------------------------------------~*#
 
-include_directories(${CMAKE_SOURCE_DIR}/app/sedov/include)
+include_directories(${CMAKE_SOURCE_DIR}/app/noh/include)
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/include/bodies)
 include_directories(${CMAKE_SOURCE_DIR}/include/physics)
@@ -29,14 +29,14 @@ include_directories(${CMAKE_SOURCE_DIR}/mpisph)
 # tree topology tests
 #------------------------------------------------------------------------------#
 
-cinch_add_unit(sedov_test
+cinch_add_unit(noh_test
   SOURCES
-    sedov.cc
-    ${CMAKE_SOURCE_DIR}/app/sedov/main_driver.cc
+    noh.cc
+    ${CMAKE_SOURCE_DIR}/app/noh/main_driver.cc
     ${FleCSI_RUNTIME}/runtime_driver.cc  
   INPUTS
-    ${PROJECT_SOURCE_DIR}/data/sedov_sqn100.h5part
-    ${PROJECT_SOURCE_DIR}/data/sedov_sqn100.par
+    ${PROJECT_SOURCE_DIR}/data/noh_sqn100.h5part
+    ${PROJECT_SOURCE_DIR}/data/noh_sqn100.par
   LIBRARIES 
     ${FleCSPH_LIBRARIES}
 )

@@ -108,6 +108,7 @@ cinch_add_application_directory("mpisph/")
 cinch_add_application_directory("app/sodtube/test")
 cinch_add_application_directory("app/sedov/test")
 cinch_add_application_directory("include/physics/test")
+cinch_add_application_directory("app/noh/test")
 
 
 

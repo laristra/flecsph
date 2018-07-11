@@ -12,7 +12,7 @@
 
 # evolution parameters:
   initial_dt = 0.001      # TODO: better use Courant factor X sph_separation
-  final_iteration = 500
+  final_iteration = 100
   final_time = 10.0
   out_screen_every = 1
   out_scalar_every = 10
