@@ -48,7 +48,7 @@ void set_derived_params() {
 
   // total number of particles
   SET_PARAM(nparticles, sqrt_nparticles*sqrt_nparticles);
-  SET_PARAM(sph_smoothing_length, (2.*sph_separation));
+  SET_PARAM(sph_smoothing_length, (sph_separation));
 
   // file to be generated
   std::ostringstream oss;

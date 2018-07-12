@@ -42,7 +42,6 @@ cinch_add_unit(mpi_qsort
     ${FleCSI_RUNTIME}/runtime_driver.cc  
   LIBRARIES ${FleCSPH_LIBRARIES}
   POLICY MPI 
-  THREADS 4 
 )
 
 cinch_add_unit(gravitation
@@ -51,7 +50,6 @@ cinch_add_unit(gravitation
     ${FleCSI_RUNTIME}/runtime_driver.cc  
   LIBRARIES ${FleCSPH_LIBRARIES}
   POLICY MPI 
-  THREADS 4 
 )
 
 cinch_add_unit(io
@@ -62,7 +60,6 @@ cinch_add_unit(io
     test/io_test.h5part
   LIBRARIES ${FleCSPH_LIBRARIES}
   POLICY MPI 
-  THREADS 1
 )
 
 cinch_add_unit(body_system
@@ -73,7 +70,6 @@ cinch_add_unit(body_system
     test/io_test.h5part
   LIBRARIES ${FleCSPH_LIBRARIES}
   POLICY MPI 
-  THREADS 1
 )
 
 #~---------------------------------------------------------------------------~-#

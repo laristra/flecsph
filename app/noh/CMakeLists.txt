@@ -43,3 +43,27 @@ target_link_libraries(noh ${FleCSPH_LIBRARIES})
 
 add_definitions(-DFLECSI_ENABLE_SPECIALIZATION_TLT_INIT)
 add_definitions(-DFLECSI_OVERRIDE_DEFAULT_SPECIALIZATION_DRIVER)
+
+#------------------------------------------------------------------------------#
+# noh test, call the default parameter file 
+#------------------------------------------------------------------------------#
+
+cinch_add_unit(noh_test
+  SOURCES
+    test/noh.cc
+    ${CMAKE_SOURCE_DIR}/app/noh/main_driver.cc
+    ${FleCSI_RUNTIME}/runtime_driver.cc 
+  INPUTS
+    ${PROJECT_SOURCE_DIR}/data/noh_sqn100.par 
+  LIBRARIES 
+    ${FleCSPH_LIBRARIES}
+)
+
+# run the generator with default file 
+add_custom_target(
+    noh_generator_test 
+    COMMAND noh_generator ${PROJECT_SOURCE_DIR}/data/noh_sqn100.par
+    COMMAND mv noh_sqn100.h5part ../../test/noh
+)
+
+add_dependencies(noh_test noh_generator_test)
