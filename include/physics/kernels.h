@@ -52,10 +52,13 @@ namespace kernels{
 
   // Coefficient for the kernels in 1d, 2d and 3d without h 
   // h depends of the dimension and is added in the kernel
-  const double cubic_spline_sigma[3] = {2./3.,10./(7.*M_PI),1./M_PI};
-  const double gaussian_sigma[3] = {1./pow(M_PI,.5),1./M_PI,1./pow(M_PI,1.5)};
-  const double quintic_spline_sigma[3] = {1./120.,7./(478.*M_PI),3./(359.*M_PI)};
-  const double wendland_quintic_sigma[3] = {5./8.,7./(4.*M_PI),21./(16.*M_PI)};
+  const double cubic_spline_sigma[3] = {4./3.,40./(7.*M_PI),8./M_PI};
+  const double gaussian_sigma[3] = {
+      1.69260614115414981387661988500545775405505599758743902950990362363536L,
+      2.86514256233641438778811727710055595794190432955152715087643977681460L,
+      4.85098600188835377710867224691152783462583160522829280247414806262620L};
+  const double quintic_spline_sigma[3] = {1./40.,63./(478.*M_PI),81./(359.*M_PI)};
+  const double wendland_quintic_sigma[3] = {1.25,7./M_PI,21./(2.*M_PI)};
 
 /*============================================================================*/
 /*   Cubic spline                                                             */
@@ -128,7 +131,7 @@ namespace kernels{
 /*   Gaussian                                                                 */
 /*============================================================================*/
   /**
-   * @brief      Gaussian kernel 
+   * @brief      Gaussian kernel: W(r,h) = exp( -[3r/h]^2 ) 
    * From Liu/2010
    *
    * @param[in]  r     Distance between the particles 
