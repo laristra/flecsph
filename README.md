@@ -160,6 +160,7 @@ Set the following options:
 - `ENABLE_MPI`: ON
 - `ENABLE_OPENMPI`: ON
 - `ENABLE_LEGION`: ON
+- `ENABLE_UNIT_TESTS`: ON
 - `HDF5_C_LIBRARY_hdf5`: `~/FLECSPH/local/lib/libhdf5.so`
 
 You can also use the following command to setup cmake cache:
@@ -171,6 +172,7 @@ cat > CMakeCache.txt << EOF
   ENABLE_MPI:BOOL=ON
   ENABLE_MPI_CXX_BINDINGS:BOOL=ON
   ENABLE_OPENMP:BOOL=ON
+  ENABLE_UNIT_TESTS:BOOL=ON
   HDF5_C_LIBRARY_hdf5:FILEPATH=$HOME/FLECSPH/local/lib/libhdf5.so
   VERSION_CREATION:STRING=
 EOF
