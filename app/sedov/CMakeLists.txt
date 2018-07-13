@@ -59,11 +59,12 @@ cinch_add_unit(sedov_test
     ${FleCSPH_LIBRARIES}
 )
 
+if(ENABLE_UNIT_TESTS)
 # run the generator with default file 
 add_custom_target(
     sedov_generator_test 
     COMMAND sedov_generator ${PROJECT_SOURCE_DIR}/data/sedov_sqn100.par
     COMMAND mv sedov_sqn100.h5part ../../test/sedov
 )
-
 add_dependencies(sedov_test sedov_generator_test)
+endif()

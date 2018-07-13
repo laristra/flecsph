@@ -58,11 +58,12 @@ cinch_add_unit(sodtube_test
     ${FleCSPH_LIBRARIES}
 )
 
+if(ENABLE_UNIT_TESTS)
 # run the generator with default file 
 add_custom_target(
     sodtube_generator_test 
     COMMAND sodtube_generator ${PROJECT_SOURCE_DIR}/data/sodtube_t1_n100.par
     COMMAND mv sodtube_t1_n100.h5part ../../test/sodtube
 )
-
 add_dependencies(sodtube_test sodtube_generator_test)
+endif()

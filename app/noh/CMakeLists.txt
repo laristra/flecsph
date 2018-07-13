@@ -59,11 +59,12 @@ cinch_add_unit(noh_test
     ${FleCSPH_LIBRARIES}
 )
 
+if(ENABLE_UNIT_TESTS)
 # run the generator with default file 
 add_custom_target(
     noh_generator_test 
     COMMAND noh_generator ${PROJECT_SOURCE_DIR}/data/noh_sqn100.par
     COMMAND mv noh_sqn100.h5part ../../test/noh
 )
-
 add_dependencies(noh_test noh_generator_test)
+endif()
