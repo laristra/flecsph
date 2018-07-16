@@ -34,13 +34,7 @@
 namespace analysis{
 
   point_t linear_momentum;
-  point_t linear_velocity;
-  point_t total_ang_mom;
-  point_t part_mom;
-  point_t part_position;
-  double total_mass;
-  double total_energy;
-  double velocity_part;
+  double total_mass; 
 
   /**
    * @brief      Compute the linear momentum
@@ -74,70 +68,16 @@ namespace analysis{
     reduce_sum(total_mass);
   }
 
-  /**
-   * @brief      Compute the total energy (internal + kinetic)
-   *
-   * @param      bodies  Vector of all the local bodies
-   */
-  void
-  compute_total_energy(
-      std::vector<body_holder*>& bodies)
-  {
-    total_energy = 0.;
-    velocity_part = 0.;
-    for(auto nbh: bodies) {
-      total_energy += nbh->getBody()->getMass()*nbh->getBody()->getInternalenergy();
-      linear_velocity = nbh->getBody()->getVelocity();
-      for(size_t i = 0 ; i < gdimension ; ++i){
-        velocity_part += pow(linear_velocity[i],2);
-      }
-      total_energy += 1./2.*velocity_part*nbh->getBody()->getMass();
-    }
-    reduce_sum(total_energy);
-  }
-
-  /**
-   * @brief      Compute the total energy (internal + kinetic)
-   *
-   * @param      bodies  Vector of all the local bodies
-   */
-  void
-  compute_total_ang_mom(
-      std::vector<body_holder*>& bodies)
-  {
-    double part_ang_x;
-    double part_ang_y;
-    double part_ang_z;
-    total_ang_mom = {0};
-    part_mom = {0};
-    part_position = {0};
-    for(auto nbh: bodies) {
-      part_mom = nbh->getBody()->getLinMomentum();
-      part_position = nbh->getBody()->getPosition();
-      if(gdimension==3){
-        part_ang_x = part_position[1]*part_mom[2]-part_position[2]*part_mom[1];
-        part_ang_y = -part_position[0]*part_mom[2]+part_position[2]*part_mom[0];
-        part_ang_z = part_position[0]*part_mom[1]-part_position[1]*part_mom[0];
-        total_ang_mom += {part_ang_x,part_ang_y,part_ang_z};
-      } else if(gdimension==2){
-        part_ang_z = part_position[0]*part_mom[1]-part_position[1]*part_mom[0];
-        total_ang_mom += part_ang_z;
-      } else if(gdimension==2){
-        total_ang_mom += 0.;
-      }
-    }
-    reduce_sum(total_ang_mom);
-  }
 
   /**
    * @brief Rolling screen output
    */
   void
-  screen_output()
+  screen_output() 
   {
     using namespace param;
     static int count = 0;
-    const int screen_length = 40;
+    const int screen_length = 40;  
     if (out_screen_every > 0 || physics::iteration % out_screen_every == 0) {
       (++count-1)%screen_length  ||
       clog_one(info)<< "#-- iteration:               time:" <<std::endl;
@@ -175,28 +115,21 @@ namespace analysis{
     // output only from rank #0
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    if (rank != 0) return;
+    if (rank != 0) return; 
 
     if (first_time) {
       // Generate and output the header
       std::ostringstream oss_header;
       oss_header
         << "# Scalar reductions: " <<std::endl
-        << "# 1:iteration 2:time 3:mass 4:total_energy 5:mom_x ";
+        << "# 1:iteration 2:time 3:mass 4:mom_x ";
 
       // The momentum depends on dimension
       if(gdimension > 1){
-        oss_header<<"6:mom_y ";
+        oss_header<<"5:mom_y ";
       }
       if(gdimension == 3){
-        oss_header<<"7:mom_z ";
-      }
-      // The angular momentum depends on dimension
-      if(gdimension == 2){
-        oss_header<<"7:ang_mom_z";
-      }
-      if(gdimension == 3){
-        oss_header<<"8:ang_mom_x 9:ang_mom_y 10:ang_mom_y ";
+        oss_header<<"6:mom_z ";
       }
       oss_header<<std::endl;
 
@@ -210,24 +143,11 @@ namespace analysis{
     std::ostringstream oss_data;
     oss_data << std::setw(14) << physics::iteration
       << std::setw(20) << std::scientific << std::setprecision(12)
-      << physics::totaltime << std::setw(20) << total_mass
-      << std::setw(20) << total_energy;
+      << physics::totaltime << std::setw(20) << total_mass;
     for(size_t i = 0 ; i < gdimension ; ++i){
       oss_data
         << std::setw(20) << std::scientific << std::setprecision(12)
         << linear_momentum[i] <<" ";
-    }
-    if(gdimension==2){
-      oss_data
-        << std::setw(20) << std::scientific << std::setprecision(12)
-        << total_ang_mom[0] <<" ";
-    }
-    if(gdimension==3){
-      for(size_t i = 0 ; i < gdimension ; ++i){
-        oss_data
-          << std::setw(20) << std::scientific << std::setprecision(12)
-          << total_ang_mom[i] <<" ";
-      }
     }
     oss_data << std::endl;
 
