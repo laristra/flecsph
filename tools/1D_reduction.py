@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # Copyright (c) 2017 Los Alamos National Security, LLC
 # All rights reserved
 
@@ -44,7 +46,7 @@ def create_output(dataset):
 
     # Write table
     with open("1d_output_{0:05d}.dat".format(i), 'w+') as datafile_id:
-        np.savetxt(datafile_id, data, fmt='%f', header = head)
+        np.savetxt(datafile_id, data, fmt='%04.03e', header = head)
     return;
 
 

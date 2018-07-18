@@ -7,13 +7,25 @@
 /*
  * Noh Collapse test
  * -----------------
- * The test is initialized as a disk / sphere of particles with homogeneous density,
- * vanishingly small pressure, and inward velocity. As particles move inwards, they
- * pile up at the center at forming a region with constant density that is dependent
- * on gamma and the dimensionality of the problem.
- * A standing shock front forms that moves outwards as more particles are piling up.
+ * The test is initialized as a disk / sphere of particles with homogeneous 
+ * density, vanishingly small pressure, and inward velocity v_r. As particles 
+ * move inwards, they pile up at the center at forming a region with constant 
+ * density that is dependent on gamma and the dimensionality of the problem.
+ * A standing shock front forms that moves outwards as more particles are piling
+ * up. Its radial distance grows as 
  *
- * For an analytic solution, see the code noh.f in /src/tools
+ * r_shock (t) = 0.5 (gamma - 1) v_r t
+ *
+ * The density of infalling matter evolves as:
+ *
+ * n(r>=r_shock) = n_0 (1 + (v_r/r)t)^(d-1)
+ *
+ * The density of matter enclose by the shock is given by:
+ *
+ * n(r<r_rhock) = n_0 * ((gamma + 1)/(gamma - 1))^d
+ *
+ * where d gives the geometry of the system (1=planar, 2=cyl., 3=spherical)
+ *
  * For more information, see:
  * Liska & Wendroff, 2003, SIAM J. Sci. Comput. 25, 995, Section 4.5
 */
@@ -23,7 +35,6 @@
 #include <algorithm>
 #include <cassert>
 
-// #define poly_gamma 5./3. // Gamma for ideal gas eos
 #include "params.h"
 #include "hdf5ParticleIO.h"
 #include "kernels.h"
@@ -98,8 +109,6 @@ int main(int argc, char * argv[]){
   double x_c = (sqrt_nparticles - 1)*sph_separation/2.0;
   double y_c = x_c;
 
-  // Particle mass given the initial density and number of particles
-  double m_in = rho_initial * radius * radius * 4.0 / nparticles;
 
   clog_one(info) << "Sphere: r=" << radius << std::endl
                  << "origin: pos=["<<x_c<<";"<<y_c<<"]" << std::endl
@@ -158,8 +167,8 @@ int main(int argc, char * argv[]){
   // Header data
   // the number of particles = nparticles
   // The value for constant timestep
-  double timestep = 0.001;  // TODO: replace with parameter initial_dt
-  int dimension = 2;        // TODO: use global dimension parameter
+  double timestep = initial_dt;  // TODO: replace with parameter initial_dt
+  int dimension = 2;             // TODO: use global dimension parameter
 
   clog_one(info) << "top_X=" << x_topproc << " top_Y="  << y_topproc    << std::endl
                  << "maxX=" << maxxposition << " maxY=" << maxyposition << std::endl;
@@ -167,7 +176,7 @@ int main(int argc, char * argv[]){
   double xposition = x_topproc;
   double yposition = y_topproc;
   int64_t tparticles = 0;
-
+  double max_radius = 0;
 
   // Loop over all particles and assign position, velocity etc.
   for (int64_t part = 0; part < nparticles; ++part) {
@@ -191,6 +200,14 @@ int main(int argc, char * argv[]){
     x[part] = xposition;
     y[part] = yposition;
 
+    // Determine the maximum radial distance for a particle for 
+    // later mass/density determination 
+    if (sqrt((x[part]-x_c)*(x[part]-x_c) + (y[part]-y_c)*(y[part]-y_c)) 
+    > max_radius) {
+        max_radius = sqrt((x[part]-x_c)*(x[part]-x_c) 
+                        + (y[part]-y_c)*(y[part]-y_c));
+    }
+
     xposition += sph_separation;
     if (xposition > maxxposition) {
       if (yposition > maxyposition) {break;}
@@ -210,7 +227,7 @@ int main(int argc, char * argv[]){
     az[part] = 0.0;
 
     // Assign particle mass
-    m[part] = m_in;
+    //m[part] = m_in;
 
     // Assign particle internal energy
     u[part] = P[part]/(poly_gamma-1.)/rho[part];
@@ -235,6 +252,12 @@ int main(int argc, char * argv[]){
 
   clog_one(info) << "Actual number of particles inside the sphere: "
                  << tparticles << std::endl;
+
+  // Particle mass given the density, number of particles, and disk radius
+  double m_in = rho_initial * max_radius * max_radius * M_PI / tparticles;
+
+  for (int64_t part = 0; part < nparticles; ++part) m[part] = m_in;
+
 
   // remove the previous file
   remove(initial_data_file.c_str());
