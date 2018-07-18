@@ -11,7 +11,8 @@
   #sph_eta = 1.5
   sedov_blast_energy = 1.0
   sedov_blast_radius = 1.0 # in units of particle separation
-  lattice_type = "triangular"
+  lattice_type = 1 # 0:rectangular, 1:hcp, 2:fcc  **in 2d both hcp and fcc are triangular**
+  domain_type = 1 # 0:cube, 1:sphere, 2:full box
 
 # evolution parameters:
   initial_dt = 0.0025 # TODO: better use Courant factor X sph_separation
