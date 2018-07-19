@@ -122,7 +122,7 @@ namespace analysis{
       } else if(gdimension==2){
         part_ang_z = part_position[0]*part_mom[1]-part_position[1]*part_mom[0];
         total_ang_mom += part_ang_z;
-      } else if(gdimension==2){
+      } else if(gdimension==1){
         total_ang_mom += 0.;
       }
     }
