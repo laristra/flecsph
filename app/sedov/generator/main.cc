@@ -211,7 +211,7 @@ int main(int argc, char * argv[]){
   int64_t tparticles = 0;
 
   // For square lattice initial configuration
-  if(lattice_type == "rectangular") {
+  if(lattice_type == 0) {
     for (int64_t part=0; part<maximum_part; ++part) {
       while(!in_radius(xposition,yposition,zposition,x_c,y_c,z_c,radius)){
         xposition+= sph_separation;
@@ -269,7 +269,7 @@ int main(int argc, char * argv[]){
       }
 
     }
-  } else if (lattice_type == "triangular"){ // For triangular lattice initial configuration
+  } else if (lattice_type == 1){ // For triangular lattice initial configuration
     int64_t row = 0;
     int64_t zrow = 0;
     for (int64_t part=0; part<maximum_part; ++part) {
