@@ -114,7 +114,7 @@ namespace kernels{
     point_t result = 0.0;
     if (rh < 2.0) {
       double dWdr;
-      double sigma = cubic_spline_sigma[gdimension-1]
+      double sigma = 2.*cubic_spline_sigma[gdimension-1]
                    / pow(h,gdimension+1);
       if (rh < 1.0)
         dWdr = -3.0*rh + 9./4.*rh*rh;
@@ -174,7 +174,7 @@ namespace kernels{
 
     point_t result = 0.0;
     if (rh < 3.0) {
-      double sigma = gaussian_sigma[gdimension-1]
+      double sigma = 3.*gaussian_sigma[gdimension-1]
                    / pow(h,gdimension+1);
       double dWdr = -2.*rh*exp(-rh*rh);
       result = vecP*sigma*dWdr/r;
@@ -236,7 +236,7 @@ namespace kernels{
 
     point_t result = 0.0;
     if (rh < 3.) {
-      double sigma = quintic_spline_sigma[gdimension-1]
+      double sigma = 3.*quintic_spline_sigma[gdimension-1]
                    / pow(h,gdimension+1);
       double dWdr = -5.*pow(3-rh,4);
       if(rh < 2.)
@@ -269,10 +269,13 @@ namespace kernels{
     const double h)
   {
     double rh = r/h;
+    //double rh = 2.*r/h;
     double result = 0.;
 
     if(rh < 1.0) {
+    //if(rh < 2.0) {
       double rh2 = (1 - rh)*(1 - rh);
+      //double rh2 = (1 - rh/2.)*(1 - rh/2.);
       double sigma = wendland_quintic_sigma[gdimension-1]
                    / pow(h,gdimension);
 
@@ -281,6 +284,7 @@ namespace kernels{
         result = sigma*rh2*(1 - rh)*(3*rh + 1);
       else
         result = sigma*rh2*rh2*(4*rh + 1);
+        //result = sigma*rh2*rh2*(2*rh + 1);
     }
     return result; 
   }
@@ -301,17 +305,21 @@ namespace kernels{
   {
     double r = vector_norm(vecP);
     double rh = r/h;
+    //double rh = 2.*r/h;
     point_t result = 0.0;
 
     if(rh < 1.0) {
+    //if(rh < 2.0) {
       double rh2 = (1 - rh)*(1 - rh);
-      double sigma = wendland_quintic_sigma[gdimension-1]
+      //double rh2 = (1 - rh/2.)*(1 - rh/2.);
+      double sigma = 2.*wendland_quintic_sigma[gdimension-1]
                    / pow(h,gdimension+1);
       double dWdr;
       if(gdimension == 1)
         dWdr = -6.*rh*rh2;
       else 
         dWdr = -10.*rh*rh2*(1 - rh);
+        //dWdr = rh2*(1 - rh/2.)*(-5.*rh); 
 
       result = vecP*sigma*dWdr/r; 
     }
