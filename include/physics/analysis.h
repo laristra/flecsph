@@ -84,12 +84,13 @@ namespace analysis{
       std::vector<body_holder*>& bodies)
   {
     total_energy = 0.;
-    velocity_part = 0.;
     for(auto nbh: bodies) {
       total_energy += nbh->getBody()->getMass()*nbh->getBody()->getInternalenergy();
       linear_velocity = nbh->getBody()->getVelocity();
+      velocity_part = 0.;
       for(size_t i = 0 ; i < gdimension ; ++i){
         velocity_part += pow(linear_velocity[i],2);
+        part_position = nbh->getBody()->getPosition();
       }
       total_energy += 1./2.*velocity_part*nbh->getBody()->getMass();
     }
