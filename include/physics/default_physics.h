@@ -51,8 +51,6 @@ namespace physics{
   double A = 1.0;
   double MAC = 1.;
   int64_t iteration = 0;
-  //auto kernel = kernels::wendland_quintic;
-  //auto gradKernel = kernels::gradient_wendland_quintic;
 
   /**
    * @brief      Kernel selector: types, global variables and the function

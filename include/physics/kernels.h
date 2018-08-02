@@ -327,28 +327,6 @@ namespace kernels{
     return result; 
   }
 
-  /**
-   * @brief      Kernel selector
-   *
-   * @param      kstr     Kernel string descriptor
-   *
-   * @return     Pointer to the kernel
-  typedef double (*kernel_function_t)(const double, const double);
-  kernel_function_t
-  select_kernel(const std::string& kstr) {
-    if (boost::iequals(kstr,"cubic spline"))
-      return cubic_spline;
-    else if (boost::iequals(kstr, "quintic spline"))
-      return quintic_spline;
-    else if (boost::iequals(kstr, "gaussian"))
-      return gaussian;
-    else if (boost::iequals(kstr, "wendland quintic"))
-      return quintic_spline;
-    else
-      return NULL;
-  }
-   */
-
 
 }; // kernel
 
