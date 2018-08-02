@@ -166,7 +166,7 @@ namespace param {
 
 //- which kernel to use
 #ifndef initial_data_prefix
-  DECLARE_STRING_PARAM(kernel_function,"Wendland quintic")
+  DECLARE_STRING_PARAM(sph_kernel,"Wendland quintic")
 #endif
 
 //
@@ -368,7 +368,7 @@ void set_param(const std::string& param_name,
 # endif
 
 # ifndef initial_data_prefix
-  READ_STRING_PARAM(kernel_function)
+  READ_STRING_PARAM(sph_kernel)
 # endif
 
   // boundary conditions  ---------------------------------------------------

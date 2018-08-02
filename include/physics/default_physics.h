@@ -32,6 +32,7 @@
 #include "utils.h"
 #include "kernels.h"
 #include "tree.h"
+#include <boost/algorithm/string.hpp>
 
 namespace physics{
   using namespace param;
@@ -50,8 +51,44 @@ namespace physics{
   double A = 1.0;
   double MAC = 1.;
   int64_t iteration = 0;
-  auto kernel = kernels::wendland_quintic;
-  auto gradKernel = kernels::gradient_wendland_quintic;
+  //auto kernel = kernels::wendland_quintic;
+  //auto gradKernel = kernels::gradient_wendland_quintic;
+
+  /**
+   * @brief      Kernel selector: types, global variables and the function
+   *
+   * @param      kstr     Kernel string descriptor
+   *
+   * @return     Pointer to the kernel
+   */
+  typedef double  (*kernel_function_t)(const double,    const double);
+  typedef point_t (*kernel_gradient_t)(const point_t &, const double);
+  kernel_function_t kernel;
+  kernel_gradient_t gradKernel;
+
+  void
+  select_kernel(const std::string& kstr) {
+    if (boost::iequals(kstr,"cubic spline")) {
+      kernel = kernels::cubic_spline;
+      gradKernel = kernels::gradient_cubic_spline;
+    }
+    else if (boost::iequals(kstr, "quintic spline")) {
+      kernel = kernels::quintic_spline;
+      gradKernel = kernels::gradient_quintic_spline;
+    }
+    else if (boost::iequals(kstr, "gaussian")) {
+      kernel = kernels::gaussian;
+      gradKernel = kernels::gradient_gaussian;
+    }
+    else if (boost::iequals(kstr, "wendland quintic")) {
+      kernel = kernels::wendland_quintic;
+      gradKernel = kernels::gradient_wendland_quintic;
+    }
+    else {
+      clog_one(fatal) << "Bad kernel parameter" << std::endl;
+    }
+  }
+
 
   /**
    * @brief      Compute the density 

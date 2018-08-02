@@ -11,6 +11,7 @@
   sph_separation = 0.001  # TODO: use sph_eta instead!!!
 
 # evolution parameters:
+  sph_kernel = "quintic spline"
   initial_dt = 0.001      # TODO: better use Courant factor X sph_separation
   final_iteration = 100
   final_time = 10.0
