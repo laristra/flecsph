@@ -50,6 +50,9 @@ static std::string output_h5data_file; // = output_h5data_prefix + ".h5part"
 void set_derived_params() {
   using namespace param;
 
+  // set kernel
+  physics::select_kernel(sph_kernel);
+
   // filenames (this will change for multiple files output)
   std::ostringstream oss;
   oss << initial_data_prefix << ".h5part";

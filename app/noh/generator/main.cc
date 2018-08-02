@@ -34,10 +34,10 @@
 #include <iostream>
 #include <algorithm>
 #include <cassert>
+#include <math.h>
 
 #include "params.h"
 #include "hdf5ParticleIO.h"
-#include "kernels.h"
 
 //
 // help message

@@ -164,6 +164,11 @@ namespace param {
   DECLARE_PARAM(double,sph_separation,-1.0) // POISONED DEFAULT
 #endif
 
+//- which kernel to use
+#ifndef initial_data_prefix
+  DECLARE_STRING_PARAM(sph_kernel,"Wendland quintic")
+#endif
+
 //
 // Boundary conditions
 //
@@ -360,6 +365,10 @@ void set_param(const std::string& param_name,
 
 # ifndef sph_separation
   READ_NUMERIC_PARAM(sph_separation)
+# endif
+
+# ifndef initial_data_prefix
+  READ_STRING_PARAM(sph_kernel)
 # endif
 
   // boundary conditions  ---------------------------------------------------

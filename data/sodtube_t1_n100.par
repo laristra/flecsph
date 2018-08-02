@@ -8,7 +8,8 @@
   initial_data_prefix = "sodtube_t1_n100"
 
 # evolution
-  initial_dt = 0.0025
+  sph_kernel = "Wendland quintic"
+  initial_dt = 0.001
   final_iteration = 50
   out_screen_every = 1
   out_scalar_every = 10
