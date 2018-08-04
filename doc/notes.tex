@@ -200,9 +200,9 @@ visualization tool and splash\footnote{Describe it! url too}.
 Smoothed particle hydrodynamics (SPH) is an explicit numerical meshfree method
 that solves partial differential equations (PDE) of hydrodynamics by
 discretizing the flow with a set of fluid elements called particle. 
-The main formula for an SPH interpolation of a quantity $A(\vec{r})$, which is
-specified on a set of particles $A_b \equiv A(\vec{r}_b)$, is as follows 
-(Rosswog 2009):
+The main SPH formula to interpolate a quantity $A(\vec{r})$, which is
+specified by its values on a set of particles $A_b \equiv A(\vec{r}_b)$, 
+is as follows (Rosswog 2009):
 \begin{equation}
 A(\vec{r}) \simeq \sum_{b\in\Omega(\vec{r})} V_b A_b W(|\vec{r}-\vec{r}_b|,h)
 \end{equation}
@@ -210,34 +210,54 @@ where $W$ is a smoothing kernel,
 $h$ is the smoothing length (hydro interaction range) at a position $\vec{r}$, 
 and $V_b$ is a volume element, usually $V_b = m_b/\rho_b$.
 
-SPH has several advantages. SPH can handle deformations, low densities, and vacuum very well. Also, it conserves mass, linear and angular momentums, and energy by its construction that implies independent of the numerical resolution. Another strong benefit of using SPH is its exact advection of fluid properties. Furthermore, the particle structure of SPH easily combines with tree method for solving Newtonian gravity through N-body simulations.
-However, there are several cons of using SPH. It is restricted to low-order convergence. Also, SPH requires careful setup of initial distribution of particles. Further, it can be struggle to resolve turbulence dominated flows and special care must be taken when handling high gradients such as shocks and surface structure of neutron stars
+In comparison with Eulerian methods, SPH has several advantages. It can easily
+adapt to complex geometries, naturally handle low density regions, and does
+not require low-density floor to handle vacuum. It conserves mass by
+construction, and can be easily made to conserve linear momentum, angular
+momentum, and energy up to roundoff. Another advantage of using SPH is its
+exact advection of fluid properties. Furthermore, the same tree which is used
+to find particle neighbors, can be employed for computing Newtonian
+gravitational forces.
 
-Here, we want to solve the Lagrangian conservation equations for mass, energy and momentum of an ideal fluid such that
-\begin{align}
-\frac{d \rho}{d t} &= - \rho \nabla \cdot \vec{v} \\
-\frac{d u}{d t} &= \left( \frac{P}{\rho^2} \right) \frac{d \rho}{d t} \\
-\frac{d \vec{v}}{d t} &= - \frac{\nabla P}{\rho}
-\end{align}
-where $d/dt = \partial_t + \vec{v} \cdot \nabla$
+Shortcomings of SPH are its convergence which is restricted to low-order, 
+and high sensitivity to the initial particles distribution. 
+Also, SPH struggles with resolving turbulence-dominated flows and requires
+special care when handling high gradients, such as shocks and stellar surface.
 
-By using the volume element $V_b = m_b / \rho_b$, we can formulate the Newtonian SPH scheme such that
+The starting point at a continuum limit is Euler ideal fluid equations in the
+Lagrangian formulation, expressing conservation equations of mass and linear
+momentum:
 \begin{align}
-\rho_a = \sum_b m_b W_{ab} (h_a) \\
-\frac{d u_a}{dt} = \frac{P_a}{\rho_a^2} \sum_b m_b \vec{v}_{ab} \cdot \nabla_a W_{ab} \\
-\frac{d \vec{v}_a}{d t} = - \sum_b m_b \left(\frac{P_a}{\rho_a^2} + \frac{P_b}{\rho_b^2} \right) \nabla_a W_{ab}
+\frac{d \rho}{d t} &= - \rho \nabla \cdot \vec{v}, \\
+\frac{d u}{d t} &= \left( \frac{P}{\rho^2} \right) \frac{d \rho}{d t} +
+\vec{v}\cdot\vec{a}_g, \\
+\frac{d \vec{v}}{d t} &= - \frac{\nabla P}{\rho} + \vec{a}_g
 \end{align}
-where $W_{ab} = W(| \vec{r}_a - \vec{r}_b |,h)$. Further, we add artifical viscosity (or artificial dissipation) terms in SPH formulation such that
+where $d/dt = \partial_t + \vec{v} \cdot \nabla$ and $\vec{a}_g$ is
+gravitational acceleration. The latter may be 
+
+\subsection{Basic formulation}
+
+In its simplest form, SPH discretization uses the volume element 
+$V_b = m_b / \rho_b$, a constant smoothing length $h$, and artificial
+viscosity term $\Pi_{ab}$:
 \begin{align}
-\left(\frac{d u_a}{dt} \right)_{art} = \frac{1}{2} \sum_b m_b \Pi_{ab} \vec{v}_{ab} \cdot \nabla_a W_{ab}\\
-\left(\frac{d\vec{v}_a}{dt} \right)_{art} = - \sum_b m_b \Pi_{ab}\nabla_a W_{ab}\\
+  \rho_a &= \sum_b m_b W_{ab}, 
+\\
+  \frac{d u_a}{dt}  
+      &= \frac{P_a}{\rho_a^2} \sum_b m_b \vec{v}_{ab} \cdot \nabla_a W_{ab} 
+       + \frac12\sum_b m_b \Pi_{ab} \vec{v}_{ab} \cdot \nabla_a W_{ab}
+       + \vec{v}\cdot\vec{a}_g,
+\\
+  \frac{d \vec{v}_a}{d t} &= -\sum_b m_b 
+      \left( \frac{P_a}{\rho_a^2} 
+           + \frac{P_b}{\rho_b^2} 
+           + \Pi_{ab} \right) \nabla_a W_{ab}
+       + \vec{a}_a
 \end{align}
-In general, we can express the equations for internal energy and acceleration with artificial viscosity
-\begin{align}
-\frac{d u_a}{dt} = \sum_b m_b \left(\frac{P_a}{\rho_a^2} + \frac{\Pi_{ab}}{2} \right) \vec{v}_{ab} \cdot \nabla_a W_{ab} \\
-\frac{d \vec{v}_a}{d t} = - \sum_b m_b \left(\frac{P_a}{\rho_a^2} + \frac{P_b}{\rho_b^2} + \Pi_{ab} \right) \nabla_a W_{ab}
-\end{align}
-$\Pi_{ab}$ may define different way but here we use
+where $W_{ab} = W(| \vec{r}_a - \vec{r}_b |,h)$.
+The tensor of artificial viscous stresses $\Pi_{ab}$ may be defined in various
+ways, but here we use
 \begin{equation}
 \Pi_{ab} = \begin{cases}
 \frac{- \alpha \bar{c}_{ab} \mu_{ab} + \beta \mu_{ab}^2}{\bar{\rho}_{ab}} & \text{for $\vec{r}_{ab} \cdot \vec{v}_{ab} < 0$} \\
@@ -245,10 +265,12 @@ $\Pi_{ab}$ may define different way but here we use
 \end{cases}
 \indent \text{where} \indent \mu_{ab} = \frac{\bar{h}_{ab} \vec{r}_{ab} \cdot \vec{v}_{ab}}{r^2_{ab} + \epsilon \bar{h}_{ab}^2}
 \end{equation}
-For speed of sound, $c_s$ the usual form is
+The speed of sound $c_s$ is computed as usual,
 \begin{equation}
-c_s = \sqrt{\frac{\partial p}{\partial \rho}}
+c_s = \sqrt{\left(\frac{\partial P}{\partial \rho}\right)_S}
 \end{equation}
+where the partial derivative is constrained to the surface of constant entropy
+$S$.
 For example, from the Newton-Laplace equation, $c = \sqrt{\frac{K_s}{\rho}}$ where $K_s$ is a coefficient of stiffness, the isentropic bulk modulus
 The values of $\epsilon$, $\alpha$, and $\beta$ can be chosen differently. Here, we use $\epsilon = 0.01h^2$, $\alpha = 1.0$, and $\beta = 2.0$.
 Now, we need to test some cases for performance of code
