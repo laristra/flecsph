@@ -370,8 +370,8 @@ namespace physics{
         flecsi::dot(vecVelocity,resultkernelgradient);
     }
     
-    dudt = source->getPressure()/(source->getDensity()*source->getDensity())*
-    dudt_pressure+.5*dudt_visc;
+    dudt = source->getPressure()/(source->getDensity()*source->getDensity())
+         * (dudt_pressure + .5*dudt_visc);
 
     source->setDudt(dudt);
   } // compute_dudt
