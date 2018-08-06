@@ -118,29 +118,37 @@ mpi_init_task(const char * parameter_file){
     // Refresh the neighbors within the smoothing length
     bs.update_neighbors();
 
-    clog_one(trace) << "Hydro acceleration" << std::flush;
-    bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
-    clog_one(trace) << ".done" << std::endl;
-
-    clog_one(trace) << "Internalenergy" << std::flush;
-    bs.apply_in_smoothinglength(physics::compute_dudt);
-    clog_one(trace) << ".done" << std::endl;
-
     if (physics::iteration == 1){
+      clog_one(trace) << "Set v^{1/2}" << std::flush;
+      bs.apply_all(physics::set_initial_velocityhalf);
+      clog_one(trace) << ".done" << std::endl;
+
+      clog_one(trace) << "Hydro acceleration" << std::flush;
+      bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
+      clog_one(trace) << ".done" << std::endl;
+
       clog_one(trace) << "leapfrog" << std::flush;
       bs.apply_all(physics::leapfrog_integration_first_step);
       clog_one(trace) << ".done" << std::endl;
     }
-    else{
-      clog_one(trace) << "leapfrog" << std::flush;
-      bs.apply_all(physics::leapfrog_integration);
+    else {
+      clog_one(trace) << "Hydro acceleration" << std::flush;
+      bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
+      clog_one(trace) << ".done" << std::endl;
+
+      clog_one(trace) << "Leapfrog: compute v^n" << std::flush;
+      bs.apply_all(physics::leapfrog_substep_one);
+      clog_one(trace) << ".done" << std::endl;
+
+      clog_one(trace) << "Internal energy" << std::flush;
+      bs.apply_in_smoothinglength(physics::compute_dudt);
+      clog_one(trace) << ".done" << std::endl;
+
+      clog_one(trace) << "Leapfrog: compute v^{n+1/2}, u^{n+1/2} and r^{n+1}" 
+                      << std::flush;
+      bs.apply_all(physics::leapfrog_substep_two);
       clog_one(trace) << ".done" << std::endl;
     }
-
-    clog_one(trace) <<"dudt integration"<<std::flush;
-    bs.apply_all(physics::dudt_integration);
-    clog_one(trace) << ".done" << std::endl;
-
 
 #ifdef OUTPUT_ANALYSIS
     // Compute the analysis values based on physics

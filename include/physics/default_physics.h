@@ -236,7 +236,7 @@ namespace physics{
     double result = 0.0;
     double h_ij = .5*(source->getSmoothinglength()+nb->getSmoothinglength()); 
     space_vector_t vecVelocity = flecsi::point_to_vector(
-        source->getVelocity() - nb->getVelocity());
+        source->getVelocityhalf() - nb->getVelocityhalf());
     space_vector_t vecPosition = flecsi::point_to_vector(
         source->getPosition() - nb->getPosition());
     double dotproduct = flecsi::dot(vecVelocity,vecPosition);
@@ -298,25 +298,26 @@ namespace physics{
     for(auto nbh : ngbsh){ 
       body* nb = nbh->getBody();
 
-      if(nb->getPosition() == source->getPosition()){
+      if(nb->getPosition() == source->getPosition())
         continue;
-      }
 
       // Compute viscosity
       double visc = viscosity(source,nb);
       
       // Hydro force
-      point_t vecPosition = source->getPosition()-nb->getPosition();
-      double pressureDensity = source->getPressure()/(source->getDensity()*
-          source->getDensity())
-          + nb->getPressure()/(nb->getDensity()*nb->getDensity());
+      point_t vecPosition = source->getPosition() - nb->getPosition();
+      double rho_a = source->getDensity();
+      double rho_b = nb->getDensity();
+      double pressureDensity 
+          = source->getPressure()/(rho_a*rho_a) 
+          + nb->getPressure()/(rho_b*rho_b);
 
       // Kernel computation
       point_t sourcekernelgradient = gradKernel(
           vecPosition,source->getSmoothinglength());
       point_t resultkernelgradient = sourcekernelgradient;
 
-      hydro += nb->getMass()*(pressureDensity+visc)
+      hydro += nb->getMass()*(pressureDensity + visc)
         *resultkernelgradient;
 
     }
@@ -362,7 +363,7 @@ namespace physics{
 
       // Velocity vector 
       space_vector_t vecVelocity = flecsi::point_to_vector(
-          source->getVelocity()-nb->getVelocity());
+          source->getVelocity() - nb->getVelocity());
 
       dudt_pressure += nb->getMass()*
         flecsi::dot(vecVelocity,resultkernelgradient);
@@ -370,8 +371,9 @@ namespace physics{
         flecsi::dot(vecVelocity,resultkernelgradient);
     }
     
-    dudt = source->getPressure()/(source->getDensity()*source->getDensity())
-         * (dudt_pressure + .5*dudt_visc);
+    double P_a = source->getPressure();
+    double rho_a = source->getDensity();
+    dudt = P_a/(rho_a*rho_a)*dudt_pressure + .5*dudt_visc;
 
     source->setDudt(dudt);
   } // compute_dudt
@@ -551,6 +553,19 @@ namespace physics{
 #endif
 
   /**
+   * @brief      Sets v^{1/2} = v^{0}
+   *
+   * @param      srch  The source's body holder
+   */
+  void 
+  set_initial_velocityhalf(
+      body_holder* srch)
+  {
+    body* source = srch->getBody();
+    source->setVelocityhalf(source->getVelocity());
+  }
+
+  /**
    * @brief      Leapfrog integration, first step 
    *
    * @param      srch  The source's body holder
@@ -593,6 +608,80 @@ namespace physics{
    */
   void 
   leapfrog_integration(
+      body_holder* srch)
+  {
+    body* source = srch->getBody();
+    
+    // If wall, reset velocity and dont move 
+    if(source->is_wall()){
+      source->setVelocity(point_t{});
+      source->setVelocityhalf(point_t{}); 
+      return; 
+    }
+    
+    point_t velocityHalf = source->getVelocityhalf() + 
+        dt*source->getAcceleration();
+    point_t position = source->getPosition()+velocityHalf*dt;
+    point_t velocity = 1./2.*(source->getVelocityhalf()+velocityHalf);
+
+    if(do_boundaries){
+      if(physics::compute_boundaries(srch)){
+        return;
+      }
+    }
+
+    source->setVelocityhalf(velocityHalf);
+    source->setVelocity(velocity);
+    source->setPosition(position);
+    
+    mpi_assert(!std::isnan(position[0])); 
+  }
+
+  /**
+   * @brief      Leapfrog: substep 1
+   *            
+   *             v^n = v^{n-1/2} + dt/2*(dv/dt)^n
+   *
+   * @param      srch  The source's body holder
+   */
+  void 
+  leapfrog_substep_one(
+      body_holder* srch)
+  {
+    body* source = srch->getBody();
+    source->setVelocity(source->getVelocityhalf()
+               + 0.5*dt*source->getAcceleration());
+  }
+
+  /**
+   * @brief      Leapfrog: substep 2
+   *            
+   *             u^(n+1/2) = u^{n-1/2} + dt*(du/dt)^n
+   *             v^(n+1/2) = v^{n} + dt/2*(dv/dt)^n
+   *             r^{n+1}   = r^{n} + dt*v^{n+1/2}
+   *
+   * @param      srch  The source's body holder
+   */
+  void 
+  leapfrog_substep_two(
+      body_holder* srch)
+  {
+    body* source = srch->getBody();
+    source->setInternalenergy(source->getInternalenergy() 
+                         + dt*source->getDudt());
+    source->setVelocityhalf(  source->getVelocity() 
+                     + 0.5*dt*source->getAcceleration());
+    source->setPosition(      source->getPosition()
+                         + dt*source->getVelocityhalf());
+  }
+
+  /**
+   * @brief      Leapfrog integration
+   *
+   * @param      srch  The source's body holder
+   */
+  void 
+  leapfrog_integration_old(
       body_holder* srch)
   {
     body* source = srch->getBody();
