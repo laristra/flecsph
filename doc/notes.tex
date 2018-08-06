@@ -26,6 +26,7 @@
 
 \topmargin 0.30in
 \textheight 9.00in
+\parindent 0.0in
 
  \addtolength{\voffset}{-2cm}
 
@@ -229,14 +230,15 @@ Lagrangian formulation, expressing conservation equations of mass and linear
 momentum:
 \begin{align}
 \frac{d \rho}{d t} &= - \rho \nabla \cdot \vec{v}, \\
-\frac{d u}{d t} &= \left( \frac{P}{\rho^2} \right) \frac{d \rho}{d t} +
-\vec{v}\cdot\vec{a}_g, \\
-\frac{d \vec{v}}{d t} &= - \frac{\nabla P}{\rho} + \vec{a}_g
+\frac{d u}{d t} &= \left( \frac{P}{\rho^2} \right) \frac{d \rho}{d t}, \\
+\frac{d \vec{v}}{d t} &= - \frac{\nabla P}{\rho} + \vec{g}, \\
 \end{align}
-where $d/dt = \partial_t + \vec{v} \cdot \nabla$ and $\vec{a}_g$ is
-gravitational acceleration. The latter may be 
+where $d/dt = \partial_t + \vec{v} \cdot \nabla$ and $\vec{g}$ is
+a gravitational acceleration. The latter may be due to interparticle
+gravitational interaction, an external gravitational field, or both.
 
 \subsection{Basic formulation}
+\label{sec:basic_formulation}
 
 In its simplest form, SPH discretization uses the volume element 
 $V_b = m_b / \rho_b$, a constant smoothing length $h$, and artificial
@@ -245,77 +247,141 @@ viscosity term $\Pi_{ab}$:
   \rho_a &= \sum_b m_b W_{ab}, 
 \\
   \frac{d u_a}{dt}  
-      &= \frac{P_a}{\rho_a^2} \sum_b m_b \vec{v}_{ab} \cdot \nabla_a W_{ab} 
-       + \frac12\sum_b m_b \Pi_{ab} \vec{v}_{ab} \cdot \nabla_a W_{ab}
-       + \vec{v}\cdot\vec{a}_g,
+      &= \sum_b m_b\left( 
+           \frac{P_a}{\rho_a^2} + \frac12\Pi_{ab}
+         \right)\vec{v}_{ab} \cdot \nabla_a W_{ab},
 \\
   \frac{d \vec{v}_a}{d t} &= -\sum_b m_b 
       \left( \frac{P_a}{\rho_a^2} 
            + \frac{P_b}{\rho_b^2} 
            + \Pi_{ab} \right) \nabla_a W_{ab}
-       + \vec{a}_a
+       + \vec{g}_a,
 \end{align}
-where $W_{ab} = W(| \vec{r}_a - \vec{r}_b |,h)$.
-The tensor of artificial viscous stresses $\Pi_{ab}$ may be defined in various
-ways, but here we use
+where $W_{ab} = W(|\vec{r}_a - \vec{r}_b|,h)$.
+The viscous stress tensor $\Pi_{ab}$ may be defined in different ways;
+currently we have adopted the following form:
 \begin{equation}
-\Pi_{ab} = \begin{cases}
-\frac{- \alpha \bar{c}_{ab} \mu_{ab} + \beta \mu_{ab}^2}{\bar{\rho}_{ab}} & \text{for $\vec{r}_{ab} \cdot \vec{v}_{ab} < 0$} \\
-0 & \text{otherwise}
-\end{cases}
-\indent \text{where} \indent \mu_{ab} = \frac{\bar{h}_{ab} \vec{r}_{ab} \cdot \vec{v}_{ab}}{r^2_{ab} + \epsilon \bar{h}_{ab}^2}
-\end{equation}
-The speed of sound $c_s$ is computed as usual,
-\begin{equation}
-c_s = \sqrt{\left(\frac{\partial P}{\partial \rho}\right)_S}
-\end{equation}
-where the partial derivative is constrained to the surface of constant entropy
-$S$.
-For example, from the Newton-Laplace equation, $c = \sqrt{\frac{K_s}{\rho}}$ where $K_s$ is a coefficient of stiffness, the isentropic bulk modulus
-The values of $\epsilon$, $\alpha$, and $\beta$ can be chosen differently. Here, we use $\epsilon = 0.01h^2$, $\alpha = 1.0$, and $\beta = 2.0$.
-Now, we need to test some cases for performance of code
-\subsection{Kernel}
-There are many kernels for SPH. We use simple cubic spline kernel for our case. Other higher order kernels will be added soon. The Monaghan's cubic spline kernel is
-\begin{equation}
-W(\vec{r},h) = \frac{\sigma}{h^D} \begin{cases}
-1-\frac{3}{2} q^2 + \frac{3}{4} & \text{if} \indent 0 \leq q \leq 1 \\
-\frac{1}{4} (1-q)^3  & \text{if} \indent 1 \leq q \leq 2 \\
-0 & \text{otherwise}
+\Pi_{ab} = 
+\begin{cases}
+  \frac{- \alpha \bar{c}_{ab} \mu_{ab} + \beta \mu_{ab}^2}{\bar{\rho}_{ab}} 
+    & \text{for $\vec{r}_{ab} \cdot \vec{v}_{ab} < 0$,} \\
+  0 & \text{otherwise,}
 \end{cases}
 \end{equation}
-where $q = r/h$, $D$ is the number of dimensions and $\sigma$ is a normalization constant with the values
+where the following quantities are defined: 
+\begin{align}
+  &\mu_{ab} = \frac{\bar{h}_{ab} \vec{r}_{ab} \cdot \vec{v}_{ab}}
+                   {|\vec{r}_{ab}|^2 + \epsilon \bar{h}_{ab}^2},\\
+  &\vec{r}_{ab} = \vec{r}_a - \vec{r}_b, &\vec{v}_{ab} = \vec{v}_a - \vec{v}_b,\\
+  &\text{average speed of sound:} &\bar{c}_{ab} = (c_a + c_b)/2, \\
+  &\text{average density:}        &\bar{\rho}_{ab} = (\rho_a + \rho_b)/2,\\
+  &\text{average smoothing length:} &\bar{h}_{ab} = (h_a + h_b)/2,\\
+\end{align}
+
+In the basic formulation with a constant smoothing length, $\bar{h}_{ab}\equiv h$.
+The values of $\epsilon$, $\alpha$, and $\beta$ control the strength and
+application of artificial viscosity. Their default values:
+$\epsilon = 0.01$, $\alpha = 1.0$, and $\beta = 2.0$.
+
+The quantity $\bar{c}_{ab}$ is a speed of sound, averaged between particles
+$a$ and $b$: $\bar{c}_{ab} = (c_a + c_b)/2$. It is computed as usual:
 \begin{equation}
-\sigma =  \begin{cases}
-\frac{2}{3} & \text{for 1D}  \\
-\frac{10}{7 \pi} & \text{for 2D} \\
-\frac{1}{\pi} & \text{for 3D}
+c_a = \sqrt{\left(\frac{\partial P}{\partial \rho}\right)_{S,a}},
+\end{equation}
+where the partial derivative is taken under constraint of a constant entropy
+$S$, with thermodynamic conditions at particle $a$.
+E.g., the following (Newton-Laplace) equation,
+\begin{align}
+  c_a = \sqrt{\frac{\Gamma P_a}{\rho_a}}
+\end{align}
+holds both for polytropic and ideal fluid equations of state (see
+Section~\ref{sec:eos}).
+
+If $\vec{g}=0$, then the basic formulation, when integrated with a symplectic
+integrator, conserves energy, momentum and angular momentum \emph{exactly}
+(e.g. Rosswog 2009, Section 2.4).
+
+
+\subsection{Kernels}
+\label{sec:kernels}
+There are many choices for selecting a smoothing kernel. In the code, the
+kernel choice is specified by a {\tt sph\_kernel} parameter, and the smoothing
+length is defined to be equal to the kernel support radius. Note that some
+works define smoothing length differently, such that the kernel support radius
+becomes a multiple of smoothing length. For example, for a cubic spline kernel
+it is twice the $h$. We do not make such distinction; all kernels below must
+satisfy the following normalization condition:
+\begin{align}
+  \iiint_{S_D(h)} W(\vec{r},h) d^D\vec{r} = 1,
+\label{eq:kernel_normalization_condition}
+\end{align}
+where the integration is performed over the $D$-dimensional volume of a sphere
+$S_D(h)$ of radius $h$.
+
+All the currently implemented kernels possess spherical symmetry, which makes
+it easy to impose exact conservation of linear momentum. For such kernels, the
+gradients can be computed as follows:
+\begin{align}
+  \nabla_a W_{ab} &\equiv \nabla_a W(|\vec{r}_a - \vec{r}_b|, h_a) \\
+                  &= \frac{dW}{dr} \vec{\varepsilon}_{ab},
+\end{align}
+where $\vec{\varepsilon}_{ab}\equiv\vec{r}_{ab}/|\vec{r}_{ab}|$ is a unit
+vector in the direction from particle $b$ to particle $a$.
+It is therefore sufficient to implement $dW/dr$ for each kernel.
+
+In the formulae below, we define $q\equiv|\vec{r}|/h$.
+
+\subsubsection{{\tt sph\_kernel = "cubic spline"}}
+The simplest (but \emph{not} the best one) is a Monaghan's cubic spline kernel:
+\begin{equation}
+W(\vec{r},h) = \frac{\sigma_D}{h^D} 
+  \begin{cases}
+    1 - 6 q^2 + 6 q^3 & \text{if} \; 0 \leq q \leq 1/2, \\
+    2(1 - q)^3        & \text{if} \; 1/2 \leq q \leq 1, \\
+    0                 & \text{otherwise},
 \end{cases}
 \end{equation}
+where $q = r/h$, $D$ is the number of dimensions and 
+$\sigma_D$ is a normalization constant:
+\begin{equation}
+\sigma_D =  \left\{ \frac43, \frac{40}{7\pi},\frac8{\pi}\right\}
+         \; \text{in 1D, 2D and 3D resp.}
+\end{equation}
 
-Using this, we can calculate kernel gradient. Below procedure shows the steps of kernel gradient in 3D
-$$W = \frac{1}{\pi h^3} \times \begin{cases} 1 - \frac{3}{2} (\frac{r}{h})^2 + \frac{3}{4} (\frac{r}{h})^3, & \mbox{si } 0 \leq \frac{r}{h} < 1 \\ \frac{1}{4} [2-\frac{r}{h}]^3, & \mbox{si } 1 \leq \frac{r}{h} < 2\\ 0, & \mbox{si } \frac{r}{h} \geq 2 \end{cases}$$
+Radial derivative of the cubic spline kernel is:
+\begin{align}
+ \frac{dW}{dr} = \frac{\sigma_D}{h^{D+1}} 
+  \begin{cases}
+   -6q(2 - 3q)  & \text{if} \; 0 \leq q \leq 1/2, \\
+   -6(1 - q)^2  & \text{if} \; 1/2 \leq q \leq 1, \\
+    0           & \text{otherwise}.
+\end{cases}
+\end{align}
 
-And $r=\sqrt{(x_i-x_j)^2 + (y_j-y_j)^2 + (z_i-z_j)^2}$
-with $r = \sqrt{u^2+v^2+w^2}$ and
-$ \vec{r_{ij}} = \begin{cases} u = x_i - x_j \\ v = y_i-y_j \\ w = z_i-z_j \end{cases} $
-
-$$ \vec{\nabla} . W = \frac{\partial W}{\partial u} \vec{x} + \frac{\partial W}{\partial v} \vec{y} + \frac{\partial W}{\partial w} \vec{z}  =  \frac{\partial W}{\partial r} \frac{\partial r}{\partial u} \vec{x} + \frac{\partial W}{\partial r}  \frac{\partial r}{\partial v} \vec{y} + \frac{\partial W}{\partial r} \frac{\partial r}{\partial w} \vec{z} $$
-$$ = \frac{\partial W}{\partial r} \Big[ \frac{\partial r}{\partial u}\vec{x} + \frac{\partial r}{\partial v} \vec{y} + \frac{\partial r}{\partial w} \vec{z}\Big] = \frac{\partial W}{\partial r} \frac{\vec{r_{ij}}}{r} $$
-
-For $0 \leq \frac{r}{h} < 1$ :
-$$ \frac{\partial W}{\partial r} = - \frac{3}{h^2}r + \frac{9}{4h^3}r^2$$
-
-$$ \vec{\nabla}_iW(\vec{r_{ij}},h) =\Big( -\frac{3}{h^2}r + \frac{9}{4h^3}r^2\Big) \frac{\vec{r_{ij}}}{r} = \Big( -\frac{3}{h^2} + \frac{9}{4h^3}r\Big) \vec{r_{ij}} $$
-
-For $1 \leq \frac{r}{h} < 2$ :
-$$ \frac{\partial W}{\partial r} = \frac{-3}{4h} \Big(2-\frac{r}{h}\Big)^2 = \frac{-3}{4h} \Big( 4 - \frac{4r}{h} + \frac{r^2}{h^2} \Big) = \frac{-3}{h} + \frac{3r}{h^2} + \frac{-3r^2}{4h^3}$$
-
-$$ \vec{\nabla}_iW(\vec{r_{ij}},h) =\Big(\frac{-3}{h} + \frac{3r}{h^2} + \frac{-3r^2}{4h^3} \Big) \frac{\vec{r_{ij}}}{r} = \Big(\frac{-3}{hr} + \frac{3}{h^2} + \frac{-3r}{4h^3} \Big) \vec{r_{ij}}  $$
-
-So:
-
-$$
- \vec{\nabla}_iW(\vec{r_{ij}},h) = \frac{1}{\pi h^4} \times \begin{cases} ( -\frac{3}{h} + \frac{9}{4h^2}r) \vec{r_{ij}}, & \mbox{si } 0 \leq \frac{r}{h} < 1 \\ (\frac{-3}{r} + \frac{3}{h} + \frac{-3r}{4h^2} ) \vec{r_{ij}}, & \mbox{si } 1 \leq \frac{r}{h} < 2\\ 0, & \mbox{si } \frac{r}{h} \geq 2 \end{cases}$$
+%%% Using this, we can calculate kernel gradient. Below procedure shows the steps of kernel gradient in 3D
+%%% $$W = \frac{1}{\pi h^3} \times \begin{cases} 1 - \frac{3}{2} (\frac{r}{h})^2 + \frac{3}{4} (\frac{r}{h})^3, & \mbox{si } 0 \leq \frac{r}{h} < 1 \\ \frac{1}{4} [2-\frac{r}{h}]^3, & \mbox{si } 1 \leq \frac{r}{h} < 2\\ 0, & \mbox{si } \frac{r}{h} \geq 2 \end{cases}$$
+%%% 
+%%% And $r=\sqrt{(x_i-x_j)^2 + (y_j-y_j)^2 + (z_i-z_j)^2}$
+%%% with $r = \sqrt{u^2+v^2+w^2}$ and
+%%% $ \vec{r_{ij}} = \begin{cases} u = x_i - x_j \\ v = y_i-y_j \\ w = z_i-z_j \end{cases} $
+%%% 
+%%% $$ \vec{\nabla} . W = \frac{\partial W}{\partial u} \vec{x} + \frac{\partial W}{\partial v} \vec{y} + \frac{\partial W}{\partial w} \vec{z}  =  \frac{\partial W}{\partial r} \frac{\partial r}{\partial u} \vec{x} + \frac{\partial W}{\partial r}  \frac{\partial r}{\partial v} \vec{y} + \frac{\partial W}{\partial r} \frac{\partial r}{\partial w} \vec{z} $$
+%%% $$ = \frac{\partial W}{\partial r} \Big[ \frac{\partial r}{\partial u}\vec{x} + \frac{\partial r}{\partial v} \vec{y} + \frac{\partial r}{\partial w} \vec{z}\Big] = \frac{\partial W}{\partial r} \frac{\vec{r_{ij}}}{r} $$
+%%% 
+%%% For $0 \leq \frac{r}{h} < 1$ :
+%%% $$ \frac{\partial W}{\partial r} = - \frac{3}{h^2}r + \frac{9}{4h^3}r^2$$
+%%% 
+%%% $$ \vec{\nabla}_iW(\vec{r_{ij}},h) =\Big( -\frac{3}{h^2}r + \frac{9}{4h^3}r^2\Big) \frac{\vec{r_{ij}}}{r} = \Big( -\frac{3}{h^2} + \frac{9}{4h^3}r\Big) \vec{r_{ij}} $$
+%%% 
+%%% For $1 \leq \frac{r}{h} < 2$ :
+%%% $$ \frac{\partial W}{\partial r} = \frac{-3}{4h} \Big(2-\frac{r}{h}\Big)^2 = \frac{-3}{4h} \Big( 4 - \frac{4r}{h} + \frac{r^2}{h^2} \Big) = \frac{-3}{h} + \frac{3r}{h^2} + \frac{-3r^2}{4h^3}$$
+%%% 
+%%% $$ \vec{\nabla}_iW(\vec{r_{ij}},h) =\Big(\frac{-3}{h} + \frac{3r}{h^2} + \frac{-3r^2}{4h^3} \Big) \frac{\vec{r_{ij}}}{r} = \Big(\frac{-3}{hr} + \frac{3}{h^2} + \frac{-3r}{4h^3} \Big) \vec{r_{ij}}  $$
+%%% 
+%%% So:
+%%% 
+%%% $$
+%%%  \vec{\nabla}_iW(\vec{r_{ij}},h) = \frac{1}{\pi h^4} \times \begin{cases} ( -\frac{3}{h} + \frac{9}{4h^2}r) \vec{r_{ij}}, & \mbox{si } 0 \leq \frac{r}{h} < 1 \\ (\frac{-3}{r} + \frac{3}{h} + \frac{-3r}{4h^2} ) \vec{r_{ij}}, & \mbox{si } 1 \leq \frac{r}{h} < 2\\ 0, & \mbox{si } \frac{r}{h} \geq 2 \end{cases}$$
 
 \section{Applications}
 
@@ -363,6 +429,7 @@ Here, we test 2D blast wave test. In this simulation, we use ideal gas EOS with 
 
 
 \subsection{Equations of State}
+\label{sec:eos}
 To understand the inner property of stars, one needs to find the equation which describes the relation between the pressure of matter and its density, temperature and other compositions such that
 \begin{equation}
 P = P(\rho, T, Y_e, ...)
