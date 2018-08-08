@@ -116,6 +116,7 @@ mpi_init_task(const char * parameter_file){
       // of the iteration
       clog_one(trace) << "first iteration: pressure, rho and cs" << std::flush;
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
+      bs.apply_all(physics::save_velocityhalf);
       clog_one(trace) << ".done" << std::endl;
 
       // necessary for computing dv/dt and du/dt in the next step
@@ -131,6 +132,7 @@ mpi_init_task(const char * parameter_file){
       clog_one(trace) << "leapfrog: kick one" << std::flush;
       bs.apply_all(physics::leapfrog_kick_v);
       bs.apply_all(physics::leapfrog_kick_u);
+      bs.apply_all(physics::save_velocityhalf);
       clog_one(trace) << ".done" << std::endl;
 
       // sync velocities

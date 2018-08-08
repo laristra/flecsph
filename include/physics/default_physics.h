@@ -236,7 +236,7 @@ namespace physics{
     double result = 0.0;
     double h_ij = .5*(source->getSmoothinglength()+nb->getSmoothinglength()); 
     space_vector_t vecVelocity = flecsi::point_to_vector(
-        source->getVelocity() - nb->getVelocity());
+        source->getVelocityhalf() - nb->getVelocityhalf());
     space_vector_t vecPosition = flecsi::point_to_vector(
         source->getPosition() - nb->getPosition());
     double dotproduct = flecsi::dot(vecVelocity,vecPosition);
@@ -249,6 +249,7 @@ namespace physics{
     mpi_assert(result < 0.0);
     return result; 
   } // mu
+
 
   /**
    * @brief      Artificial viscosity 
@@ -626,6 +627,18 @@ namespace physics{
 
 
   /*******************************************************/
+  /**
+   * @brief      v -> v12
+   *
+   * @param      srch  The source's body holder
+   * @param      nbsh  The neighbors' body holders
+   */
+  void 
+  save_velocityhalf (body_holder* srch) {
+    body* source = srch->getBody();
+    source->setVelocityhalf(source->getVelocity());
+  }
+
   /**
    * @brief      Leapfrog: kick velocity
    *             v^{n+1/2} = v^{n} + (dv/dt)^n * dt/2
