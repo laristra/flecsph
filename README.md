@@ -18,6 +18,7 @@ For the first version of the code we intent to provide several basic physics pro
 - Sedov Blast Wave 2D
 - Binary Compact Object Merger 3D
 
+You can find detail ingredients of FleCSPH such as formulations and algorithm under `doc/notes.pdf`. The document is constantly updated to contain latest development of FleCSPH
 
 # Getting the Code
 
