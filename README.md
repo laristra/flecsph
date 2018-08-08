@@ -212,6 +212,9 @@ FleCSPH follows the FleCSI coding style, which in turn follows (in general) the 
 FleCSI coding style is documented here:
 https://github.com/laristra/flecsi/blob/master/flecsi/style.md
 
+# Development Logistic
+If you would are new person for development of the FleCSPH, please check development logistic under doc/DEVELOPMENT.md
+
 # Logs 
 
 Cinch Log is the logging tool for this project. 
