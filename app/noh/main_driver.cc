@@ -100,17 +100,17 @@ mpi_init_task(const char * parameter_file){
     analysis::screen_output();
     MPI_Barrier(MPI_COMM_WORLD);
 
-    // Compute and prepare the tree for this iteration
-    // - Compute the Max smoothing length
-    // - Compute the range of the system using the smoothinglength
-    // - Compute the keys
-    // - Distributed qsort and sharing
-    // - Generate and feed the tree
-    // - Exchange branches for smoothing length
-    // - Compute and exchange ghosts in real smoothing length
-    bs.update_iteration();
-
     if (physics::iteration == 1){
+      // Compute and prepare the tree for this iteration
+      // - Compute the Max smoothing length
+      // - Compute the range of the system using the smoothinglength
+      // - Compute the keys
+      // - Distributed qsort and sharing
+      // - Generate and feed the tree
+      // - Exchange branches for smoothing length
+      // - Compute and exchange ghosts in real smoothing length
+      bs.update_iteration();
+
       // at the initial iteration, P, rho and cs have not been computed yet;
       // for all subsequent steps, however, they are computed at the end 
       // of the iteration
@@ -141,7 +141,8 @@ mpi_init_task(const char * parameter_file){
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
       clog_one(trace) << ".done" << std::endl;
 
-      // sync positions
+      // recompute the tree and sync
+      bs.update_iteration();
       bs.update_neighbors();
 
       clog_one(trace) << "leapfrog: kick two (velocity)" << std::flush;
