@@ -1,0 +1,857 @@
+\documentclass{article}
+\usepackage{amsmath, graphicx}
+\usepackage{grffile}
+\usepackage{dcolumn}
+\usepackage{bm}
+\usepackage{url}
+\usepackage{epsfig}
+\usepackage{mathrsfs}  %  package for the "curly" fonts
+\usepackage{subfigure}
+\usepackage{multirow}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{amssymb}
+\usepackage{tensor}
+\usepackage{romannum}
+
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{color}
+\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}
+\usepackage{fancyhdr}
+
+\topmargin 0.30in
+\textheight 9.00in
+\parindent 0.0in
+
+ \addtolength{\voffset}{-2cm}
+
+\begin{document}
+
+\title{FleCSPH notes}
+
+\author{Hyun Lim, Julien Loiseau}
+
+%\pacs{}
+\maketitle
+
+\section{FleCSI}
+FleCSI is a compile-time configurable framework designed to support
+multi-physics application development.
+As such, FleCSI provides a very general set of infrastructure design patterns
+that can be specialized and extended to suit the needs of a broad variety of
+solver and data requirements.
+FleCSI currently supports multi-dimensional mesh topology, geometry, and
+adjacency information, as well as n-dimensional hashed-tree data structures,
+graph partitioning interfaces, and dependency closures.
+
+FleCSI introduces a functional programming model with control, execution, and
+data abstractions that are consistent both with MPI and with state-of-the-art,
+task-based runtimes such as Legion, HPX and Charm++.
+The abstraction layer insulates developers from the underlying runtime, while
+allowing support for multiple runtime systems including conventional models
+like asynchronous MPI.
+
+The intent is to provide developers with a concrete set of user-friendly
+programming tools that can be used now, while allowing flexibility in choosing
+runtime implementations and optimization that can be applied to future
+architectures and runtimes.
+
+FleCSI's control and execution models provide formal nomenclature for
+describing poorly understood concepts such as kernels and tasks.
+FleCSI's data model provides a low-buy-in approach that makes it an attractive
+option for many application projects, as developers are not locked into
+particular layouts or data structure representations.
+
+FleCSI currently provides a parallel but not distributed implementation of
+binary, quad- and octree topologies.
+Domain decomposition is implemented using space-filling curves, such as Morton
+ordering curve.
+
+At current stage, FleCSI framework requires implementation of a \textit{driver} 
+and a \textit{specialization\_driver}.
+The role of the \textit{specialization\_driver} is to provide the data model
+and its parallel distribution.
+Currently, FleCSI does not has this feature fully implemented, so we provide it.
+The next step will be to incorporate it directly from FleCSPH to FleCSI as we
+reach a good level of performance.
+The \textit{driver} represents the general execution of the resolution without
+worrying of the data locality and communications.
+As FleCSI is a code in development, its structure may change in the future and
+we keep track of these changes in FleCSPH.
+
+\section{Domain and tree construction}
+In the previous section we described the FleCSI framework.
+This part gives details on the domain decomposition using octree, tree 
+construction and search algorithm.
+
+\subsection{Domain decomposition}
+In the current version of FleCSI the domain decomposition is done using the
+Morton ordering.
+It allows to describe, sort and distribute particles based on a unique value
+-- key.
+
+In principle, various space-filling curves can be used, with their own
+advantages and flaws:
+\begin{itemize}
+\item Morton ordering: interlace the bits of X, Y and Z positions to create
+the key. It is very simple to compute, but the curve suffers discontinuous
+jumps.
+\item Hilbert-Peano: interlace the bits, but also add rotations. In this
+ordering, data locality in memory guarantees locality in space.
+\item Other space-filling curves: hexagonal space filling curves, ...?
+\end{itemize}
+
+This first implementation is based on the Morton ordering which is used during
+several steps:
+\begin{itemize}
+\item The distribution part, to be able to split the particles between the
+processes providing a good locality in the data.
+\item The tree construction and search. 
+\end{itemize}
+
+\section{Binary, Quad- and Octrees}
+% Describe the tree and the splitting version of it
+% Explain the ghosts, exclusive and shared particles.
+
+\section{General algorithm}
+The main distributed algorithm is presented in algorithm \ref{alg:main_distributed}
+
+\begin{algorithm}
+\caption{Main algorithm}\label{alg:main_distributed}
+\begin{algorithmic}[1]
+\Procedure{specialization\_driver}{input parameter file {\tt p}}
+\State Read parameter file {\tt p}
+\State Set simulation parameters
+\State Distributed read input data files, specified in parameter file
+\State Set additional parameters specified in input data files
+\While{iterations}
+\State Distribute the particles using distributed quick sort 
+       \Comment{Using Morton keys}\label{alg_main:qsort}
+\State Compute total range
+\State Generate the local tree
+\State Share branches\label{alg_main:share_branches}
+\State Compute ghosts particles\label{alg_main:cp_ghosts}
+\State Update ghosts data\label{alg_main:up_ghosts}
+\State Do physics
+\State Update ghosts data
+\State Do physics
+\State Periodic analysis and output
+\EndWhile
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+In the current version the \ref{alg_main:qsort} is based on a distributed
+quick sort algorithm.
+Each process sends a sample of its keys to the master (or submaster for larger cases).
+We have set this to 256 Kb of key data per process, but it can be increased
+for larger simulations.
+After receiving sample keys, the master determines the general ordering for
+all the processes and shares the pivots.
+Then each process sorts its local keys and, in a global communication step,
+the particles are distributed to the process on which they belong.
+The advantage is that it is a quick distribution algorithm, but it can lead to
+bad load balancing.
+\begin{itemize}
+\item The ordering may not be perfect in terms of the number of particles per
+processes. But by changing the amount of data exchanged to the master can lead
+to better affectation (?)
+\item The load balancing also depends on the number of neighbors of each
+particles. If a particle is located in a poor area with large space between the
+particles this can lead to bad load balancing too.
+\end{itemize}
+
+After the sorting step the local tree can be created on each process.
+To be able to look for the ghosts and shared particles we need to share some
+information with the neighbors on the tree.
+At line (\ref{alg_main:share_branches}), the algorithm searches for the
+neighboring branches, which are affecting the local particles.
+We compute the global bounding box of each processes and based on this
+information each process can then compute the affecting branches to share from
+its local tree.
+This new information is then added to the local tree by considering
+\textit{NON\_LOCAL} particles.
+This data structure does just contain the position and mass of the distant
+particle.
+
+The branch sharing allows to compute the ghosts for this step.
+Each process performs a local search in the tree and computes the required
+ghosts particles (the \textit{NON\_LOCAL} bodies).
+Those data for shared and ghosts are stored and are use to share the complete
+particle information when \ref{alg_main:up_ghosts} is invoked.
+As the ghosts data remain the same within an iteration, the
+\ref{alg_main:up_ghosts} can be used several times to update local information
+on remote particles.
+
+\section{I/O}
+Large-scale simulations require an efficient, parallel and distributed I/O.
+We base this first implementation on HDF5 file structure with H5Part and H5Hut.
+The I/O was developed at LANL and provides a simple interface to read and write
+data in H5Part format.
+The first requirement is to allow the user to work directly with the Paraview
+visualization tool and splash\footnote{Describe it! url too}.
+
+
+\section{SPH Formulation in FleCSPH}
+Smoothed particle hydrodynamics (SPH) is an explicit numerical meshfree method
+that solves partial differential equations (PDE) of hydrodynamics by
+discretizing the flow with a set of fluid elements called particle. 
+The main SPH formula to interpolate a quantity $A(\vec{r})$, which is
+specified by its values on a set of particles $A_b \equiv A(\vec{r}_b)$, 
+is as follows (Rosswog 2009):
+\begin{equation}
+A(\vec{r}) \simeq \sum_{b\in\Omega(\vec{r})} V_b A_b W(|\vec{r}-\vec{r}_b|,h)
+\end{equation}
+where $W$ is a smoothing kernel, 
+$h$ is the smoothing length (hydro interaction range) at a position $\vec{r}$, 
+and $V_b$ is a volume element, usually $V_b = m_b/\rho_b$.
+
+In comparison with Eulerian methods, SPH has several advantages. It can easily
+adapt to complex geometries, naturally handle low density regions, and does
+not require low-density floor to handle vacuum. It conserves mass by
+construction, and can be easily made to conserve linear momentum, angular
+momentum, and energy up to roundoff. Another advantage of using SPH is its
+exact advection of fluid properties. Furthermore, the same tree which is used
+to find particle neighbors, can be employed for computing Newtonian
+gravitational forces.
+
+Shortcomings of SPH are its convergence which is restricted to low-order, 
+and high sensitivity to the initial particles distribution. 
+Also, SPH struggles with resolving turbulence-dominated flows and requires
+special care when handling high gradients, such as shocks and stellar surface.
+
+The starting point at a continuum limit is Euler ideal fluid equations in the
+Lagrangian formulation, expressing conservation equations of mass and linear
+momentum:
+\begin{align}
+\frac{d \rho}{d t} &= - \rho \nabla \cdot \vec{v}, \\
+\frac{d u}{d t} &= \left( \frac{P}{\rho^2} \right) \frac{d \rho}{d t}, \\
+\frac{d \vec{v}}{d t} &= - \frac{\nabla P}{\rho} + \vec{g}, \\
+\end{align}
+where $d/dt = \partial_t + \vec{v} \cdot \nabla$ and $\vec{g}$ is
+a gravitational acceleration. The latter may be due to interparticle
+gravitational interaction, an external gravitational field, or both.
+
+\subsection{Basic formulation}
+\label{sec:basic_formulation}
+
+In its simplest form, SPH discretization uses the volume element 
+$V_b = m_b / \rho_b$, a constant smoothing length $h$, and artificial
+viscosity term $\Pi_{ab}$:
+\begin{align}
+  \rho_a &= \sum_b m_b W_{ab}, 
+\\
+  \frac{d u_a}{dt}  
+      &= \sum_b m_b\left( 
+           \frac{P_a}{\rho_a^2} + \frac12\Pi_{ab}
+         \right)\vec{v}_{ab} \cdot \nabla_a W_{ab},
+\\
+  \frac{d \vec{v}_a}{d t} &= -\sum_b m_b 
+      \left( \frac{P_a}{\rho_a^2} 
+           + \frac{P_b}{\rho_b^2} 
+           + \Pi_{ab} \right) \nabla_a W_{ab}
+       + \vec{g}_a,
+\end{align}
+where $W_{ab} = W(|\vec{r}_a - \vec{r}_b|,h)$.
+The viscous stress tensor $\Pi_{ab}$ may be defined in different ways;
+currently we have adopted the following form:
+\begin{equation}
+\Pi_{ab} = 
+\begin{cases}
+  \frac{- \alpha \bar{c}_{ab} \mu_{ab} + \beta \mu_{ab}^2}{\bar{\rho}_{ab}} 
+    & \text{for $\vec{r}_{ab} \cdot \vec{v}_{ab} < 0$,} \\
+  0 & \text{otherwise,}
+\end{cases}
+\end{equation}
+where the following quantities are defined: 
+\begin{align}
+  &\mu_{ab} = \frac{\bar{h}_{ab} \vec{r}_{ab} \cdot \vec{v}_{ab}}
+                   {|\vec{r}_{ab}|^2 + \epsilon \bar{h}_{ab}^2},\\
+  &\vec{r}_{ab} = \vec{r}_a - \vec{r}_b, &\vec{v}_{ab} = \vec{v}_a - \vec{v}_b,\\
+  &\text{average speed of sound:} &\bar{c}_{ab} = (c_a + c_b)/2, \\
+  &\text{average density:}        &\bar{\rho}_{ab} = (\rho_a + \rho_b)/2,\\
+  &\text{average smoothing length:} &\bar{h}_{ab} = (h_a + h_b)/2,\\
+\end{align}
+
+In the basic formulation with a constant smoothing length, $\bar{h}_{ab}\equiv h$.
+The values of $\epsilon$, $\alpha$, and $\beta$ control the strength and
+application of artificial viscosity. Their default values:
+$\epsilon = 0.01$, $\alpha = 1.0$, and $\beta = 2.0$.
+
+The quantity $\bar{c}_{ab}$ is a speed of sound, averaged between particles
+$a$ and $b$: $\bar{c}_{ab} = (c_a + c_b)/2$. It is computed as usual:
+\begin{equation}
+c_a = \sqrt{\left(\frac{\partial P}{\partial \rho}\right)_{S,a}},
+\end{equation}
+where the partial derivative is taken under constraint of a constant entropy
+$S$, with thermodynamic conditions at particle $a$.
+E.g., the following (Newton-Laplace) equation,
+\begin{align}
+  c_a = \sqrt{\frac{\Gamma P_a}{\rho_a}}
+\end{align}
+holds both for polytropic and ideal fluid equations of state (see
+Section~\ref{sec:eos}).
+
+If $\vec{g}=0$, then the basic formulation, when integrated with a symplectic
+integrator, conserves energy, momentum and angular momentum \emph{exactly}
+(e.g. Rosswog 2009, Section 2.4).
+
+
+\subsection{Kernels}
+\label{sec:kernels}
+There are many choices for selecting a smoothing kernel. In the code, the
+kernel choice is specified by a {\tt sph\_kernel} parameter, and the smoothing
+length is defined to be equal to the kernel support radius. Note that some
+works define smoothing length differently, such that the kernel support radius
+becomes a multiple of smoothing length. For example, for a cubic spline kernel
+it is twice the $h$. We do not make such distinction; all kernels below must
+satisfy the following normalization condition:
+\begin{align}
+  \iiint_{S_D(h)} W(\vec{r},h) d^D\vec{r} = 1,
+\label{eq:kernel_normalization_condition}
+\end{align}
+where the integration is performed over the $D$-dimensional volume of a sphere
+$S_D(h)$ of radius $h$.
+
+All the currently implemented kernels possess spherical symmetry, which makes
+it easy to impose exact conservation of linear momentum. For such kernels, the
+gradients can be computed as follows:
+\begin{align}
+  \nabla_a W_{ab} &\equiv \nabla_a W(|\vec{r}_a - \vec{r}_b|, h_a) \\
+                  &= \frac{dW}{dr} \vec{\varepsilon}_{ab},
+\end{align}
+where $\vec{\varepsilon}_{ab}\equiv\vec{r}_{ab}/|\vec{r}_{ab}|$ is a unit
+vector in the direction from particle $b$ to particle $a$.
+It is therefore sufficient to implement $dW/dr$ for each kernel.
+
+In the formulae below, we define $q\equiv|\vec{r}|/h$.
+
+\subsubsection{{\tt sph\_kernel = "cubic spline"}}
+The simplest (but \emph{not} the best one) is a Monaghan's cubic spline kernel:
+\begin{equation}
+W(\vec{r},h) = \frac{\sigma_D}{h^D} 
+  \begin{cases}
+    1 - 6 q^2 + 6 q^3 & \text{if} \; 0 \leq q \leq 1/2, \\
+    2(1 - q)^3        & \text{if} \; 1/2 \leq q \leq 1, \\
+    0                 & \text{otherwise},
+\end{cases}
+\end{equation}
+where $q = r/h$, $D$ is the number of dimensions and 
+$\sigma_D$ is a normalization constant:
+\begin{equation}
+\sigma_D =  \left\{ \frac43, \frac{40}{7\pi},\frac8{\pi}\right\}
+         \; \text{in 1D, 2D and 3D resp.}
+\end{equation}
+
+Radial derivative of the cubic spline kernel is:
+\begin{align}
+ \frac{dW}{dr} = \frac{\sigma_D}{h^{D+1}} 
+  \begin{cases}
+   -6q(2 - 3q)  & \text{if} \; 0 \leq q \leq 1/2, \\
+   -6(1 - q)^2  & \text{if} \; 1/2 \leq q \leq 1, \\
+    0           & \text{otherwise}.
+\end{cases}
+\end{align}
+
+%%% Using this, we can calculate kernel gradient. Below procedure shows the steps of kernel gradient in 3D
+%%% $$W = \frac{1}{\pi h^3} \times \begin{cases} 1 - \frac{3}{2} (\frac{r}{h})^2 + \frac{3}{4} (\frac{r}{h})^3, & \mbox{si } 0 \leq \frac{r}{h} < 1 \\ \frac{1}{4} [2-\frac{r}{h}]^3, & \mbox{si } 1 \leq \frac{r}{h} < 2\\ 0, & \mbox{si } \frac{r}{h} \geq 2 \end{cases}$$
+%%% 
+%%% And $r=\sqrt{(x_i-x_j)^2 + (y_j-y_j)^2 + (z_i-z_j)^2}$
+%%% with $r = \sqrt{u^2+v^2+w^2}$ and
+%%% $ \vec{r_{ij}} = \begin{cases} u = x_i - x_j \\ v = y_i-y_j \\ w = z_i-z_j \end{cases} $
+%%% 
+%%% $$ \vec{\nabla} . W = \frac{\partial W}{\partial u} \vec{x} + \frac{\partial W}{\partial v} \vec{y} + \frac{\partial W}{\partial w} \vec{z}  =  \frac{\partial W}{\partial r} \frac{\partial r}{\partial u} \vec{x} + \frac{\partial W}{\partial r}  \frac{\partial r}{\partial v} \vec{y} + \frac{\partial W}{\partial r} \frac{\partial r}{\partial w} \vec{z} $$
+%%% $$ = \frac{\partial W}{\partial r} \Big[ \frac{\partial r}{\partial u}\vec{x} + \frac{\partial r}{\partial v} \vec{y} + \frac{\partial r}{\partial w} \vec{z}\Big] = \frac{\partial W}{\partial r} \frac{\vec{r_{ij}}}{r} $$
+%%% 
+%%% For $0 \leq \frac{r}{h} < 1$ :
+%%% $$ \frac{\partial W}{\partial r} = - \frac{3}{h^2}r + \frac{9}{4h^3}r^2$$
+%%% 
+%%% $$ \vec{\nabla}_iW(\vec{r_{ij}},h) =\Big( -\frac{3}{h^2}r + \frac{9}{4h^3}r^2\Big) \frac{\vec{r_{ij}}}{r} = \Big( -\frac{3}{h^2} + \frac{9}{4h^3}r\Big) \vec{r_{ij}} $$
+%%% 
+%%% For $1 \leq \frac{r}{h} < 2$ :
+%%% $$ \frac{\partial W}{\partial r} = \frac{-3}{4h} \Big(2-\frac{r}{h}\Big)^2 = \frac{-3}{4h} \Big( 4 - \frac{4r}{h} + \frac{r^2}{h^2} \Big) = \frac{-3}{h} + \frac{3r}{h^2} + \frac{-3r^2}{4h^3}$$
+%%% 
+%%% $$ \vec{\nabla}_iW(\vec{r_{ij}},h) =\Big(\frac{-3}{h} + \frac{3r}{h^2} + \frac{-3r^2}{4h^3} \Big) \frac{\vec{r_{ij}}}{r} = \Big(\frac{-3}{hr} + \frac{3}{h^2} + \frac{-3r}{4h^3} \Big) \vec{r_{ij}}  $$
+%%% 
+%%% So:
+%%% 
+%%% $$
+%%%  \vec{\nabla}_iW(\vec{r_{ij}},h) = \frac{1}{\pi h^4} \times \begin{cases} ( -\frac{3}{h} + \frac{9}{4h^2}r) \vec{r_{ij}}, & \mbox{si } 0 \leq \frac{r}{h} < 1 \\ (\frac{-3}{r} + \frac{3}{h} + \frac{-3r}{4h^2} ) \vec{r_{ij}}, & \mbox{si } 1 \leq \frac{r}{h} < 2\\ 0, & \mbox{si } \frac{r}{h} \geq 2 \end{cases}$$
+
+\section{Applications}
+
+\subsection{Sod Shock Tube}
+The Sod shock tube is the test consists of a one-dimensional Riemann problem with the following initial parameters
+\begin{equation}
+(\rho, v, p)_{t=0} = \begin{cases}
+(1.0,0.0,1.0) & \text{if} \indent 0 < x \leq 0.5 \\
+(0.125,0.0,0.1) & \text{if} \indent 0.5 < x < 1.0
+\end{cases}
+\end{equation}
+This link shows some references and values for Sod shock tube problem that also includes boundary and jump conditions(\url{http://www.phys.lsu.edu/~tohline/PHYS7412/sod.html}).
+
+Also, we would like to re-generate the shock test result from Rosswog's paper. In that paper, he shows the result of a 2D relativistic shock tube test where the left state is given by $[P, v_x, v_y, N]_L = [40/3,0,0,10]$ and the right state by $[P, v_x, v_y, N]_R = [10^{-6},0,0,1]$ with $\Gamma = 5/3$
+
+In our code, we use below parameters to get results
+
+\subsection{Sedov Blast Wave}
+A blast wave is the pressure and flow resulting from the deposition of a large amount of energy in a small very localized volume. This is another great test problem for computational fluid dynamics field.
+
+There are different version of blast wave test but we consider the analytic solution for a point explosion is given by Sedov, making the assumption that the atmospheric pressure relative to the pressure insider the explosion negligible. The position of the shock as a function of time $t$, relative to the initiation of the explosion, is given by
+\begin{equation}
+R(t) = \left( \frac{e t^2}{\rho_0} \right)^{\frac{1}{\delta+2}}
+\end{equation}
+with $\delta = 2$ and $\delta = 3$ for cylindrical and spherical geometry respectively. The initial density $\rho_0$ whereas $e$ is a dimensionless energy. Right behind the shock we ahve the following properties
+\begin{align}
+\rho_2 = \frac{\Gamma +1}{\Gamma-1} \rho_0
+P_2 = \frac{2}{\Gamma+1} \rho_0 w^2
+v_2 = \frac{2}{\Gamma+1} w
+\end{align}
+where the shock velocity is
+\begin{equation}
+w(t) = \frac{d R}{dt} = \frac{2}{\delta+2} \frac{R(t)}{t}
+\end{equation}
+
+In numerical simulations, energy deposition in a single point is difficult to achieve. A solution to the problem is to make use of the bursting balloon analogue. Rather than depositing the total energy in a single point, the energy is released into a balloon of finite volume $V$
+\begin{equation}
+e = \frac{(P-P_0)V}{\Gamma -1}
+\end{equation}
+The energy release in a balloon of radius $r_0$ raises the pressure to the value
+\begin{equation}
+P = \frac{3(\Gamma-1)e}{(\delta+1) \pi r_0^{\delta}}
+\end{equation}
+Here, we test 2D blast wave test. In this simulation, we use ideal gas EOS with $\Gamma = 5/3$ and we are assuming that the undistributed area is at rest with a pressure $P_0 = 1.0 \time 10^{-5}$. The density is constant $\rho_0$, also in the pressurized region.
+
+
+\subsection{Equations of State}
+\label{sec:eos}
+To understand the inner property of stars, one needs to find the equation which describes the relation between the pressure of matter and its density, temperature and other compositions such that
+\begin{equation}
+P = P(\rho, T, Y_e, ...)
+\end{equation}
+First, we consider analytic equations of state that are relevant for binary neutron stars
+\subsubsection{Ideal Gas}
+Ideal gas equation of state is
+\begin{equation}
+P(\rho,u) = (\Gamma - 1) \rho u
+\end{equation}
+where $\Gamma$ is the adiabatic index of the gas. For a monatomic gas, we set $\Gamma = 5/3$. For another test such as sod tube, people use $\Gamma = 1.4$
+\subsubsection{Piecewise Polytrope}
+For more relevant simulation, we choose piecewise polytropic EOS.(Ideal gas EOS is still good for many simple test cases like Sod tube) In our case, we assume constant entropy so that many thermodynamic situations can be approximated as polytropes or piecewise functions made up of polytropes.
+
+For neutron star case, we assume degenerated Fermi gas of neutrons then polytropic constant for a non-relativistic degenerated neutron gas is
+\begin{equation}
+K_0 = \frac{(3 \pi^2)^{2/3} \hbar^2}{5 m_n^{8/3}}
+\end{equation}
+where $m_n$ is the mass of a proton and $\hbar$ is a Planck constant. For polytropic index, we set
+\begin{equation}
+\gamma_0 = \frac{5}{3}
+\end{equation}
+In the relativistic case,
+\begin{equation}
+\gamma_1 = \frac{5}{2}
+\end{equation}
+Then, piecewise polytrope EOS is
+\begin{equation}
+P(\rho) = \begin{cases}
+K_0 \rho^{\gamma_0} & \text{if} \indent \rho \leq \rho_0 \\
+\frac{K_0 \rho_0^{\gamma_0}}{\rho_0^{\gamma_1}} \rho^{\gamma_1} & \text{if} \indent \rho > \rho_0
+\end{cases}
+\end{equation}
+where $\rho_0 = 5 \times 10^{14} g/cm^3$. We can combine the piecewise polytropic EOS with ideal gas to attain an EOS valid at both low and high densities. For more realistic studies, we need to consider different types of analytic EOSs such as Maxwell-Boltzmann and Helmholtz EOSs. Also, we will put the functionality that can control tabulated EOS.
+
+\subsubsection{Zero Temperature Equations of State}
+Another interesting problem using SPH is the double white dwarf (DWD) simulations for studying possible progenitors to type $\Romannum{1}$a supernovae. Here, we use zero temperature equations of state (ZTWD) as a variation of the self consistent field technique. In ZTWD, the electron degeneracy pressure $P$ varies with the mass density $\rho$ according to the relation
+\begin{equation}
+P = A \left[ x(2x^2-3)(x^2+1)^{1/2} + 3 \sinh^{-1} x \right]
+\end{equation}
+
+where the dimensionless parameter
+\begin{equation}
+x \equiv \left( \frac{\rho}{B} \right)^{1/3}
+\end{equation}
+and the constant A and B are
+\begin{align}
+A \equiv \frac{\pi m_e^4 c^5}{3h^3} = 6.00288 \times 10^{22} \, \text{dynes} \, \text{cm}^{-2} \\
+\frac{B}{\mu_e} \equiv \frac{8 \pi m_p}{3} \left(\frac{m_e c}{h} \right)^3 = 9.81011 \times 10^5 \, \text{g} \, \text{cm}^{-3}
+\end{align}
+
+\section{Time Integration Scheme}
+\subsection{Leap-Frog Method}
+Leap-frog time integration is frequently used in particle simulation. The name comes that the velocities are updated on half steps and the positions on integer steps so the two leap over each other. After computing accelerations, one step takes the form
+\begin{align}
+v^{i+1/2} = v^{i-1/2} + a^i \Delta t \\
+r^{i+1} = r^i + v^{i+1/2} \Delta t
+\end{align}
+For $v^{i+1}$, a common approximation in SPH is to assume that the velocity at the current time plays a minor role in the computation of the acceleration (i.e. velocity changes are small with each time step) and then the following approximation can be made
+\begin{equation}
+v^{i+1} = \frac{1}{2} (v^{i-1/2}+v^{i+1/2})
+\end{equation}
+At the first step, we only have initial velocity so we need to follow below routing
+\begin{align}
+v^{1/2} = v^{0} + a^0 \Delta t/2 \\
+r^{1} = r^0 + v^{1/2} \Delta t
+\end{align}
+
+The time step is adaptive and determined with $\Delta t = Min(\Delta t_1, \Delta t_2)$:
+
+$$ \Delta t_1 = k \mbox{Min}_i(\frac{h_i}{c_i+1.2\alpha c_i + 1.2 \beta \mbox{Max}_j\mu_{ij}}) \mbox{ with } k \approx 0.1 $$
+$$ \Delta t_2 = \mbox{Min}_i\sqrt{(\frac{h_i}{|\dot{\vec{v_i}}|})} $$
+
+\section{Solving Lane-Emden Equation}
+
+We need to determine the density function based on the radius.
+
+As we consider the star as a polytropic fluid, we use the equation of Lane-Emden which is a form of the Poisson equation:
+
+\begin{equation}\label{eq_LaneEmden}
+  \frac{d^2\theta}{d \xi^2}+ \frac{2}{\xi}\frac{d\theta}{d\xi}+\theta^n = 0
+\end{equation}
+
+With $\xi$ and $\theta$ two dimensionless variables.
+There is only exact solutions for a polytropic index $n = 0.5$, $1$ and $2$.
+In our work we use a polytropic index of $1$ which can correspond to a NS simulation.
+
+For $n=1$ the solution of equation \ref{eq_LaneEmden} is:
+
+\begin{equation}
+\theta(\xi)=\frac{sin(\xi)}{\xi}
+\end{equation}
+
+We note $\xi_1 = \pi$, the first value of $\xi$ as $\theta(\xi) = 0$.
+$\theta(\xi)$ is also defined as:
+\begin{equation}
+ \theta(\xi) = \Big(\frac{\rho(\xi)}{\rho_c}\Big)^{\frac{1}{n}}  = \frac{\rho(\xi)}{\rho_c}
+\end{equation}
+
+With $\rho_c$ the internal density of the star and $\rho$ the density at a determined radius. $\xi$ is defined as:
+$$ \xi = Ar = \sqrt{\frac{4\pi G}{K(n+1)}\rho_c^{(n-1)/n}} \times r = \sqrt{\frac{2\pi G}{K}}\times r \mbox{ (for } n=1 \mbox{)}$$
+
+With $K$ a proportionality constant.
+
+From the previous equations we can write the stellar radius $R$ as:
+\begin{equation}
+R = \sqrt{\frac{K(n+1)}{4\pi G}}\rho_c^{(1-n)/2}\xi_1 = \sqrt{ \frac{K}{2\pi G} } \times \xi_1
+\end{equation}
+
+(We note that for $n=1$ the radius does not depend of the central density.)
+
+If, for example, we use dimensionless units as $G=R=M=1$ (for the other results we use CGS with $G = 6.674 \times 10^{-8} cm^3g^{-1}s^{-2}$)
+We can compute K as:
+\begin{equation}
+\label{eq:constant}
+K = \frac{R^2  2 \pi G}{\xi_1^2}
+\end{equation}
+
+\begin{center}
+
+\begin{tabular}{c|c|c|c|c|}
+ & $NS_1$ & $NS_2$ & $NS_3$ & $NS_4$ \\
+\hline
+Radius (cm) & $R=G=M=1$ & 1500000 & 1400000 & 960000 \\
+\hline
+K & 0.636619 & 95598.00 & 83576.48 & 39156.94\\
+\hline
+\end{tabular}
+
+\end{center}
+
+Then we deduce the density function of $r$ as :
+
+$$\rho(\xi) = \frac{sin(A\times r)}{A \times r} \times \rho_c \mbox{ with } A = \sqrt{\frac{2\pi G}{K}}
+$$
+
+As we know the total Mass $M$, the radius $R$ and the gravitational constant $G$ we can compute the central density as:
+
+$$ \rho_c = \frac{M A^3}{4 \pi (sin(AR)-ARcos(AR)) } $$
+
+Then we normalize the results to fit $R = M = G = 1$: $K' = K/(R^2G) $, $m_i' = m_i/M $, $h_i' = h_i / R$, $\vec{x_i}' = \vec{x_i}/R$
+
+
+\subsection{Gravitational force}
+
+The self-gravity $\vec{F}_i^{Grav}$ for each particles:
+
+\begin{equation}
+\vec{F}_i^{Grav} = \sum_j G\frac{m_im_j}{(|\vec{r_j}-\vec{r_i}|)^3} \vec{r_{ij}}
+\end{equation}
+
+In this part we will need Fast Multiple Method (FMM) for the computation to avoid $O(N^2)$ complexity.
+
+\section{Resolution order}
+\label{sec:reso}
+
+The resolution is done in this order:\\
+
+\begin{algorithmic}
+\State Load data from file
+\While{TotalTime not reached}
+\State Move particles
+\State Apply rotation with defined angular velocity
+\State Compute density $\rho$
+\State Compute pressure $P$ and sound speed $c$
+\State Compute $\vec{F}_{hydro}$
+\State Compute $\vec{F}_{grav}$
+\If{relaxation}
+\State Compute $\vec{F}_{roche}$ or $\vec{F}_{rot}$
+\EndIf
+\State Compute acceleration $\vec{a}$ with the equation of motion
+\State Compute $\Delta t$
+\State Compute new velocity from new acceleration
+\If{output step }
+\State output data to file
+\EndIf
+\State TotalTime $\leftarrow$ TotalTime + $\Delta t$
+\EndWhile
+\end{algorithmic}
+
+\section{Hydrostatic Equilibrium}
+\label{sec:equi}
+
+The initial data are based on a cubic lattice within a sphere of radius $R$.
+The density function, based on radius, $\rho(\vec{r})$ is known using the result of the Lane-Emden equation ( we use polytropic index $n = 1$ here).
+The mass associate to each particle $i$ of the total $N$ particles:
+
+$$ m_i = \frac{\rho(\vec{r_i})}{n_r} \mbox{ with } n_r = \frac{3N}{4 \pi R^3}$$
+
+The smoothing length is define constant and the same for all particles for all the simulation:
+
+$$ h = \frac{1}{2}\sqrt{\frac{3N_N}{4\pi n}} $$
+
+Here we choose $N_N$, the average number of neighbors, to be 100.
+
+\subsection{Roche lobe problem}
+
+To create Hydrostatic Equilibrium Models we use a different equation of motion. This version use Roche Lobe:
+
+\begin{equation}
+\frac{d\vec{v_i}}{dt} = \frac{\vec{F}_i^{Grav}}{m_i} + \frac{\vec{F}_i^{Hydro}}{m_i} + \vec{F}_i^{Roche} - \frac{\vec{v_i}}{t_{relax}}
+\end{equation}
+
+
+With $t_{relax} \leq t_{osc} \sim (G\rho)^{-1/2}$ and
+where $\vec{F}_i^{Roche}$ is:
+
+$$\vec{F}_i^{Roche} = \mu (3+q) x_i \hat{\vec{x}} + \mu q y_i \hat{\vec{y}}-\mu z_i \hat{\vec{z}}$$
+
+With $\mu$ to be determined (for us $\mu = 0.069$) and $q = \frac{M'}{M}=1$ as the two polytropes have the same total mass.
+This is apply to each star to get the equilibrium and the simulate the tidal effect.
+
+\subsection{Darwin problem}
+
+This is the way we use to generate the final simulation.
+The equation of motion for the relaxation is now:
+\begin{equation}
+\label{eq:darwin}
+\frac{d\vec{v_i}}{dt} = \frac{\vec{F}_i^{Grav}}{m_i} +\frac{\vec{F}_i^{Hydro}}{m_i} + \vec{F}_i^{Rot} - \frac{\vec{v_i}}{t_{relax}}
+\end{equation}
+
+With $t_{relax}$ same as before and $\vec{F}_{Rot}$ defined by:
+
+\begin{equation}
+\vec{F}_{Rot} = \Omega^2(x_i \vec{\hat{x}}+y_i\vec{\hat{y}})
+\end{equation}
+
+With $\Omega = \sqrt{\frac{G(M+M')}{a^3}}$.
+
+Or $L_z = Q_{zz}\Omega$ and $Q_{zz} = \sum_i(x_i^2+y_i^2)$. At $t=0$ we compute the total angular moment $L_z$ which stay constant.
+Using it during the relaxation we can compute $\Omega$ as: $\Omega = \frac{L_z}{Q_{zz}}$ just by recomputing $Q_{zz}$.
+
+Here the scheme is in $N^2$ but just for the relaxation step.
+
+For this relaxation we use two stars generated as before, applying equation of motion \ref{eq:darwin}.
+Using $a$ as the distance between the two polytropes  (Here $a=2.9$ for $R=1$) and $\vec{\hat{x}}$ going for the center of the first to the second star, and $\vec{\hat{z}}$ is like the rotation vector.
+
+%\section{Further-works}
+%Here are just several open questions for this simulator:
+%
+%\begin{itemize}
+%\item Is it possible to use tabulated EOS in this model ?
+%\item How to implement adaptive smoothing length ?
+%\item Is it interesting to start thinking about a grid over an octree for GR ?
+%\item Is there another method than FMM for gravitation ? For efficient computation.
+%\item Is adaptive $\Delta t$ forced ?
+%\end{itemize}
+
+% The smoothing length with $N_N$ the desire number of neighbors.
+% The total volume in the sphere is $V = \frac{4}{3} \pi R^3$ with N particle in this volume so $ N / V$ particles per $cm^3$.
+% If we need $N_N$ neighbor particles we need to find the volume $V_N$ containing the $N_N$ particles as $V_N = \frac{4}{3} \pi r^3$ as:
+% $$ V_N \times \frac{N}{\frac{4\pi R^3}{3}} = N_N \Rightarrow \frac{4 \pi r^3}{3}  \times N \times \frac{3}{4\pi R^3} = N_N \Rightarrow r^3 = \frac{N_N R^3}{N} \Rightarrow r = \sqrt[3]{\frac{N_NR^3}{N}}  $$
+% And h is half this radius:
+% $$ h = \frac{1}{2}\sqrt[3]{\frac{N_NR^3}{N}} $$
+
+%\section{Octree construction}
+%
+%With $n$ particles we need an array $a$ of size $n*2-1$.
+%The algorithm is:
+%
+%\begin{algorithm}
+%\caption{Construct tree}\label{construct}
+%\begin{algorithmic}[1]
+%\Procedure{Construct}{$particles$}
+%\State $n \leftarrow $ Number of particles
+%\State $tree \leftarrow $ Array of nodes size $2*n-1$
+%\State $Init array $
+%\While{$r\not=0$}\Comment{We have the answer if r is 0}
+%\State $a\gets b$
+%\State $b\gets r$
+%\State $r\gets a\bmod b$
+%\EndWhile\label{euclidendwhile}
+%\State \textbf{return} $b$\Comment{The gcd is b}
+%\EndProcedure
+%\end{algorithmic}
+%\end{algorithm}
+
+
+\section{Gravitation computation}
+
+The algorithm is presented in algorithm \ref{comp_grav}.
+In this algorithm, the $macangle$ is the angle of the Multipole Acceptance Criterion.
+The acceleration is, for a center of mass $c$, the sum of contributions from the local particles and the distant cells with:
+
+\begin{equation}
+\vec{f_c}(\vec{r_c}) = -\sum_{p} \frac{m_p.(\vec{r_c}-\vec{r_p})}{|\vec{r_c}-\vec{r_p}|^3}
+\end{equation}
+
+With $p$ the particle inside this cell and $cell$ the cells that are accepted with the MAC.
+Here we directly consider the gravitational acceleration, we don't take in account the mass of the center of mass $c$. And $G=1$ in our context.
+
+The acceleration at a point from this center of mass is based on taylor series:
+
+\begin{equation}
+ \vec{f}(\vec{r}) = \vec{f_c}(\vec{r_c}) + ||\frac{\partial\vec{f}_c}{\partial\vec{r_c}}||\cdot (\vec{r} - \vec{r_c}) + \frac{1}{2} (\vec{r}-\vec{r_c})^\intercal \cdot   ||\frac{\partial\vec{f}_c}{\partial\vec{r_c} \partial\vec{r_c}}|| \cdot (\vec{r} - \vec{r_c})
+ \end{equation}
+
+The Jacobi matrix $||\frac{\partial\vec{f}_c}{\partial\vec{r}}||$  is then:
+
+%$$ $$
+
+%$$\frac{ \delta \vec{f_c}}{\delta \overline{r_c}} = \frac{\delta \vec{f_c}}{\delta x_c}  \vec{x}+\frac{\delta \vec{f_c}}{\delta y_c} \vec{y}  +\frac{\delta \vec{f_c}}{\delta z_c}  \vec{z}   $$
+
+\begin{equation}
+- \sum_p \frac{m_p}{|\vec{r_c}-\vec{r_p}|^3}
+\begin{bmatrix}
+1 - \frac{3(x_c-x_p)(x_c-x_p)}{|\overline{r_c}-\overline{r_p}|^2} & -\frac{3(y_c-y_p)(x_c-x_p)}{|\overline{r_c}-\overline{r_p}|^2}  & -\frac{3(z_c-z_p)(x_c-x_p)}{|\vec{r_c}-\vec{r_p}|^2}  \\
+-\frac{3(x_c-x_p)(y_c-y_p)}{|\vec{r_c}-\vec{r_p}|^2}  & 1 - \frac{3(y_c-y_p)(y_c-y_p)}{|\vec{r_c}-\vec{r_p}|^2} &  -\frac{3(z_c-z_p)(y_c-y_p)}{|\vec{r_c}-\vec{r_p}|^2}\\
+- \frac{3(x_c-x_p)(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2}   &  -\frac{3(y_c-y_p)(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} &  1- \frac{3(z_c-z_p)(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} \\
+\end{bmatrix}
+ \end{equation}
+
+\begin{equation}
+ ||\frac{\partial f_c^i}{\partial r_c^j}|| = -\sum_p \frac{m_p}{|\vec{r_c}-\vec{r_p}|^3} \Big[ \delta_{ij} - \frac{3.(r_c^i-r_p^i)(r_c^j-r_p^j)}{|\vec{r_c}-\vec{r_p}|^2} \Big]
+\end{equation}
+
+With $\delta_{ij}$ the identity matrix with $\delta_{ij} = 1$ if $i=j$ where $i,j$ runs spatial index from 1 to 3. For example, $r^1=x$, $r^2=y$, and $r^3=z$ as usual sense. (We do not consider covariant form of this because we are not considering spacetime).
+
+
+The Hessian matrix $||\frac{\partial\vec{f}_c}{\partial\vec{r_c} \partial\vec{r_c}}||$  is then:
+
+\begin{equation}
+||\frac{\partial^2 f_c^x}{\partial r_c^i \partial r_c^j}|| =
+- \sum_p \frac{3 m_p}{|\vec{r_c}-\vec{r_p}|^5}
+\begin{bmatrix}
+\frac{5 (x_c -x_p)^3}{|\vec{r_c}-\vec{r_p}|^2} - 3 (x_c-x_p) &  \frac{5 (x_c -x_p)^2(y_c-y_p)}{|\vec{r_c}-\vec{r_p}|^2} - 3 (y_c-y_p) &  \frac{5 (x_c -x_p)^2(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} - 3 (z_c-z_p)   \\
+\frac{5 (x_c -x_p)^2(y_c-y_p)}{|\vec{r_c}-\vec{r_p}|^2} - 3 (y_c-y_p) &  \frac{5 (x_c -x_p)(y_c-y_p)^2}{|\vec{r_c}-\vec{r_p}|^2} - 3 (x_c-x_p) &  \frac{5 (x_c -x_p)(y_c-y_p)(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2}    \\
+\frac{5 (x_c -x_p)^2(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} - 3 (z_c-z_p) &  \frac{5 (x_c -x_p)(y_c-y_p)(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} & \frac{5 (x_c -x_p)(z_c-z_p)^2}{|\vec{r_c}-\vec{r_p}|^2} - 3 (x_c-x_p)
+\end{bmatrix}
+\end{equation}
+
+\begin{equation}
+||\frac{\partial^2 f_c^y}{\partial r_c^i \partial r_c^j}|| =
+- \sum_p \frac{3 m_p}{|\vec{r_c}-\vec{r_p}|^5}
+\begin{bmatrix}
+\frac{5 (x_c -x_p)^2(y_c-y_p)}{|\vec{r_c}-\vec{r_p}|^2} - 3 (y_c-y_p) &  \frac{5 (x_c -x_p)(y_c-y_p)^2}{|\vec{r_c}-\vec{r_p}|^2} - 3 (x_c-x_p) &  \frac{5 (x_c -x_p)(y_c-y_p)(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2}  \\
+\frac{5 (x_c -x_p)(y_c-z_p)^2}{|\vec{r_c}-\vec{r_p}|^2} - 3 (x_c-x_p) &  \frac{5 (y_c -y_p)^3}{|\vec{r_c}-\vec{r_p}|^2} - 3 (y_c-y_p) &  \frac{5 (y_c-y_p)^2(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} - 3(z_c-z_p)    \\
+\frac{5 (x_c -x_p)(y_c-y_p)(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} &  \frac{5 (y_c -y_p)^2(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} - 3 (z_c-z_p) & \frac{5 (y_c -y_p)(z_c-z_p)^2}{|\vec{r_c}-\vec{r_p}|^2} - 3 (y_c-y_p)
+\end{bmatrix}
+\end{equation}
+
+\begin{equation}
+||\frac{\partial f_c^z}{\partial r_c^i \partial r_c^j}|| =
+- \sum_p \frac{3 m_p}{|\vec{r_c}-\vec{r_p}|^5}
+\begin{bmatrix}
+\frac{5 (x_c -x_p)^2(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} - 3 (z_c-z_p) &  \frac{5 (x_c -x_p)(y_c-y_p)(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} &  \frac{5 (x_c -x_p)(z_c-z_p)^2}{|\vec{r_c}-\vec{r_p}|^2} - 3 (x_c-x_p)   \\
+\frac{5 (x_c -x_p)(y_c-z_p)(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} &  \frac{5 (y_c -y_p)^2(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} - 3 (z_r-z_p) &  \frac{5 (y_c -y_p)(z_c-z_p)^2}{|\vec{r_c}-\vec{r_p}|^2} - 3 (y_c-y_p)    \\
+\frac{5 (x_c -x_p)(z_c-z_p)^2}{|\vec{r_c}-\vec{r_p}|^2} - 3 (x_c-x_p) &  \frac{5 (y_c -y_p)(z_c-z_p)^2}{|\vec{r_c}-\vec{r_p}|^2} - 3 (y_c-y_p) & \frac{5 (z_c-z_p)^3}{|\vec{r_c}-\vec{r_p}|^2} - 3 (z_c-z_p)
+\end{bmatrix}
+ \end{equation}
+
+\begin{equation}
+||\frac{\partial^2 f_c^i}{\partial r_c^j \partial r_c^k}|| =
+- \sum_p \frac{3 m_p}{|\vec{r_c}-\vec{r_p}|^5} \left[\frac{5(r_c^i-r_p^i)(r_c^j-r_p^j)(r_c^k-r_p^k)}{|\vec{r_c}-\vec{r_p}|^2} - \frac{3}{w} \left( \delta_{ij} (r_c^k-r_p^k)+\delta_{jk} (r_c^i-r_p^i)+\delta_{ik} (r_c^j-r_p^j) \right) \right]
+ \end{equation}
+where $w = \delta_{ij} + \delta_{jk} + \delta_{jk} + \epsilon_{ijk}$ and $\epsilon_{ijk}$ is 3D Levi-Civita symbol. We add Levi-Civita symbol to avoid zero in denominator
+Here again, latin indices $i,j$, and $k$ indicates spatial components
+
+\begin{algorithm}
+\caption{Gravitation computation}\label{comp_grav}
+\begin{algorithmic}[1]
+\Procedure{tree\_traversal\_grav}{branch $sink$}
+\If{$sink.mass < M_{cellmax}$}
+\Comment Another choice criterion can be use
+	\State $\vec{f_c} \leftarrow \vec{0}$
+	\State $\frac{\partial \vec{f_c}}{\partial \vec{r}} \leftarrow \vec{0}$
+	\State TREE\_TRAVERSAL\_C2C($sink$,$tree.root$,$\vec{f_c},\frac{\partial \vec{f_c}}{\partial \vec{r}}$)
+	\Comment Compute $\vec{f_c}$ and $\frac{\partial \vec{f_c}}{\partial \vec{r}}$ using MAC
+	\State SINK\_TRAVERSAL\_C2P($sink,\vec{f_c},\frac{\partial \vec{f_c}}{\partial \vec{r}}$)
+	\Comment Expand to the particles below
+\Else
+\For{All children $c$ of $sink$}
+	\State TREE\_TRAVERSAL\_GRAV($c$)
+\EndFor
+\EndIf
+\EndProcedure
+\\
+\Function{MAC}{branch $sink$,branch $source$,double $macangle$}
+\State $d_{max} \leftarrow source.radius\times 2 $
+\State $dist \leftarrow distance(sink.position,source.position)$
+\State \Return $d_{max}/dist < macangle$
+\EndFunction
+\\
+\Procedure{tree\_traversal\_c2c}{branch $sink$, branch $source$, acceleration $\vec{f_c}$}
+\If{MAC($sink,source,macangle$)}
+	\State $\vec{f_c} \leftarrow \vec{f_c} + (- \frac{source.mass\times (sink.position - source.position) }{ |sink.position - source.position|^3} )$
+	\State $ \frac{\partial \vec{f_c}}{\partial \vec{r}} \leftarrow ... $
+\Else
+\If{$source.is\_leaf()$}
+\For{All particles  $p$ of $source$}
+	\State $\vec{f_c} \leftarrow \vec{f_c} + (- \frac{p.mass\times (sink.position - p.position) }{ |sink.position - p.position|^3} )$
+	\State $ \frac{\partial \vec{f_c}}{\partial \vec{r}} \leftarrow ... $
+\EndFor
+\Else
+	\For{All children $c$ of $source$}
+	\State TREE\_TRAVERSAL\_C2C($sink,c,\vec{f_c}$)
+\EndFor
+\EndIf
+\EndIf
+\EndProcedure
+\\
+\Procedure{TREE\_TRAVERSAL\_C2P}{branch $current$, acceleration $\vec{f_c}$}
+\If{$current.is\_leaf()$}
+	\For{All particle $p$ of $current$}
+		\State $p.grav \leftarrow \vec{f_c}+\frac{\delta \vec{f_c}}{\delta current.position}.(p.position-current.position) + ...$
+	\EndFor
+\Else
+	\For{All children $c$ of $current$}
+		\State TREE\_TRAVERSAL\_C2P($ c, \vec{f_c}, \frac{\partial \vec{f_c}}{\partial \vec{r_c}}$)
+	\EndFor
+\EndIf
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+
+\nocite{*}
+\bibliographystyle{plain}
+\bibliography{biblio/biblio_astro}
+
+\newpage
+\appendix
+
+
+\end{document}
