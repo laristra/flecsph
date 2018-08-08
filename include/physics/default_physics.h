@@ -236,7 +236,7 @@ namespace physics{
     double result = 0.0;
     double h_ij = .5*(source->getSmoothinglength()+nb->getSmoothinglength()); 
     space_vector_t vecVelocity = flecsi::point_to_vector(
-        source->getVelocityhalf() - nb->getVelocityhalf());
+        source->getVelocity() - nb->getVelocity());
     space_vector_t vecPosition = flecsi::point_to_vector(
         source->getPosition() - nb->getPosition());
     double dotproduct = flecsi::dot(vecVelocity,vecPosition);
@@ -553,19 +553,6 @@ namespace physics{
 #endif
 
   /**
-   * @brief      Sets v^{1/2} = v^{0}
-   *
-   * @param      srch  The source's body holder
-   */
-  void 
-  set_initial_velocityhalf(
-      body_holder* srch)
-  {
-    body* source = srch->getBody();
-    source->setVelocityhalf(source->getVelocity());
-  }
-
-  /**
    * @brief      Leapfrog integration, first step 
    *
    * @param      srch  The source's body holder
@@ -637,43 +624,6 @@ namespace physics{
     mpi_assert(!std::isnan(position[0])); 
   }
 
-  /**
-   * @brief      Leapfrog: substep 1
-   *            
-   *             v^n = v^{n-1/2} + dt/2*(dv/dt)^n
-   *
-   * @param      srch  The source's body holder
-   */
-  void 
-  leapfrog_substep_one(
-      body_holder* srch)
-  {
-    body* source = srch->getBody();
-    source->setVelocity(source->getVelocityhalf()
-               + 0.5*dt*source->getAcceleration());
-  }
-
-  /**
-   * @brief      Leapfrog: substep 2
-   *            
-   *             u^(n+1/2) = u^{n-1/2} + dt*(du/dt)^n
-   *             v^(n+1/2) = v^{n} + dt/2*(dv/dt)^n
-   *             r^{n+1}   = r^{n} + dt*v^{n+1/2}
-   *
-   * @param      srch  The source's body holder
-   */
-  void 
-  leapfrog_substep_two(
-      body_holder* srch)
-  {
-    body* source = srch->getBody();
-    source->setInternalenergy(source->getInternalenergy() 
-                         + dt*source->getDudt());
-    source->setVelocityhalf(  source->getVelocity() 
-                     + 0.5*dt*source->getAcceleration());
-    source->setPosition(      source->getPosition()
-                         + dt*source->getVelocityhalf());
-  }
 
   /*******************************************************/
   /**
