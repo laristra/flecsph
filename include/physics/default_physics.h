@@ -675,6 +675,54 @@ namespace physics{
                          + dt*source->getVelocityhalf());
   }
 
+  /*******************************************************/
+  /**
+   * @brief      Leapfrog: kick velocity
+   *             v^{n+1/2} = v^{n} + (dv/dt)^n * dt/2
+   *             or
+   *             v^{n+1} = v^{n+1/2} + (dv/dt)^n * dt/2
+   *
+   * @param      srch  The source's body holder
+   */
+  void 
+  leapfrog_kick_v (body_holder* srch) {
+    body* source = srch->getBody();
+    source->setVelocity(source->getVelocity()
+               + 0.5*dt*source->getAcceleration());
+  }
+
+
+  /**
+   * @brief      Leapfrog: kick internal energy
+   *             u^{n+1/2} = u^{n} + (du/dt)^n * dt/2
+   *             or
+   *             u^{n+1} = u^{n+1/2} + (du/dt)^n * dt/2
+   *
+   * @param      srch  The source's body holder
+   */
+  void 
+  leapfrog_kick_u (body_holder* srch) {
+    body* source = srch->getBody();
+    source->setInternalenergy(source->getInternalenergy()
+                     + 0.5*dt*source->getDudt());
+  }
+
+
+  /**
+   * @brief      Leapfrog: drift
+   *             r^{n+1} = r^{n} + v^{n+1/2} * dt
+   *
+   * @param      srch  The source's body holder
+   */
+  void 
+  leapfrog_drift (body_holder* srch) {
+    body* source = srch->getBody();
+    source->setPosition(source->getPosition()
+                   + dt*source->getVelocity());
+  }
+  /*******************************************************/
+
+
   /**
    * @brief      Leapfrog integration
    *

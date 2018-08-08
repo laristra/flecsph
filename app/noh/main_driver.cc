@@ -103,50 +103,58 @@ mpi_init_task(const char * parameter_file){
     // Compute and prepare the tree for this iteration
     // - Compute the Max smoothing length
     // - Compute the range of the system using the smoothinglength
-    // - Cmopute the keys
+    // - Compute the keys
     // - Distributed qsort and sharing
     // - Generate and feed the tree
     // - Exchange branches for smoothing length
     // - Compute and exchange ghosts in real smoothing length
     bs.update_iteration();
 
-    // Do the Noh physics
-    clog_one(trace) << "compute_density_pressure_soundspeed" << std::flush;
-    bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
-    clog_one(trace) << ".done" << std::endl;
-
-    // Refresh the neighbors within the smoothing length
-    bs.update_neighbors();
-
     if (physics::iteration == 1){
-      clog_one(trace) << "Set v^{1/2}" << std::flush;
-      bs.apply_all(physics::set_initial_velocityhalf);
+      // at the initial iteration, P, rho and cs have not been computed yet;
+      // for all subsequent steps, however, they are computed at the end 
+      // of the iteration
+      clog_one(trace) << "first iteration: pressure, rho and cs" << std::flush;
+      bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
       clog_one(trace) << ".done" << std::endl;
 
-      clog_one(trace) << "Hydro acceleration" << std::flush;
+      // necessary for computing dv/dt and du/dt in the next step
+      bs.update_neighbors();
+
+      clog_one(trace) << "compute accelerations and dudt" << std::flush;
       bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
-      clog_one(trace) << ".done" << std::endl;
-
-      clog_one(trace) << "leapfrog" << std::flush;
-      bs.apply_all(physics::leapfrog_integration_first_step);
-      clog_one(trace) << ".done" << std::endl;
-    }
-    else {
-      clog_one(trace) << "Hydro acceleration" << std::flush;
-      bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
-      clog_one(trace) << ".done" << std::endl;
-
-      clog_one(trace) << "Leapfrog: compute v^n" << std::flush;
-      bs.apply_all(physics::leapfrog_substep_one);
-      clog_one(trace) << ".done" << std::endl;
-
-      clog_one(trace) << "Internal energy" << std::flush;
       bs.apply_in_smoothinglength(physics::compute_dudt);
       clog_one(trace) << ".done" << std::endl;
 
-      clog_one(trace) << "Leapfrog: compute v^{n+1/2}, u^{n+1/2} and r^{n+1}" 
-                      << std::flush;
-      bs.apply_all(physics::leapfrog_substep_two);
+    }
+    else {
+      clog_one(trace) << "leapfrog: kick one" << std::flush;
+      bs.apply_all(physics::leapfrog_kick_v);
+      bs.apply_all(physics::leapfrog_kick_u);
+      clog_one(trace) << ".done" << std::endl;
+
+      // sync velocities
+      bs.update_neighbors();
+
+      clog_one(trace) << "leapfrog: drift" << std::flush;
+      bs.apply_all(physics::leapfrog_drift);
+      bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
+      clog_one(trace) << ".done" << std::endl;
+
+      // sync positions
+      bs.update_neighbors();
+
+      clog_one(trace) << "leapfrog: kick two (velocity)" << std::flush;
+      bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
+      bs.apply_all(physics::leapfrog_kick_v);
+      clog_one(trace) << ".done" << std::endl;
+
+      // sync velocities
+      bs.update_neighbors();
+
+      clog_one(trace) << "leapfrog: kick two (int. energy)" << std::flush;
+      bs.apply_in_smoothinglength(physics::compute_dudt);
+      bs.apply_all(physics::leapfrog_kick_u);
       clog_one(trace) << ".done" << std::endl;
     }
 
