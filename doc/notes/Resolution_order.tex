@@ -1,0 +1,34 @@
+\documentclass[notes.tex]{subfiles}
+ 
+\begin{document}
+
+\section{Resolution order}
+\label{sec:reso}
+
+The resolution is done in this order:\\
+
+\begin{algorithmic}
+\State Load data from file
+\While{TotalTime not reached}
+\State Move particles
+\State Apply rotation with defined angular velocity
+\State Compute density $\rho$
+\State Compute pressure $P$ and sound speed $c$
+\State Compute $\vec{F}_{hydro}$
+\State Compute $\vec{F}_{grav}$
+\If{relaxation}
+\State Compute $\vec{F}_{roche}$ or $\vec{F}_{rot}$
+\EndIf
+\State Compute acceleration $\vec{a}$ with the equation of motion
+\State Compute $\Delta t$
+\State Compute new velocity from new acceleration
+\If{output step }
+\State output data to file
+\EndIf
+\State TotalTime $\leftarrow$ TotalTime + $\Delta t$
+\EndWhile
+\end{algorithmic}
+
+
+
+\end{document}

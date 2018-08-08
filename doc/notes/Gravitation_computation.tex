@@ -1,0 +1,145 @@
+\documentclass[notes.tex]{subfiles}
+ 
+\begin{document}
+
+
+
+\section{Gravitation computation}
+
+The algorithm is presented in algorithm \ref{comp_grav}.
+In this algorithm, the $macangle$ is the angle of the Multipole Acceptance Criterion.
+The acceleration is, for a center of mass $c$, the sum of contributions from the local particles and the distant cells with:
+
+\begin{equation}
+\vec{f_c}(\vec{r_c}) = -\sum_{p} \frac{m_p.(\vec{r_c}-\vec{r_p})}{|\vec{r_c}-\vec{r_p}|^3}
+\end{equation}
+
+With $p$ the particle inside this cell and $cell$ the cells that are accepted with the MAC.
+Here we directly consider the gravitational acceleration, we don't take in account the mass of the center of mass $c$. And $G=1$ in our context.
+
+The acceleration at a point from this center of mass is based on taylor series:
+
+\begin{equation}
+ \vec{f}(\vec{r}) = \vec{f_c}(\vec{r_c}) + ||\frac{\partial\vec{f}_c}{\partial\vec{r_c}}||\cdot (\vec{r} - \vec{r_c}) + \frac{1}{2} (\vec{r}-\vec{r_c})^\intercal \cdot   ||\frac{\partial\vec{f}_c}{\partial\vec{r_c} \partial\vec{r_c}}|| \cdot (\vec{r} - \vec{r_c})
+ \end{equation}
+
+The Jacobi matrix $||\frac{\partial\vec{f}_c}{\partial\vec{r}}||$  is then:
+
+%$$ $$
+
+%$$\frac{ \delta \vec{f_c}}{\delta \overline{r_c}} = \frac{\delta \vec{f_c}}{\delta x_c}  \vec{x}+\frac{\delta \vec{f_c}}{\delta y_c} \vec{y}  +\frac{\delta \vec{f_c}}{\delta z_c}  \vec{z}   $$
+
+\begin{equation}
+- \sum_p \frac{m_p}{|\vec{r_c}-\vec{r_p}|^3}
+\begin{bmatrix}
+1 - \frac{3(x_c-x_p)(x_c-x_p)}{|\overline{r_c}-\overline{r_p}|^2} & -\frac{3(y_c-y_p)(x_c-x_p)}{|\overline{r_c}-\overline{r_p}|^2}  & -\frac{3(z_c-z_p)(x_c-x_p)}{|\vec{r_c}-\vec{r_p}|^2}  \\
+-\frac{3(x_c-x_p)(y_c-y_p)}{|\vec{r_c}-\vec{r_p}|^2}  & 1 - \frac{3(y_c-y_p)(y_c-y_p)}{|\vec{r_c}-\vec{r_p}|^2} &  -\frac{3(z_c-z_p)(y_c-y_p)}{|\vec{r_c}-\vec{r_p}|^2}\\
+- \frac{3(x_c-x_p)(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2}   &  -\frac{3(y_c-y_p)(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} &  1- \frac{3(z_c-z_p)(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} \\
+\end{bmatrix}
+ \end{equation}
+
+\begin{equation}
+ ||\frac{\partial f_c^i}{\partial r_c^j}|| = -\sum_p \frac{m_p}{|\vec{r_c}-\vec{r_p}|^3} \Big[ \delta_{ij} - \frac{3.(r_c^i-r_p^i)(r_c^j-r_p^j)}{|\vec{r_c}-\vec{r_p}|^2} \Big]
+\end{equation}
+
+With $\delta_{ij}$ the identity matrix with $\delta_{ij} = 1$ if $i=j$ where $i,j$ runs spatial index from 1 to 3. For example, $r^1=x$, $r^2=y$, and $r^3=z$ as usual sense. (We do not consider covariant form of this because we are not considering spacetime).
+
+
+The Hessian matrix $||\frac{\partial\vec{f}_c}{\partial\vec{r_c} \partial\vec{r_c}}||$  is then:
+
+\begin{equation}
+||\frac{\partial^2 f_c^x}{\partial r_c^i \partial r_c^j}|| =
+- \sum_p \frac{3 m_p}{|\vec{r_c}-\vec{r_p}|^5}
+\begin{bmatrix}
+\frac{5 (x_c -x_p)^3}{|\vec{r_c}-\vec{r_p}|^2} - 3 (x_c-x_p) &  \frac{5 (x_c -x_p)^2(y_c-y_p)}{|\vec{r_c}-\vec{r_p}|^2} - 3 (y_c-y_p) &  \frac{5 (x_c -x_p)^2(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} - 3 (z_c-z_p)   \\
+\frac{5 (x_c -x_p)^2(y_c-y_p)}{|\vec{r_c}-\vec{r_p}|^2} - 3 (y_c-y_p) &  \frac{5 (x_c -x_p)(y_c-y_p)^2}{|\vec{r_c}-\vec{r_p}|^2} - 3 (x_c-x_p) &  \frac{5 (x_c -x_p)(y_c-y_p)(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2}    \\
+\frac{5 (x_c -x_p)^2(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} - 3 (z_c-z_p) &  \frac{5 (x_c -x_p)(y_c-y_p)(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} & \frac{5 (x_c -x_p)(z_c-z_p)^2}{|\vec{r_c}-\vec{r_p}|^2} - 3 (x_c-x_p)
+\end{bmatrix}
+\end{equation}
+
+\begin{equation}
+||\frac{\partial^2 f_c^y}{\partial r_c^i \partial r_c^j}|| =
+- \sum_p \frac{3 m_p}{|\vec{r_c}-\vec{r_p}|^5}
+\begin{bmatrix}
+\frac{5 (x_c -x_p)^2(y_c-y_p)}{|\vec{r_c}-\vec{r_p}|^2} - 3 (y_c-y_p) &  \frac{5 (x_c -x_p)(y_c-y_p)^2}{|\vec{r_c}-\vec{r_p}|^2} - 3 (x_c-x_p) &  \frac{5 (x_c -x_p)(y_c-y_p)(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2}  \\
+\frac{5 (x_c -x_p)(y_c-z_p)^2}{|\vec{r_c}-\vec{r_p}|^2} - 3 (x_c-x_p) &  \frac{5 (y_c -y_p)^3}{|\vec{r_c}-\vec{r_p}|^2} - 3 (y_c-y_p) &  \frac{5 (y_c-y_p)^2(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} - 3(z_c-z_p)    \\
+\frac{5 (x_c -x_p)(y_c-y_p)(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} &  \frac{5 (y_c -y_p)^2(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} - 3 (z_c-z_p) & \frac{5 (y_c -y_p)(z_c-z_p)^2}{|\vec{r_c}-\vec{r_p}|^2} - 3 (y_c-y_p)
+\end{bmatrix}
+\end{equation}
+
+\begin{equation}
+||\frac{\partial f_c^z}{\partial r_c^i \partial r_c^j}|| =
+- \sum_p \frac{3 m_p}{|\vec{r_c}-\vec{r_p}|^5}
+\begin{bmatrix}
+\frac{5 (x_c -x_p)^2(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} - 3 (z_c-z_p) &  \frac{5 (x_c -x_p)(y_c-y_p)(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} &  \frac{5 (x_c -x_p)(z_c-z_p)^2}{|\vec{r_c}-\vec{r_p}|^2} - 3 (x_c-x_p)   \\
+\frac{5 (x_c -x_p)(y_c-z_p)(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} &  \frac{5 (y_c -y_p)^2(z_c-z_p)}{|\vec{r_c}-\vec{r_p}|^2} - 3 (z_r-z_p) &  \frac{5 (y_c -y_p)(z_c-z_p)^2}{|\vec{r_c}-\vec{r_p}|^2} - 3 (y_c-y_p)    \\
+\frac{5 (x_c -x_p)(z_c-z_p)^2}{|\vec{r_c}-\vec{r_p}|^2} - 3 (x_c-x_p) &  \frac{5 (y_c -y_p)(z_c-z_p)^2}{|\vec{r_c}-\vec{r_p}|^2} - 3 (y_c-y_p) & \frac{5 (z_c-z_p)^3}{|\vec{r_c}-\vec{r_p}|^2} - 3 (z_c-z_p)
+\end{bmatrix}
+ \end{equation}
+
+\begin{equation}
+||\frac{\partial^2 f_c^i}{\partial r_c^j \partial r_c^k}|| =
+- \sum_p \frac{3 m_p}{|\vec{r_c}-\vec{r_p}|^5} \left[\frac{5(r_c^i-r_p^i)(r_c^j-r_p^j)(r_c^k-r_p^k)}{|\vec{r_c}-\vec{r_p}|^2} - \frac{3}{w} \left( \delta_{ij} (r_c^k-r_p^k)+\delta_{jk} (r_c^i-r_p^i)+\delta_{ik} (r_c^j-r_p^j) \right) \right]
+ \end{equation}
+where $w = \delta_{ij} + \delta_{jk} + \delta_{jk} + \epsilon_{ijk}$ and $\epsilon_{ijk}$ is 3D Levi-Civita symbol. We add Levi-Civita symbol to avoid zero in denominator
+Here again, latin indices $i,j$, and $k$ indicates spatial components
+
+\begin{algorithm}
+\caption{Gravitation computation}\label{comp_grav}
+\begin{algorithmic}[1]
+\Procedure{tree\_traversal\_grav}{branch $sink$}
+\If{$sink.mass < M_{cellmax}$}
+\Comment Another choice criterion can be use
+	\State $\vec{f_c} \leftarrow \vec{0}$
+	\State $\frac{\partial \vec{f_c}}{\partial \vec{r}} \leftarrow \vec{0}$
+	\State TREE\_TRAVERSAL\_C2C($sink$,$tree.root$,$\vec{f_c},\frac{\partial \vec{f_c}}{\partial \vec{r}}$)
+	\Comment Compute $\vec{f_c}$ and $\frac{\partial \vec{f_c}}{\partial \vec{r}}$ using MAC
+	\State SINK\_TRAVERSAL\_C2P($sink,\vec{f_c},\frac{\partial \vec{f_c}}{\partial \vec{r}}$)
+	\Comment Expand to the particles below
+\Else
+\For{All children $c$ of $sink$}
+	\State TREE\_TRAVERSAL\_GRAV($c$)
+\EndFor
+\EndIf
+\EndProcedure
+\\
+\Function{MAC}{branch $sink$,branch $source$,double $macangle$}
+\State $d_{max} \leftarrow source.radius\times 2 $
+\State $dist \leftarrow distance(sink.position,source.position)$
+\State \Return $d_{max}/dist < macangle$
+\EndFunction
+\\
+\Procedure{tree\_traversal\_c2c}{branch $sink$, branch $source$, acceleration $\vec{f_c}$}
+\If{MAC($sink,source,macangle$)}
+	\State $\vec{f_c} \leftarrow \vec{f_c} + (- \frac{source.mass\times (sink.position - source.position) }{ |sink.position - source.position|^3} )$
+	\State $ \frac{\partial \vec{f_c}}{\partial \vec{r}} \leftarrow ... $
+\Else
+\If{$source.is\_leaf()$}
+\For{All particles  $p$ of $source$}
+	\State $\vec{f_c} \leftarrow \vec{f_c} + (- \frac{p.mass\times (sink.position - p.position) }{ |sink.position - p.position|^3} )$
+	\State $ \frac{\partial \vec{f_c}}{\partial \vec{r}} \leftarrow ... $
+\EndFor
+\Else
+	\For{All children $c$ of $source$}
+	\State TREE\_TRAVERSAL\_C2C($sink,c,\vec{f_c}$)
+\EndFor
+\EndIf
+\EndIf
+\EndProcedure
+\\
+\Procedure{TREE\_TRAVERSAL\_C2P}{branch $current$, acceleration $\vec{f_c}$}
+\If{$current.is\_leaf()$}
+	\For{All particle $p$ of $current$}
+		\State $p.grav \leftarrow \vec{f_c}+\frac{\delta \vec{f_c}}{\delta current.position}.(p.position-current.position) + ...$
+	\EndFor
+\Else
+	\For{All children $c$ of $current$}
+		\State TREE\_TRAVERSAL\_C2P($ c, \vec{f_c}, \frac{\partial \vec{f_c}}{\partial \vec{r_c}}$)
+	\EndFor
+\EndIf
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+
+\end{document}
