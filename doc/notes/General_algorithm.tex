@@ -1,0 +1,76 @@
+\documentclass[notes.tex]{subfiles}
+ 
+\begin{document}
+
+\section{General algorithm}
+The main distributed algorithm is presented in algorithm \ref{alg:main_distributed}
+
+\begin{algorithm}
+\caption{Main algorithm}\label{alg:main_distributed}
+\begin{algorithmic}[1]
+\Procedure{specialization\_driver}{input parameter file {\tt p}}
+\State Read parameter file {\tt p}
+\State Set simulation parameters
+\State Distributed read input data files, specified in parameter file
+\State Set additional parameters specified in input data files
+\While{iterations}
+\State Distribute the particles using distributed quick sort 
+       \Comment{Using Morton keys}\label{alg_main:qsort}
+\State Compute total range
+\State Generate the local tree
+\State Share branches\label{alg_main:share_branches}
+\State Compute ghosts particles\label{alg_main:cp_ghosts}
+\State Update ghosts data\label{alg_main:up_ghosts}
+\State Do physics
+\State Update ghosts data
+\State Do physics
+\State Periodic analysis and output
+\EndWhile
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+In the current version the \ref{alg_main:qsort} is based on a distributed
+quick sort algorithm.
+Each process sends a sample of its keys to the master (or submaster for larger cases).
+We have set this to 256 Kb of key data per process, but it can be increased
+for larger simulations.
+After receiving sample keys, the master determines the general ordering for
+all the processes and shares the pivots.
+Then each process sorts its local keys and, in a global communication step,
+the particles are distributed to the process on which they belong.
+The advantage is that it is a quick distribution algorithm, but it can lead to
+bad load balancing.
+\begin{itemize}
+\item The ordering may not be perfect in terms of the number of particles per
+processes. But by changing the amount of data exchanged to the master can lead
+to better affectation (?)
+\item The load balancing also depends on the number of neighbors of each
+particles. If a particle is located in a poor area with large space between the
+particles this can lead to bad load balancing too.
+\end{itemize}
+
+After the sorting step the local tree can be created on each process.
+To be able to look for the ghosts and shared particles we need to share some
+information with the neighbors on the tree.
+At line (\ref{alg_main:share_branches}), the algorithm searches for the
+neighboring branches, which are affecting the local particles.
+We compute the global bounding box of each processes and based on this
+information each process can then compute the affecting branches to share from
+its local tree.
+This new information is then added to the local tree by considering
+\textit{NON\_LOCAL} particles.
+This data structure does just contain the position and mass of the distant
+particle.
+
+The branch sharing allows to compute the ghosts for this step.
+Each process performs a local search in the tree and computes the required
+ghosts particles (the \textit{NON\_LOCAL} bodies).
+Those data for shared and ghosts are stored and are use to share the complete
+particle information when \ref{alg_main:up_ghosts} is invoked.
+As the ghosts data remain the same within an iteration, the
+\ref{alg_main:up_ghosts} can be used several times to update local information
+on remote particles.
+
+
+\end{document}

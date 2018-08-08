@@ -1,0 +1,108 @@
+\documentclass[notes.tex]{subfiles}
+ 
+\begin{document}
+
+
+\section{Time Integration Scheme}
+\subsection{Leap-Frog Method}
+Leap-frog time integration is frequently used in particle simulation. The name comes that the velocities are updated on half steps and the positions on integer steps so the two leap over each other. After computing accelerations, one step takes the form
+\begin{align}
+v^{i+1/2} = v^{i-1/2} + a^i \Delta t \\
+r^{i+1} = r^i + v^{i+1/2} \Delta t
+\end{align}
+For $v^{i+1}$, a common approximation in SPH is to assume that the velocity at the current time plays a minor role in the computation of the acceleration (i.e. velocity changes are small with each time step) and then the following approximation can be made
+\begin{equation}
+v^{i+1} = \frac{1}{2} (v^{i-1/2}+v^{i+1/2})
+\end{equation}
+At the first step, we only have initial velocity so we need to follow below routing
+\begin{align}
+v^{1/2} = v^{0} + a^0 \Delta t/2 \\
+r^{1} = r^0 + v^{1/2} \Delta t
+\end{align}
+
+The time step is adaptive and determined with $\Delta t = Min(\Delta t_1, \Delta t_2)$:
+
+$$ \Delta t_1 = k \mbox{Min}_i(\frac{h_i}{c_i+1.2\alpha c_i + 1.2 \beta \mbox{Max}_j\mu_{ij}}) \mbox{ with } k \approx 0.1 $$
+$$ \Delta t_2 = \mbox{Min}_i\sqrt{(\frac{h_i}{|\dot{\vec{v_i}}|})} $$
+
+\section{Solving Lane-Emden Equation}
+
+We need to determine the density function based on the radius.
+
+As we consider the star as a polytropic fluid, we use the equation of Lane-Emden which is a form of the Poisson equation:
+
+\begin{equation}\label{eq_LaneEmden}
+  \frac{d^2\theta}{d \xi^2}+ \frac{2}{\xi}\frac{d\theta}{d\xi}+\theta^n = 0
+\end{equation}
+
+With $\xi$ and $\theta$ two dimensionless variables.
+There is only exact solutions for a polytropic index $n = 0.5$, $1$ and $2$.
+In our work we use a polytropic index of $1$ which can correspond to a NS simulation.
+
+For $n=1$ the solution of equation \ref{eq_LaneEmden} is:
+
+\begin{equation}
+\theta(\xi)=\frac{sin(\xi)}{\xi}
+\end{equation}
+
+We note $\xi_1 = \pi$, the first value of $\xi$ as $\theta(\xi) = 0$.
+$\theta(\xi)$ is also defined as:
+\begin{equation}
+ \theta(\xi) = \Big(\frac{\rho(\xi)}{\rho_c}\Big)^{\frac{1}{n}}  = \frac{\rho(\xi)}{\rho_c}
+\end{equation}
+
+With $\rho_c$ the internal density of the star and $\rho$ the density at a determined radius. $\xi$ is defined as:
+$$ \xi = Ar = \sqrt{\frac{4\pi G}{K(n+1)}\rho_c^{(n-1)/n}} \times r = \sqrt{\frac{2\pi G}{K}}\times r \mbox{ (for } n=1 \mbox{)}$$
+
+With $K$ a proportionality constant.
+
+From the previous equations we can write the stellar radius $R$ as:
+\begin{equation}
+R = \sqrt{\frac{K(n+1)}{4\pi G}}\rho_c^{(1-n)/2}\xi_1 = \sqrt{ \frac{K}{2\pi G} } \times \xi_1
+\end{equation}
+
+(We note that for $n=1$ the radius does not depend of the central density.)
+
+If, for example, we use dimensionless units as $G=R=M=1$ (for the other results we use CGS with $G = 6.674 \times 10^{-8} cm^3g^{-1}s^{-2}$)
+We can compute K as:
+\begin{equation}
+\label{eq:constant}
+K = \frac{R^2  2 \pi G}{\xi_1^2}
+\end{equation}
+
+\begin{center}
+
+\begin{tabular}{c|c|c|c|c|}
+ & $NS_1$ & $NS_2$ & $NS_3$ & $NS_4$ \\
+\hline
+Radius (cm) & $R=G=M=1$ & 1500000 & 1400000 & 960000 \\
+\hline
+K & 0.636619 & 95598.00 & 83576.48 & 39156.94\\
+\hline
+\end{tabular}
+
+\end{center}
+
+Then we deduce the density function of $r$ as :
+
+$$\rho(\xi) = \frac{sin(A\times r)}{A \times r} \times \rho_c \mbox{ with } A = \sqrt{\frac{2\pi G}{K}}
+$$
+
+As we know the total Mass $M$, the radius $R$ and the gravitational constant $G$ we can compute the central density as:
+
+$$ \rho_c = \frac{M A^3}{4 \pi (sin(AR)-ARcos(AR)) } $$
+
+Then we normalize the results to fit $R = M = G = 1$: $K' = K/(R^2G) $, $m_i' = m_i/M $, $h_i' = h_i / R$, $\vec{x_i}' = \vec{x_i}/R$
+
+
+\subsection{Gravitational force}
+
+The self-gravity $\vec{F}_i^{Grav}$ for each particles:
+
+\begin{equation}
+\vec{F}_i^{Grav} = \sum_j G\frac{m_im_j}{(|\vec{r_j}-\vec{r_i}|)^3} \vec{r_{ij}}
+\end{equation}
+
+In this part we will need Fast Multiple Method (FMM) for the computation to avoid $O(N^2)$ complexity.
+
+\end{document}
