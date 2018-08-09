@@ -55,12 +55,14 @@ viscosity term $\Pi_{ab}$:
       &= \sum_b m_b\left( 
            \frac{P_a}{\rho_a^2} + \frac12\Pi_{ab}
          \right)\vec{v}_{ab} \cdot \nabla_a W_{ab},
+\label{eq:basic-dudt}
 \\
   \frac{d \vec{v}_a}{d t} &= -\sum_b m_b 
       \left( \frac{P_a}{\rho_a^2} 
            + \frac{P_b}{\rho_b^2} 
            + \Pi_{ab} \right) \nabla_a W_{ab}
        + \vec{g}_a,
+\label{eq:basic-dvdt}
 \end{align}
 where $W_{ab} = W(|\vec{r}_a - \vec{r}_b|,h)$.
 The viscous stress tensor $\Pi_{ab}$ may be defined in different ways;
@@ -76,7 +78,8 @@ currently we have adopted the following form:
 where the following quantities are defined: 
 \begin{align}
   &\mu_{ab} = \frac{\bar{h}_{ab} \vec{r}_{ab} \cdot \vec{v}_{ab}}
-                   {|\vec{r}_{ab}|^2 + \epsilon \bar{h}_{ab}^2},\\
+                   {|\vec{r}_{ab}|^2 + \epsilon \bar{h}_{ab}^2}, 
+   \label{eq:visc_mu}\\
   &\vec{r}_{ab} = \vec{r}_a - \vec{r}_b, &\vec{v}_{ab} = \vec{v}_a - \vec{v}_b,\\
   &\text{average speed of sound:} &\bar{c}_{ab} = (c_a + c_b)/2, \\
   &\text{average density:}        &\bar{\rho}_{ab} = (\rho_a + \rho_b)/2,\\
