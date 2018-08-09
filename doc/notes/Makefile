@@ -3,6 +3,21 @@ FILE=notes
 
 all: $(FILE).pdf
 
+$(FILE).pdf : notes.tex \
+  FleCSI \
+  Tree \
+  General_algorithm \
+  IO \
+  Formulations \
+  Kernels \
+  Equations_of_state \
+  Initial_data \
+  Gravitation \
+  Time_integration \
+  Resolution_order \
+  Applications
+	
+
 view: $(FILE).pdf display
 
 .PHONY: clean
@@ -15,5 +30,6 @@ display:
 
 $(FILE).pdf: $(FILE).tex
 	pdflatex $(FILE)
-	#bibtex $(FILE) # Uncommented once we have bib file
+	#bibtex $(FILE)   # Uncomment for once we have bib file
 	pdflatex $(FILE)
+	#pdflatex $(FILE) # Uncomment for once we have bib file
