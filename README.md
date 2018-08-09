@@ -18,6 +18,7 @@ For the first version of the code we intent to provide several basic physics pro
 - Sedov Blast Wave 2D
 - Binary Compact Object Merger 3D
 
+You can find detail ingredients of FleCSPH such as formulations and algorithm under `doc/notes.pdf`. The document is constantly updated to contain latest development of FleCSPH
 
 # Getting the Code
 
@@ -210,6 +211,9 @@ Then, `cmake` links your project and you can compile it.
 FleCSPH follows the FleCSI coding style, which in turn follows (in general) the Google coding conventions.
 FleCSI coding style is documented here:
 https://github.com/laristra/flecsi/blob/master/flecsi/style.md
+
+# Development Logistic
+If you would are new person for development of the FleCSPH, please check development logistic under doc/DEVELOPMENT.md
 
 # Logs 
 

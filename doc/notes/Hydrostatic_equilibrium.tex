@@ -1,0 +1,103 @@
+\documentclass[notes.tex]{subfiles}
+ 
+\begin{document}
+
+\section{Hydrostatic Equilibrium}
+\label{sec:equi}
+
+The initial data are based on a cubic lattice within a sphere of radius $R$.
+The density function, based on radius, $\rho(\vec{r})$ is known using the result of the Lane-Emden equation ( we use polytropic index $n = 1$ here).
+The mass associate to each particle $i$ of the total $N$ particles:
+
+$$ m_i = \frac{\rho(\vec{r_i})}{n_r} \mbox{ with } n_r = \frac{3N}{4 \pi R^3}$$
+
+The smoothing length is define constant and the same for all particles for all the simulation:
+
+$$ h = \frac{1}{2}\sqrt{\frac{3N_N}{4\pi n}} $$
+
+Here we choose $N_N$, the average number of neighbors, to be 100.
+
+\subsection{Roche lobe problem}
+
+To create Hydrostatic Equilibrium Models we use a different equation of motion. This version use Roche Lobe:
+
+\begin{equation}
+\frac{d\vec{v_i}}{dt} = \frac{\vec{F}_i^{Grav}}{m_i} + \frac{\vec{F}_i^{Hydro}}{m_i} + \vec{F}_i^{Roche} - \frac{\vec{v_i}}{t_{relax}}
+\end{equation}
+
+
+With $t_{relax} \leq t_{osc} \sim (G\rho)^{-1/2}$ and
+where $\vec{F}_i^{Roche}$ is:
+
+$$\vec{F}_i^{Roche} = \mu (3+q) x_i \hat{\vec{x}} + \mu q y_i \hat{\vec{y}}-\mu z_i \hat{\vec{z}}$$
+
+With $\mu$ to be determined (for us $\mu = 0.069$) and $q = \frac{M'}{M}=1$ as the two polytropes have the same total mass.
+This is apply to each star to get the equilibrium and the simulate the tidal effect.
+
+\subsection{Darwin problem}
+
+This is the way we use to generate the final simulation.
+The equation of motion for the relaxation is now:
+\begin{equation}
+\label{eq:darwin}
+\frac{d\vec{v_i}}{dt} = \frac{\vec{F}_i^{Grav}}{m_i} +\frac{\vec{F}_i^{Hydro}}{m_i} + \vec{F}_i^{Rot} - \frac{\vec{v_i}}{t_{relax}}
+\end{equation}
+
+With $t_{relax}$ same as before and $\vec{F}_{Rot}$ defined by:
+
+\begin{equation}
+\vec{F}_{Rot} = \Omega^2(x_i \vec{\hat{x}}+y_i\vec{\hat{y}})
+\end{equation}
+
+With $\Omega = \sqrt{\frac{G(M+M')}{a^3}}$.
+
+Or $L_z = Q_{zz}\Omega$ and $Q_{zz} = \sum_i(x_i^2+y_i^2)$. At $t=0$ we compute the total angular moment $L_z$ which stay constant.
+Using it during the relaxation we can compute $\Omega$ as: $\Omega = \frac{L_z}{Q_{zz}}$ just by recomputing $Q_{zz}$.
+
+Here the scheme is in $N^2$ but just for the relaxation step.
+
+For this relaxation we use two stars generated as before, applying equation of motion \ref{eq:darwin}.
+Using $a$ as the distance between the two polytropes  (Here $a=2.9$ for $R=1$) and $\vec{\hat{x}}$ going for the center of the first to the second star, and $\vec{\hat{z}}$ is like the rotation vector.
+
+%\section{Further-works}
+%Here are just several open questions for this simulator:
+%
+%\begin{itemize}
+%\item Is it possible to use tabulated EOS in this model ?
+%\item How to implement adaptive smoothing length ?
+%\item Is it interesting to start thinking about a grid over an octree for GR ?
+%\item Is there another method than FMM for gravitation ? For efficient computation.
+%\item Is adaptive $\Delta t$ forced ?
+%\end{itemize}
+
+% The smoothing length with $N_N$ the desire number of neighbors.
+% The total volume in the sphere is $V = \frac{4}{3} \pi R^3$ with N particle in this volume so $ N / V$ particles per $cm^3$.
+% If we need $N_N$ neighbor particles we need to find the volume $V_N$ containing the $N_N$ particles as $V_N = \frac{4}{3} \pi r^3$ as:
+% $$ V_N \times \frac{N}{\frac{4\pi R^3}{3}} = N_N \Rightarrow \frac{4 \pi r^3}{3}  \times N \times \frac{3}{4\pi R^3} = N_N \Rightarrow r^3 = \frac{N_N R^3}{N} \Rightarrow r = \sqrt[3]{\frac{N_NR^3}{N}}  $$
+% And h is half this radius:
+% $$ h = \frac{1}{2}\sqrt[3]{\frac{N_NR^3}{N}} $$
+
+%\section{Octree construction}
+%
+%With $n$ particles we need an array $a$ of size $n*2-1$.
+%The algorithm is:
+%
+%\begin{algorithm}
+%\caption{Construct tree}\label{construct}
+%\begin{algorithmic}[1]
+%\Procedure{Construct}{$particles$}
+%\State $n \leftarrow $ Number of particles
+%\State $tree \leftarrow $ Array of nodes size $2*n-1$
+%\State $Init array $
+%\While{$r\not=0$}\Comment{We have the answer if r is 0}
+%\State $a\gets b$
+%\State $b\gets r$
+%\State $r\gets a\bmod b$
+%\EndWhile\label{euclidendwhile}
+%\State \textbf{return} $b$\Comment{The gcd is b}
+%\EndProcedure
+%\end{algorithmic}
+%\end{algorithm}
+
+
+\end{document}
