@@ -1,0 +1,61 @@
+\documentclass[notes.tex]{subfiles}
+ 
+\begin{document}
+
+\section{Equations of State}
+\label{sec:eos}
+To understand the inner property of stars, one needs to find the equation which describes the relation between the pressure of matter and its density, temperature and other compositions such that
+\begin{equation}
+P = P(\rho, T, Y_e, ...)
+\end{equation}
+First, we consider analytic equations of state that are relevant for binary neutron stars.
+
+\subsection{Ideal Gas}
+Ideal gas equation of state is
+\begin{equation}
+P(\rho,u) = (\Gamma - 1) \rho u
+\end{equation}
+where $\Gamma$ is the adiabatic index of the gas. For a monatomic gas, we set $\Gamma = 5/3$. For another test such as sod tube, people use $\Gamma = 1.4$
+
+\subsection{Piecewise Polytrope}
+For more relevant simulation, we choose piecewise polytropic EOS.(Ideal gas EOS is still good for many simple test cases like Sod tube) In our case, we assume constant entropy so that many thermodynamic situations can be approximated as polytropes or piecewise functions made up of polytropes.
+
+For neutron star case, we assume degenerated Fermi gas of neutrons then polytropic constant for a non-relativistic degenerated neutron gas is
+\begin{equation}
+K_0 = \frac{(3 \pi^2)^{2/3} \hbar^2}{5 m_n^{8/3}}
+\end{equation}
+where $m_n$ is the mass of a proton and $\hbar$ is a Planck constant. For polytropic index, we set
+\begin{equation}
+\gamma_0 = \frac{5}{3}
+\end{equation}
+In the relativistic case,
+\begin{equation}
+\gamma_1 = \frac{5}{2}
+\end{equation}
+Then, piecewise polytrope EOS is
+\begin{equation}
+P(\rho) = \begin{cases}
+K_0 \rho^{\gamma_0} & \text{if} \indent \rho \leq \rho_0 \\
+\frac{K_0 \rho_0^{\gamma_0}}{\rho_0^{\gamma_1}} \rho^{\gamma_1} & \text{if} \indent \rho > \rho_0
+\end{cases}
+\end{equation}
+where $\rho_0 = 5 \times 10^{14} g/cm^3$. We can combine the piecewise polytropic EOS with ideal gas to attain an EOS valid at both low and high densities. For more realistic studies, we need to consider different types of analytic EOSs such as Maxwell-Boltzmann and Helmholtz EOSs. Also, we will put the functionality that can control tabulated EOS.
+
+\subsection{Zero Temperature Equations of State}
+Another interesting problem using SPH is the double white dwarf (DWD) simulations for studying possible progenitors to type $\Romannum{1}$a supernovae. Here, we use zero temperature equations of state (ZTWD) as a variation of the self consistent field technique. In ZTWD, the electron degeneracy pressure $P$ varies with the mass density $\rho$ according to the relation
+\begin{equation}
+P = A \left[ x(2x^2-3)(x^2+1)^{1/2} + 3 \sinh^{-1} x \right]
+\end{equation}
+
+where the dimensionless parameter
+\begin{equation}
+x \equiv \left( \frac{\rho}{B} \right)^{1/3}
+\end{equation}
+and the constant A and B are
+\begin{align}
+A \equiv \frac{\pi m_e^4 c^5}{3h^3} = 6.00288 \times 10^{22} \, \text{dynes} \, \text{cm}^{-2} \\
+\frac{B}{\mu_e} \equiv \frac{8 \pi m_p}{3} \left(\frac{m_e c}{h} \right)^3 = 9.81011 \times 10^5 \, \text{g} \, \text{cm}^{-3}
+\end{align}
+
+
+\end{document}

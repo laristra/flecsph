@@ -1,108 +1,153 @@
 \documentclass[notes.tex]{subfiles}
- 
+
 \begin{document}
 
-
 \section{Time Integration Scheme}
-\subsection{Leap-Frog Method}
-Leap-frog time integration is frequently used in particle simulation. The name comes that the velocities are updated on half steps and the positions on integer steps so the two leap over each other. After computing accelerations, one step takes the form
+
+\begin{algorithm}
+\caption{Leapfrog time integration}
+\label{alg:leapfrog}
+\begin{algorithmic}[1]
+\State read initial state: {\tt \{r, v, u\}} $\leftarrow \{r^0, v^0, u^0\}$
+\State compute {\tt rho(r), P(rho, u), cs(rho, P, u)} 
+\State save $v^{1/2}$: {\tt v12 = v}
+\State compute acceleration: {\tt a(P,rho,v12)} 
+\State compute {\tt Dudt(P,rho,v,v12)} 
+\While{iterations}
+\State select timestep {\tt dt} $\leftarrow\Delta t$
+\State {\tt v += a*dt/2}
+\Comment velocity kick: $v^{n+1/2} = v^{n} + a^{n}\frac{\Delta t}2$
+
+\State {\tt u += Dudt*dt/2}
+\Comment internal energy kick:
+         $u^{n+1/2} = u^{n} + \left(\frac{du}{dt}\right)^{n}\frac{\Delta t}2$
+
+\State update neighbors
+\State {\tt r += v*dt}
+\Comment drift: $r^{n+1} = r^{n} + v^{n+1/2}\Delta t$
+
+\State compute {\tt rho(r), P(rho, u), cs(rho, P, u)} 
+\Comment uses $u^{n+1/2}$!
+
+\State save $v^{n+1/2}$: {\tt v12 = v}
+\State compute acceleration: {\tt a(P,rho,v12)} 
+\Comment $a^{n+1} = a[P^{n+1},\rho^{n+1},\Pi_{ab}(v^{n+1/2})]$
+\State {\tt v += a*dt/2}
+\Comment second velocity kick: $v^{n+1} = v^{n+1/2} + a^{n+1}\frac{\Delta t}2$
+\State update neighbors
+
+\State compute {\tt Dudt(P,rho,v,v12)} 
+\Comment $\left(\frac{du}{dt}\right)^{n+1} 
+          = \dot{u}[P^{n+1},\rho^{n+1},v^{n+1},\Pi_{ab}(v^{n+1/2})]$
+\State {\tt u += Dudt*dt/2}
+\Comment second internal energy kick:
+         $u^{n+1} = u^{n+1/2} + \left(\frac{du}{dt}\right)^{n+1}\frac{\Delta t}2$
+\EndWhile
+\end{algorithmic}
+\end{algorithm}
+
+For the time integrator, we are using the leapfrog algorithm, specifically its
+"kick-drift-kick" variation (see Algorithm~\ref{alg:leapfrog}). This algorithm
+belongs to the family of symplectic integrators and, in the absence of
+gravity, conserves energy exactly.
+
+Leapfrog time integrators are efficient for Hamiltonian systems, specifically
+for particle simulations. The name comes from the fact that particle
+velocities are updated at half-steps while the positions at integer steps, so
+that the two leap over each other. A pair of updates from timestep $n$ to
+$n+1$ has the following form:
 \begin{align}
-v^{i+1/2} = v^{i-1/2} + a^i \Delta t \\
-r^{i+1} = r^i + v^{i+1/2} \Delta t
+v^{n+1/2} &= v^{n-1/2} + a(r^{n}) \Delta t, \\
+r^{n+1}   &= r^n + v^{n+1/2} \Delta t.
 \end{align}
-For $v^{i+1}$, a common approximation in SPH is to assume that the velocity at the current time plays a minor role in the computation of the acceleration (i.e. velocity changes are small with each time step) and then the following approximation can be made
-\begin{equation}
-v^{i+1} = \frac{1}{2} (v^{i-1/2}+v^{i+1/2})
-\end{equation}
-At the first step, we only have initial velocity so we need to follow below routing
+Note that in this simple form the accelerations $a(r^n)$ are computed
+synchronously with positions and assumed independent from the velocities $v^n$.
+This formulation is time-symmetric and reversible up to roundoff.
+
+An equivalent "kick-drift-kick" formulation was shown to be stable for
+variable time steps:
 \begin{align}
-v^{1/2} = v^{0} + a^0 \Delta t/2 \\
-r^{1} = r^0 + v^{1/2} \Delta t
+v^{n+1/2} &= v^n + a(r^{n}) \Delta t/2,  \;\;\; &\text{"kick"} \\
+r^{n+1}   &= r^n + v^{n+1/2} \Delta t,   \;\;\; &\text{"drift"}\\
+v^{n+1}   &= v^n + a(r^{n+1}) \Delta t/2,\;\;\; &\text{"kick"}
 \end{align}
 
-The time step is adaptive and determined with $\Delta t = Min(\Delta t_1, \Delta t_2)$:
+In application to the basic SPH formulation 
+(\ref{eq:basic-dudt}-\ref{eq:basic-dvdt}), this method reads:
+\begin{align}
+v^{n+1/2} = v^n &+ a[r^{n},\Pi_{ab}(v^{n-1/2})] \Delta t/2, 
+\label{eq:kick_v1}\\
+u^{n+1/2} = u^n 
+          &+ \frac{du}{dt}\left[r^n,v^n,\Pi_{ab}(v^{n-1/2})\right]\Delta t/2,
+\label{eq:kick_u1}\\
+r^{n+1} = r^n &+ v^{n+1/2} \Delta t,\\
+v^{n+1} = v^{n+1/2} &+ a\left[r^{n+1},\Pi_{ab}(v^{n+1/2})\right] \Delta t/2, 
+\label{eq:kick_v2}\\
+u^{n+1} = u^{n+1/2} 
+       &+ \frac{du}{dt}\left[r^{n+1},v^{n+1},\Pi_{ab}(v^{n+1/2})
+                       \right]\Delta t/2.
+\label{eq:kick_u2}                       
+\end{align}
+where we highlighted variable dependencies between different time levels.
 
-$$ \Delta t_1 = k \mbox{Min}_i(\frac{h_i}{c_i+1.2\alpha c_i + 1.2 \beta \mbox{Max}_j\mu_{ij}}) \mbox{ with } k \approx 0.1 $$
-$$ \Delta t_2 = \mbox{Min}_i\sqrt{(\frac{h_i}{|\dot{\vec{v_i}}|})} $$
+In this formulation, the internal energy is stored and updated synchronously
+with the velocities rather than the coordinates.
+This is done to achieve exact energy conservation:
+\begin{align}
+  E^{n+1/2} - E^{n-1/2} 
+   &=
+     \sum_a m_a \left[u_a^{n+1/2} - u_a^{n-1/2}\right]
+   + \sum_a \frac12 m_a \left[\left(\vec{v}^{n+1/2}_a\right)^2 
+                      - \left(\vec{v}^{n-1/2}_a\right)^2\right] 
+   \\                   
+   &= \sum_a m_a\left(\frac{du^{n}_a}{dt} 
+    + \vec{v}^{n}_a\cdot\frac{d\vec{v}^n_a}{dt}\right),
+   \;\;\;
+   \text{where}\;
+   \vec{v}_a^n := \frac{\vec{v}_a^{n-1/2} + \vec{v}_a^{n-1/2}}2.
+   \label{eq:vn}
+\end{align}
 
-\section{Solving Lane-Emden Equation}
+If we substitute corresponding time derivatives from
+(\ref{eq:basic-dudt}-\ref{eq:basic-dvdt}), this expression vanishes
+(as shown in e.g. Rosswog 2009, their Section 2.4):
+\begin{align}
+ E^{n+1/2} - E^{n-1/2} = 
+ -\sum_{a,b} m_a m_b \left(
+        \frac{P_a}{\rho_a^2} \vec{v}^{n}_b
+      + \frac{P_b}{\rho_b^2} \vec{v}^{n}_a
+      + \Pi_{ab}\frac{\vec{v}^{n}_a + \vec{v}^{n}_b}{2}
+    \right)\cdot\nabla_a W^{n}_{ab} = 0.
+\label{eq:energy-cons}    
+\end{align}
 
-We need to determine the density function based on the radius.
+For this expression to vanish, the viscosity tensors $\Pi_ab$ in
+(\ref{eq:kick_v1}) and (\ref{eq:kick_u1}) above (or in (\ref{eq:kick_v2}) and
+(\ref{eq:kick_v2})) should be identical. Even though they might depend on the
+values of internal energy at previous half-step, $u^{n-1/2}$, it does not
+affect tensor symmetry and energy conservation at half-steps.
+Similarly, the pressure in (\ref{eq:energy-cons}) depends on the density at
+the current integer step and internal energy at previous half-step, but it
+does not violate energy conservation as long as the same value of the pressure
+is used to compute accelerations and time derivatives of internal energy.
+At the same time, when computing derivaties of internal energy using
+expression (\ref{eq:basic-dudt}), the dot products 
+$\vec{v}^{n}_{ab}\cdot\nabla_a W^n_{ab}$ must be computed with velocities
+$\vec{v}^{n}_a$ at integer timesteps, as in (\ref{eq:vn}).
 
-As we consider the star as a polytropic fluid, we use the equation of Lane-Emden which is a form of the Poisson equation:
+\subsection{Adaptive timestep}
 
-\begin{equation}\label{eq_LaneEmden}
-  \frac{d^2\theta}{d \xi^2}+ \frac{2}{\xi}\frac{d\theta}{d\xi}+\theta^n = 0
-\end{equation}
+The timestep can be adaptive and determined by
+$\Delta t = \lambda_{\rm CFL}\min(\Delta t_1,\Delta t_2)$, where
+$\lambda_{\rm CFL}\approx0.1$ is a Courant factor limit, and the timescales
+$\Delta t_1$, $\Delta t_2$ are:
+\begin{align}
+  \Delta t_1 &= \min_a\left(\frac{h_a}{c_a(1 + 1.2\alpha)
+                                      + 1.2\ \beta\ \max_b\mu_{ab}}\right), \\
+  \Delta t_2 &= \min_a\sqrt{\frac{h_a}{|\dot\vec{v}_a|}},
+\end{align}
+where $c_a$ is a sound speed, $\alpha$ and $\beta$ are viscosity parameters,
+and $\mu_{ab}$ is a viscosity function, as defined in equation (\ref{eq:visc_mu}).
 
-With $\xi$ and $\theta$ two dimensionless variables.
-There is only exact solutions for a polytropic index $n = 0.5$, $1$ and $2$.
-In our work we use a polytropic index of $1$ which can correspond to a NS simulation.
-
-For $n=1$ the solution of equation \ref{eq_LaneEmden} is:
-
-\begin{equation}
-\theta(\xi)=\frac{sin(\xi)}{\xi}
-\end{equation}
-
-We note $\xi_1 = \pi$, the first value of $\xi$ as $\theta(\xi) = 0$.
-$\theta(\xi)$ is also defined as:
-\begin{equation}
- \theta(\xi) = \Big(\frac{\rho(\xi)}{\rho_c}\Big)^{\frac{1}{n}}  = \frac{\rho(\xi)}{\rho_c}
-\end{equation}
-
-With $\rho_c$ the internal density of the star and $\rho$ the density at a determined radius. $\xi$ is defined as:
-$$ \xi = Ar = \sqrt{\frac{4\pi G}{K(n+1)}\rho_c^{(n-1)/n}} \times r = \sqrt{\frac{2\pi G}{K}}\times r \mbox{ (for } n=1 \mbox{)}$$
-
-With $K$ a proportionality constant.
-
-From the previous equations we can write the stellar radius $R$ as:
-\begin{equation}
-R = \sqrt{\frac{K(n+1)}{4\pi G}}\rho_c^{(1-n)/2}\xi_1 = \sqrt{ \frac{K}{2\pi G} } \times \xi_1
-\end{equation}
-
-(We note that for $n=1$ the radius does not depend of the central density.)
-
-If, for example, we use dimensionless units as $G=R=M=1$ (for the other results we use CGS with $G = 6.674 \times 10^{-8} cm^3g^{-1}s^{-2}$)
-We can compute K as:
-\begin{equation}
-\label{eq:constant}
-K = \frac{R^2  2 \pi G}{\xi_1^2}
-\end{equation}
-
-\begin{center}
-
-\begin{tabular}{c|c|c|c|c|}
- & $NS_1$ & $NS_2$ & $NS_3$ & $NS_4$ \\
-\hline
-Radius (cm) & $R=G=M=1$ & 1500000 & 1400000 & 960000 \\
-\hline
-K & 0.636619 & 95598.00 & 83576.48 & 39156.94\\
-\hline
-\end{tabular}
-
-\end{center}
-
-Then we deduce the density function of $r$ as :
-
-$$\rho(\xi) = \frac{sin(A\times r)}{A \times r} \times \rho_c \mbox{ with } A = \sqrt{\frac{2\pi G}{K}}
-$$
-
-As we know the total Mass $M$, the radius $R$ and the gravitational constant $G$ we can compute the central density as:
-
-$$ \rho_c = \frac{M A^3}{4 \pi (sin(AR)-ARcos(AR)) } $$
-
-Then we normalize the results to fit $R = M = G = 1$: $K' = K/(R^2G) $, $m_i' = m_i/M $, $h_i' = h_i / R$, $\vec{x_i}' = \vec{x_i}/R$
-
-
-\subsection{Gravitational force}
-
-The self-gravity $\vec{F}_i^{Grav}$ for each particles:
-
-\begin{equation}
-\vec{F}_i^{Grav} = \sum_j G\frac{m_im_j}{(|\vec{r_j}-\vec{r_i}|)^3} \vec{r_{ij}}
-\end{equation}
-
-In this part we will need Fast Multiple Method (FMM) for the computation to avoid $O(N^2)$ complexity.
 
 \end{document}

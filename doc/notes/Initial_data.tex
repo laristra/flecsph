@@ -2,20 +2,99 @@
  
 \begin{document}
 
-\section{Hydrostatic Equilibrium}
+\section{Initial Data}
 \label{sec:equi}
 
-The initial data are based on a cubic lattice within a sphere of radius $R$.
-The density function, based on radius, $\rho(\vec{r})$ is known using the result of the Lane-Emden equation ( we use polytropic index $n = 1$ here).
-The mass associate to each particle $i$ of the total $N$ particles:
+Initial particle configurations are constructed using various methods,
+including regular cubic lattices, random particle distributions, or sequences
+of spherical shells. 
+For a star, the density as a function of radius $\rho(\vec{r})$ can be found
+by solving Lane-Emden equation, where we use polytropic index $n = 1$
+(see Section~\ref{sec:Lane-Emden}).
+We pick particles with variable mass, such that the mass of a particle is
+computed as:
+\begin{align}
+  m_i = \frac{\rho(\vec{r_i})}{n_r} \mbox{ with } n_r = \frac{3N}{4 \pi R^3}
+\end{align}  
 
-$$ m_i = \frac{\rho(\vec{r_i})}{n_r} \mbox{ with } n_r = \frac{3N}{4 \pi R^3}$$
-
-The smoothing length is define constant and the same for all particles for all the simulation:
-
-$$ h = \frac{1}{2}\sqrt{\frac{3N_N}{4\pi n}} $$
+The smoothing length is set to a constant and uniform for all particles:
+\begin{align}
+  h = \frac{1}{2}\sqrt{\frac{3N_N}{4\pi n}}
+\end{align}
 
 Here we choose $N_N$, the average number of neighbors, to be 100.
+
+\section{Solving Lane-Emden Equation}
+\label{sec:Lane-Emden}
+
+Lane-Emden equation describes equilibrium configuration of a star. This is an
+equation which determines the star density as a function of radius.
+
+As we consider the star as a polytropic fluid, we use the equation of Lane-Emden which is a form of the Poisson equation:
+
+\begin{equation}\label{eq_LaneEmden}
+  \frac{d^2\theta}{d \xi^2}+ \frac{2}{\xi}\frac{d\theta}{d\xi}+\theta^n = 0
+\end{equation}
+
+With $\xi$ and $\theta$ two dimensionless variables.
+There is only exact solutions for a polytropic index $n = 0.5$, $1$ and $2$.
+In our work we use a polytropic index of $1$ which can correspond to a NS simulation.
+
+For $n=1$ the solution of equation \ref{eq_LaneEmden} is:
+
+\begin{equation}
+\theta(\xi)=\frac{sin(\xi)}{\xi}
+\end{equation}
+
+We note $\xi_1 = \pi$, the first value of $\xi$ as $\theta(\xi) = 0$.
+$\theta(\xi)$ is also defined as:
+\begin{equation}
+ \theta(\xi) = \Big(\frac{\rho(\xi)}{\rho_c}\Big)^{\frac{1}{n}}  = \frac{\rho(\xi)}{\rho_c}
+\end{equation}
+
+With $\rho_c$ the internal density of the star and $\rho$ the density at a determined radius. $\xi$ is defined as:
+$$ \xi = Ar = \sqrt{\frac{4\pi G}{K(n+1)}\rho_c^{(n-1)/n}} \times r = \sqrt{\frac{2\pi G}{K}}\times r \mbox{ (for } n=1 \mbox{)}$$
+
+With $K$ a proportionality constant.
+
+From the previous equations we can write the stellar radius $R$ as:
+\begin{equation}
+R = \sqrt{\frac{K(n+1)}{4\pi G}}\rho_c^{(1-n)/2}\xi_1 = \sqrt{ \frac{K}{2\pi G} } \times \xi_1
+\end{equation}
+
+(We note that for $n=1$ the radius does not depend of the central density.)
+
+If, for example, we use dimensionless units as $G=R=M=1$ (for the other results we use CGS with $G = 6.674 \times 10^{-8} cm^3g^{-1}s^{-2}$)
+We can compute K as:
+\begin{equation}
+\label{eq:constant}
+K = \frac{R^2  2 \pi G}{\xi_1^2}
+\end{equation}
+
+\begin{center}
+
+\begin{tabular}{c|c|c|c|c|}
+ & $NS_1$ & $NS_2$ & $NS_3$ & $NS_4$ \\
+\hline
+Radius (cm) & $R=G=M=1$ & 1500000 & 1400000 & 960000 \\
+\hline
+K & 0.636619 & 95598.00 & 83576.48 & 39156.94\\
+\hline
+\end{tabular}
+
+\end{center}
+
+Then we deduce the density function of $r$ as :
+
+$$\rho(\xi) = \frac{sin(A\times r)}{A \times r} \times \rho_c \mbox{ with } A = \sqrt{\frac{2\pi G}{K}}
+$$
+
+As we know the total Mass $M$, the radius $R$ and the gravitational constant $G$ we can compute the central density as:
+
+$$ \rho_c = \frac{M A^3}{4 \pi (sin(AR)-ARcos(AR)) } $$
+
+Then we normalize the results to fit $R = M = G = 1$: $K' = K/(R^2G) $, $m_i' = m_i/M $, $h_i' = h_i / R$, $\vec{x_i}' = \vec{x_i}/R$
+
 
 \subsection{Roche lobe problem}
 
@@ -98,6 +177,5 @@ Using $a$ as the distance between the two polytropes  (Here $a=2.9$ for $R=1$) a
 %\EndProcedure
 %\end{algorithmic}
 %\end{algorithm}
-
 
 \end{document}
