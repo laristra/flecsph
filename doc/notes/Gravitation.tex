@@ -4,9 +4,23 @@
 
 
 
-\section{Gravitation computation}
+\section{Computing Gravitational Forces}
 
-The algorithm is presented in algorithm \ref{comp_grav}.
+Gravitational force acting on a particle $\vec{F}_a^{Grav}$ due to attraction
+by other particles is described by the Newton's formula, with $G$ being the
+Newton's gravitational constant:
+\begin{equation}
+\vec{F}_a^{Grav} = \sum_b G\frac{m_am_b}{(|\vec{r}_a-\vec{r}_b|)^3}
+                           \vec{r}_{ab}.
+\end{equation}
+
+To avoid $O(N^2)$ computational complexity, we use the Fast Multipole Method
+(FMM), as described below.
+
+
+\subsection{Fast Multipole Method}
+
+See Algorithm \ref{comp_grav} for the basic outline of the method.
 In this algorithm, the $macangle$ is the angle of the Multipole Acceptance Criterion.
 The acceleration is, for a center of mass $c$, the sum of contributions from the local particles and the distant cells with:
 
