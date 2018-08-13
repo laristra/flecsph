@@ -82,6 +82,20 @@ namespace physics{
       kernel = kernels::wendland_quintic;
       gradKernel = kernels::gradient_wendland_quintic;
     }
+    #if 0
+    else if (boost::iequals(kstr, "wqc4")) {
+      kernel = kernels::wqc4;
+      gradKernel = kernels::gradient_wqc4;
+    }
+    else if (boost::iequals(kstr, "wqc6")) {
+      kernel = kernels::wqc4;
+      gradKernel = kernels::gradient_wqc6;
+    }
+    else if (boost::iequals(kstr, "sinc")) {
+      kernel = kernels::sinc;
+      gradKernel = kernels::gradient_sinc;
+    }
+    #endif
     else {
       clog_one(fatal) << "Bad kernel parameter" << std::endl;
     }
@@ -149,7 +163,8 @@ namespace physics{
 #endif 
 
   /**
-   * @brief      \TODO NEED COMMENTS
+   * @brief      Zero temperature EOS from Chandrasechkar's 
+   * 		 This can be used white dwarf system
    *
    * @param      srch  The srch
    */

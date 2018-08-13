@@ -31,6 +31,7 @@ It is therefore sufficient to implement $dW/dr$ for each kernel.
 
 In the formulae below, we define $q\equiv|\vec{r}|/h$.
 
+% Cubic Spline 
 \subsection{{\tt sph\_kernel = "cubic spline"}}
 The simplest (but \emph{not} the best one) is a Monaghan's cubic spline kernel:
 \begin{equation}
@@ -57,6 +58,110 @@ Radial derivative of the cubic spline kernel is:
     0           & \text{otherwise}.
 \end{cases}
 \end{align}
+
+%Gaussian
+\subsection{{\tt sph\_kernel = "gaussian"}}
+The Gaussian kernel is:
+\begin{equation}
+W(\vec{r},h) = \frac{\sigma_D}{h^D} 
+  \begin{cases}
+    e^{-q^2} & \text{if} \; 0 \leq q \leq 3, \\
+    0        & \text{if} \;  q >3 
+\end{cases}
+\end{equation}
+where $\sigma_D$ is :
+\begin{equation}
+\sigma_D =  \left\{ \frac{1}{\pi^{1/2}}, \frac{1}{\pi},\frac{1}{\pi^{3/2}}\right\}
+         \; \text{in 1D, 2D and 3D resp.}
+\end{equation}
+
+Radial derivative of the cubic spline kernel is:
+\begin{align}
+ \frac{dW}{dr} = \frac{\sigma_D}{h^{D+1}} 
+   \begin{cases}
+    -2 q e^{-q^2} & \text{if} \; 0 \leq q \leq 3, \\
+    0        & \text{if} \;  q >3 
+\end{cases}
+\end{align}
+
+%Quintic
+\subsection{{\tt sph\_kernel = "quintic spline"}}
+The Quintic spline kernel is:
+\begin{equation}
+W(\vec{r},h) = \frac{\sigma_D}{h^D} 
+  \begin{cases}
+    [(3-q)^5-6(2-q)^5+15(1-q)^5] & \text{if} \; 0 \leq q \leq 1, \\
+    [(3-q)^5 - 6(2-q)^5] & \text{if} \; 1 \leq q \leq 2, \\
+    (3-q)^5 & \text{if} \; 2 \leq q \leq 3, \\
+    0        & \text{if} \;  q >3 
+\end{cases}
+\end{equation}
+where $\sigma_D$ is:
+\begin{equation}
+\sigma_D =  \left\{ \frac{1}{120}, \frac{7}{478\pi}, \frac{3}{359\pi}\right\}
+         \; \text{in 1D, 2D and 3D resp.}
+\end{equation}
+
+Radial derivative of the cubic spline kernel is:
+\begin{align}
+ \frac{dW}{dr} = \frac{\sigma_D}{h^{D+1}} 
+  \begin{cases}
+    [-5(3-q)^4+30(2-q)^4-75(1-q)^4] & \text{if} \; 0 \leq q \leq 1, \\
+    [-5(3-q)^4 + 30(2-q)^4] & \text{if} \; 1 \leq q \leq 2, \\
+   -5(3-q)^4 & \text{if} \; 2 \leq q \leq 3, \\
+    0        & \text{if} \;  q >3 
+\end{cases}
+\end{align}
+
+
+%Wendland
+\subsection{{\tt sph\_kernel = "wendland quintic"}}
+The Wendlend Quintic kernel (C2) for 2D and 3D is
+\begin{equation}
+W(\vec{r},h) = \frac{\sigma_D}{h^D} 
+  \begin{cases}
+    \left(1-\frac{q}{2} \right)^4 (2q+1) & \text{if} \; 0 \leq q \leq 2, \\
+    0        & \text{if} \;  q > 2 
+\end{cases}
+\end{equation}
+where $\sigma_D$ is:
+\begin{equation}
+\sigma_D =  \left\{ \frac{7}{4 \pi}, \frac{21}{16\pi}\right\}
+         \; \text{in 2D and 3D resp.}
+\end{equation}
+For 1D:
+\begin{equation}
+W(\vec{r},h) = \frac{\sigma_D}{h} 
+  \begin{cases}
+    \left(1-\frac{q}{2} \right)^3 (1.5q+1) & \text{if} \; 0 \leq q \leq 2, \\
+    0        & \text{if} \;  q > 2 
+\end{cases}
+\end{equation}
+where $\sigma_D$ is:
+\begin{equation}
+\sigma_D =  \frac{5}{8}
+         \; \text{in 1D}
+\end{equation}
+
+
+% Kernels that will be added into FleCSPH
+There are more kernels that we are adding to the code. Below is several examples
+\subsection{Super Gaussian Kernel}
+\begin{equation}
+W(\vec{r},h) = \frac{1}{\pi^{D/2} h^D} 
+  \begin{cases}
+    e^{-q^2} \left(\frac{D}{2} + 1 - q^2 \right) & \text{if} \; 0 \leq q \leq 3, \\
+    0        & \text{if} \;  q >3 
+    \end{cases}
+\end{equation}
+
+\subsection{Wendland C4 Kernel}
+
+\subsection{Wendland C6 Kernel}
+
+\subsection{Sinc Kernel}
+
+We also refer \href{https://pdfs.semanticscholar.org/6ae2/960b7cbeab3e1969033b343dbe3594c99cb3.pdf}{Liu 2010} for more discussions.
 
 %%% Using this, we can calculate kernel gradient. Below procedure shows the steps of kernel gradient in 3D
 %%% $$W = \frac{1}{\pi h^3} \times \begin{cases} 1 - \frac{3}{2} (\frac{r}{h})^2 + \frac{3}{4} (\frac{r}{h})^3, & \mbox{si } 0 \leq \frac{r}{h} < 1 \\ \frac{1}{4} [2-\frac{r}{h}]^3, & \mbox{si } 1 \leq \frac{r}{h} < 2\\ 0, & \mbox{si } \frac{r}{h} \geq 2 \end{cases}$$
