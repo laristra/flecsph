@@ -2368,14 +2368,14 @@ public:
     char* buf = new char [alloc_size];
     uint64_t pos = 0;
 
-    std::memcpy(buf + pos, &num_entities, sizeof(num_entities));
+    memcpy(buf + pos, &num_entities, sizeof(num_entities));
     pos += sizeof(num_entities);
 
     for(size_t entity_id = 0; entity_id < num_entities; ++entity_id)
     {
       entity_t* ent = entities_[entity_id];
       branch_int_t bid = ent->get_branch_id().value_();
-      std::memcpy(buf + pos, &bid, sizeof(bid));
+      memcpy(buf + pos, &bid, sizeof(bid));
       pos += sizeof(bid);
     }
 
@@ -2390,7 +2390,7 @@ public:
     uint64_t pos = 0;
 
     uint64_t num_entities;
-    std::memcpy(&num_entities, buf + pos, sizeof(num_entities));
+    memcpy(&num_entities, buf + pos, sizeof(num_entities));
     pos += sizeof(num_entities);
 
     for(size_t entity_id = 0; entity_id < num_entities; ++entity_id)
@@ -2401,7 +2401,7 @@ public:
       entities_.push_back(ent);
 
       branch_int_t bi;
-      std::memcpy(&bi, buf + pos, sizeof(bi));
+      memcpy(&bi, buf + pos, sizeof(bi));
       pos += sizeof(bi);
 
       branch_id_t bid;
