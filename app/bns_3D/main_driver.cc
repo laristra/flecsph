@@ -259,7 +259,7 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
   //}while(physics::totaltime<physics::maxtime);
 }
 
-flecsi_register_mpi_task(mpi_init_task);
+flecsi_register_mpi_task(mpi_init_task, flecsi::execution);
 
 void 
 usage()
@@ -300,7 +300,7 @@ driver(int argc,  char * argv[]){
 } // driver
 
 
-} // namespace
-} // namespace
+} // namespace execution
+} // namespace flecsi
 
 

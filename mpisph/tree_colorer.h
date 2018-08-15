@@ -110,7 +110,7 @@ private:
 
 public:
   static const size_t dimension = D;
-  using point_t = flecsi::point<T,dimension>;
+  using point_t = flecsi::point__<T,dimension>;
 
 
   tree_colorer(){

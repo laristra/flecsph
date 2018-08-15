@@ -82,7 +82,7 @@ template<
 >
 struct tree_geometry<T, 1>
 {
-  using point_t = point<T, 1>;
+  using point_t = point__<T, 1>;
   using element_t = T;
 
   /*!
@@ -247,7 +247,7 @@ template<
 >
 struct tree_geometry<T, 2>
 {
-  using point_t = point<T, 2>;
+  using point_t = point__<T, 2>;
   using element_t = T;
 
   /*!
@@ -435,7 +435,7 @@ template<
 >
 struct tree_geometry<T, 3>
 {
-  using point_t = point<T, 3>;
+  using point_t = point__<T, 3>;
   using element_t = T;
 
   /*!
@@ -657,8 +657,8 @@ public:
     typename S
   >
   branch_id(
-    const std::array<point<S, dimension>, 2>& range,
-    const point<S, dimension>& p,
+    const std::array<point__<S, dimension>, 2>& range,
+    const point__<S, dimension>& p,
     size_t depth)
   : id_(int_t(1) << depth * dimension + (bits - 1) % dimension)
   {
@@ -886,8 +886,8 @@ public:
   >
   void
   coordinates(
-    const std::array<point<S, dimension>, 2>& range,
-    point<S, dimension>& p) const
+    const std::array<point__<S, dimension>, 2>& range,
+    point__<S, dimension>& p) const
   {
     std::array<int_t, dimension> coords;
     coords.fill(int_t(0));
@@ -1034,7 +1034,7 @@ public:
 
   using element_t = typename Policy::element_t;
 
-  using point_t = point<element_t, dimension>;
+  using point_t = point__<element_t, dimension>;
 
   using range_t = std::pair<element_t, element_t>;
 
@@ -1060,11 +1060,11 @@ public:
 
   using geometry_t = tree_geometry<element_t, dimension>;
 
-  using entity_space_t = index_space<entity_t*, true, true, false>;
+  using entity_space_t = index_space__<entity_t*, true, true, false>;
 
-  using branch_space_t = index_space<branch_t*, true, true, false>;
+  using branch_space_t = index_space__<branch_t*, true, true, false>;
 
-  using subentity_space_t = index_space<entity_t*, false, true, false>;
+  using subentity_space_t = index_space__<entity_t*, false, true, false>;
 
   struct filter_valid{
     bool operator()(entity_t* ent) const{
@@ -1099,8 +1099,8 @@ public:
     dimension.
    */
   tree_topology(
-    const point<element_t, dimension>& start,
-    const point<element_t, dimension>& end
+    const point__<element_t, dimension>& start,
+    const point__<element_t, dimension>& end
   )
   {
     branch_id_t bid = branch_id_t::root();
@@ -1217,8 +1217,8 @@ public:
    */
   void
   update_all(
-    const point<element_t, dimension>& start,
-    const point<element_t, dimension>& end
+    const point__<element_t, dimension>& start,
+    const point__<element_t, dimension>& end
   )
   {
 
@@ -3069,8 +3069,8 @@ private:
   size_t max_depth_;
   branch_t* root_;
   entity_space_t entities_;
-  std::array<point<element_t, dimension>, 2> range_;
-  point<element_t, dimension> scale_;
+  std::array<point__<element_t, dimension>, 2> range_;
+  point__<element_t, dimension> scale_;
   element_t max_scale_;
 };
   
@@ -3193,7 +3193,7 @@ public:
 
   static constexpr size_t num_children = branch_int_t(1) << dimension;
 
-  using point_t = point<E,D>;
+  using point_t = point__<E,D>;
   using element_t = E;
 
   tree_branch()

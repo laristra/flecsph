@@ -41,7 +41,7 @@ using namespace mpi_utils;
 struct body_holder_fmm_t{
   static const size_t dimension = gdimension;
   using element_t = type_t; 
-  using point_t = flecsi::point<element_t, dimension>;
+  using point_t = flecsi::point__<element_t, dimension>;
 
   point_t position; 
   int owner; 

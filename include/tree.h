@@ -48,7 +48,7 @@ void driver(int argc, char*argv[]);
 struct body_holder_mpi_t{
   static const size_t dimension = gdimension;
   using element_t = type_t; 
-  using point_t = flecsi::point<element_t, dimension>;
+  using point_t = flecsi::point__<element_t, dimension>;
 
   point_t position; 
   int owner; 
@@ -62,7 +62,7 @@ public:
   using branch_int_t = uint64_t;
   static const size_t dimension = gdimension;
   using element_t = type_t; 
-  using point_t = flecsi::point<element_t, dimension>;
+  using point_t = flecsi::point__<element_t, dimension>;
   using space_vector_t = flecsi::space_vector<element_t,dimension>;
   using geometry_t = flecsi::topology::tree_geometry<element_t, gdimension>;
 
@@ -408,7 +408,7 @@ public:
 
     point_t 
     coordinates(
-        const std::array<flecsi::point<element_t, dimension>,2>& range) const{
+        const std::array<flecsi::point__<element_t, dimension>,2>& range) const{
       point_t p;
       branch_id_t bid = id(); 
       bid.coordinates(range,p);

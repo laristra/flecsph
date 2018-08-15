@@ -38,7 +38,7 @@ template<
   >
 class body_system{
 
-using point_t = flecsi::point<T,D>;
+using point_t = flecsi::point__<T,D>;
 
 public:
 
