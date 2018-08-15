@@ -181,7 +181,7 @@ mpi_init_task(const char * parameter_file){
   } while(physics::iteration <= final_iteration);
 }
 
-flecsi_register_mpi_task(mpi_init_task);
+flecsi_register_mpi_task(mpi_init_task, flecsi::execution);
 
 void
 usage() {
@@ -200,7 +200,7 @@ specialization_tlt_init(int argc, char * argv[]){
     return;
   }
 
-  flecsi_execute_mpi_task(mpi_init_task, argv[1]);
+  flecsi_execute_mpi_task(mpi_init_task, flecsi::execution, argv[1]);
 
 } // specialization driver
 

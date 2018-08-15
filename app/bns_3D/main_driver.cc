@@ -55,7 +55,7 @@ namespace flecsi{
 namespace execution{
 
 void
-mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
+mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0) {
   // TODO find a way to use the file name from the specialiszation_driver
   
   int rank;
@@ -257,9 +257,10 @@ mpi_init_task(int startiteration = 0, int maxiter = 1000, double macangle = 0){
       <<std::endl;
   }while(physics::iteration<maxiter);
   //}while(physics::totaltime<physics::maxtime);
+
 }
 
-flecsi_register_mpi_task(mpi_init_task, flecsi::execution);
+flecsi_register_mpi_task(mpi_init_task,flecsi::execution);
 
 void 
 usage()
@@ -291,7 +292,8 @@ specialization_tlt_init(int argc, char * argv[]){
   }
 
   clog_one(warn) << "In user specialization_driver" << std::endl;
-  flecsi_execute_mpi_task(mpi_init_task,startiteration,maxiter,macangle); 
+  flecsi_execute_mpi_task(mpi_init_task, flecsi::execution,
+      startiteration, maxiter, macangle); 
 } // specialization driver
 
 void 

@@ -142,7 +142,7 @@ mpi_init_task(int startiteration){
   }while(physics::iteration<40);
 }
 
-flecsi_register_mpi_task(mpi_init_task);
+flecsi_register_mpi_task(mpi_init_task, flecsi::execution);
 
 void 
 specialization_tlt_init(int argc, char * argv[]){
@@ -155,7 +155,7 @@ specialization_tlt_init(int argc, char * argv[]){
 
   clog_one(trace)<< "In user specialization_driver" << std::endl;
 
-  flecsi_execute_mpi_task(mpi_init_task,startiteration); 
+  flecsi_execute_mpi_task(mpi_init_task,flecsi::execution, startiteration); 
 } // specialization driver
 
 void 
@@ -164,7 +164,7 @@ driver(int argc,  char * argv[]){
 } // driver
 
 
-} // namespace
-} // namespace
+} // namespace execution
+} // namespace flecsi
 
 
