@@ -54,7 +54,6 @@ mpi_init_task(int startiteration){
   int size;
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  clog_set_output_rank(0);
   
   int totaliters = 100;
   int iteroutput = 1;
@@ -81,7 +80,7 @@ mpi_init_task(int startiteration){
   ++physics::iteration; 
   do
   { 
-    analysis::screen_output();
+    analysis::screen_output(rank);
     MPI_Barrier(MPI_COMM_WORLD);
 
     // Compute and prepare the tree for this iteration 
@@ -95,46 +94,46 @@ mpi_init_task(int startiteration){
     bs.update_iteration();
    
     // Do the DWD physics
-    clog_one(trace)<<"Density"<<std::flush; 
+    rank|| clog(trace)<<"Density"<<std::flush; 
     bs.apply_in_smoothinglength(physics::compute_density);
-    clog_one(trace)<<".done"<<std::endl;
+    rank|| clog(trace)<<".done"<<std::endl;
 
-    clog_one(trace)<<"Pressure"<<std::flush; 
+    rank|| clog(trace)<<"Pressure"<<std::flush; 
     bs.apply_all(physics::compute_pressure_wd);
-    clog_one(trace)<<".done"<<std::endl;
+    rank|| clog(trace)<<".done"<<std::endl;
 
-    clog_one(trace)<<"Linear Momentum"<<std::flush; 
+    rank|| clog(trace)<<"Linear Momentum"<<std::flush; 
     //bs.apply_all(physics::compute_lin_momentum);
-    clog_one(trace)<<".done"<<std::endl;
+    rank|| clog(trace)<<".done"<<std::endl;
 
-    clog_one(trace)<<"Soundspeed"<<std::flush; 
+    rank|| clog(trace)<<"Soundspeed"<<std::flush; 
     bs.apply_all(physics::compute_soundspeed);
-    clog_one(trace)<<".done"<<std::endl;
+    rank|| clog(trace)<<".done"<<std::endl;
     
     // Refresh the neighbors within the smoothing length 
     bs.update_neighbors(); 
 
-    clog_one(trace)<<"Hydro acceleration"<<std::flush; 
+    rank|| clog(trace)<<"Hydro acceleration"<<std::flush; 
     bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
-    clog_one(trace)<<".done"<<std::endl;
+    rank|| clog(trace)<<".done"<<std::endl;
  
-    clog_one(trace)<<"Internalenergy"<<std::flush; 
+    rank|| clog(trace)<<"Internalenergy"<<std::flush; 
     bs.apply_in_smoothinglength(physics::compute_dudt);
-    clog_one(trace)<<".done"<<std::endl; 
+    rank|| clog(trace)<<".done"<<std::endl; 
    
     if(physics::iteration==1){ 
-      clog_one(trace)<<"leapfrog"<<std::flush; 
+      rank|| clog(trace)<<"leapfrog"<<std::flush; 
       bs.apply_all(physics::leapfrog_integration_first_step);
-      clog_one(trace)<<".done"<<std::endl;
+      rank|| clog(trace)<<".done"<<std::endl;
     }else{
-      clog_one(trace)<<"leapfrog"<<std::flush; 
+      rank|| clog(trace)<<"leapfrog"<<std::flush; 
       bs.apply_all(physics::leapfrog_integration);
-      clog_one(trace)<<".done"<<std::endl;
+      rank|| clog(trace)<<".done"<<std::endl;
     }
 
-    clog_one(trace)<<"dudt integration"<<std::flush; 
+    rank|| clog(trace)<<"dudt integration"<<std::flush; 
     bs.apply_all(physics::dudt_integration);
-    clog_one(trace)<<".done"<<std::endl;
+    rank|| clog(trace)<<".done"<<std::endl;
 
    
 #ifdef OUTPUT
@@ -151,6 +150,8 @@ flecsi_register_mpi_task(mpi_init_task, flecsi::execution);
 
 void 
 specialization_tlt_init(int argc, char * argv[]){
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   
   // Default start at iteration 0
   int startiteration = 0;
@@ -158,14 +159,16 @@ specialization_tlt_init(int argc, char * argv[]){
     startiteration = atoi(argv[1]);
   }
 
-  clog_one(warn) << "In user specialization_driver" << std::endl;
+  rank|| clog(warn) << "In user specialization_driver" << std::endl;
 
   flecsi_execute_mpi_task(mpi_init_task, flecsi::execution, startiteration); 
 } // specialization driver
 
 void 
 driver(int argc,  char * argv[]){
-  clog_one(warn) << "In user driver" << std::endl;
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  rank|| clog(warn) << "In user driver" << std::endl;
 } // driver
 
 

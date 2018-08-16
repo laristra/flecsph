@@ -456,11 +456,11 @@ void set_param(const std::string& param_name,
 # endif
   // unknown parameter -------------------------------
   if (unknown_param) {
-    clog_one(fatal) << "ERROR: unknown parameter " << param_name << endl;
+    clog(error) << "ERROR: unknown parameter " << param_name << endl;
     exit(2);
   }
 
-  clog_one(trace) << param_name << ": " << param_value << endl;
+  clog(trace) << param_name << ": " << param_value << endl;
 }
 
 /**

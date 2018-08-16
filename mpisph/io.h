@@ -88,7 +88,7 @@ void inputDataHDF5(
   MPI_Comm_size(MPI_COMM_WORLD,&size); 
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
-  clog_one(trace)<<"Input particles";
+  rank|| clog(trace)<<"Input particles";
   
   //--------------- OPEN FILE AND READ NUMBER OF PARTICLES -------------------- 
   auto dataFile = H5OpenFile(filename,H5_O_RDONLY
@@ -98,7 +98,7 @@ void inputDataHDF5(
   int val = H5HasStep(dataFile,startiteration);
   
   if(val != 1){
-    clog_one(error)<<std::endl<<"Step "<<startiteration<<" not found in file "<<
+    rank|| clog(error)<<std::endl<<"Step "<<startiteration<<" not found in file "<<
         filename<<std::endl<<std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();
@@ -125,7 +125,7 @@ void inputDataHDF5(
   if(H5_SUCCESS == H5ReadFileAttribInt32(dataFile,"dimension",&dimension)){
     assert(gdimension == dimension);
   }else{
-    clog_one(error)<<"No dimension value: setting to default 3"<<std::endl;
+    rank|| clog(error)<<"No dimension value: setting to default 3"<<std::endl;
     dimension = 3;
   }
 
@@ -233,7 +233,7 @@ void inputDataHDF5(
 
   // Internal Energy  
   #ifdef INTERNAL_ENERGY
-  clog_one(trace)<<"Reading internal energy"<<std::endl;
+  rank|| clog(trace)<<"Reading internal energy"<<std::endl;
   std::fill(dataX,dataX+nparticlesproc,0.);
   H5PartReadDataFloat64(dataFile,"u",dataX);
   for(int64_t i=0; i<nparticlesproc; ++i){
@@ -250,7 +250,7 @@ void inputDataHDF5(
       bodies[i].second.setId(dataInt[i]); 
     }
   }else{
-    clog_one(trace)<<"Setting ID for particles"<<std::endl;
+    rank|| clog(trace)<<"Setting ID for particles"<<std::endl;
     // Otherwise generate the id 
     int64_t start = (totalnbodies/size)*rank+1;
     for(int64_t i=0; i<nparticlesproc; ++i){
@@ -289,7 +289,7 @@ void inputDataHDF5(
   MPI_Barrier(MPI_COMM_WORLD);
   H5CloseFile(dataFile);
 
-  clog_one(trace)<<".done"<<std::endl;
+  rank|| clog(trace)<<".done"<<std::endl;
 
 }// inputDataHDF5
 
@@ -309,7 +309,7 @@ void outputDataHDF5(
 
   MPI_Barrier(MPI_COMM_WORLD);
 
-  clog_one(trace)<<"Output particles"<<std::flush;
+  rank|| clog(trace)<<"Output particles"<<std::flush;
 
   int64_t nparticlesproc = bodies.size();
 
@@ -488,7 +488,7 @@ void outputDataHDF5(
   delete[] bi;
   delete[] bint;
 
-  clog_one(trace)<<".done"<<std::endl;
+  rank|| clog(trace)<<".done"<<std::endl;
   
 }// outputDataHDF5
 

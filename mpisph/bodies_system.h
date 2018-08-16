@@ -51,7 +51,7 @@ public:
     // Display the number of threads in DEBUG mode
     #pragma omp parallel 
     #pragma omp single 
-    clog_one(warn)<<"USING OMP THREADS: "<<omp_get_num_threads()<<std::endl;
+    clog(warn)<<"USING OMP THREADS: "<<omp_get_num_threads()<<std::endl;
   };
 
   /**
@@ -195,7 +195,7 @@ public:
     MPI_Allreduce(MPI_IN_PLACE,&smoothinglength_,1,MPI_DOUBLE,MPI_MAX,
         MPI_COMM_WORLD);
 
-    clog_one(trace)<<"H="<<smoothinglength_<<std::endl;
+    rank|| clog(trace)<<"H="<<smoothinglength_<<std::endl;
 
     return smoothinglength_;
 
@@ -223,7 +223,7 @@ public:
     MPI_Allreduce(MPI_IN_PLACE,&smoothinglength_,1,MPI_DOUBLE,MPI_MAX,
         MPI_COMM_WORLD);
 
-    clog_one(trace)<<"H="<<smoothinglength_<<std::endl;
+    rank|| clog(trace)<<"H="<<smoothinglength_<<std::endl;
 
     tcolorer_.mpi_compute_range(localbodies_,range_,smoothinglength_);
     return range_;
@@ -257,7 +257,7 @@ public:
     // Choose the smoothing length to be the biggest from everyone 
     smoothinglength_ = getSmoothinglength();
 
-    clog_one(trace)<<"H="<<smoothinglength_<<std::endl;
+    rank|| clog(trace)<<"H="<<smoothinglength_<<std::endl;
 
     // Then compute the range of the system 
     tcolorer_.mpi_compute_range(localbodies_,range_,smoothinglength_);
@@ -315,7 +315,7 @@ public:
       oss << v << ";";
     }
     oss << std::endl;
-    clog_one(trace) << oss.str() << std::flush;
+    rank|| clog(trace) << oss.str() << std::flush;
 #endif
 
     // Exchnage usefull body_holder from my tree to other processes
@@ -344,7 +344,7 @@ public:
       oss << v << ";";
     }
     oss << std::endl;
-    clog_one(trace) << oss.str() << std::flush;
+    rank|| clog(trace) << oss.str() << std::flush;
 #endif
     
     tcolorer_.mpi_compute_ghosts(*tree_,bodies_,smoothinglength_/*,range_*/);
@@ -373,7 +373,7 @@ public:
     MPI_Comm_size(MPI_COMM_WORLD,&size);
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
-    clog_one(trace)<<"FMM: mmass="<<maxmasscell_<<" angle="<<macangle_<<std::endl;
+    rank|| clog(trace)<<"FMM: mmass="<<maxmasscell_<<" angle="<<macangle_<<std::endl;
 
     // Just consider the local particles in the tree for FMM 
     tree_->update_branches_local(smoothinglength_);

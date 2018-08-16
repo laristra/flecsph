@@ -83,7 +83,7 @@ namespace physics{
       gradKernel = kernels::gradient_wendland_quintic;
     }
     else {
-      clog_one(fatal) << "Bad kernel parameter" << std::endl;
+      clog(error) << "Bad kernel parameter" << std::endl;
     }
   }
 

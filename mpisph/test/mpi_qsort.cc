@@ -44,7 +44,7 @@ TEST(tree_colorer, mpi_qsort){
   if(rank == size-1){
     nparticlesperproc = (nparticles-nparticlesperproc*(size-1));
   }
-  clog_one(info)<<"Generating "<<nparticles<<std::endl;
+  rank|| clog(info)<<"Generating "<<nparticles<<std::endl;
 
   std::cout<<"Rank "<<rank<<": "<<nparticlesperproc<<" particles"<<std::endl;
 

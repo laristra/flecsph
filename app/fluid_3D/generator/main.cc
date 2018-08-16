@@ -36,8 +36,8 @@ int main(int argc, char * argv[]){
 
 
   if(argc!=4){
-    clog_one(warn)<<"./fluid_generator nx ny nz"<<std::endl;
-    clog_one(warn)<<"Generation with default values= 10*10*10=1000 particles"
+    clog(warn)<<"./fluid_generator nx ny nz"<<std::endl;
+    clog(warn)<<"Generation with default values= 10*10*10=1000 particles"
       <<std::endl;
   }else{
     nx = atoi(argv[1]);
@@ -51,8 +51,8 @@ int main(int argc, char * argv[]){
     nparticlesproc = nparticles - nparticlesproc*(size-1);
   }
 
-  clog_one(info)<<"Generating "<<nparticles<<" particles"<<std::endl;
-  clog_one(info)<<nparticlesproc<<" particles per proc (last "<<
+  clog(info)<<"Generating "<<nparticles<<" particles"<<std::endl;
+  clog(info)<<nparticlesproc<<" particles per proc (last "<<
     nparticles-nparticlesproc*(size-1)<<")"<<std::endl;
 
   if(nz == 0){
@@ -93,7 +93,7 @@ int main(int argc, char * argv[]){
   double linestart = rank * nlinesproc * ldistance;
   double ndepth = nz;
 
-  clog_one(info)<<"Generating: "<<nlines<<"*"<<ncols<<std::endl;
+  clog(info)<<"Generating: "<<nlines<<"*"<<ncols<<std::endl;
 
   // Id of my first particle 
   int64_t posid = nparticlesproc*rank;

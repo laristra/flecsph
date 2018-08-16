@@ -78,7 +78,6 @@ mpi_init_task(const char * parameter_file){
   int size;
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  clog_set_output_rank(0);
 
   // set simulation parameters
   param::mpi_read_params(parameter_file);
@@ -100,7 +99,7 @@ mpi_init_task(const char * parameter_file){
   double h = bs.getSmoothinglength();
   physics::min_boundary = {(0.1+2*h)*distance+range_boundaries[0]};
   physics::max_boundary = {-(0.1-2*h)*distance+range_boundaries[1]};
-  clog_one(info) << "Limits: " << physics::min_boundary << " ; "
+  rank|| clog(info) << "Limits: " << physics::min_boundary << " ; "
          << physics::max_boundary << std::endl;
 
 #ifdef OUTPUT
@@ -112,7 +111,7 @@ mpi_init_task(const char * parameter_file){
   ++physics::iteration;
   do
   {
-    analysis::screen_output();
+    analysis::screen_output(rank);
     MPI_Barrier(MPI_COMM_WORLD);
 
     // Compute and prepare the tree for this iteration
@@ -125,35 +124,35 @@ mpi_init_task(const char * parameter_file){
     // - Compute and exchange ghosts in real smoothing length
     bs.update_iteration();
 
-    clog_one(trace) << "compute_density_pressure_soundspeed" << std::flush;
+    rank|| clog(trace) << "compute_density_pressure_soundspeed" << std::flush;
     bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
-    clog_one(trace) << ".done" << std::endl;
+    rank|| clog(trace) << ".done" << std::endl;
 
     // Refresh the neighbors within the smoothing length
     bs.update_neighbors();
 
-    clog_one(trace) << "Hydro acceleration" << std::flush;
+    rank|| clog(trace) << "Hydro acceleration" << std::flush;
     bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
-    clog_one(trace) << ".done" << std::endl;
+    rank|| clog(trace) << ".done" << std::endl;
 
-    clog_one(trace) << "Internalenergy"<<std::flush;
+    rank|| clog(trace) << "Internalenergy"<<std::flush;
     bs.apply_in_smoothinglength(physics::compute_dudt);
-    clog_one(trace) << ".done" << std::endl;
+    rank|| clog(trace) << ".done" << std::endl;
 
     if(physics::iteration == initial_iteration + 1){
-      clog_one(trace) << "leapfrog" << std::flush;
+      rank|| clog(trace) << "leapfrog" << std::flush;
       bs.apply_all(physics::leapfrog_integration_first_step);
-      clog_one(trace) << ".done" << std::endl;
+      rank|| clog(trace) << ".done" << std::endl;
     }else{
       if(rank==0)
-      clog_one(trace) << "leapfrog" << std::flush;
+      rank|| clog(trace) << "leapfrog" << std::flush;
       bs.apply_all(physics::leapfrog_integration);
-      clog_one(trace) << ".done" << std::endl;
+      rank|| clog(trace) << ".done" << std::endl;
     }
 
-    clog_one(trace) << "dudt integration" << std::flush;
+    rank|| clog(trace) << "dudt integration" << std::flush;
     bs.apply_all(physics::dudt_integration);
-    clog_one(trace) << ".done" << std::endl;
+    rank|| clog(trace) << ".done" << std::endl;
 
 #ifdef OUTPUT_ANALYSIS
     // Compute the analysis values based on physics
@@ -170,7 +169,7 @@ mpi_init_task(const char * parameter_file){
       startt = omp_get_wtime();
       bs.write_bodies(output_h5data_prefix,physics::iteration/out_h5data_every);
       stopt = omp_get_wtime();
-      clog_one(trace) << "Output time: " << omp_get_wtime()-startt << "s"
+      rank|| clog(trace) << "Output time: " << omp_get_wtime()-startt << "s"
                       << std::endl;
     }
     MPI_Barrier(MPI_COMM_WORLD);
@@ -184,19 +183,21 @@ mpi_init_task(const char * parameter_file){
 flecsi_register_mpi_task(mpi_init_task, flecsi::execution);
 
 void
-usage() {
-  clog_one(warn) << "Usage: ./sedov <parameter-file.par>"
+usage(int rank) {
+  rank|| clog(warn) << "Usage: ./sedov <parameter-file.par>"
                  << std::endl << std::flush;
 }
 
 void
 specialization_tlt_init(int argc, char * argv[]){
-  clog_one(trace) << "In user specialization_driver" << std::endl;
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  rank|| clog(trace) << "In user specialization_driver" << std::endl;
 
   // check options list: exactly one option is allowed
   if (argc != 2) {
-    clog_one(error) << "ERROR: parameter file not specified!" << std::endl;
-    usage();
+    rank|| clog(error) << "ERROR: parameter file not specified!" << std::endl;
+    usage(rank);
     return;
   }
 
@@ -206,7 +207,9 @@ specialization_tlt_init(int argc, char * argv[]){
 
 void
 driver(int argc,  char * argv[]){
-  clog_one(trace) << "In user driver" << std::endl;
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  rank|| clog(trace) << "In user driver" << std::endl;
 } // driver
 
 

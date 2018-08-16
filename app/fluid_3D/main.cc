@@ -23,7 +23,6 @@
  * @brief Main function, start MPI with Gasnet. Then launch fleCSI runtime.  
  */
 
-#include <flecsi.h>
 #include "flecsi/execution/execution.h"
 #include "flecsi/concurrency/thread_pool.h"
 
@@ -47,6 +46,7 @@ int main(int argc, char * argv[]){
 
   auto retval = flecsi::execution::context_t::instance().initialize(argc,argv);
 
+  MPI_Finalize();
   return retval;
 
 }

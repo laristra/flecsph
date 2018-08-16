@@ -52,7 +52,6 @@ mpi_init_task(int startiteration){
   int size;
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  clog_set_output_rank(0);
   
   int noutput = startiteration+1;
 
@@ -74,18 +73,18 @@ mpi_init_task(int startiteration){
 
   // Apply EOS once 
   MPI_Barrier(MPI_COMM_WORLD);
-  clog_one(trace)<<"Init EOS"<<std::flush; 
+  rank|| clog(trace)<<"Init EOS"<<std::flush; 
   start = omp_get_wtime(); 
   bs.apply_all(physics::EOS); 
   MPI_Barrier(MPI_COMM_WORLD);
-  clog_one(trace)<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+  rank|| clog(trace)<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
   // Apply EOS once 
-  clog_one(trace)<<"Init Density Velocity"<<std::flush; 
+  rank|| clog(trace)<<"Init Density Velocity"<<std::flush; 
   start = omp_get_wtime(); 
   bs.apply_all(physics::init_density_velocity); 
   MPI_Barrier(MPI_COMM_WORLD);
-  clog_one(trace)<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+  rank|| clog(trace)<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
 #ifdef OUTPUT
   bs.write_bodies("output_fluid_3D",startiteration);
@@ -95,7 +94,7 @@ mpi_init_task(int startiteration){
   do
   { 
     MPI_Barrier(MPI_COMM_WORLD);
-    analysis::screen_output();
+    analysis::screen_output(rank);
 
     // Compute and prepare the tree for this iteration 
     // - Compute the Max smoothing length 
@@ -108,28 +107,28 @@ mpi_init_task(int startiteration){
     bs.update_iteration();
     
     // Do the Sod Tube physics
-    clog_one(trace)<<"Accel"<<std::flush; 
+    rank|| clog(trace)<<"Accel"<<std::flush; 
     start = omp_get_wtime(); 
     bs.apply_in_smoothinglength(physics::compute_accel);
-    clog_one(trace)<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+    rank|| clog(trace)<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
 
-    clog_one(trace)<<"DT"<<std::flush; 
+    rank|| clog(trace)<<"DT"<<std::flush; 
     start = omp_get_wtime(); 
     bs.get_all(physics::update_dt); 
-    clog_one(trace)<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+    rank|| clog(trace)<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
     // Reduce the local DT 
     MPI_Allreduce(MPI_IN_PLACE,&physics::dt,1,MPI_DOUBLE,MPI_MIN,MPI_COMM_WORLD); 
-    clog_one(trace)<<"New DT = "<<physics::dt<<std::endl;
+    rank|| clog(trace)<<"New DT = "<<physics::dt<<std::endl;
 
-    clog_one(trace)<<"Verlet integration EOS"<<std::flush; 
+    rank|| clog(trace)<<"Verlet integration EOS"<<std::flush; 
     start = omp_get_wtime(); 
     bs.apply_all(physics::verlet_integration_EOS);
-    clog_one(trace)<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
+    rank|| clog(trace)<<".done "<< omp_get_wtime() - start << "s" <<std::endl;
 
     physics::totaltime += physics::dt;
-    clog_one(trace)<<"Total time="<<physics::totaltime<<"s / "<<physics::maxtime<<"s"<<std::endl;
+    rank|| clog(trace)<<"Total time="<<physics::totaltime<<"s / "<<physics::maxtime<<"s"<<std::endl;
 
 #ifdef OUTPUT
     if(physics::totaltime > noutput*physics::outputtime){
@@ -146,6 +145,8 @@ flecsi_register_mpi_task(mpi_init_task, flecsi::execution);
 
 void 
 specialization_tlt_init(int argc, char * argv[]){
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   
   // Default start at iteration 0
   int startiteration = 0;
@@ -153,14 +154,16 @@ specialization_tlt_init(int argc, char * argv[]){
     startiteration = atoi(argv[1]);
   }
 
-  clog_one(trace)<< "In user specialization_driver" << std::endl;
+  rank|| clog(trace)<< "In user specialization_driver" << std::endl;
 
   flecsi_execute_mpi_task(mpi_init_task,flecsi::execution, startiteration); 
 } // specialization driver
 
 void 
 driver(int argc,  char * argv[]){
-  clog_one(trace) << "In user driver" << std::endl;
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  rank|| clog(trace) << "In user driver" << std::endl;
 } // driver
 
 
