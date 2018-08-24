@@ -59,6 +59,10 @@ namespace kernels{
       4.85098600188835377710867224691152783462583160522829280247414806262620L};
   const double quintic_spline_sigma[3] = {1./40.,63./(478.*M_PI),81./(359.*M_PI)};
   const double wendland_quintic_sigma[3] = {1.25,7./M_PI,21./(2.*M_PI)};
+  const double super_gaussian_sigma[3] = {3./pow(M_PI,.5),9./M_PI,27./pow(M_PI,3./2.)};
+  const double wqc4_sigma[3] = {1.5,9./M_PI,495./(32.*M_PI)};
+  const double wqc6_sigma[3] = {55./32.,78./(7.*M_PI),1365./(64.*M_PI)};
+  const double sinc_sigma[3] = {1.25,7./M_PI,21./(2.*M_PI)};
 
 /*============================================================================*/
 /*   Cubic spline                                                             */
@@ -252,10 +256,10 @@ namespace kernels{
   }
 
 /*============================================================================*/
-/*   Wendland quintic                                                         */
+/*   Wendland quintic C2
 /*============================================================================*/
     /**
-   * @brief      Wendland quintic
+   * @brief      Wendland quintic C2
    * \TODO add the ref
    *
    * @param[in]  r     Distance between the particles 
@@ -331,6 +335,60 @@ namespace kernels{
 //New Kernels
 
 /*============================================================================*/
+/*   Super Gaussian                                                           */
+/*============================================================================*/
+  /**
+   * @brief  super Gaussian kernel
+   * From Liu/2010
+   *
+   * @param[in]  r     Distance between the particles 
+   * @param[in]  h     Smoothing length 
+   *
+   * @return     Contribution from the particle 
+   */
+  double 
+  super_gaussian(
+    const double r, 
+    const double h)
+  {
+    double rh = 3.*r/h;
+
+    double result = 0.;
+    if(rh <= 3.){
+      double sigma = super_gaussian_sigma[gdimension-1]
+                   / pow(h,gdimension);
+      result = sigma*exp(-rh*rh)*(gdimension/2.0 + 1 - rh*rh);
+    }
+    return result; 
+  }
+
+  /**
+   * @brief      Gradient of gaussian kernel
+   * From Liu/2010
+   *
+   * @param[in]  vecP  The vector pab = pa - pb 
+   * @param[in]  h     The smoothing length 
+   *
+   * @return     Contribution from the particle 
+   */
+  point_t 
+  gradient_super_gaussian(
+    const point_t & vecP,
+    const double h)
+  {
+    double r = vector_norm(vecP);
+    double rh = 3.*r/h;
+
+    point_t result = 0.0;
+    if (rh < 3.0) {
+      double sigma = 3.*super_gaussian_sigma[gdimension-1]
+                   / pow(h,gdimension+1);
+      double dWdr = exp(-rh*rh)*(2.*pow(rh,3.) - (gdimension+4.)*rh);
+      result = vecP*sigma*dWdr/r;
+    }
+    return result;
+  }
+/*============================================================================*/
 /*   Wendland quintic C4
 /*============================================================================*/
     /**
@@ -348,28 +406,25 @@ namespace kernels{
     const double h)
   {
     double rh = r/h;
-    //double rh = 2.*r/h;
     double result = 0.;
 
     if(rh < 1.0) {
-    //if(rh < 2.0) {
       double rh2 = (1 - rh)*(1 - rh);
-      //double rh2 = (1 - rh/2.)*(1 - rh/2.);
-      double sigma = wendland_quintic_sigma[gdimension-1]
+      double rh3 = (1 - rh)*(1 - rh)*(1 - rh);
+      double sigma = wqc4_sigma[gdimension-1]
                    / pow(h,gdimension);
 
       // Different cases for 1D and 2D/3D 
       if(gdimension == 1)
-        result = sigma*rh2*(1 - rh)*(3*rh + 1);
+        result = sigma*rh3*rh2*(8.*rh*rh + 5.*rh + 1.);
       else
-        result = sigma*rh2*rh2*(4*rh + 1);
-        //result = sigma*rh2*rh2*(2*rh + 1);
+        result = sigma*rh3*rh3*(35./3.*rh*rh + 6.*rh + 1.);
     }
     return result; 
   }
 
   /**
-   * @brief      Gradient of Wendland quintic kernel
+   * @brief      Gradient of Wendland quintic kernel C4
    * \TODO add the ref
    *
    * @param[in]  vecP  The vector pab = pa - pb 
@@ -384,21 +439,18 @@ namespace kernels{
   {
     double r = vector_norm(vecP);
     double rh = r/h;
-    //double rh = 2.*r/h;
     point_t result = 0.0;
 
     if(rh < 1.0) {
-    //if(rh < 2.0) {
       double rh2 = (1 - rh)*(1 - rh);
-      //double rh2 = (1 - rh/2.)*(1 - rh/2.);
-      double sigma = 2.*wendland_quintic_sigma[gdimension-1]
+      double rh3 = (1 - rh)*(1 - rh)*(1 - rh);
+      double sigma = 14.*wqc4_sigma[gdimension-1]
                    / pow(h,gdimension+1);
       double dWdr;
       if(gdimension == 1)
-        dWdr = -6.*rh*rh2;
+        dWdr = -rh*rh2*rh2*(1 + 4.*rh);
       else 
-        dWdr = -10.*rh*rh2*(1 - rh);
-        //dWdr = rh2*(1 - rh/2.)*(-5.*rh); 
+        dWdr = -4./3.*rh*rh3*rh2*(1 + 5.*rh);
 
       result = vecP*sigma*dWdr/r; 
     }
@@ -425,28 +477,26 @@ namespace kernels{
     const double h)
   {
     double rh = r/h;
-    //double rh = 2.*r/h;
     double result = 0.;
 
     if(rh < 1.0) {
-    //if(rh < 2.0) {
       double rh2 = (1 - rh)*(1 - rh);
-      //double rh2 = (1 - rh/2.)*(1 - rh/2.);
-      double sigma = wendland_quintic_sigma[gdimension-1]
+      double rh3 = (1 - rh)*(1 - rh)*(1 - rh);
+      double rh4 = rh2*rh2;
+      double sigma = wqc6_sigma[gdimension-1]
                    / pow(h,gdimension);
 
       // Different cases for 1D and 2D/3D 
       if(gdimension == 1)
-        result = sigma*rh2*(1 - rh)*(3*rh + 1);
+        result = sigma*rh3*rh4*(21.*rh*rh*rh + 19.*rh*rh + 6.*rh + 1.);
       else
-        result = sigma*rh2*rh2*(4*rh + 1);
-        //result = sigma*rh2*rh2*(2*rh + 1);
+        result = sigma*rh4*rh4*(32.*rh*rh*rh + 25.*rh*rh + 4.*rh + 1.);
     }
     return result; 
   }
 
   /**
-   * @brief      Gradient of Wendland quintic kernel
+   * @brief      Gradient of Wendland quintic kernel C6
    * \TODO add the ref
    *
    * @param[in]  vecP  The vector pab = pa - pb 
@@ -461,21 +511,19 @@ namespace kernels{
   {
     double r = vector_norm(vecP);
     double rh = r/h;
-    //double rh = 2.*r/h;
     point_t result = 0.0;
 
     if(rh < 1.0) {
-    //if(rh < 2.0) {
       double rh2 = (1 - rh)*(1 - rh);
-      //double rh2 = (1 - rh/2.)*(1 - rh/2.);
-      double sigma = 2.*wendland_quintic_sigma[gdimension-1]
+      double rh3 = (1 - rh)*(1 - rh)*(1 - rh);
+      double rh4 = rh2*rh2;
+      double sigma = wqc6_sigma[gdimension-1]
                    / pow(h,gdimension+1);
       double dWdr;
       if(gdimension == 1)
-        dWdr = -6.*rh*rh2;
+        dWdr = -rh3*rh3*(210.*rh*rh*rh + 108.*rh*rh + 10.*rh + 1.);
       else 
-        dWdr = -10.*rh*rh2*(1 - rh);
-        //dWdr = rh2*(1 - rh/2.)*(-5.*rh); 
+        dWdr = -22.*rh*rh4*rh3*(16.*rh*rh + 7.*rh + 1.);
 
       result = vecP*sigma*dWdr/r; 
     }
@@ -496,7 +544,7 @@ namespace kernels{
    * @return     Contribution from the particle 
    */
   double 
-  super_gaussian(
+  sinc(
     const double r, 
     const double h)
   {
@@ -504,7 +552,7 @@ namespace kernels{
 
     double result = 0.;
     if(rh <= 3.){
-      double sigma = gaussian_sigma[gdimension-1]
+      double sigma = sinc_sigma[gdimension-1]
                    / pow(h,gdimension);
       result = sigma*exp(-rh*rh);
     }
@@ -520,7 +568,7 @@ namespace kernels{
    * @return     Contribution from the particle 
    */
   point_t 
-  gradient_super_gaussian(
+  gradient_sinc(
     const point_t & vecP,
     const double h)
   {
@@ -529,7 +577,7 @@ namespace kernels{
 
     point_t result = 0.0;
     if (rh < 3.0) {
-      double sigma = 3.*gaussian_sigma[gdimension-1]
+      double sigma = 3.*sinc_sigma[gdimension-1]
                    / pow(h,gdimension+1);
       double dWdr = -2.*rh*exp(-rh*rh);
       result = vecP*sigma*dWdr/r;
