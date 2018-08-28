@@ -52,6 +52,7 @@ namespace kernels{
 
   // Coefficient for the kernels in 1d, 2d and 3d without h 
   // h depends of the dimension and is added in the kernel
+  const double SQPI = sqrt(M_PI);
   const double cubic_spline_sigma[3] = {4./3.,40./(7.*M_PI),8./M_PI};
   const double gaussian_sigma[3] = {
       1.69260614115414981387661988500545775405505599758743902950990362363536L,
@@ -59,7 +60,10 @@ namespace kernels{
       4.85098600188835377710867224691152783462583160522829280247414806262620L};
   const double quintic_spline_sigma[3] = {1./40.,63./(478.*M_PI),81./(359.*M_PI)};
   const double wendland_quintic_sigma[3] = {1.25,7./M_PI,21./(2.*M_PI)};
-  const double super_gaussian_sigma[3] = {3./pow(M_PI,.5),9./M_PI,27./pow(M_PI,3./2.)};
+  const double super_gaussian_sigma[3] = {
+      1.69225265632490690298438831093977954454948887037797715437044546925320L,  // ~ 3/sqrt(M_PI)
+      2.86196342089351035329931251213987772907929746530058751630485064825889L,  // ~ 9/M_PI
+      4.83280745997963041039733264826054665663830943853397556310561350442919L}; // ~ 27/M_PI^1.5
   const double wqc4_sigma[3] = {1.5,9./M_PI,495./(32.*M_PI)};
   const double wqc6_sigma[3] = {55./32.,78./(7.*M_PI),1365./(64.*M_PI)};
   // Sinc kernel is dependent on kernel index n.
@@ -267,11 +271,11 @@ namespace kernels{
   }
 
 /*============================================================================*/
-/*   Wendland quintic C2
+/*   Wendland quintic C2                                                      */
 /*============================================================================*/
     /**
    * @brief      Wendland quintic C2
-   * \TODO add the ref
+   *             Reference: Dehnen & Aly (2012) MNRAS 425(2)
    *
    * @param[in]  r     Distance between the particles 
    * @param[in]  h     Smoothing length 
@@ -284,13 +288,10 @@ namespace kernels{
     const double h)
   {
     double rh = r/h;
-    //double rh = 2.*r/h;
     double result = 0.;
 
     if(rh < 1.0) {
-    //if(rh < 2.0) {
       double rh2 = (1 - rh)*(1 - rh);
-      //double rh2 = (1 - rh/2.)*(1 - rh/2.);
       double sigma = wendland_quintic_sigma[gdimension-1]
                    / pow(h,gdimension);
 
@@ -299,14 +300,12 @@ namespace kernels{
         result = sigma*rh2*(1 - rh)*(3*rh + 1);
       else
         result = sigma*rh2*rh2*(4*rh + 1);
-        //result = sigma*rh2*rh2*(2*rh + 1);
     }
     return result; 
   }
 
   /**
    * @brief      Gradient of Wendland quintic kernel
-   * \TODO add the ref
    *
    * @param[in]  vecP  The vector pab = pa - pb 
    * @param[in]  h     The smoothing length 
@@ -320,13 +319,10 @@ namespace kernels{
   {
     double r = vector_norm(vecP);
     double rh = r/h;
-    //double rh = 2.*r/h;
     point_t result = 0.0;
 
     if(rh < 1.0) {
-    //if(rh < 2.0) {
       double rh2 = (1 - rh)*(1 - rh);
-      //double rh2 = (1 - rh/2.)*(1 - rh/2.);
       double sigma = 2.*wendland_quintic_sigma[gdimension-1]
                    / pow(h,gdimension+1);
       double dWdr;
@@ -334,7 +330,6 @@ namespace kernels{
         dWdr = -6.*rh*rh2;
       else 
         dWdr = -10.*rh*rh2*(1 - rh);
-        //dWdr = rh2*(1 - rh/2.)*(-5.*rh); 
 
       result = vecP*sigma*dWdr/r; 
     }
@@ -349,8 +344,9 @@ namespace kernels{
 /*   Super Gaussian                                                           */
 /*============================================================================*/
   /**
-   * @brief  super Gaussian kernel
-   * From Liu/2010
+   * @brief      Super Gaussian kernel
+   *             Reference: Monaghan, J. J. (1992), ARAA 30:543-74
+   *             Note: the kernel is negative in certain regions.
    *
    * @param[in]  r     Distance between the particles 
    * @param[in]  h     Smoothing length 
@@ -362,20 +358,19 @@ namespace kernels{
     const double r, 
     const double h)
   {
-    double rh = 3.*r/h;
+    double rh = 3.*r/h, rh2 = rh*rh;
 
     double result = 0.;
-    if(rh <= 3.){
+    if(fabs(rh) < 3.){
       double sigma = super_gaussian_sigma[gdimension-1]
                    / pow(h,gdimension);
-      result = sigma*exp(-rh*rh)*(gdimension/2.0 + 1 - rh*rh);
+      result = sigma*exp(-rh2)*(gdimension/2.0 + 1 - rh2);
     }
     return result; 
   }
 
   /**
-   * @brief      Gradient of gaussian kernel
-   * From Liu/2010
+   * @brief      Gradient of Super Gaussian kernel
    *
    * @param[in]  vecP  The vector pab = pa - pb 
    * @param[in]  h     The smoothing length 
