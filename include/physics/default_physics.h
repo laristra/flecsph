@@ -110,7 +110,7 @@ namespace physics{
       gradKernel = kernels::gradient_super_gaussian;
     }
     else if (boost::iequals(kstr, "sinc")) {
-      // TODO: initialize sinc normalization here
+      kernels::set_sinc_kernel_normalization(sph_sinc_index);
       kernel = kernels::sinc_ker;
       gradKernel = kernels::gradient_sinc_ker;
     }

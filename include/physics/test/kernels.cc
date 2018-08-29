@@ -96,13 +96,13 @@ TEST(kernel, quintic_spline) {
   fclose(output);
 }
 
-TEST(kernel, wendland_quintic) {
+TEST(kernel, wendland_c2_1d) {
   
   double current = start_step;
 
   point_t p;
 
-  char name[] = "wendland_quintic.csv";
+  char name[] = "wendland_c2_1d.csv";
 
   // Output 
   FILE * output = fopen(name,"w");
@@ -111,8 +111,8 @@ TEST(kernel, wendland_quintic) {
     p[0] = current;
     fprintf(output,"%.4f;%.4f;%.4f\n",
       current,
-      wendland_quintic(fabs(current),h),
-      gradient_wendland_quintic(p,h)[0]);
+      wendland_c2_1d(fabs(current),h),
+      gradient_wendland_c2_1d(p,h)[0]);
     current += step; 
   }
 
