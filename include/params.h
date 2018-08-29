@@ -166,7 +166,7 @@ namespace param {
 
 //- which kernel to use
 #ifndef initial_data_prefix
-  DECLARE_STRING_PARAM(sph_kernel,"Wendland quintic")
+  DECLARE_STRING_PARAM(sph_kernel,"Wendland C2")
 #endif
 
 //

@@ -74,27 +74,43 @@ namespace physics{
       kernel = kernels::quintic_spline;
       gradKernel = kernels::gradient_quintic_spline;
     }
+    else if (boost::iequals(kstr, "wendland c2")) {
+      if (gdimension == 1) {
+        kernel = kernels::wendland_c2_1d;
+        gradKernel = kernels::gradient_wendland_c2_1d;
+      } else {
+        kernel = kernels::wendland_c2_23d;
+        gradKernel = kernels::gradient_wendland_c2_23d;
+      }
+    }
+    else if (boost::iequals(kstr, "wendland c4")) {
+      if (gdimension == 1) {
+        kernel = kernels::wendland_c4_1d;
+        gradKernel = kernels::gradient_wendland_c4_1d;
+      } else {
+        kernel = kernels::wendland_c4_23d;
+        gradKernel = kernels::gradient_wendland_c4_23d;
+      }
+    }
+    else if (boost::iequals(kstr, "wendland c6")) {
+      if (gdimension == 1) {
+        kernel = kernels::wendland_c6_1d;
+        gradKernel = kernels::gradient_wendland_c6_1d;
+      } else {
+        kernel = kernels::wendland_c6_23d;
+        gradKernel = kernels::gradient_wendland_c6_23d;
+      }
+    }
     else if (boost::iequals(kstr, "gaussian")) {
       kernel = kernels::gaussian;
       gradKernel = kernels::gradient_gaussian;
-    }
-    else if (boost::iequals(kstr, "wendland quintic")) {
-      kernel = kernels::wendland_quintic;
-      gradKernel = kernels::gradient_wendland_quintic;
     }
     else if (boost::iequals(kstr, "super gaussian")) {
       kernel = kernels::super_gaussian;
       gradKernel = kernels::gradient_super_gaussian;
     }
-    else if (boost::iequals(kstr, "wqc4")) {
-      kernel = kernels::wqc4;
-      gradKernel = kernels::gradient_wqc4;
-    }
-    else if (boost::iequals(kstr, "wqc6")) {
-      kernel = kernels::wqc6;
-      gradKernel = kernels::gradient_wqc6;
-    }
     else if (boost::iequals(kstr, "sinc")) {
+      // TODO: initialize sinc normalization here
       kernel = kernels::sinc_ker;
       gradKernel = kernels::gradient_sinc_ker;
     }
