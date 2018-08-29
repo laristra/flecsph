@@ -503,7 +503,7 @@ namespace kernels{
       double rh2 = (1 - rh)*(1 - rh);
       double rh3 = rh2*(1 - rh);
       double rh4 = rh2*rh2;
-      double sigma = wendland_c6_sigma[0]/h;
+      double sigma = wendland_c6_sigma[0]/(h*h);
       double dWdr  = -6.*rh*rh3*rh3*(3 + rh*(18 + rh*35));
       result = vecP*sigma*dWdr/r; 
     }
@@ -645,7 +645,7 @@ namespace kernels{
 
     point_t result = 0.0;
     if(rh < 1.) {
-      double hd = h;
+      double hd = h*h;
       for (int i=1; i<gdimension; i++) 
         hd *= h;
       double sigma = sinc_sigma[gdimension-1]/hd;
