@@ -647,8 +647,6 @@ namespace kernels{
     return result;
   }
 
-#endif
-
 }; // kernel
 
 #endif // _physics_kernel_h_
