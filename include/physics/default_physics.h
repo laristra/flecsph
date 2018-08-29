@@ -184,8 +184,26 @@ namespace physics{
     source->setPressure(pressure);
   } // compute_pressure_wd
 
+// HL : Compute pressure from tabulated EOS. Working now..
 
+#if 1
 
+#ifdef _EOS_TAB_SC
+
+  void
+  compute_pressure_tabEOS_SC(
+      body_holder* srch)
+  { 
+    using namespace param;
+    body* source = srch->getBody();
+    double pressure = source->getAdiabatic()*
+      pow(source->getDensity(),poly_gamma);
+    source->setPressure(pressure);
+  } // compute_pressure_tabEOS_SC
+
+#endif
+
+#endif
   /**
    * @brief      Compute the sound speed
    * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics 
