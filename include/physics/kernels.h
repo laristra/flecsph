@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "tree.h"
+#include "params.h"
 
 namespace kernels{
 
@@ -599,6 +600,7 @@ namespace kernels{
    * @return     Contribution from the particle 
    */
   double sinc_ker(const double r, const double h) {
+    using namespace param;
     double rh = fabs(r/h), rh2;
     const double eps = 1e-24;
     const double eps_root = sqrt(eps);
@@ -634,6 +636,7 @@ namespace kernels{
    * @return     Contribution from the particle 
    */
   point_t gradient_sinc_ker(const point_t & vecP, const double h) {
+    using namespace param;
     double r = vector_norm(vecP);
     double rh = fabs(r/h), rh2;
     const double eps = 1e-24;
