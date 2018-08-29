@@ -66,19 +66,22 @@ namespace kernels{
       2.86196342089351035329931251213987772907929746530058751630485064825889L,  // ~ 9/M_PI
       4.83280745997963041039733264826054665663830943853397556310561350442919L}; // ~ 27/M_PI^1.5
 
-// Sinc kernel is dependent on kernel index n.
-  // n can be range between 3 and 12
-  // TODO : Need to make it parametrized
-  const double sinc_index = 4.;
-  // Normalization constant for Sinc
-  const double sinc_b0[3] = {-0.015404568,0.052245027,0.027012593};
-  const double sinc_b1[3] = {0.36632876,0.13090245,0.20410827};
-  const double sinc_b2[3] = {-0.00046519576,0.019358485,0.0037451957};
-  const double sinc_b3[3] = {0.073658324,-0.0061642906,0.047013839};
-  const double sinc_sigma[3] = {
-      2*(sinc_b0[0] + sinc_b1[0]*pow(sinc_index,1./2.) + sinc_b2[0]*sinc_index + sinc_b3[0]*pow(sinc_index,-1./2.)),
-      4*(sinc_b0[1] + sinc_b1[1]*sinc_index + sinc_b2[1]/sinc_index + sinc_b3[1]/pow(sinc_index,2)),
-      8*(sinc_b0[2] + sinc_b1[2]*pow(sinc_index,1./2.) + sinc_b2[2]*sinc_index + sinc_b3[2]*pow(sinc_index,3./2.))};
+  // Sinc kernel is dependent on kernel index n (ranging from 3 to 12).
+  const double si_b0[3] = {-1.5404568e-2,  5.2245027e-2, 2.7012593e-2};
+  const double si_b1[3] = { 3.6632876e-1,  1.3090245e-1, 2.0410827e-2};
+  const double si_b2[3] = {-4.6519576e-4,  1.9358485e-2, 3.7451957e-3};
+  const double si_b3[3] = { 7.3658324e-2, -6.1642906e-3, 4.7013839e-2};
+  double sinc_sigma[3];
+
+  /* This function sets up the sinc kernel normalization */
+  void set_sinc_kernel_normalization(const double si) {
+    double sq = sqrt(si);
+    double s2 = si*si;
+    sinc_sigma[0] = 2.*(si_b0[0] + si_b1[0]*sq + si_b2[0]*si + si_b3[0]/sq);
+    sinc_sigma[1] = 4.*(si_b0[1] + si_b1[1]*si + si_b2[1]/si + si_b3[1]/s2);
+    sinc_sigma[2] = 8.*(si_b0[2] + si_b1[2]*sq + si_b2[2]*si + si_b3[2]*sq*si);
+  }
+
 /*============================================================================*/
 /*   Cubic spline                                                             */
 /*============================================================================*/
@@ -97,8 +100,6 @@ namespace kernels{
       const double h)
   {
     double rh = 2.*r/h;
-
-    // \TODO need to use solution based on template 
     double result = 0.;
 
     if (rh < 2.0) {
@@ -591,29 +592,35 @@ namespace kernels{
   /**
    * @brief   Sinc kernel
    * From : Garcia-Senz, Cabezon et al. (2014), A&A 570, A14
-   * TODO: check if this kernel is working
    *
    * @param[in]  r     Distance between the particles 
    * @param[in]  h     Smoothing length 
    *
    * @return     Contribution from the particle 
    */
-  double 
-  sinc_ker(
-    const double r, 
-    const double h)
-  {
-    double rh = r/h;
+  double sinc_ker(const double r, const double h) {
+    double rh = fabs(r/h), rh2;
+    const double eps = 1e-24;
+    const double eps_root = sqrt(eps);
+    const double eps_root4 = sqrt(eps_root);
+
     //HL : It seems boost has sinc function as in thier special function lib 
     //     But, here, I implement anyway
     double result = 0.;
-    if(0 < rh <= 1.) {
-      double sigma = sinc_sigma[gdimension-1]
-                   / pow(h,gdimension);
-      double sinc_imp = sin(M_PI*rh)/(M_PI*rh); 
-      result = sigma*pow(sinc_imp,sinc_index);
-    } else if (rh == 0.) {
-      result = sinc_sigma[gdimension-1]/pow(h,gdimension);
+    if(rh < 1.) {
+      double hd = h;
+      for (int i=1; i<gdimension; i++) 
+        hd *= h;
+
+      double sinc = 1.0;
+      rh *= M_PI;
+      if(rh > eps_root4) {
+        sinc = sin(rh)/rh;
+      } else if(rh > eps) {
+        rh2 = rh*rh;
+        sinc += rh2*(.05*rh2 - 1.)/6.;
+      }
+      result = sinc_sigma[gdimension-1]/hd * pow(sinc, sph_sinc_index);
     }
     return result; 
   }
@@ -626,25 +633,34 @@ namespace kernels{
    *
    * @return     Contribution from the particle 
    */
-  point_t 
-  gradient_sinc_ker(
-    const point_t & vecP,
-    const double h)
-  {
+  point_t gradient_sinc_ker(const point_t & vecP, const double h) {
     double r = vector_norm(vecP);
-    double rh = r/h;
+    double rh = fabs(r/h), rh2;
+    const double eps = 1e-24;
+    const double eps_root = sqrt(eps);
+    const double eps_root4 = sqrt(eps_root);
 
     point_t result = 0.0;
-    if (0.< rh < 1.0) {
-      double sigma = sinc_sigma[gdimension-1]
-                   / pow(h,gdimension);
-      double sinc_imp = sin(M_PI*rh)/(M_PI*rh);
-      double dWdr = sinc_index*pow(sinc_imp,sinc_index-1.)
-		    *(cos(M_PI*rh)/r - sin(M_PI*rh)/(M_PI*r*rh));
+    if(rh < 1.) {
+      double hd = h;
+      for (int i=1; i<gdimension; i++) 
+        hd *= h;
+      double sigma = sinc_sigma[gdimension-1]/hd;
+
+      rh *= M_PI;
+      double dWdr = 0.0;
+      if(rh > eps_root4) {
+        double sinc = sin(rh)/rh, cosx = cos(rh)/rh;
+        dWdr = -sph_sinc_index * pow(sinc, sph_sinc_index-1) * M_PI
+                               * (sinc/rh - cosx);
+      } else if(rh > eps) {
+        rh2 = rh*rh;
+        dWdr = -sph_sinc_index * rh/3. * M_PI
+                               * (1 - .5*rh2*(.2 - (sph_sinc_index-1)/18));
+      }
       result = vecP*sigma*dWdr/r;
-    } 
-  
-    return result;
+    }
+    return result; 
   }
 
 }; // kernel

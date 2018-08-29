@@ -169,6 +169,11 @@ namespace param {
   DECLARE_STRING_PARAM(sph_kernel,"Wendland C2")
 #endif
 
+//- sinc kernel power index
+#ifndef sph_sinc_index
+  DECLARE_PARAM(double,sph_sinc_index,4.0)
+#endif
+
 //
 // Boundary conditions
 //
@@ -369,6 +374,10 @@ void set_param(const std::string& param_name,
 
 # ifndef initial_data_prefix
   READ_STRING_PARAM(sph_kernel)
+# endif
+
+# ifndef sph_sinc_index
+  READ_NUMERIC_PARAM(sph_sinc_index)
 # endif
 
   // boundary conditions  ---------------------------------------------------
