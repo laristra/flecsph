@@ -1,0 +1,194 @@
+\documentclass[notes.tex]{subfiles}
+ 
+\begin{document}
+
+\section{Kernels}
+\label{sec:kernels}
+There are many choices for selecting a smoothing kernel. In the code, the
+kernel choice is specified by a {\tt sph\_kernel} parameter, and the smoothing
+length is defined to be equal to the kernel support radius. Note that some
+works define smoothing length differently, such that the kernel support radius
+becomes a multiple of smoothing length. For example, for a cubic spline kernel
+it is twice the $h$. We do not make such distinction; all kernels below must
+satisfy the following normalization condition:
+\begin{align}
+  \iiint_{S_D(h)} W(\vec{r},h) d^D\vec{r} = 1,
+\label{eq:kernel_normalization_condition}
+\end{align}
+where the integration is performed over the $D$-dimensional volume of a sphere
+$S_D(h)$ of radius $h$.
+
+All the currently implemented kernels possess spherical symmetry, which makes
+it easy to impose exact conservation of linear momentum. For such kernels, the
+gradients can be computed as follows:
+\begin{align}
+  \nabla_a W_{ab} &\equiv \nabla_a W(|\vec{r}_a - \vec{r}_b|, h_a) \\
+                  &= \frac{dW}{dr} \vec{\varepsilon}_{ab},
+\end{align}
+where $\vec{\varepsilon}_{ab}\equiv\vec{r}_{ab}/|\vec{r}_{ab}|$ is a unit
+vector in the direction from particle $b$ to particle $a$.
+It is therefore sufficient to implement $dW/dr$ for each kernel.
+
+In the formulae below, we define $q\equiv|\vec{r}|/h$.
+
+% Cubic Spline 
+\subsection{{\tt sph\_kernel = "cubic spline"}}
+The simplest (but \emph{not} the best one) is a Monaghan's cubic spline kernel:
+\begin{equation}
+W(\vec{r},h) = \frac{\sigma_D}{h^D} 
+  \begin{cases}
+    1 - 6 q^2 + 6 q^3 & \text{if} \; 0 \leq q \leq 1/2, \\
+    2(1 - q)^3        & \text{if} \; 1/2 \leq q \leq 1, \\
+    0                 & \text{otherwise},
+\end{cases}
+\end{equation}
+where $q = r/h$, $D$ is the number of dimensions and 
+$\sigma_D$ is a normalization constant:
+\begin{equation}
+\sigma_D =  \left\{ \frac43, \frac{40}{7\pi},\frac8{\pi}\right\}
+         \; \text{in 1D, 2D and 3D resp.}
+\end{equation}
+
+Radial derivative of the cubic spline kernel is:
+\begin{align}
+ \frac{dW}{dr} = \frac{\sigma_D}{h^{D+1}} 
+  \begin{cases}
+   -6q(2 - 3q)  & \text{if} \; 0 \leq q \leq 1/2, \\
+   -6(1 - q)^2  & \text{if} \; 1/2 \leq q \leq 1, \\
+    0           & \text{otherwise}.
+\end{cases}
+\end{align}
+
+%Gaussian
+\subsection{{\tt sph\_kernel = "gaussian"}}
+The Gaussian kernel is:
+\begin{equation}
+W(\vec{r},h) = \frac{\sigma_D}{h^D} 
+  \begin{cases}
+    e^{-q^2} & \text{if} \; 0 \leq q \leq 3, \\
+    0        & \text{if} \;  q >3 
+\end{cases}
+\end{equation}
+where $\sigma_D$ is :
+\begin{equation}
+\sigma_D =  \left\{ \frac{1}{\pi^{1/2}}, \frac{1}{\pi},\frac{1}{\pi^{3/2}}\right\}
+         \; \text{in 1D, 2D and 3D resp.}
+\end{equation}
+
+Radial derivative of the cubic spline kernel is:
+\begin{align}
+ \frac{dW}{dr} = \frac{\sigma_D}{h^{D+1}} 
+   \begin{cases}
+    -2 q e^{-q^2} & \text{if} \; 0 \leq q \leq 3, \\
+    0        & \text{if} \;  q >3 
+\end{cases}
+\end{align}
+
+%Quintic
+\subsection{{\tt sph\_kernel = "quintic spline"}}
+The Quintic spline kernel is:
+\begin{equation}
+W(\vec{r},h) = \frac{\sigma_D}{h^D} 
+  \begin{cases}
+    [(3-q)^5-6(2-q)^5+15(1-q)^5] & \text{if} \; 0 \leq q \leq 1, \\
+    [(3-q)^5 - 6(2-q)^5] & \text{if} \; 1 \leq q \leq 2, \\
+    (3-q)^5 & \text{if} \; 2 \leq q \leq 3, \\
+    0        & \text{if} \;  q >3 
+\end{cases}
+\end{equation}
+where $\sigma_D$ is:
+\begin{equation}
+\sigma_D =  \left\{ \frac{1}{120}, \frac{7}{478\pi}, \frac{3}{359\pi}\right\}
+         \; \text{in 1D, 2D and 3D resp.}
+\end{equation}
+
+Radial derivative of the cubic spline kernel is:
+\begin{align}
+ \frac{dW}{dr} = \frac{\sigma_D}{h^{D+1}} 
+  \begin{cases}
+    [-5(3-q)^4+30(2-q)^4-75(1-q)^4] & \text{if} \; 0 \leq q \leq 1, \\
+    [-5(3-q)^4 + 30(2-q)^4] & \text{if} \; 1 \leq q \leq 2, \\
+   -5(3-q)^4 & \text{if} \; 2 \leq q \leq 3, \\
+    0        & \text{if} \;  q >3 
+\end{cases}
+\end{align}
+
+
+%Wendland
+\subsection{{\tt sph\_kernel = "Wendland C2"}}
+The Wendland C2-continuous kernel (C2) for 2D and 3D is
+\begin{equation}
+W(\vec{r},h) = \frac{\sigma_D}{h^D} 
+  \begin{cases}
+    \left(1-\frac{q}{2} \right)^4 (2q+1) & \text{if} \; 0 \leq q \leq 2, \\
+    0        & \text{if} \;  q > 2 
+\end{cases}
+\end{equation}
+where $\sigma_D$ is:
+\begin{equation}
+\sigma_D =  \left\{ \frac{7}{4 \pi}, \frac{21}{16\pi}\right\}
+         \; \text{in 2D and 3D resp.}
+\end{equation}
+For 1D:
+\begin{equation}
+W(\vec{r},h) = \frac{\sigma_D}{h} 
+  \begin{cases}
+    \left(1-\frac{q}{2} \right)^3 (1.5q+1) & \text{if} \; 0 \leq q \leq 2, \\
+    0        & \text{if} \;  q > 2 
+\end{cases}
+\end{equation}
+where $\sigma_D$ is:
+\begin{equation}
+\sigma_D =  \frac{5}{8}
+         \; \text{in 1D}
+\end{equation}
+
+
+% Kernels that will be added into FleCSPH
+There are more kernels that we are adding to the code. Below is several examples
+\subsection{Super Gaussian Kernel}
+\begin{equation}
+W(\vec{r},h) = \frac{1}{\pi^{D/2} h^D} 
+  \begin{cases}
+    e^{-q^2} \left(\frac{D}{2} + 1 - q^2 \right) & \text{if} \; 0 \leq q \leq 3, \\
+    0        & \text{if} \;  q >3 
+    \end{cases}
+\end{equation}
+
+\subsection{Wendland C4 Kernel}
+
+\subsection{Wendland C6 Kernel}
+
+\subsection{Sinc Kernel}
+
+We also refer \href{https://pdfs.semanticscholar.org/6ae2/960b7cbeab3e1969033b343dbe3594c99cb3.pdf}{Liu 2010} for more discussions.
+
+%%% Using this, we can calculate kernel gradient. Below procedure shows the steps of kernel gradient in 3D
+%%% $$W = \frac{1}{\pi h^3} \times \begin{cases} 1 - \frac{3}{2} (\frac{r}{h})^2 + \frac{3}{4} (\frac{r}{h})^3, & \mbox{si } 0 \leq \frac{r}{h} < 1 \\ \frac{1}{4} [2-\frac{r}{h}]^3, & \mbox{si } 1 \leq \frac{r}{h} < 2\\ 0, & \mbox{si } \frac{r}{h} \geq 2 \end{cases}$$
+%%% 
+%%% And $r=\sqrt{(x_i-x_j)^2 + (y_j-y_j)^2 + (z_i-z_j)^2}$
+%%% with $r = \sqrt{u^2+v^2+w^2}$ and
+%%% $ \vec{r_{ij}} = \begin{cases} u = x_i - x_j \\ v = y_i-y_j \\ w = z_i-z_j \end{cases} $
+%%% 
+%%% $$ \vec{\nabla} . W = \frac{\partial W}{\partial u} \vec{x} + \frac{\partial W}{\partial v} \vec{y} + \frac{\partial W}{\partial w} \vec{z}  =  \frac{\partial W}{\partial r} \frac{\partial r}{\partial u} \vec{x} + \frac{\partial W}{\partial r}  \frac{\partial r}{\partial v} \vec{y} + \frac{\partial W}{\partial r} \frac{\partial r}{\partial w} \vec{z} $$
+%%% $$ = \frac{\partial W}{\partial r} \Big[ \frac{\partial r}{\partial u}\vec{x} + \frac{\partial r}{\partial v} \vec{y} + \frac{\partial r}{\partial w} \vec{z}\Big] = \frac{\partial W}{\partial r} \frac{\vec{r_{ij}}}{r} $$
+%%% 
+%%% For $0 \leq \frac{r}{h} < 1$ :
+%%% $$ \frac{\partial W}{\partial r} = - \frac{3}{h^2}r + \frac{9}{4h^3}r^2$$
+%%% 
+%%% $$ \vec{\nabla}_iW(\vec{r_{ij}},h) =\Big( -\frac{3}{h^2}r + \frac{9}{4h^3}r^2\Big) \frac{\vec{r_{ij}}}{r} = \Big( -\frac{3}{h^2} + \frac{9}{4h^3}r\Big) \vec{r_{ij}} $$
+%%% 
+%%% For $1 \leq \frac{r}{h} < 2$ :
+%%% $$ \frac{\partial W}{\partial r} = \frac{-3}{4h} \Big(2-\frac{r}{h}\Big)^2 = \frac{-3}{4h} \Big( 4 - \frac{4r}{h} + \frac{r^2}{h^2} \Big) = \frac{-3}{h} + \frac{3r}{h^2} + \frac{-3r^2}{4h^3}$$
+%%% 
+%%% $$ \vec{\nabla}_iW(\vec{r_{ij}},h) =\Big(\frac{-3}{h} + \frac{3r}{h^2} + \frac{-3r^2}{4h^3} \Big) \frac{\vec{r_{ij}}}{r} = \Big(\frac{-3}{hr} + \frac{3}{h^2} + \frac{-3r}{4h^3} \Big) \vec{r_{ij}}  $$
+%%% 
+%%% So:
+%%% 
+%%% $$
+%%%  \vec{\nabla}_iW(\vec{r_{ij}},h) = \frac{1}{\pi h^4} \times \begin{cases} ( -\frac{3}{h} + \frac{9}{4h^2}r) \vec{r_{ij}}, & \mbox{si } 0 \leq \frac{r}{h} < 1 \\ (\frac{-3}{r} + \frac{3}{h} + \frac{-3r}{4h^2} ) \vec{r_{ij}}, & \mbox{si } 1 \leq \frac{r}{h} < 2\\ 0, & \mbox{si } \frac{r}{h} \geq 2 \end{cases}$$
+
+
+
+
+\end{document}

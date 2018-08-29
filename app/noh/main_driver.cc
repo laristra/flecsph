@@ -99,47 +99,66 @@ mpi_init_task(const char * parameter_file){
     analysis::screen_output(rank);
     MPI_Barrier(MPI_COMM_WORLD);
 
-    // Compute and prepare the tree for this iteration
-    // - Compute the Max smoothing length
-    // - Compute the range of the system using the smoothinglength
-    // - Cmopute the keys
-    // - Distributed qsort and sharing
-    // - Generate and feed the tree
-    // - Exchange branches for smoothing length
-    // - Compute and exchange ghosts in real smoothing length
-    bs.update_iteration();
-
-    // Do the Noh physics
-    rank|| clog(trace) << "compute_density_pressure_soundspeed" << std::flush;
-    bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
-    rank|| clog(trace) << ".done" << std::endl;
-
-    // Refresh the neighbors within the smoothing length
-    bs.update_neighbors();
-
-    rank|| clog(trace) << "Hydro acceleration" << std::flush;
-    bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
-    rank|| clog(trace) << ".done" << std::endl;
-
-    rank|| clog(trace) << "Internalenergy" << std::flush;
-    bs.apply_in_smoothinglength(physics::compute_dudt);
-    rank|| clog(trace) << ".done" << std::endl;
-
     if (physics::iteration == 1){
-      rank|| clog(trace) << "leapfrog" << std::flush;
-      bs.apply_all(physics::leapfrog_integration_first_step);
+      // Compute and prepare the tree for this iteration
+      // - Compute the Max smoothing length
+      // - Compute the range of the system using the smoothinglength
+      // - Compute the keys
+      // - Distributed qsort and sharing
+      // - Generate and feed the tree
+      // - Exchange branches for smoothing length
+      // - Compute and exchange ghosts in real smoothing length
+      bs.update_iteration();
+
+      // at the initial iteration, P, rho and cs have not been computed yet;
+      // for all subsequent steps, however, they are computed at the end 
+      // of the iteration
+      rank|| clog(trace) << "first iteration: pressure, rho and cs" << std::flush;
+      bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
+      bs.apply_all(physics::save_velocityhalf);
+      rank|| clog(trace) << ".done" << std::endl;
+
+      // necessary for computing dv/dt and du/dt in the next step
+      bs.update_neighbors();
+
+      rank|| clog(trace) << "compute accelerations and dudt" << std::flush;
+      bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
+      bs.apply_in_smoothinglength(physics::compute_dudt);
+      rank|| clog(trace) << ".done" << std::endl;
+
+    }
+    else {
+      rank|| clog(trace) << "leapfrog: kick one" << std::flush;
+      bs.apply_all(physics::leapfrog_kick_v);
+      bs.apply_all(physics::leapfrog_kick_u);
+      bs.apply_all(physics::save_velocityhalf);
+      rank|| clog(trace) << ".done" << std::endl;
+
+      // sync velocities
+      bs.update_neighbors();
+
+      rank|| clog(trace) << "leapfrog: drift" << std::flush;
+      bs.apply_all(physics::leapfrog_drift);
+      bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
+      rank|| clog(trace) << ".done" << std::endl;
+
+      // recompute the tree and sync
+      bs.update_iteration();
+      bs.update_neighbors();
+
+      rank|| clog(trace) << "leapfrog: kick two (velocity)" << std::flush;
+      bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
+      bs.apply_all(physics::leapfrog_kick_v);
+      rank|| clog(trace) << ".done" << std::endl;
+
+      // sync velocities
+      bs.update_neighbors();
+
+      rank|| clog(trace) << "leapfrog: kick two (int. energy)" << std::flush;
+      bs.apply_in_smoothinglength(physics::compute_dudt);
+      bs.apply_all(physics::leapfrog_kick_u);
       rank|| clog(trace) << ".done" << std::endl;
     }
-    else{
-      rank|| clog(trace) << "leapfrog" << std::flush;
-      bs.apply_all(physics::leapfrog_integration);
-      rank|| clog(trace) << ".done" << std::endl;
-    }
-
-    rank|| clog(trace) <<"dudt integration"<<std::flush;
-    bs.apply_all(physics::dudt_integration);
-    rank|| clog(trace) << ".done" << std::endl;
-
 
 #ifdef OUTPUT_ANALYSIS
     // Compute the analysis values based on physics

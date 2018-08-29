@@ -1,0 +1,40 @@
+\documentclass[notes.tex]{subfiles}
+ 
+\begin{document}
+
+\section{Domain and tree construction}
+In the previous section we described the FleCSI framework.
+This part gives details on the domain decomposition using octree, tree 
+construction and search algorithm.
+
+\subsection{Domain decomposition}
+In the current version of FleCSI the domain decomposition is done using the
+Morton ordering.
+It allows to describe, sort and distribute particles based on a unique value
+-- key.
+
+In principle, various space-filling curves can be used, with their own
+advantages and flaws:
+\begin{itemize}
+\item Morton ordering: interlace the bits of X, Y and Z positions to create
+the key. It is very simple to compute, but the curve suffers discontinuous
+jumps.
+\item Hilbert-Peano: interlace the bits, but also add rotations. In this
+ordering, data locality in memory guarantees locality in space.
+\item Other space-filling curves: hexagonal space filling curves, ...?
+\end{itemize}
+
+This first implementation is based on the Morton ordering which is used during
+several steps:
+\begin{itemize}
+\item The distribution part, to be able to split the particles between the
+processes providing a good locality in the data.
+\item The tree construction and search. 
+\end{itemize}
+
+\subsection{Binary, Quad- and Octrees}
+% Describe the tree and the splitting version of it
+% Explain the ghosts, exclusive and shared particles.
+
+
+\end{document}

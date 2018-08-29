@@ -1,0 +1,50 @@
+\documentclass[notes.tex]{subfiles}
+ 
+\begin{document}
+
+
+\section{Applications}
+
+\subsection{Sod Shock Tube}
+The Sod shock tube is the test consists of a one-dimensional Riemann problem with the following initial parameters
+\begin{equation}
+(\rho, v, p)_{t=0} = \begin{cases}
+(1.0,0.0,1.0) & \text{if} \indent 0 < x \leq 0.5 \\
+(0.125,0.0,0.1) & \text{if} \indent 0.5 < x < 1.0
+\end{cases}
+\end{equation}
+This link shows some references and values for Sod shock tube problem that also includes boundary and jump conditions(\url{http://www.phys.lsu.edu/~tohline/PHYS7412/sod.html}).
+
+Also, we would like to re-generate the shock test result from Rosswog's paper. In that paper, he shows the result of a 2D relativistic shock tube test where the left state is given by $[P, v_x, v_y, N]_L = [40/3,0,0,10]$ and the right state by $[P, v_x, v_y, N]_R = [10^{-6},0,0,1]$ with $\Gamma = 5/3$
+
+In our code, we use below parameters to get results
+
+\subsection{Sedov Blast Wave}
+A blast wave is the pressure and flow resulting from the deposition of a large amount of energy in a small very localized volume. This is another great test problem for computational fluid dynamics field.
+
+There are different version of blast wave test but we consider the analytic solution for a point explosion is given by Sedov, making the assumption that the atmospheric pressure relative to the pressure insider the explosion negligible. The position of the shock as a function of time $t$, relative to the initiation of the explosion, is given by
+\begin{equation}
+R(t) = \left( \frac{e t^2}{\rho_0} \right)^{\frac{1}{\delta+2}}
+\end{equation}
+with $\delta = 2$ and $\delta = 3$ for cylindrical and spherical geometry respectively. The initial density $\rho_0$ whereas $e$ is a dimensionless energy. Right behind the shock we ahve the following properties
+\begin{align}
+\rho_2 = \frac{\Gamma +1}{\Gamma-1} \rho_0
+P_2 = \frac{2}{\Gamma+1} \rho_0 w^2
+v_2 = \frac{2}{\Gamma+1} w
+\end{align}
+where the shock velocity is
+\begin{equation}
+w(t) = \frac{d R}{dt} = \frac{2}{\delta+2} \frac{R(t)}{t}
+\end{equation}
+
+In numerical simulations, energy deposition in a single point is difficult to achieve. A solution to the problem is to make use of the bursting balloon analogue. Rather than depositing the total energy in a single point, the energy is released into a balloon of finite volume $V$
+\begin{equation}
+e = \frac{(P-P_0)V}{\Gamma -1}
+\end{equation}
+The energy release in a balloon of radius $r_0$ raises the pressure to the value
+\begin{equation}
+P = \frac{3(\Gamma-1)e}{(\delta+1) \pi r_0^{\delta}}
+\end{equation}
+Here, we test 2D blast wave test. In this simulation, we use ideal gas EOS with $\Gamma = 5/3$ and we are assuming that the undistributed area is at rest with a pressure $P_0 = 1.0 \time 10^{-5}$. The density is constant $\rho_0$, also in the pressurized region.
+
+\end{document}

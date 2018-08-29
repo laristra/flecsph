@@ -50,6 +50,7 @@ public:
       const double density, 
       const double pressure, 
       const double entropy, 
+      const double electronFraction,
       const double mass,
       const double smoothinglength
   ):  position_(position), 
@@ -60,6 +61,7 @@ public:
       pressure_(pressure),
       //entropy_(entropy),
       mass_(mass),
+      //electronFraction_(electronFraction),
       smoothinglength_(smoothinglength),
       soundspeed_(0.0)
       #ifdef INTERNAL_ENERGY 
@@ -84,6 +86,7 @@ public:
   double getPressure() const{return pressure_;}
   double getSoundspeed() const{return soundspeed_;}
   //double getEntropy() const{return entropy_;}
+  //double getElectronFraction() const{return electronFraction_;}
   double getDensity() const{return density_;}
   point_t getVelocity() const{return velocity_;}
   //point_t getHydroForce() const{return hydroforce_;}

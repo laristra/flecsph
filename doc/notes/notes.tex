@@ -1,0 +1,72 @@
+\documentclass{article}
+\usepackage{amsmath, graphicx}
+\usepackage{grffile}
+\usepackage{dcolumn}
+\usepackage{bm}
+\usepackage{url}
+\usepackage{epsfig}
+\usepackage{mathrsfs}  %  package for the "curly" fonts
+\usepackage{subfigure}
+\usepackage{multirow}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{amssymb}
+\usepackage{tensor}
+\usepackage{romannum}
+
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{color}
+\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}
+\usepackage{fancyhdr}
+\usepackage{subfiles} 
+
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+}
+
+\topmargin 0.30in
+\textheight 9.00in
+\parindent 0.0in
+
+ \addtolength{\voffset}{-2cm}
+
+\begin{document}
+
+\title{FleCSPH notes}
+
+\author{Hyun Lim, Julien Loiseau}
+
+%\pacs{}
+\maketitle
+
+\subfile{FleCSI}
+\subfile{Tree}
+\subfile{General_algorithm}
+\subfile{IO}
+\subfile{Formulations}
+\subfile{Kernels}
+\subfile{Equations_of_state}
+\subfile{Initial_data}
+\subfile{Time_integration}
+\subfile{Gravitation}
+\subfile{Resolution_order}
+\subfile{Applications}
+
+\nocite{*}
+\bibliographystyle{plain}
+\bibliography{biblio/biblio_astro}
+
+\newpage
+\appendix
+
+
+\end{document}
