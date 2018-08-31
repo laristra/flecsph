@@ -1,7 +1,7 @@
 /*~--------------------------------------------------------------------------~*
  * Copyright (c) 2017 Los Alamos National Security, LLC
  * All rights reserved.
- *~--------------------------------------------------------------------------~*/
+ *~--------------------------------------------------------------------------~*\
 
  /*~--------------------------------------------------------------------------~*
  * 
@@ -17,18 +17,20 @@
  *~--------------------------------------------------------------------------~*/
 
 /**
- * @file user.h
+ * @file fluid.h
  * @author Julien Loiseau
  * @date April 2017
  * @brief User define for dimension and type 
  */
 
-#ifndef _sedov_h_
-#define _sedov_h_
+#ifndef _fluid_h_
+#define _fluid_h_
 
 #define INTERNAL_ENERGY
+#define VERLET
+
 #define OUTPUT
-static const size_t gdimension = 2;
+static const size_t gdimension = EXT_GDIMENSION;
 using type_t = double;
 
-#endif // _sedov_h_
+#endif // _fluid_h_
