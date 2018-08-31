@@ -202,8 +202,8 @@ flecsi_register_mpi_task(mpi_init_task);
 
 void 
 usage() {
-  clog_one(warn) << "Usage: ./hydro_%1dd <parameter-file.par>"
-                 << gdimension << std::endl << std::flush;
+  clog_one(warn) << "Usage: ./hydro_" << gdimension << "d <parameter-file.par>"
+                 << std::endl << std::flush;
 }
 
 
