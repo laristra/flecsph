@@ -165,7 +165,7 @@ namespace param {
 #endif
 
 //- which kernel to use
-#ifndef initial_data_prefix
+#ifndef sph_kernel
   DECLARE_STRING_PARAM(sph_kernel,"Wendland C2")
 #endif
 
@@ -242,6 +242,14 @@ namespace param {
 #ifndef sph_viscosity_epsilon
   DECLARE_PARAM(double,sph_viscosity_epsilon,0.01)
 #endif
+
+//
+// Gravity-related parameters
+//
+//- mac'n'cheese acceptance criteria
+# ifndef fmm_macangle
+  DECLARE_PARAM(double,fmm_macangle,0.0)
+# endif
 
 
 //
@@ -431,6 +439,10 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(sph_viscosity_epsilon)
 # endif
 
+  // gravity-related  -------------------------------------------------------
+# ifndef fmm_macangle
+  READ_NUMERIC_PARAM(fmm_macangle)
+# endif
   // specific apps  ---------------------------------------------------------
 # ifndef sodtest_num
   READ_NUMERIC_PARAM(sodtest_num)
