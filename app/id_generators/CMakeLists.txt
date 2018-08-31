@@ -26,9 +26,12 @@ include_directories(${CMAKE_SOURCE_DIR}/third-party-libraries/ScalingFramework/I
 
 add_executable(sodtube_generator sodtube/main.cc)
 add_executable(sedov_generator   sedov/main.cc)
+add_executable(noh_generator     noh/main.cc)
 
 target_link_libraries(sodtube_generator 
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 target_link_libraries(sedov_generator 
+  ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
+target_link_libraries(noh_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 

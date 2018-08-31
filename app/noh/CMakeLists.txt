@@ -19,7 +19,6 @@ include_directories(${CMAKE_SOURCE_DIR}/include/physics/)
 include_directories(${CMAKE_SOURCE_DIR}/app/noh/include)
 include_directories(${CMAKE_SOURCE_DIR}/mpisph)
 include_directories(${CMAKE_SOURCE_DIR}/third-party-libraries/ScalingFramework/IOTests)
-#include_directories(${CMAKE_SOURCE_DIR}/third-party-libraries/local/include)
 
 #------------------------------------------------------------------------------#
 # Executables    
@@ -32,13 +31,13 @@ add_executable(noh
   ${FleCSI_RUNTIME}/runtime_driver.cc
 )
 
-# MPILEGION version
-add_executable(noh_generator 
-  generator/main.cc 
-)
+## # MPILEGION version
+## add_executable(noh_generator 
+##   generator/main.cc 
+## )
 
-target_link_libraries(noh_generator ${MPI_LIBRARIES} 
-  ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
+## target_link_libraries(noh_generator ${MPI_LIBRARIES} 
+##   ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 target_link_libraries(noh ${FleCSPH_LIBRARIES})
 
 add_definitions(-DFLECSI_ENABLE_SPECIALIZATION_TLT_INIT)

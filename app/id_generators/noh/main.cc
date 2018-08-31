@@ -36,6 +36,7 @@
 #include <cassert>
 #include <math.h>
 
+#include "noh.h"
 #include "params.h"
 #include "hdf5ParticleIO.h"
 
