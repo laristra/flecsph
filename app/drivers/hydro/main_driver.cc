@@ -91,6 +91,19 @@ mpi_init_task(const char * parameter_file){
   body_system<double,gdimension> bs;
   bs.read_bodies(initial_data_file.c_str(),initial_iteration);
 
+  // boundaries
+/*
+  auto range_boundaries = bs.getRange();
+  point_t distance = range_boundaries[1]-range_boundaries[0];
+  for(unsigned short i = 0; i < gdimension; ++i){
+    distance[i] = fabs(distance[i]);
+  }
+  double h = bs.getSmoothinglength();
+  physics::min_boundary = {(0.1+2*h)*distance+range_boundaries[0]};
+  physics::max_boundary = {-(0.1-2*h)*distance+range_boundaries[1]};
+  clog_one(info) << "Limits: " << physics::min_boundary << " ; "
+         << physics::max_boundary << std::endl;
+ */
 #ifdef OUTPUT
   bs.write_bodies(output_h5data_prefix,physics::iteration);
 #endif
@@ -189,8 +202,8 @@ flecsi_register_mpi_task(mpi_init_task);
 
 void 
 usage() {
-  clog_one(warn) << "Usage: ./noh <parameter-file.par>"
-                 << std::endl << std::flush;
+  clog_one(warn) << "Usage: ./hydro_%1dd <parameter-file.par>"
+                 << gdimension << std::endl << std::flush;
 }
 
 
