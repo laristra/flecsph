@@ -33,14 +33,6 @@ add_executable(fluid_2D
   ${FleCSI_RUNTIME}/runtime_driver.cc
 )
 
-# Fluid generator
-add_executable(fluid_2D_generator 
-  generator/main.cc 
-)
-
-target_link_libraries(fluid_2D_generator ${MPI_LIBRARIES} 
-  ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 target_link_libraries(fluid_2D ${FleCSPH_LIBRARIES})
-
 add_definitions(-DFLECSI_ENABLE_SPECIALIZATION_TLT_INIT)
 add_definitions(-DFLECSI_OVERRIDE_DEFAULT_SPECIALIZATION_DRIVER)
