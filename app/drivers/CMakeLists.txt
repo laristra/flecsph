@@ -76,7 +76,6 @@ cinch_add_unit(sodtube_test
 )
 
 if(ENABLE_UNIT_TESTS)
-# run the generator with default file 
 add_custom_target(
     sodtube_generator_test 
     COMMAND ../id_generators/sodtube_generator ${PROJECT_SOURCE_DIR}/data/sodtube_t1_n100.par
@@ -86,7 +85,7 @@ add_dependencies(sodtube_test sodtube_generator_test)
 endif()
 
 #------------------------------------------------------------------------------#
-# sedov test, call the default parameter file 
+# sedov test with the default parameter file 
 #------------------------------------------------------------------------------#
 
 cinch_add_unit(sedov_test
@@ -103,11 +102,36 @@ cinch_add_unit(sedov_test
 )
 
 if(ENABLE_UNIT_TESTS)
-# run the generator with default file 
 add_custom_target(
     sedov_generator_test 
     COMMAND ../id_generators/sedov_generator ${PROJECT_SOURCE_DIR}/data/sedov_sqn100.par
     COMMAND mv sedov_sqn100.h5part ../../test/drivers
 )
 add_dependencies(sedov_test sedov_generator_test)
+endif()
+
+#------------------------------------------------------------------------------#
+# noh test, with the default parameter file 
+#------------------------------------------------------------------------------#
+
+cinch_add_unit(noh_test
+  SOURCES
+    test/noh.cc
+    hydro/main_driver.cc
+    ${FleCSI_RUNTIME}/runtime_driver.cc 
+  INPUTS
+    ${PROJECT_SOURCE_DIR}/data/noh_sqn100.par 
+  LIBRARIES 
+    ${FleCSPH_LIBRARIES}
+  DEFINES
+    -DEXT_GDIMENSION=2
+)
+
+if(ENABLE_UNIT_TESTS)
+add_custom_target(
+    noh_generator_test 
+    COMMAND ../id_generators/noh_generator ${PROJECT_SOURCE_DIR}/data/noh_sqn100.par
+    COMMAND mv noh_sqn100.h5part ../../test/drivers
+)
+add_dependencies(noh_test noh_generator_test)
 endif()
