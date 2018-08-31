@@ -28,9 +28,6 @@
 
 #define INTERNAL_ENERGY
 #define VERLET
-
 #define OUTPUT
-static const size_t gdimension = EXT_GDIMENSION;
-using type_t = double;
 
 #endif // _fluid_h_

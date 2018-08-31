@@ -9,6 +9,7 @@
 #include <cassert>
 
 #include "user.h"
+#include "fluid.h"
 #include "hdf5ParticleIO.h"
 #include "kernels.h"
 

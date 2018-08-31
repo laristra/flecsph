@@ -16,6 +16,7 @@ set(CMAKE_CXX_FLAGS_RELEASE
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/include/physics)
+include_directories(${CMAKE_SOURCE_DIR}/app/drivers/include)
 include_directories(${CMAKE_SOURCE_DIR}/app/id_generators/include)
 include_directories(${CMAKE_SOURCE_DIR}/mpisph)
 include_directories(${CMAKE_SOURCE_DIR}/third-party-libraries/ScalingFramework/IOTests)
@@ -41,5 +42,8 @@ target_link_libraries(fluid_2d_generator
 target_link_libraries(fluid_3d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 
+target_compile_definitions(sodtube_generator  PUBLIC -DEXT_GDIMENSION=1)
+target_compile_definitions(sedov_generator    PUBLIC -DEXT_GDIMENSION=2)
+target_compile_definitions(noh_generator      PUBLIC -DEXT_GDIMENSION=2)
 target_compile_definitions(fluid_2d_generator PUBLIC -DEXT_GDIMENSION=2)
 target_compile_definitions(fluid_3d_generator PUBLIC -DEXT_GDIMENSION=3)

@@ -28,9 +28,6 @@
 
 
 #define INTERNAL_ENERGY 1
-
 #define OUTPUT
-static const size_t gdimension = 1;
-using type_t = double;
 
 #endif // _sodtube_h_

@@ -28,7 +28,5 @@
 
 #define INTERNAL_ENERGY
 #define OUTPUT
-static const size_t gdimension = 2;
-using type_t = double;
 
 #endif // _noh_h_
