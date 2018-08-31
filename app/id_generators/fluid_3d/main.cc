@@ -8,7 +8,7 @@
 #include <cmath>
 #include <cassert>
 
-#include "fluid.h"
+#include "user.h"
 #include "hdf5ParticleIO.h"
 #include "kernels.h"
 
