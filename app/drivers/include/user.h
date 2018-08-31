@@ -26,8 +26,9 @@
 #ifndef _user_h_
 #define _user_h_
 
-#define INTERNAL_ENERGY
 #define OUTPUT
+#define INTERNAL_ENERGY
+
 static const size_t gdimension = EXT_GDIMENSION;
 using type_t = double;
 

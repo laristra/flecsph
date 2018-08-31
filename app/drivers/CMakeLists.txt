@@ -16,8 +16,8 @@ set(CMAKE_CXX_FLAGS_RELEASE
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/include/physics)
+include_directories(${CMAKE_SOURCE_DIR}/include/physics/specific)
 include_directories(${CMAKE_SOURCE_DIR}/app/drivers/include)
-#include_directories(${CMAKE_SOURCE_DIR}/app/id_generators/include)
 include_directories(${CMAKE_SOURCE_DIR}/mpisph)
 include_directories(${CMAKE_SOURCE_DIR}/third-party-libraries/ScalingFramework/IOTests)
 
@@ -25,7 +25,7 @@ add_definitions(-DFLECSI_ENABLE_SPECIALIZATION_TLT_INIT)
 add_definitions(-DFLECSI_OVERRIDE_DEFAULT_SPECIALIZATION_DRIVER)
 
 #------------------------------------------------------------------------------#
-# Executables    
+# Hydro drivers without gravity
 #------------------------------------------------------------------------------#
 
 # MPILEGION version: 1D
@@ -57,6 +57,19 @@ add_executable(hydro_3d
 
 target_link_libraries(hydro_3d ${FleCSPH_LIBRARIES})
 target_compile_definitions(hydro_3d PUBLIC -DEXT_GDIMENSION=3)
+
+#------------------------------------------------------------------------------#
+# Hydro drivers with Newtonian gravity
+#------------------------------------------------------------------------------#
+
+# 3D-version
+add_executable(newtonian_3d
+  newtonian/main.cc 
+  newtonian/main_driver.cc 
+  ${FleCSI_RUNTIME}/runtime_driver.cc
+)
+target_link_libraries(newtonian_3d ${FleCSPH_LIBRARIES})
+target_compile_definitions(newtonian_3d PUBLIC -DEXT_GDIMENSION=3)
 
 #------------------------------------------------------------------------------#
 # sodtube test, call the default parameter file 

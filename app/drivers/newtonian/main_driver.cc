@@ -37,12 +37,6 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/data/data.h"
 
-#include "params.h"
-#include "bodies_system.h"
-#include "default_physics.h"
-#include "BNS_physics.h"
-#include "analysis.h"
-
 // Define the relaxation 
 // 1 = relaxation = computation of rot force 
 // 0 = non relaxation = rotation applied
@@ -50,6 +44,14 @@
 #if RELAXATION == 1
 #warning CAUTION RELAXATION MODE
 #endif
+#define ADIABATIC
+
+#include "params.h"
+#include "bodies_system.h"
+#include "default_physics.h"
+#include "BNS_physics.h"
+#include "analysis.h"
+
 
 namespace flecsi{
 namespace execution{
