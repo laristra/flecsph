@@ -79,8 +79,8 @@ if(ENABLE_UNIT_TESTS)
 # run the generator with default file 
 add_custom_target(
     sodtube_generator_test 
-    COMMAND sodtube_generator ${PROJECT_SOURCE_DIR}/data/sodtube_t1_n100.par
-    COMMAND mv sodtube_t1_n100.h5part ../../test/sodtube
+    COMMAND ../id_generators/sodtube_generator ${PROJECT_SOURCE_DIR}/data/sodtube_t1_n100.par
+    COMMAND mv sodtube_t1_n100.h5part ../../test/drivers
 )
 add_dependencies(sodtube_test sodtube_generator_test)
 endif()
