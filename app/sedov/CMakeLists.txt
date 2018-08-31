@@ -19,7 +19,6 @@ include_directories(${CMAKE_SOURCE_DIR}/include/physics)
 include_directories(${CMAKE_SOURCE_DIR}/app/sedov/include)
 include_directories(${CMAKE_SOURCE_DIR}/mpisph)
 include_directories(${CMAKE_SOURCE_DIR}/third-party-libraries/ScalingFramework/IOTests)
-#include_directories(${CMAKE_SOURCE_DIR}/third-party-libraries/local/include)
 
 #------------------------------------------------------------------------------#
 # Executables    
@@ -32,13 +31,13 @@ add_executable(sedov
   ${FleCSI_RUNTIME}/runtime_driver.cc
 )
 
-# MPILEGION version
-add_executable(sedov_generator 
-  generator/main.cc 
-)
-
-target_link_libraries(sedov_generator ${MPI_LIBRARIES} 
-  ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
+## # MPILEGION version
+## add_executable(sedov_generator 
+##   generator/main.cc 
+## )
+##
+## target_link_libraries(sedov_generator ${MPI_LIBRARIES} 
+##   ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 target_link_libraries(sedov ${FleCSPH_LIBRARIES})
 
 add_definitions(-DFLECSI_ENABLE_SPECIALIZATION_TLT_INIT)
