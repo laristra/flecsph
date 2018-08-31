@@ -251,6 +251,11 @@ namespace param {
   DECLARE_PARAM(double,fmm_macangle,0.0)
 # endif
 
+//- maximum mass per cell
+# ifndef fmm_max_cell_mass
+  DECLARE_PARAM(double,fmm_max_cell_mass, 1.0e-4)
+# endif
+
 
 //
 // Specific apps
@@ -443,6 +448,11 @@ void set_param(const std::string& param_name,
 # ifndef fmm_macangle
   READ_NUMERIC_PARAM(fmm_macangle)
 # endif
+
+# ifndef fmm_max_cell_mass
+  READ_NUMERIC_PARAM(fmm_max_cell_mass)
+# endif
+
   // specific apps  ---------------------------------------------------------
 # ifndef sodtest_num
   READ_NUMERIC_PARAM(sodtest_num)
