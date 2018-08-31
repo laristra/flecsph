@@ -105,6 +105,19 @@ mpi_init_task(const char * parameter_file){
          << physics::max_boundary << std::endl;
  */
 #ifdef OUTPUT
+  if(out_scalar_every > 0 && physics::iteration % out_scalar_every == 0){
+    MPI_Barrier(MPI_COMM_WORLD);
+    bs.update_iteration();
+    bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
+    
+    // Compute conserved quantities
+    bs.get_all(analysis::compute_lin_momentum);
+    bs.get_all(analysis::compute_total_mass);
+    bs.get_all(analysis::compute_total_energy);
+    bs.get_all(analysis::compute_total_ang_mom);
+    analysis::scalar_output("scalar_reductions.dat");
+  }
+
   bs.write_bodies(output_h5data_prefix,physics::iteration);
 #endif
 
@@ -174,15 +187,15 @@ mpi_init_task(const char * parameter_file){
       clog_one(trace) << ".done" << std::endl;
     }
 
-#ifdef OUTPUT_ANALYSIS
-    // Compute the analysis values based on physics
-    bs.get_all(analysis::compute_lin_momentum);
-    bs.get_all(analysis::compute_total_mass);
-    bs.get_all(analysis::compute_total_energy);
-    bs.get_all(analysis::compute_total_ang_mom);
-    // Only add the header in the first iteration
-    analysis::scalar_output("scalar_reductions.dat");
-#endif
+    if(out_scalar_every > 0 && physics::iteration % out_scalar_every == 0){
+      // Compute the analysis values based on physics
+      bs.get_all(analysis::compute_lin_momentum);
+      bs.get_all(analysis::compute_total_mass);
+      bs.get_all(analysis::compute_total_energy);
+      bs.get_all(analysis::compute_total_ang_mom);
+      // Only add the header in the first iteration
+      analysis::scalar_output("scalar_reductions.dat");
+    }
 
 
 #ifdef OUTPUT
@@ -202,8 +215,8 @@ flecsi_register_mpi_task(mpi_init_task);
 
 void 
 usage() {
-  clog_one(warn) << "Usage: ./hydro_%1dd <parameter-file.par>"
-                 << gdimension << std::endl << std::flush;
+  clog_one(warn) << "Usage: ./hydro_" << gdimension << "d <parameter-file.par>"
+                 << std::endl << std::flush;
 }
 
 
