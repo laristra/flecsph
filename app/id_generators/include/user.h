@@ -1,7 +1,7 @@
 /*~--------------------------------------------------------------------------~*
  * Copyright (c) 2017 Los Alamos National Security, LLC
  * All rights reserved.
- *~--------------------------------------------------------------------------~*/
+ *~--------------------------------------------------------------------------~*\
 
  /*~--------------------------------------------------------------------------~*
  * 
@@ -27,8 +27,10 @@
 #define _user_h_
 
 #define INTERNAL_ENERGY
+#define VERLET
+
 #define OUTPUT
-static const size_t gdimension = 2;
+static const size_t gdimension = EXT_GDIMENSION;
 using type_t = double;
 
 #endif // _user_h_

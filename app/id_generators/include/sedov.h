@@ -23,14 +23,12 @@
  * @brief User define for dimension and type 
  */
 
-#ifndef _user_h_
-#define _user_h_
+#ifndef _sedov_h_
+#define _sedov_h_
 
-
-#define INTERNAL_ENERGY 1
-
+#define INTERNAL_ENERGY
 #define OUTPUT
-static const size_t gdimension = 1;
+static const size_t gdimension = 2;
 using type_t = double;
 
-#endif // _user_h_
+#endif // _sedov_h_
