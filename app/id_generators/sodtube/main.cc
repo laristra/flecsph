@@ -9,6 +9,7 @@
 #include <cassert>
 #include <math.h>
 
+#include "user.h"
 #include "sodtube.h"
 #include "params.h"
 #include "hdf5ParticleIO.h"

@@ -8,9 +8,10 @@
 #include <cassert>
 #include <math.h>
 
+#include "user.h"
+#include "sedov.h"
 #include "params.h"
 #include "hdf5ParticleIO.h"
-#include "sedov.h"
 
 /*
 The Sedov test is set up with uniform density and vanishingly small pressure.
