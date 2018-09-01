@@ -213,7 +213,7 @@ mpi_init_task(const char * parameter_file){
 flecsi_register_mpi_task(mpi_init_task, flecsi::execution);
 
 void 
-usage() {
+usage(int rank) {
   rank|| clog(warn) << "Usage: ./hydro_" << gdimension << "d " 
                     << "<parameter-file.par>" << std::endl << std::flush;
 }

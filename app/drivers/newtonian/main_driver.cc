@@ -151,7 +151,7 @@ void mpi_init_task(const char * parameter_file){
   do
   { 
     wt_start = omp_get_wtime();
-    analysis::screen_output();
+    analysis::screen_output(rank);
     MPI_Barrier(MPI_COMM_WORLD);
 
     // Integration step
@@ -285,13 +285,15 @@ void usage(int rank) {
 
 void
 specialization_tlt_init(int argc, char * argv[]){
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
   rank|| clog(trace) << "In user specialization_driver" << std::endl;
 
   // check options list: exactly one option is allowed
   if (argc != 2) {
     rank|| clog(error) << "ERROR: parameter file not specified!" << std::endl;
-    usage();
+    usage(rank);
     return;
   }
 
