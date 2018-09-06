@@ -506,6 +506,7 @@ void do_ye_fixup(int i, int j, int k,
 
 // Front-facing API
 // ----------------------------------------------------------------------
+// void EOS_SC_fill(double rho, double u, double ye, double* restrict eos)
 void EOS_SC_fill(double* restrict p, double* restrict eos)
 {
   double lTguess,leosTemp;
