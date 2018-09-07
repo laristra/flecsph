@@ -56,37 +56,7 @@
  #include "tree.h"
  #include <math.h>
 
- // set lattice generator
- /**
-  * @brief      generate_lattice selector
-  *
-  * @param      kstr     Kernel string descriptor
-  *
-  * @return     Pointer to the kernel
-  */
- typedef int64_t (*lattice_function_t)(const int,
- const int,
- const point_t&,
- const point_t&,
- const double,
- int64_t,
- bool,
- double,
- double,
- double);
- lattice_function_t generate_lattice;
-
- void
- select_lat_dimension(static const size_t& dim) {
-   if (dim==1){
-     generate_lattice = generate_lattice_1d;
-   } else if(dim==2){
-     generate_lattice = generate_lattice_2d;
-   } else if(dim==3){
-     generate_lattice = generate_lattice_3d;
-   }
- }
-
+namespace lattice{
  /**
   * @brief      in_domain checks to see if the entered particle position info
   *             is valid within the restrictive domain_type and total domain
@@ -337,22 +307,19 @@ generate_lattice_2d(
    } else if(lattice_type==1){//hcp lattice in 2 or 3D (in 2D it is just triangular)
      for(int j=0;j<Ny;j++){
        for(int k=0;k<Nx;k++){
-          //hcp lattice in 2D
-          if(i%2==1){
-            y_position = y_topproc - sqrt(3)*sph_sep/6. + j*sqrt(3.)/2.*sph_sep;
-            if(j%2==1){
-              x_position = x_topproc + k*sph_sep;
-            } else {
-              x_position = x_topproc - sph_sep/2. + k*sph_sep;
-            }
-          } else {
-            y_position = y_topproc + j*sqrt(3.)/2.*sph_sep;
-            if(j%2==1){
-              x_position = x_topproc - sph_sep/2. + k*sph_sep;
-            } else {
-              x_position = x_topproc + k*sph_sep;
-            }
-          }
+         //hcp lattice in 2D
+         y_position = y_topproc - sqrt(3)*sph_sep/6. + j*sqrt(3.)/2.*sph_sep;
+         if(j%2==1){
+           x_position = x_topproc + k*sph_sep;
+         } else {
+           x_position = x_topproc - sph_sep/2. + k*sph_sep;
+         }
+         y_position = y_topproc + j*sqrt(3.)/2.*sph_sep;
+         if(j%2==1){
+           x_position = x_topproc - sph_sep/2. + k*sph_sep;
+         } else {
+           x_position = x_topproc + k*sph_sep;
+         }
          if(in_domain_2d(x_position,y_position,x_c,y_c,bbox_min,bbox_max,radius,domain_type)){
            tparticles++;
            if(!count_only){
@@ -367,29 +334,25 @@ generate_lattice_2d(
    } else if(lattice_type==2){//fcc lattice in 2 or 3D (in 2D it is just triangular)
      for(int j=0;j<Ny;j++){
        for(int k=0;k<Nx;k++){
-          //fcc lattice in 2D
-          if(i%3==0){
-            y_position = y_topproc + j*sqrt(3.)/2.*sph_sep;
-            if(j%2==1){
-              x_position = x_topproc - sph_sep/2. + k*sph_sep;
-            } else {
-              x_position = x_topproc + k*sph_sep;
-            }
-          } else if(i%3==1) {
-            y_position = y_topproc - sqrt(3)*sph_sep/6. + j*sqrt(3.)/2.*sph_sep;
-            if(j%2==1){
-              x_position = x_topproc + k*sph_sep;
-            } else {
-              x_position = x_topproc - sph_sep/2. + k*sph_sep;
-            }
-          } else if(i%3==2){
-            y_position = y_topproc + sqrt(3)*sph_sep/6. + j*sqrt(3.)/2.*sph_sep;
-            if(j%2==1){
-              x_position = x_topproc + k*sph_sep;
-            } else {
-              x_position = x_topproc - sph_sep/2. + k*sph_sep;
-            }
-          }
+         //fcc lattice in 2D
+         y_position = y_topproc + j*sqrt(3.)/2.*sph_sep;
+         if(j%2==1){
+           x_position = x_topproc - sph_sep/2. + k*sph_sep;
+         } else {
+           x_position = x_topproc + k*sph_sep;
+         }
+         y_position = y_topproc - sqrt(3)*sph_sep/6. + j*sqrt(3.)/2.*sph_sep;
+         if(j%2==1){
+           x_position = x_topproc + k*sph_sep;
+         } else {
+           x_position = x_topproc - sph_sep/2. + k*sph_sep;
+         }
+         y_position = y_topproc + sqrt(3)*sph_sep/6. + j*sqrt(3.)/2.*sph_sep;
+         if(j%2==1){
+           x_position = x_topproc + k*sph_sep;
+         } else {
+           x_position = x_topproc - sph_sep/2. + k*sph_sep;
+         }
          if(in_domain_2d(x_position,y_position,x_c,y_c,bbox_min,bbox_max,radius,domain_type)){
            tparticles++;
            if(!count_only){
@@ -402,9 +365,8 @@ generate_lattice_2d(
        }
      }
    }
-
    return tparticles;
-}
+ }
 
 int64_t
 generate_lattice(
@@ -568,6 +530,7 @@ generate_lattice(
 
    return tparticles;
 }
+}; //lattice
 
 int64_t
 call_generate_lattice(
@@ -582,5 +545,34 @@ call_generate_lattice(
     double y[] = NULL,
     double z[] = NULL)
  {
-   return generate_lattice(lattice,domain_type,bbox_min,bbox_max,sph_sep,posid,count_only,x,y,z);
+   return generate_lattice(lattice_type,domain_type,bbox_min,bbox_max,sph_sep,posid,count_only,x,y,z);
+ }
+
+ // set lattice generator
+ /**
+  * @brief      generate_lattice selector
+  *
+  * @return     Pointer to the generator
+  */
+ typedef int64_t (*lattice_function_t)(const int,
+ const int,
+ const point_t&,
+ const point_t&,
+ const double,
+ int64_t,
+ bool,
+ double,
+ double,
+ double);
+ lattice_function_t generate_lattice;
+
+ void
+ select_lat_dimension() {
+   if (gdimension==1){
+     generate_lattice = lattice::generate_lattice_1d;
+   } else if(gdimension==2){
+     generate_lattice = lattice::generate_lattice_2d;
+   } else if(gdimension==3){
+     generate_lattice = lattice::generate_lattice_3d;
+   }
  }
