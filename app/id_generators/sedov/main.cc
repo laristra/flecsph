@@ -95,7 +95,7 @@ int main(int argc, char * argv[]){
   param::mpi_read_params(argv[1]);
   set_derived_params();
 
-  lattice::select_lat_dimension(gdimension);
+  lattice_space::select_lat_dimension(gdimension);
 
   // Header data
   // the number of particles = nparticles

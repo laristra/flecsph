@@ -56,7 +56,7 @@
  #include "tree.h"
  #include <math.h>
 
-namespace lattice{
+namespace lattice_space{
  /**
   * @brief      in_domain checks to see if the entered particle position info
   *             is valid within the restrictive domain_type and total domain
@@ -369,7 +369,7 @@ generate_lattice_2d(
  }
 
 int64_t
-generate_lattice(
+generate_lattice_3d(
     const int lattice_type,
     const int domain_type,
     const point_t& bbox_min,
@@ -529,23 +529,6 @@ generate_lattice(
    }
 
    return tparticles;
-}
-}; //lattice
-
-int64_t
-call_generate_lattice(
-    const int lattice_type,
-    const int domain_type,
-    const point_t& bbox_min,
-    const point_t& bbox_max,
-    const double sph_sep,
-    int64_t posid,
-    bool count_only,
-    double x[] = NULL,
-    double y[] = NULL,
-    double z[] = NULL)
- {
-   return generate_lattice(lattice_type,domain_type,bbox_min,bbox_max,sph_sep,posid,count_only,x,y,z);
  }
 
  // set lattice generator
@@ -568,11 +551,28 @@ call_generate_lattice(
 
  void
  select_lat_dimension() {
-   if (gdimension==1){
-     generate_lattice = lattice::generate_lattice_1d;
+   if(gdimension==1){
+     generate_lattice = generate_lattice_1d;
    } else if(gdimension==2){
-     generate_lattice = lattice::generate_lattice_2d;
+     generate_lattice = generate_lattice_2d;
    } else if(gdimension==3){
-     generate_lattice = lattice::generate_lattice_3d;
+     generate_lattice = generate_lattice_3d;
    }
+ }
+}; //lattice
+
+int64_t
+call_generate_lattice(
+    const int lattice_type,
+    const int domain_type,
+    const point_t& bbox_min,
+    const point_t& bbox_max,
+    const double sph_sep,
+    int64_t posid,
+    bool count_only,
+    double x[] = NULL,
+    double y[] = NULL,
+    double z[] = NULL)
+ {
+   return lattice_space::generate_lattice(lattice_type,domain_type,bbox_min,bbox_max,sph_sep,posid,count_only,x,y,z);
  }

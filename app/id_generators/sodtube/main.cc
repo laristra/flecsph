@@ -126,7 +126,7 @@ int main(int argc, char * argv[]){
   // set simulation parameters
   param::mpi_read_params(argv[1]);
   set_derived_params();
-  lattice::select_lat_dimension(gdimension);
+  lattice_space::select_lat_dimension(gdimension);
 
   // screen output
   clog_one(info) << "Sod test #" << sodtest_num << " in " << gdimension
