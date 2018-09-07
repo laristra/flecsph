@@ -18,7 +18,7 @@
 
 /**
  * @file eos.h
- * @brief Create namespace for both analytic and tabulated EOS
+ * @brief Namespace for both analytic and tabulated EOS
  *        for pressure computation
  */
 

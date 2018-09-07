@@ -72,6 +72,7 @@
 #include <sstream>
 #include <stdlib.h>
 #include <assert.h>
+#include <cstdbool>
 #include "cinchlog.h"
 #include "mpi.h"
 
@@ -218,6 +219,15 @@ namespace param {
 //- HDF5 output frequency
 #ifndef out_h5data_every
   DECLARE_PARAM(int32_t,out_h5data_every,10)
+#endif
+
+//- Choose output style
+//  1 : Generate separate h5part output with respect to iteration
+//  2 : Generate single h5part file 
+//  otherwise : Exit the code
+//  TODO : Add different output style rather than h5part
+#ifndef out_style
+  DECLARE_PARAM(int32_t,out_style,1)
 #endif
 
 //
@@ -425,6 +435,10 @@ void set_param(const std::string& param_name,
 
 # ifndef out_h5data_every
   READ_NUMERIC_PARAM(out_h5data_every)
+# endif
+
+# ifndef out_style
+  READ_NUMERIC_PARAM(out_style)
 # endif
 
   // viscosity and equation of state ----------------------------------------
