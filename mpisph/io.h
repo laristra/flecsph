@@ -29,6 +29,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <vector>
+#include "params.h"
 
 #include <H5hut.h>
 #include <hdf5ParticleIO.h>
@@ -300,7 +301,10 @@ void outputDataHDF5(
     const char* fileprefix,
     int step,
     double totaltime,
-    bool do_diff_files = false)
+    // HL outFile_style 
+    //    : choose different output style
+    //      Control by out_style param
+    int outFile_style = param::out_style)
 {
 
   int size, rank;
@@ -314,18 +318,20 @@ void outputDataHDF5(
   int64_t nparticlesproc = bodies.size();
 
   char filename[128];
-  if(do_diff_files){
-    sprintf(filename,"%s_%05d.h5part",fileprefix,step);
-  }else{
+  if(outFile_style == 1){
+    sprintf(filename,"%s_%05d.h5part",fileprefix,step*param::out_h5data_every);
+  }else if(outFile_style == 0){
     sprintf(filename,"%s.h5part",fileprefix);
-  }  
-
+  }else{
+    printf("\n Wrong option for outputting style!\n");
+    exit (EXIT_FAILURE);
+  }
   Flecsi_Sim_IO::HDF5ParticleIO simio;
   simio.createDataset(filename,MPI_COMM_WORLD);
   
   //-------------------GLOBAL HEADER-------------------------------------------
   // Only for the first output
-  if(do_diff_files){
+  if(outFile_style == 1){
   }else{
     if(step == 0){
       // output dimension 
