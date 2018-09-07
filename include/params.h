@@ -149,6 +149,11 @@ namespace param {
   DECLARE_PARAM(int64_t,sqrt_nparticles,100)
 #endif
 
+//- cube root of the total number of particles (for 3D setups)
+#ifndef cbrt_nparticles
+  DECLARE_PARAM(int64_t,cbrt_nparticles,10)
+#endif
+
 //- SPH eta parameter, eta = h (rho/m)^1/D (Rosswog'09, eq.51)
 #ifndef sph_eta
   DECLARE_PARAM(double,sph_eta,1.5)
@@ -179,17 +184,17 @@ namespace param {
 //
 //- TODO: add description
 #ifndef do_boundaries
-  DECLARE_PARAM(bool,do_boundaries,false)
+  DECLARE_PARAM(bool,do_boundaries,"no")
 #endif
 
 //- TODO: add description
 #ifndef stop_boundaries
-  DECLARE_PARAM(bool,stop_boundaries,false)
+  DECLARE_PARAM(bool,stop_boundaries,"no")
 #endif
 
 //- TODO: add description
 #ifndef reflect_boundaries
-  DECLARE_PARAM(bool,reflect_boundaries,false)
+  DECLARE_PARAM(bool,reflect_boundaries,"no")
 #endif
 
 //
@@ -263,6 +268,11 @@ namespace param {
 /// number of Sodtest to run (1..5)
 #ifndef sodtest_num
   DECLARE_PARAM(unsigned short,sodtest_num,1)
+#endif
+
+// equal mass or equal particle separation switch for sodtube
+#ifndef equal_mass
+  DECLARE_PARAM(bool,equal_mass,"yes")
 #endif
 
 // characteristic density for an initial conditions
@@ -373,6 +383,10 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(sqrt_nparticles)
 # endif
 
+# ifndef cbrt_nparticles
+  READ_NUMERIC_PARAM(cbrt_nparticles)
+# endif
+
 # ifndef sph_eta
   READ_NUMERIC_PARAM(sph_eta)
 # endif
@@ -457,6 +471,10 @@ void set_param(const std::string& param_name,
 # ifndef sodtest_num
   READ_NUMERIC_PARAM(sodtest_num)
 # endif
+
+#ifndef equal_mass
+  READ_BOOLEAN_PARAM(equal_mass)
+#endif
 
 # ifndef rho_initial
   READ_NUMERIC_PARAM(rho_initial)
