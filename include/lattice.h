@@ -184,7 +184,7 @@ bool in_domain_3d(
     double radius = 0.0;
     if(domain_type==1 || domain_type==0) {
        radius = bbox_max[0] - bbox_min[0];
-       for(int j=1;j<gdimension;j++)
+       for(size_t j=1;j<gdimension;j++)
          if (radius > bbox_max[j] - bbox_min[j])
            radius = bbox_max[j] - bbox_min[j];
     }
@@ -248,7 +248,7 @@ generate_lattice_2d(
    double radius = 0.0;
    if(domain_type==1 || domain_type==0) {
       radius = bbox_max[0] - bbox_min[0];
-      for(int j=1;j<gdimension;j++)
+      for(size_t j=1;j<gdimension;j++)
         if (radius > bbox_max[j] - bbox_min[j])
           radius = bbox_max[j] - bbox_min[j];
    }
@@ -387,7 +387,7 @@ generate_lattice_3d(
    double radius = 0.0;
    if(domain_type==1 || domain_type==0) {
       radius = bbox_max[0] - bbox_min[0];
-      for(int j=1;j<gdimension;j++)
+      for(size_t j=1;j<gdimension;j++)
         if (radius > bbox_max[j] - bbox_min[j])
           radius = bbox_max[j] - bbox_min[j];
    }
@@ -544,9 +544,9 @@ generate_lattice_3d(
  const double,
  int64_t,
  bool,
- double,
- double,
- double);
+ double*,
+ double*,
+ double*);
  lattice_function_t generate_lattice;
 
  void
