@@ -143,37 +143,43 @@ def get_initial_data(separation,file1,file2,output_name):
     # TODO: Fix this if need be.
 
     # Grab each data set from h5part file
-    x1=f1.get('x')
+    # Extract the data from h5part Step#0 group
+    # We use this format because paraview requires that format
+    group_data1=f1.get('Step#0')
+    group_data2=f2.get('Step#0')
+
+    x1=group_data1.get('x')
     x1=np.array(x1)
-    x2=f2.get('x')
+    x2=group_data2.get('x')
     x2=np.array(x2)
 
-    y1=f1.get('y')
+    y1=group_data1.get('y')
     y1=np.array(y1)
-    y2=f2.get('y')
+    y2=group_data2.get('y')
     y2=np.array(y2)
 
-    z1=f1.get('z')
+    z1=group_data1.get('z')
     z1=np.array(z1)
-    z2=f2.get('z')
+    z2=group_data2.get('z')
     z2=np.array(z2)
 
-    h1=f1.get('h')
+    h1=group_data1.get('h')
     h1=np.array(h1)
-    h2=f2.get('h')
+    h2=group_data2.get('h')
     h2=np.array(h2)
 
-    u1=f1.get('u')
+    u1=group_data1.get('u')
     u1=np.array(u1)
-    u2=f2.get('u')
+    u2=group_data2.get('u')
     u2=np.array(u2)
 
-    m1=f1.get('mass')
+    m1=group_data1.get('m')
     m1=np.array(m1)
-    m2=f2.get('mass')
+    m2=group_data2.get('m')
     m2=np.array(m2)
 
-
+    
+    # HL : Unit conversion part
     # Convert to cgs
     # currently everything goes into memory
     # TODO: change this if need be
@@ -189,53 +195,36 @@ def get_initial_data(separation,file1,file2,output_name):
     u2 = u2*u_cu_to_cgs
     m1 = m1*mass_cu_to_cgs
     m2 = m2*mass_cu_to_cgs
-'''
-    # Convert to cgs
-    # currently everything goes into memory
-    # TODO: change this if need be
-    x1 = np.array(f1['x'])*distance_cu_to_cgs
-    x2 = np.array(f2['x'])*distance_cu_to_cgs
-    y1 = np.array(f1['y'])*distance_cu_to_cgs
-    y2 = np.array(f2['y'])*distance_cu_to_cgs
-    z1 = np.array(f1['z'])*distance_cu_to_cgs
-    z2 = np.array(f2['z'])*distance_cu_to_cgs
-    h1 = np.array(f1['h'])*distance_cu_to_cgs
-    h2 = np.array(f2['h'])*distance_cu_to_cgs
-    u1 = np.array(f1['u'])*u_cu_to_cgs
-    u2 = np.array(f2['u'])*u_cu_to_cgs
-    m1 = np.array(f1['mass'])*mass_cu_to_cgs
-    m2 = np.array(f2['mass'])*mass_cu_to_cgs
-'''
 
-'''
-    # HL : Need to fix this for electron fraction
-    # Read in particle type and electron fraction if they exist
+    # HL : Need to check this
     try:
-        ye1 = np.array(f1['ye'])
+        ye1 = group_data1.get('ye')
+        ye1 = np.array(ye1)
     except:
         ye1 = 0.5*np.ones_like(x1)
         print("Warning. No electron fraction for star 1. "
               +"Using a value of ye = 0.5")
     try:
-        ye2 = np.array(f2['ye'])
+        ye2 = group_data2.get('ye')
+        ye2 = np.array(ye2)
     except:
         ye2 = 0.5*np.ones_like(x2)
         print("Warning. No electron fraction for star 2. "
               +"Using a value of ye = 0.5")
     try:
-        parttype1 = np.array(f1['parttype'])
+        parttype1 = group_data1.get('parttype')
+        parttype1 = np.array(parttype1)
     except:
         parttype1 = np.ones(len(x1),dtype=int)
         print("Warning. No particle type for star 1. "
               +"Using a value of 1.")
     try:
-        parttype2 = np.array(f2['parttype'])
+        parttype2 = group_data2.get('parttype')
+        parttype2 = np.array(parttype2)
     except:
         parttype2 = np.ones(len(x2),dtype=int)
         print("Warning. No particle type for star 2. "
               +"Using a value of 1.")
-'''
-
     # recenter both stars so the are centered exactly at the origin
     # of their respective coordinate systems
     x1,y1,z1 = center_star(m1,x1,y1,z1)
@@ -297,8 +286,8 @@ def get_initial_data(separation,file1,file2,output_name):
 	udset = f.create_dataset('u', data = u)
 	mdset = f.create_dataset('m', data = m)
 	hdset = f.create_dataset('h', data = h)
-	yedset = f.create_dataset('ye', data = ye)
-	partdset = f.create_dataset('particel-type', data = parttype)
+	#yedset = f.create_dataset('ye', data = ye)
+	#partdset = f.create_dataset('particel-type', data = parttype)
 
 if __name__ == "__main__":
     separation = float(sys.argv[1])*distance_cu_to_cgs
@@ -308,4 +297,3 @@ if __name__ == "__main__":
     print("Making binary initial data..")
     get_initial_data(separation,file1,file2,output_name)
     print("Finish! Have fun with your simulation with this data!")
-
