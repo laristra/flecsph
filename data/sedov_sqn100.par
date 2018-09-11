@@ -1,7 +1,7 @@
 #
 # Sedov blast wave test
 #
-## initial data
+# initial data
   initial_data_prefix = "sedov_sqn100"
   sqrt_nparticles = 100   # sqrt of the total number of particles
   poly_gamma = 1.4        # polytropic index
