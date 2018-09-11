@@ -27,6 +27,7 @@
 #define _physics_kernel_h_
 
 #include <vector>
+#include <boost/algorithm/string.hpp>
 
 #include "tree.h"
 #include "params.h"
@@ -665,6 +666,77 @@ namespace kernels{
     }
     return result; 
   }
+
+
+  /**
+   * @brief      Kernel selector: types, global variables and the function
+   *
+   * @param      kstr     Kernel string descriptor
+   *
+   * @return     Pointer to the kernel
+   */
+  typedef double  (*kernel_function_t)(const double,    const double);
+  typedef point_t (*kernel_gradient_t)(const point_t &, const double);
+
+  // kernel function pointers
+  kernel_function_t kernel = quintic_spline;
+  kernel_gradient_t gradKernel = gradient_quintic_spline;
+
+
+  void select(const std::string& kstr) {
+    if (boost::iequals(kstr,"cubic spline")) {
+      kernel = cubic_spline;
+      gradKernel = gradient_cubic_spline;
+    }
+    else if (boost::iequals(kstr, "quintic spline")) {
+      kernel = quintic_spline;
+      gradKernel = gradient_quintic_spline;
+    }
+    else if (boost::iequals(kstr, "wendland c2")) {
+      if (gdimension == 1) {
+        kernel = wendland_c2_1d;
+        gradKernel = gradient_wendland_c2_1d;
+      } else {
+        kernel = wendland_c2_23d;
+        gradKernel = gradient_wendland_c2_23d;
+      }
+    }
+    else if (boost::iequals(kstr, "wendland c4")) {
+      if (gdimension == 1) {
+        kernel = wendland_c4_1d;
+        gradKernel = gradient_wendland_c4_1d;
+      } else {
+        kernel = wendland_c4_23d;
+        gradKernel = gradient_wendland_c4_23d;
+      }
+    }
+    else if (boost::iequals(kstr, "wendland c6")) {
+      if (gdimension == 1) {
+        kernel = wendland_c6_1d;
+        gradKernel = gradient_wendland_c6_1d;
+      } else {
+        kernel = wendland_c6_23d;
+        gradKernel = gradient_wendland_c6_23d;
+      }
+    }
+    else if (boost::iequals(kstr, "gaussian")) {
+      kernel = gaussian;
+      gradKernel = gradient_gaussian;
+    }
+    else if (boost::iequals(kstr, "super gaussian")) {
+      kernel = super_gaussian;
+      gradKernel = gradient_super_gaussian;
+    }
+    else if (boost::iequals(kstr, "sinc")) {
+      set_sinc_kernel_normalization(param::sph_sinc_index);
+      kernel = sinc_ker;
+      gradKernel = gradient_sinc_ker;
+    }
+    else {
+      clog_one(fatal) << "Bad kernel parameter" << std::endl;
+    }
+  }
+
 
 }; // kernel
 

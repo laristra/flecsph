@@ -52,7 +52,7 @@ void set_derived_params() {
   using namespace param;
 
   // set kernel
-  physics::select_kernel(sph_kernel);
+  kernels::select(sph_kernel);
 
   // filenames (this will change for multiple files output)
   std::ostringstream oss;

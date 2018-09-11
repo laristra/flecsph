@@ -32,7 +32,6 @@
 #include "utils.h"
 #include "kernels.h"
 #include "tree.h"
-#include <boost/algorithm/string.hpp>
 
 namespace physics{
   using namespace param;
@@ -53,74 +52,6 @@ namespace physics{
   int64_t iteration = 0;
 
   /**
-   * @brief      Kernel selector: types, global variables and the function
-   *
-   * @param      kstr     Kernel string descriptor
-   *
-   * @return     Pointer to the kernel
-   */
-  typedef double  (*kernel_function_t)(const double,    const double);
-  typedef point_t (*kernel_gradient_t)(const point_t &, const double);
-  kernel_function_t kernel;
-  kernel_gradient_t gradKernel;
-
-  void
-  select_kernel(const std::string& kstr) {
-    if (boost::iequals(kstr,"cubic spline")) {
-      kernel = kernels::cubic_spline;
-      gradKernel = kernels::gradient_cubic_spline;
-    }
-    else if (boost::iequals(kstr, "quintic spline")) {
-      kernel = kernels::quintic_spline;
-      gradKernel = kernels::gradient_quintic_spline;
-    }
-    else if (boost::iequals(kstr, "wendland c2")) {
-      if (gdimension == 1) {
-        kernel = kernels::wendland_c2_1d;
-        gradKernel = kernels::gradient_wendland_c2_1d;
-      } else {
-        kernel = kernels::wendland_c2_23d;
-        gradKernel = kernels::gradient_wendland_c2_23d;
-      }
-    }
-    else if (boost::iequals(kstr, "wendland c4")) {
-      if (gdimension == 1) {
-        kernel = kernels::wendland_c4_1d;
-        gradKernel = kernels::gradient_wendland_c4_1d;
-      } else {
-        kernel = kernels::wendland_c4_23d;
-        gradKernel = kernels::gradient_wendland_c4_23d;
-      }
-    }
-    else if (boost::iequals(kstr, "wendland c6")) {
-      if (gdimension == 1) {
-        kernel = kernels::wendland_c6_1d;
-        gradKernel = kernels::gradient_wendland_c6_1d;
-      } else {
-        kernel = kernels::wendland_c6_23d;
-        gradKernel = kernels::gradient_wendland_c6_23d;
-      }
-    }
-    else if (boost::iequals(kstr, "gaussian")) {
-      kernel = kernels::gaussian;
-      gradKernel = kernels::gradient_gaussian;
-    }
-    else if (boost::iequals(kstr, "super gaussian")) {
-      kernel = kernels::super_gaussian;
-      gradKernel = kernels::gradient_super_gaussian;
-    }
-    else if (boost::iequals(kstr, "sinc")) {
-      kernels::set_sinc_kernel_normalization(sph_sinc_index);
-      kernel = kernels::sinc_ker;
-      gradKernel = kernels::gradient_sinc_ker;
-    }
-    else {
-      clog_one(fatal) << "Bad kernel parameter" << std::endl;
-    }
-  }
-
-
-  /**
    * @brief      Compute the density 
    * Based on Fryer/05 eq(10)
    * @param      srch  The source's body holder
@@ -138,7 +69,7 @@ namespace physics{
       body* nb = nbh->getBody();
       double dist = flecsi::distance(source->getPosition(),nb->getPosition());
       mpi_assert(dist>=0.0);
-      double kernelresult = kernel(dist,
+      double kernelresult = kernels::kernel(dist,
             .5*(source->getSmoothinglength()+nb->getSmoothinglength()));
       density += kernelresult*nb->getMass();
     } // for
@@ -365,7 +296,7 @@ namespace physics{
           + nb->getPressure()/(rho_b*rho_b);
 
       // Kernel computation
-      point_t sourcekernelgradient = gradKernel(
+      point_t sourcekernelgradient = kernels::gradKernel(
           vecPosition,source->getSmoothinglength());
       point_t resultkernelgradient = sourcekernelgradient;
 
@@ -408,7 +339,7 @@ namespace physics{
     
       // Compute the gradKernel ij      
       point_t vecPosition = source->getPosition()-nb->getPosition();
-      point_t sourcekernelgradient = gradKernel(
+      point_t sourcekernelgradient = kernels::gradKernel(
           vecPosition,source->getSmoothinglength());
       space_vector_t resultkernelgradient = 
           flecsi::point_to_vector(sourcekernelgradient);
@@ -467,7 +398,7 @@ namespace physics{
       mpi_assert(viscosity>=0.0);
 
       point_t vecPosition = source->getPosition()-nb->getPosition();
-      point_t sourcekernelgradient = gradKernel(
+      point_t sourcekernelgradient = kernels::gradKernel(
           vecPosition,source->getSmoothinglength());
       point_t resultkernelgradient = sourcekernelgradient;
 
