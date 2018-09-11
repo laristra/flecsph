@@ -156,6 +156,8 @@ void mpi_init_task(const char * parameter_file){
     MPI_Barrier(MPI_COMM_WORLD);
 
     // Integration step
+    // TODO: leapfrog integration implemented incorrectly;
+    //       update similarly to what is in the drivers/hydro.
     clog_one(trace)<<"Leapfrog integration"<<std::flush; 
     wt = omp_get_wtime(); 
     bs.apply_all(physics::leapfrog_integration);
@@ -210,7 +212,7 @@ void mpi_init_task(const char * parameter_file){
       source->getBody()->setAcceleration(point_t{});
     });
 
-
+    
     clog_one(trace)<<"Accel FMM"<<std::flush; 
     wt = omp_get_wtime(); 
     bs.gravitation_fmm();

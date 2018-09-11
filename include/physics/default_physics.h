@@ -417,23 +417,8 @@ namespace physics{
  
 
   } // compute_hydro_acceleration
-#endif 
 
   /**
-   * @brief      Integrate the internal energy variation, update internal energy
-   *
-   * @param      srch  The source's body holder
-   */
-  void dudt_integration(
-      body_holder* srch)
-  {
-    body* source = srch->getBody(); 
-    source->setInternalenergy(
-      source->getInternalenergy()+dt*source->getDudt());
-  }
-
-#ifdef ADIABATIC 
-    /**
    * @brief      Integrate the internal energy variation, update internal energy
    *
    * @param      srch  The source's body holder
@@ -509,36 +494,12 @@ namespace physics{
     return considered;
   }
 
-#if 0 
-  // \TODO VERSION USED IN THE BNS, CHECK VALIDITY REGARDING THE OTHER ONE 
-  void 
-  leapfrog_integration(
-      body_holder* srch)
-  {
-    body* source = srch->getBody();
-    
-
-    point_t velocity = source->getVelocityhalf()+
-      source->getAcceleration() * dt / 2.;
-    point_t velocityHalf = velocity+
-      source->getAcceleration() * dt / 2.;
-    point_t position = source->getPosition()+velocityHalf*dt;
-    // integrate dadt 
-    double adiabatic_factor = source->getAdiabatic() + source->getDadt()* dt;
-
-    source->setVelocity(velocity);
-    source->setVelocityhalf(velocityHalf);
-    source->setPosition(position);
-    source->setAdiabatic(adiabatic_factor);
-    
-    mpi_assert(!std::isnan(position[0])); 
-  }
-#endif
-
   /**
-   * @brief      Leapfrog integration, first step 
+   * @brief Leapfrog integration, first step 
+   *        TODO: deprecate; new Leapfrog should be implemented with
+   *              the kick-drift-kick formulae
    *
-   * @param      srch  The source's body holder
+   * @param srch  The source's body holder
    */
   void 
   leapfrog_integration_first_step(
@@ -572,9 +533,11 @@ namespace physics{
   }
 
   /**
-   * @brief      Leapfrog integration
+   * @brief Leapfrog integration
+   *        TODO: deprecate; new Leapfrog should be implemented with
+   *              the kick-drift-kick formulae
    *
-   * @param      srch  The source's body holder
+   * @param srch  The source's body holder
    */
   void 
   leapfrog_integration(
