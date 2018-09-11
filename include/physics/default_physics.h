@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "params.h"
+#include "eos.h"
 #include "utils.h"
 #include "kernels.h"
 #include "tree.h"
@@ -76,6 +77,8 @@ namespace physics{
     mpi_assert(density>0);
     source->setDensity(density);
   } // compute_density
+
+#if 0
 
   /**
    * @brief      Compute the pressure
@@ -151,6 +154,8 @@ namespace physics{
 #endif
 
 #endif
+
+#endif
   /**
    * @brief      Compute the sound speed
    * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics 
@@ -181,7 +186,7 @@ namespace physics{
     std::vector<body_holder*>& nbsh)
   {
     compute_density(srch,nbsh);
-    compute_pressure(srch);
+    eos::compute_pressure(srch);
     compute_soundspeed(srch); 
   }
 
@@ -192,7 +197,7 @@ namespace physics{
     std::vector<body_holder*>& nbsh)
   {
     compute_density(srch,nbsh);
-    compute_pressure_adiabatic(srch);
+    eos::compute_pressure_adiabatic(srch);
     compute_soundspeed(srch); 
   }
 #endif
