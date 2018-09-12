@@ -184,17 +184,17 @@ namespace param {
 //
 //- TODO: add description
 #ifndef do_boundaries
-  DECLARE_PARAM(bool,do_boundaries,"no")
+  DECLARE_PARAM(bool,do_boundaries,false)
 #endif
 
 //- TODO: add description
 #ifndef stop_boundaries
-  DECLARE_PARAM(bool,stop_boundaries,"no")
+  DECLARE_PARAM(bool,stop_boundaries,false)
 #endif
 
 //- TODO: add description
 #ifndef reflect_boundaries
-  DECLARE_PARAM(bool,reflect_boundaries,"no")
+  DECLARE_PARAM(bool,reflect_boundaries,false)
 #endif
 
 //
@@ -272,7 +272,7 @@ namespace param {
 
 // equal mass or equal particle separation switch for sodtube
 #ifndef equal_mass
-  DECLARE_PARAM(bool,equal_mass,"yes")
+  DECLARE_PARAM(bool,equal_mass,true)
 #endif
 
 // characteristic density for an initial conditions
@@ -351,7 +351,10 @@ void set_param(const std::string& param_name,
   // for boolean parameters
   bool lparam_value = (str_value == "yes"
                     or str_value == "'yes'"
-                    or str_value == "\"yes\"");
+                    or str_value == "\"yes\""
+                    or str_value == "true"
+                    or str_value == "'true'"
+                    or str_value == "\"true\"");
   // timestepping and iterations --------------------------------------------
 # ifndef initial_iteration
   READ_NUMERIC_PARAM(initial_iteration)
