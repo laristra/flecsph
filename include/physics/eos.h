@@ -37,53 +37,30 @@ namespace eos{
   using namespace param;
 
   /**
-   * Default values
-   * They are usually modified in the main_driver 
-   * to be application-specific. 
-   * \TODO add a parameter file to be read in the main_driver
-   */
-  point_t max_boundary = {};
-  point_t min_boundary = {};
-  double dt = 0.0;
-  double damp = 1;
-  double totaltime = 0.0;
-  double A = 1.0;
-  double MAC = 1.;
-  int64_t iteration = 0;
-
-  /**
-   * @brief      Compute the pressure
-   * Ideal gas EOS
+   * @brief      Compute the pressure for ideal gas EOS
    * @param      srch  The source's body holder
    */
-  void 
-  compute_pressure(
-      body_holder* srch)
-  { 
+  void compute_pressure_ideal(body_holder* srch) { 
     using namespace param;
     body* source = srch->getBody();
     double pressure = (poly_gamma-1.0)*
       source->getDensity()*source->getInternalenergy();
     source->setPressure(pressure);
-  } // compute_pressure
+  }
 
-#ifdef ADIABATIC
+
   /**
    * @brief      Compute the pressure based on adiabatic index
-   *
    * @param      srch  The source's body holder
    */
-  void 
-  compute_pressure_adiabatic(
-      body_holder* srch)
+  void compute_pressure_adiabatic( body_holder* srch)
   { 
     using namespace param;
     body* source = srch->getBody();
     double pressure = source->getAdiabatic()*
       pow(source->getDensity(),poly_gamma);
     source->setPressure(pressure);
-  } // compute_pressure
-#endif 
+  }
 
   /**
    * @brief      Zero temperature EOS from Chandrasechkar's 
@@ -91,9 +68,7 @@ namespace eos{
    *
    * @param      srch  The srch
    */
-  void 
-  compute_pressure_wd(
-      body_holder* srch)
+  void compute_pressure_wd( body_holder* srch)
   { 
     body* source = srch->getBody();
     double A_dwd = 6.00288e22;
@@ -131,81 +106,29 @@ namespace eos{
 
 #endif
 
-#if 0
   /**
-   * @brief      Compute the sound speed
+   * @brief      Compute sound speed for ideal fluid or polytropic eos
    * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics 
    * 
    * @param      srch  The source's body holder
    */
-  void 
-  compute_soundspeed(
-      body_holder* srch)
-  {
+  void compute_soundspeed_ideal(body_holder* srch) {
     using namespace param;
     body* source = srch->getBody();
     double soundspeed = sqrt(poly_gamma*source->getPressure()
                                        /source->getDensity());
     source->setSoundspeed(soundspeed);
-  } // computeSoundspeed
-
-  /**
-   * @brief      Compute the density, EOS and spundspeed in the same function 
-   * reduce time to gather the neighbors
-   *
-   * @param      srch  The source's body holder
-   * @param      nbsh  The neighbors' body holders
-   */
-  void 
-  compute_density_pressure_soundspeed(
-    body_holder* srch, 
-    std::vector<body_holder*>& nbsh)
-  {
-    compute_density(srch,nbsh);
-    compute_pressure(srch);
-    compute_soundspeed(srch); 
   }
 
-#ifdef ADIABATIC
-  void 
-  compute_density_pressure_adiabatic_soundspeed(
-    body_holder* srch, 
-    std::vector<body_holder*>& nbsh)
-  {
-    compute_density(srch,nbsh);
-    compute_pressure_adiabatic(srch);
-    compute_soundspeed(srch); 
-  }
-#endif
+  // TODO: add soundspeed for WDs and tabulates SC eos
 
-#endif
+  
+  // eos function types and pointers
+  typedef void (*compute_pressure_t)(body_holder*);
+  typedef void (*compute_soundspeed_t)(body_holder*);
+  compute_pressure_t compute_pressure = compute_pressure_ideal;
+  compute_soundspeed_t compute_soundspeed = compute_soundspeed_ideal;
 
-#if 0 
-  // \TODO VERSION USED IN THE BNS, CHECK VALIDITY REGARDING THE OTHER ONE 
-  void 
-  leapfrog_integration(
-      body_holder* srch)
-  {
-    body* source = srch->getBody();
-    
-
-    point_t velocity = source->getVelocityhalf()+
-      source->getAcceleration() * dt / 2.;
-    point_t velocityHalf = velocity+
-      source->getAcceleration() * dt / 2.;
-    point_t position = source->getPosition()+velocityHalf*dt;
-    // integrate dadt 
-    double adiabatic_factor = source->getAdiabatic() + source->getDadt()* dt;
-
-    source->setVelocity(velocity);
-    source->setVelocityhalf(velocityHalf);
-    source->setPosition(position);
-    source->setAdiabatic(adiabatic_factor);
-    
-    mpi_assert(!std::isnan(position[0])); 
-  }
-#endif
-
-}; // eos
+}; // namespace eos
 
 #endif // _eos_h_

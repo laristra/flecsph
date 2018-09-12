@@ -199,10 +199,10 @@ void mpi_init_task(const char * parameter_file){
     bs.update_iteration();
 
     MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace)<<"compute_density_pressure_adiabatic_soundspeed"<<std::flush; 
+    clog_one(trace)<<"compute_density_pressure_soundspeed"<<std::flush; 
     wt = omp_get_wtime(); 
     bs.apply_in_smoothinglength(
-      physics::compute_density_pressure_adiabatic_soundspeed); 
+      physics::compute_density_pressure_soundspeed); 
     clog_one(trace)<<".done "<< omp_get_wtime() - wt << "s" <<std::endl;
 
     bs.update_neighbors();

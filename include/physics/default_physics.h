@@ -78,100 +78,6 @@ namespace physics{
     source->setDensity(density);
   } // compute_density
 
-#if 0
-
-  /**
-   * @brief      Compute the pressure
-   * Ideal gas EOS
-   * @param      srch  The source's body holder
-   */
-  void 
-  compute_pressure(
-      body_holder* srch)
-  { 
-    using namespace param;
-    body* source = srch->getBody();
-    double pressure = (poly_gamma-1.0)*
-      source->getDensity()*source->getInternalenergy();
-    source->setPressure(pressure);
-  } // compute_pressure
-
-#ifdef ADIABATIC
-  /**
-   * @brief      Compute the pressure based on adiabatic index
-   *
-   * @param      srch  The source's body holder
-   */
-  void 
-  compute_pressure_adiabatic(
-      body_holder* srch)
-  { 
-    using namespace param;
-    body* source = srch->getBody();
-    double pressure = source->getAdiabatic()*
-      pow(source->getDensity(),poly_gamma);
-    source->setPressure(pressure);
-  } // compute_pressure
-#endif 
-
-  /**
-   * @brief      Zero temperature EOS from Chandrasechkar's 
-   * 		 This can be used white dwarf system
-   *
-   * @param      srch  The srch
-   */
-  void 
-  compute_pressure_wd(
-      body_holder* srch)
-  { 
-    body* source = srch->getBody();
-    double A_dwd = 6.00288e22;
-    double B_dwd = 9.81011e5;
-
-    double x_dwd = pow((source->getDensity())/B_dwd,1.0/3.0);
-    double pressure = A_dwd*(x_dwd*(2.0*x_dwd*x_dwd-3.0)*
- 		      pow(x_dwd*x_dwd+1.0,1.0/2.0)+3.0*asinh(x_dwd));
-    source->setPressure(pressure);
-  } // compute_pressure_wd
-
-// HL : Compute pressure from tabulated EOS. Working now..
-
-#if 1
-
-#ifdef _EOS_TAB_SC
-
-  void
-  compute_pressure_tabEOS_SC(
-      body_holder* srch)
-  { 
-    using namespace param;
-    body* source = srch->getBody();
-    double pressure = source->getAdiabatic()*
-      pow(source->getDensity(),poly_gamma);
-    source->setPressure(pressure);
-  } // compute_pressure_tabEOS_SC
-
-#endif
-
-#endif
-
-#endif
-  /**
-   * @brief      Compute the sound speed
-   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics 
-   * 
-   * @param      srch  The source's body holder
-   */
-  void 
-  compute_soundspeed(
-      body_holder* srch)
-  {
-    using namespace param;
-    body* source = srch->getBody();
-    double soundspeed = sqrt(poly_gamma*source->getPressure()
-                                       /source->getDensity());
-    source->setSoundspeed(soundspeed);
-  } // computeSoundspeed
 
   /**
    * @brief      Compute the density, EOS and spundspeed in the same function 
@@ -187,20 +93,9 @@ namespace physics{
   {
     compute_density(srch,nbsh);
     eos::compute_pressure(srch);
-    compute_soundspeed(srch); 
+    eos::compute_soundspeed(srch); 
   }
 
-#ifdef ADIABATIC
-  void 
-  compute_density_pressure_adiabatic_soundspeed(
-    body_holder* srch, 
-    std::vector<body_holder*>& nbsh)
-  {
-    compute_density(srch,nbsh);
-    eos::compute_pressure_adiabatic(srch);
-    compute_soundspeed(srch); 
-  }
-#endif
 
   /**
    * @brief      mu_ij for the artificial viscosity 
@@ -367,8 +262,6 @@ namespace physics{
   } // compute_dudt
 
 
-
-#ifdef ADIABATIC
   /**
    * @brief      Compute the adiabatic index for the particles 
    *
@@ -435,7 +328,7 @@ namespace physics{
     source->setAdiabatic(
       source->getAdiabatic()+dt*source->getDadt());
   }
-#endif 
+
 
   /**
    * @brief      Apply boundaries if they are set
@@ -633,44 +526,7 @@ namespace physics{
     source->setPosition(source->getPosition()
                    + dt*source->getVelocity());
   }
-  /*******************************************************/
 
-
-  /**
-   * @brief      Leapfrog integration
-   *
-   * @param      srch  The source's body holder
-   */
-  void 
-  leapfrog_integration_old(
-      body_holder* srch)
-  {
-    body* source = srch->getBody();
-    
-    // If wall, reset velocity and dont move 
-    if(source->is_wall()){
-      source->setVelocity(point_t{});
-      source->setVelocityhalf(point_t{}); 
-      return; 
-    }
-    
-    point_t velocityHalf = source->getVelocityhalf() + 
-        dt*source->getAcceleration();
-    point_t position = source->getPosition()+velocityHalf*dt;
-    point_t velocity = 1./2.*(source->getVelocityhalf()+velocityHalf);
-
-    if(do_boundaries){
-      if(physics::compute_boundaries(srch)){
-        return;
-      }
-    }
-
-    source->setVelocityhalf(velocityHalf);
-    source->setVelocity(velocity);
-    source->setPosition(position);
-    
-    mpi_assert(!std::isnan(position[0])); 
-  }
 
   /**
    * @brief      Compute the timestep from acceleration and mu 
