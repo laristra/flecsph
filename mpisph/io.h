@@ -29,6 +29,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <vector>
+#include "params.h"
 
 #include <H5hut.h>
 #include <hdf5ParticleIO.h>
@@ -300,9 +301,8 @@ void outputDataHDF5(
     const char* fileprefix,
     int step,
     double totaltime,
-    bool do_diff_files = false)
+    bool do_diff_files = param::out_h5data_separate_iterations)
 {
-
   int size, rank;
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -315,18 +315,21 @@ void outputDataHDF5(
 
   char filename[128];
   if(do_diff_files){
-    sprintf(filename,"%s_%05d.h5part",fileprefix,step);
-  }else{
+    sprintf(filename,"%s_%05d.h5part",fileprefix,step*param::out_h5data_every);
+  }
+  else {
     sprintf(filename,"%s.h5part",fileprefix);
-  }  
-
+  }
   Flecsi_Sim_IO::HDF5ParticleIO simio;
   simio.createDataset(filename,MPI_COMM_WORLD);
   
   //-------------------GLOBAL HEADER-------------------------------------------
   // Only for the first output
-  if(do_diff_files){
-  }else{
+  if(do_diff_files) {
+     simio.writeDatasetAttribute("ndim","int32_t",gdimension);
+     // ... TODO
+  }
+  else{
     if(step == 0){
       // output dimension 
       simio.writeDatasetAttribute("ndim","int32_t",gdimension);

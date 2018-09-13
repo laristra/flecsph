@@ -60,7 +60,7 @@ void set_derived_params() {
   using namespace param;
 
   // total number of particles
-  SET_PARAM(nparticles, sqrt_nparticles*sqrt_nparticles);
+  SET_PARAM(nparticles, lattice_nx*lattice_nx);
   SET_PARAM(sph_smoothing_length, (2.0*sph_separation));
 
   // file to be generated
@@ -105,17 +105,17 @@ int main(int argc, char * argv[]){
   set_derived_params();
 
   // Radius of the disk given the number of particles
-  double radius = (sph_separation*(sqrt_nparticles - 1))/2.0;
+  double radius = (sph_separation*(lattice_nx - 1))/2.0;
 
   // Center of disk
-  double x_c = (sqrt_nparticles - 1)*sph_separation/2.0;
+  double x_c = (lattice_nx - 1)*sph_separation/2.0;
   double y_c = x_c;
 
 
   clog(info) << "Sphere: r=" << radius << std::endl
                  << "origin: pos=["<<x_c<<";"<<y_c<<"]" << std::endl
                  << "Generating "  << nparticles
-                 << " particles (="<< sqrt_nparticles<<"^2) " << std::endl;
+                 << " particles (="<< lattice_nx<<"^2) " << std::endl;
 
 
   // Start on  0 0

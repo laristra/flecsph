@@ -12,6 +12,7 @@
 #include "sedov.h"
 #include "params.h"
 #include "hdf5ParticleIO.h"
+#include "lattice.h"
 
 /*
 The Sedov test is set up with uniform density and vanishingly small pressure.
@@ -42,9 +43,10 @@ I.  Theoretical  Discussion,” Royal Society of London Proceedings Series A
 // help message
 //
 void print_usage() {
-  clog(warn)
-      << "Initial data generator for the 2D Sedov blast wave" << std::endl
-      << "Usage: ./sedov_generator <parameter-file.par>"      << std::endl;
+  std::cout
+      << "Initial data generator for the " << gdimension << "D Sedov blast wave"
+      << std::endl << "Usage: ./sedov_generator <parameter-file.par>"
+      << std::endl;
 }
 
 //
@@ -57,7 +59,13 @@ void set_derived_params() {
   using namespace param;
 
   // total number of particles
-  SET_PARAM(nparticles, sqrt_nparticles*sqrt_nparticles);
+  if (gdimension == 2) {
+    SET_PARAM(nparticles, lattice_nx*lattice_nx);
+  } 
+  else {
+    SET_PARAM(nparticles, lattice_nx*lattice_nx*lattice_nx);
+  }
+
   SET_PARAM(uint_initial, (pressure_initial/(rho_initial*(poly_gamma-1.0))));
   SET_PARAM(sph_smoothing_length, (5.*sph_separation));
   r_blast = sedov_blast_radius * sph_separation;   // Radius of injection region
@@ -67,20 +75,6 @@ void set_derived_params() {
   oss << initial_data_prefix << ".h5part";
   initial_data_file = oss.str();
 
-}
-
-
-bool
-in_radius(
-    double x,
-    double y,
-    double z,
-    double x0,
-    double y0,
-    double z0,
-    double r)
-{
-  return (x-x0)*(x-x0)+(y-y0)*(y-y0)+(z-z0)*(z-z0)<r*r;
 }
 
 int main(int argc, char * argv[]){
@@ -107,96 +101,60 @@ int main(int argc, char * argv[]){
   param::mpi_read_params(argv[1]);
   set_derived_params();
 
+  particle_lattice::select();
+
   // Header data
   // the number of particles = nparticles
   // The value for constant timestep
-  double timestep = 0.001;  // TODO: replace with parameter initial_dt
-  int64_t maximum_part = nparticles;
-  if (gdimension==3){
-    maximum_part = pow(sqrt_nparticles,3);
-  }
+  double timestep = initial_dt;
+  double radius   = sph_separation*(lattice_nx-1.)/2.;
+  const point_t bbox_max = radius;
+  const point_t bbox_min = -radius;
 
-  // Start on  0 0
-  double radius = (sph_separation*(sqrt_nparticles-1.))/2.;
+  // Central coordinates: in most cases this should be centered at (0,0,0)
+  double x_c = 0.0;
+  double y_c = 0.0;
+  double z_c = 0.0;
 
-  // Central coordinates
-  double x_c;
-  double y_c;
-  double z_c;
-  if (gdimension == 2){
-    x_c = (sqrt_nparticles-1)*sph_separation/2.;
-    y_c = x_c;
-    z_c = 0;
-  } else if(gdimension == 3){
-    x_c = (sqrt_nparticles-1)*sph_separation/2.;
-    y_c = x_c;
-    z_c = x_c;
-  }
+  // Count number of particles
+  int64_t tparticles = 
+      particle_lattice::count(lattice_type,domain_type,
+      bbox_min,bbox_max,sph_separation,0); 
 
-  // Maximum coordinates of the initial configuration
-  double maxxposition;
-  double maxyposition;
-  double maxzposition;
-  if (gdimension == 2){
-    maxxposition = x_c + radius;
-    maxyposition = y_c + radius;
-    maxzposition = 0;
-  } else if(gdimension == 3){
-    maxxposition = x_c + radius;
-    maxyposition = y_c + radius;
-    maxzposition = z_c + radius;
-  }
-
-  if (gdimension == 2){
-    clog(info) <<"Sphere: r="<<radius<<" pos=["<<x_c<<";"<<y_c<<"]"<<std::endl
-          << "Attempting to generate " << maximum_part << " particles" << std::endl;
-  } else if(gdimension == 3){
-    clog(info) <<"Sphere: r="<<radius<<" pos=["<<x_c<<";"<<y_c<<";"<<z_c<<"]"<<std::endl
-          << "Attempting to generate " << maximum_part << " particles" << std::endl;
-  }
-
-  // Setting the coordinates to start building the lattice
-  double x_topproc;
-  double y_topproc;
-  double z_topproc;
-  if (gdimension == 2){
-    x_topproc = x_c - radius;
-    y_topproc = y_c - radius;
-    z_topproc = 0;
-  } else if(gdimension == 3){
-    x_topproc = x_c - radius;
-    y_topproc = y_c - radius;
-    z_topproc = z_c - radius;
-  }
-
+  // Initialize the arrays to be filled later
   // Position
-  double* x = new double[maximum_part]();
-  double* y = new double[maximum_part]();
-  double* z = new double[maximum_part]();
+  double* x = new double[tparticles]();
+  double* y = new double[tparticles]();
+  double* z = new double[tparticles]();
   // Velocity
-  double* vx = new double[maximum_part]();
-  double* vy = new double[maximum_part]();
-  double* vz = new double[maximum_part]();
+  double* vx = new double[tparticles]();
+  double* vy = new double[tparticles]();
+  double* vz = new double[tparticles]();
   // Acceleration
-  double* ax = new double[maximum_part]();
-  double* ay = new double[maximum_part]();
-  double* az = new double[maximum_part]();
+  double* ax = new double[tparticles]();
+  double* ay = new double[tparticles]();
+  double* az = new double[tparticles]();
   // Smoothing length
-  double* h = new double[maximum_part]();
+  double* h = new double[tparticles]();
   // Density
-  double* rho = new double[maximum_part]();
+  double* rho = new double[tparticles]();
   // Internal Energy
-  double* u = new double[maximum_part]();
+  double* u = new double[tparticles]();
   // Pressure
-  double* P = new double[maximum_part]();
+  double* P = new double[tparticles]();
   // Mass
-  double* m = new double[maximum_part]();
+  double* m = new double[tparticles]();
   // Id
-  int64_t* id = new int64_t[maximum_part]();
+  int64_t* id = new int64_t[tparticles]();
   // Timestep
-  double* dt = new double[maximum_part]();
+  double* dt = new double[tparticles]();
 
-  // Id of my first particle
+  // Generate the lattice
+  assert(tparticles ==
+      particle_lattice::generate(lattice_type,domain_type,
+      bbox_min,bbox_max,sph_separation,0, x, y, z));
+
+  // particle id number
   int64_t posid = 0;
 
   // Number of particles in the blast zone
@@ -204,161 +162,12 @@ int main(int argc, char * argv[]){
 
   // Total mass of particles in the blast zone
   double mass_blast = 0;
-
-  double xposition = x_topproc;//0;
-  double yposition = y_topproc;//0;
-  double zposition = z_topproc;//0;
-
-  int64_t tparticles = 0;
-
-  // For square lattice initial configuration
-  if(lattice_type == 0) {
-    for (int64_t part=0; part<maximum_part; ++part) {
-      while(!in_radius(xposition,yposition,zposition,x_c,y_c,z_c,radius)){
-        xposition+= sph_separation;
-        if(xposition > maxxposition){
-          if(yposition > maxyposition){
-            if(gdimension==3){
-              if(zposition > maxzposition){
-                break;
-              }
-              zposition+=sph_separation;
-              xposition=x_topproc;
-              yposition=y_topproc;
-            } else if(gdimension==2){
-              break;
-            }
-          }
-          xposition=x_topproc;
-          yposition+=sph_separation;
-        }
-      }
-
-      if(xposition > maxxposition){
-        if(yposition > maxyposition){
-          if(gdimension==3){
-            if(zposition > maxzposition){
-              break;
-            }
-          } else if(gdimension==2){
-            break;
-          }
-        }
-      }
-
-      tparticles++;
-      x[part] = xposition;
-      y[part] = yposition;
-      z[part] = zposition;
-
-      xposition+=sph_separation;
-      if(xposition > maxxposition){
-        if(yposition > maxyposition){
-          if(gdimension==3){
-            if(zposition > maxzposition){
-              break;
-            }
-            zposition+=sph_separation;
-            xposition=x_topproc;
-            yposition=y_topproc;
-          } else if(gdimension==2){
-            break;
-          }
-        }
-        xposition=x_topproc;
-        yposition+=sph_separation;
-      }
-
-    }
-  } else if (lattice_type == 1){ // For triangular lattice initial configuration
-    int64_t row = 0;
-    int64_t zrow = 0;
-    for (int64_t part=0; part<maximum_part; ++part) {
-      while(!in_radius(xposition,yposition,zposition,x_c,y_c,z_c,radius)){
-        xposition+= sph_separation;
-        if(xposition > maxxposition){
-          if(yposition > maxyposition){
-            if(gdimension==3){
-              if(zposition > maxzposition){
-                break;
-              }
-              zposition+=sqrt(2./3.)*sph_separation;
-              zrow+=1;
-              if (zrow % 2 == 1){
-                xposition=x_topproc-sph_separation/2.;
-                yposition=y_topproc-sph_separation*sqrt(3.)/6.;
-                row=0;
-              } else if (zrow % 2 == 0){
-                xposition=x_topproc;
-                yposition=y_topproc;
-                row=0;
-              }
-
-            } else if(gdimension==2){
-              break;
-            }
-          }
-          yposition+=sqrt(3.)/2.*sph_separation;
-          row+=1;
-          if (row % 2 == 1){
-            xposition=x_topproc-sph_separation/2.;
-          } else if (row % 2 == 0){
-            xposition=x_topproc;
-          }
-        }
-      }
-
-      if(xposition > maxxposition){
-        if(yposition > maxyposition){
-          if(gdimension==3){
-            if(zposition > maxzposition){
-              break;
-            }
-          } else if(gdimension==2){
-            break;
-          }
-        }
-      }
-
-      tparticles++;
-      x[part] = xposition;
-      y[part] = yposition;
-      z[part] = zposition;
-
-      xposition+=sph_separation;
-      if(xposition > maxxposition){
-        if(yposition > maxyposition){
-          if(gdimension==3){
-            if(zposition > maxzposition){
-              break;
-            }
-            zposition+=sqrt(2./3.)*sph_separation;
-            zrow+=1;
-            if (zrow % 2 == 1){
-              xposition=x_topproc-sph_separation/2.;
-              yposition=y_topproc-sph_separation*sqrt(3.)/6.;
-              row=0;
-            } else if (zrow%2 == 0){
-              xposition=x_topproc;
-              yposition=y_topproc;
-              row=0;
-            }
-          } else if(gdimension==2){
-            break;
-          }
-        }
-        yposition+=sqrt(3.)/2.*sph_separation;
-        row += 1;
-        if (row % 2 == 1){
-          xposition=x_topproc-sph_separation/2.;
-        } else if (row % 2 == 0){
-          xposition=x_topproc;
-        }
-      }
-
-    }
+  double mass;
+  if(gdimension==2){
+    mass = rho_initial * M_PI*pow(radius,2.)/tparticles;
+  } else{
+    mass = rho_initial * 4./3.*M_PI*pow(radius,3.)/tparticles;
   }
-  double mass = rho_initial * M_PI*pow(radius,2.)/tparticles;
   // Assign density, pressure and specific internal energy to particles,
   // including the particles in the blast zone
   for(int64_t part=0; part<tparticles; ++part){
@@ -370,14 +179,14 @@ int main(int argc, char * argv[]){
        particles_blast++;
        mass_blast += m[part];
     }
+  }
+  for(int64_t part=0; part<tparticles; ++part){
     P[part] = pressure_initial;
     rho[part] = rho_initial;
     u[part] = uint_initial;
     h[part] = sph_smoothing_length;
     id[part] = posid++;
-  }
 
-  for(int64_t part=0; part<tparticles; ++part){
     if(sqrt((x[part]-x_c)*(x[part]-x_c)+(y[part]-y_c)*(y[part]-y_c)+(z[part]-z_c)*(z[part]-z_c)) < r_blast){
        u[part] = u[part]+sedov_blast_energy/particles_blast;
        P[part] = u[part]*rho[part]*(poly_gamma - 1.0);

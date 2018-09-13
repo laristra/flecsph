@@ -13,14 +13,16 @@
 #include "sodtube.h"
 #include "params.h"
 #include "hdf5ParticleIO.h"
+#include "lattice.h"
 
 //
 // help message
 //
 void print_usage() {
   using namespace std;
-  clog(warn) << "Initial data generator for Sod shocktube test in 1D" << endl
-         << "Usage: ./sodtube_generator <parameter-file.par>" << endl;
+  cout << "Initial data generator for Sod shocktube test in" <<
+  gdimension << "D" << endl << "Usage: ./sodtube_generator <parameter-file.par>"
+  << endl;
 }
 
 //
@@ -32,24 +34,30 @@ static double vx_1, vx_2;             // velocities
 static double pressure_1, pressure_2; // pressures
 static std::string initial_data_file; // = initial_data_prefix + ".h5part"
 
-void set_derived_params(int rank, int size) {
+void set_derived_params() {
   using namespace std;
   using namespace param;
 
-  // number of particles per core
-  nparticlesproc = nparticles/size + 1;
-  if(rank==size-1){
-    nparticlesproc = nparticles - nparticlesproc*(size-1);
-  }
+  // compute the total number of particles
+  int64_t npd = lattice_nx;
+  for (size_t j=1; j<gdimension; ++j)
+    npd *= lattice_nx;
+  SET_PARAM(nparticles, npd);
 
   // particle spacing and smoothing length
-  SET_PARAM(sph_separation, 1.0/(double)nparticles);
-  SET_PARAM(sph_smoothing_length, (sph_separation*20)); // TODO: use sph_eta instead
+  SET_PARAM(sph_separation, (1.0/(double)(lattice_nx - 1)));
+  if(gdimension==1){
+    SET_PARAM(sph_smoothing_length, (sph_separation*25.)); // TODO: use sph_eta instead
+  } else if(gdimension==2){
+    SET_PARAM(sph_smoothing_length, (sph_separation*4.)); // TODO: ???
+  } else if(gdimension==3){
+    SET_PARAM(sph_smoothing_length, (sph_separation*3.)); // TODO: ???
+  }
 
   // test selector
   switch (sodtest_num) {
     case (1):
-      // -- left side      | right side -- //
+      // -- middle         | left and right side -- //
       rho_1      = 1.0;      rho_2      = 0.125;
       pressure_1 = 1.0;      pressure_2 = 0.1;
       vx_1       = 0.0;      vx_2       = 0.0;
@@ -114,51 +122,150 @@ int main(int argc, char * argv[]){
 
   // set simulation parameters
   param::mpi_read_params(argv[1]);
-  set_derived_params(rank,size);
+  set_derived_params();
+  particle_lattice::select();
 
   // screen output
-  clog(info) << "Sod test #" << sodtest_num << " in 1D:" << endl
-         << " - number of particles: " << nparticles << endl
-         << " - particles per core:  " << nparticlesproc << endl
-         << " - generated initial data file: "
-         << initial_data_file << endl;
+  clog(info) << "Sod test #" << sodtest_num << " in " << gdimension
+         << "D:" << endl << " - number of particles: " << nparticles
+         << endl << " - particles per core:  " << nparticlesproc << endl
+         << " - generated initial data file: " << initial_data_file << endl;
 
+  // Central coordinates: in most cases this should be centered at (0,0,0)
+  point_t cbox_max = 0.;
+  point_t cbox_min = 0.;
+  point_t rbox_max = 0.;
+  point_t rbox_min = 0.;
+  point_t lbox_max = 0.;
+  point_t lbox_min = 0.;
+
+  // set the dimensions of the rectangles: left, center, right
+  // currently 3 cubes of length 2*cbox_max[0]
+  cbox_max[0] = (lattice_nx-1.)*sph_separation/2.;
+  cbox_min[0] = -cbox_max[0];
+
+  rbox_max[0] = 3.*cbox_max[0] + sph_separation;
+  rbox_min[0] =    cbox_max[0] + sph_separation;
+
+  lbox_max[0] =    cbox_min[0] - sph_separation;
+  lbox_min[0] = 3.*cbox_min[0] - sph_separation;
+
+  for (size_t j=1; j<gdimension; ++j) {
+    cbox_max[j] = cbox_max[0];
+    cbox_min[j] = cbox_min[0];
+
+    rbox_max[j] = cbox_max[j];
+    rbox_min[j] = cbox_min[j];
+
+    lbox_max[j] = cbox_max[j];
+    lbox_min[j] = cbox_min[j];
+  }
+  
   // allocate arrays
+  int64_t tparticles = 0;
+  int64_t parts_mid= 0;
+  int64_t parts_lr = 0;
+  double mass = 0;
+  bool equal_separation = !equal_mass;
+  if(equal_separation){
+    tparticles =  particle_lattice::count(lattice_type,2,cbox_min,cbox_max,
+                                          sph_separation,0);
+    parts_mid = tparticles;
+    tparticles += particle_lattice::count(lattice_type,2,rbox_min,rbox_max,
+                                          sph_separation,tparticles-1);
+    parts_lr = tparticles-parts_mid;
+    tparticles += particle_lattice::count(lattice_type,2,lbox_min,lbox_max,
+                                          sph_separation,tparticles-1);
+  }
 
+  double lr_sph_sep = 0.;
+  double temp_part = 0;
+  double temp_part_new = 0;
+  if(equal_mass){
+    tparticles = particle_lattice::count(lattice_type,2,cbox_min,cbox_max,
+                                         sph_separation,0);
+    if(gdimension==1){
+      mass = rho_1*(cbox_max[0]-cbox_min[0])/tparticles;
+      if(lattice_type==0){
+        temp_part = tparticles;
+      } else if(lattice_type==1 || lattice_type==2){
+        temp_part = tparticles/sqrt(2.);
+      }
+      temp_part_new = rho_2/rho_1*(temp_part);
+      lr_sph_sep = 1./(temp_part_new-1.);
+    } else if(gdimension==2){
+      mass = rho_1*(cbox_max[0]-cbox_min[0])*(cbox_max[1]-cbox_min[1])/tparticles;
+      if(lattice_type==0){
+        temp_part = tparticles;
+      } else if(lattice_type==1 || lattice_type==2){
+        temp_part = tparticles/sqrt(2.);
+      }
+      temp_part_new = rho_2/rho_1*(temp_part);
+      lr_sph_sep = 1./((int)sqrt(temp_part_new)-1.);
+    } else{
+      mass = rho_1*(cbox_max[0]-cbox_min[0])*(cbox_max[1]-cbox_min[1])*(cbox_max[2]-cbox_min[2])/tparticles;
+      if(lattice_type==0){
+        temp_part = tparticles;
+      } else if(lattice_type==1 || lattice_type==2){
+        temp_part = tparticles/sqrt(2.);
+      }
+      temp_part_new = rho_2/rho_1*(temp_part);
+      lr_sph_sep = 1./((int)cbrt(temp_part_new)-1.);
+    }
+    tparticles += particle_lattice::count(lattice_type,2,rbox_min,rbox_max,
+                                          lr_sph_sep,tparticles-1);
+    tparticles += particle_lattice::count(lattice_type,2,lbox_min,lbox_max,
+                                          lr_sph_sep,tparticles-1);
+  }
+
+
+  // Initialize the arrays to be filled later
   // Position
-  double* x = new double[nparticlesproc]();
-  double* y = new double[nparticlesproc]();
-  double* z = new double[nparticlesproc]();
+  double* x = new double[tparticles]();
+  double* y = new double[tparticles]();
+  double* z = new double[tparticles]();
   // Velocity
-  double* vx = new double[nparticlesproc]();
-  double* vy = new double[nparticlesproc]();
-  double* vz = new double[nparticlesproc]();
+  double* vx = new double[tparticles]();
+  double* vy = new double[tparticles]();
+  double* vz = new double[tparticles]();
   // Acceleration
-  double* ax = new double[nparticlesproc]();
-  double* ay = new double[nparticlesproc]();
-  double* az = new double[nparticlesproc]();
+  double* ax = new double[tparticles]();
+  double* ay = new double[tparticles]();
+  double* az = new double[tparticles]();
   // Smoothing length
-  double* h = new double[nparticlesproc]();
+  double* h = new double[tparticles]();
   // Density
-  double* rho = new double[nparticlesproc]();
+  double* rho = new double[tparticles]();
   // Internal Energy
-  double* u = new double[nparticlesproc]();
+  double* u = new double[tparticles]();
   // Pressure
-  double* P = new double[nparticlesproc]();
+  double* P = new double[tparticles]();
   // Mass
-  double* m = new double[nparticlesproc]();
+  double* m = new double[tparticles]();
   // Id
-  int64_t* id = new int64_t[nparticlesproc]();
+  int64_t* id = new int64_t[tparticles]();
   // Timestep
-  double* dt = new double[nparticlesproc]();
+  double* dt = new double[tparticles]();
 
-  // Generate data
-  // Find middle to switch m, u and rho
-  double middle = nparticles*sph_separation/2.;
-  // Find my first particle position
-  double lposition = sph_separation*nparticlesproc*rank;
-  // Id of my first particle
-  int64_t posid = nparticlesproc*rank;
+  if(equal_separation){
+    tparticles =  particle_lattice::generate(lattice_type,2,cbox_min,cbox_max,
+                                             sph_separation,0,x,y,z);
+    tparticles += particle_lattice::generate(lattice_type,2,rbox_min,rbox_max,
+                                             sph_separation,tparticles-1,x,y,z);
+    tparticles += particle_lattice::generate(lattice_type,2,lbox_min,lbox_max,
+                                             sph_separation,tparticles-1,x,y,z);
+  }
+  if(equal_mass){
+    tparticles =  particle_lattice::generate(lattice_type,2,cbox_min,cbox_max,
+                                             sph_separation,0,x,y,z);
+    tparticles += particle_lattice::generate(lattice_type,2,rbox_min,rbox_max,
+                                             lr_sph_sep,tparticles-1,x,y,z);
+    tparticles += particle_lattice::generate(lattice_type,2,lbox_min,lbox_max,
+                                             lr_sph_sep,tparticles-1,x,y,z);
+  }
+
+  // particle id number
+  int64_t posid = 0;
 
   // max. value for the speed of sound
   double cs = sqrt(poly_gamma*max(pressure_1/rho_1,pressure_2/rho_2));
@@ -166,34 +273,53 @@ int main(int argc, char * argv[]){
   // The value for constant timestep
   double timestep = 0.5*sph_separation/cs;
 
+  if(equal_separation){
+    for(int64_t part=0; part<tparticles; ++part){
+      id[part] = posid++;
+      if(x[part] < cbox_min[0] || x[part] > cbox_max[0]){
+        P[part] = pressure_2;
+        rho[part] = rho_2;
+        vx[part] = vx_2;
+        m[part] = rho[part]/(double)parts_lr;
+      } else{
+        P[part] = pressure_1;
+        rho[part] = rho_1;
+        vx[part] = vx_1;
+        m[part] = rho[part]/(double)parts_mid;
+      }
 
-  for(int64_t part=0; part<nparticlesproc; ++part){
-    id[part] = posid++;
-    x[part] = lposition;
+      // compute internal energy using gamma-law eos
+      u[part] = P[part]/(poly_gamma-1.)/rho[part];
 
-    if(x[part] > middle){
-      P[part] = pressure_2;
-      rho[part] = rho_2;
-      vx[part] = vx_2;
-    }else{
-      P[part] = pressure_1;
-      rho[part] = rho_1;
-      vx[part] = vx_1;
-    }
+      // particle smoothing length
+      h[part] = sph_smoothing_length;
 
-    // compute internal energy using gamma-law eos
-    u[part] = P[part]/(poly_gamma-1.)/rho[part];
 
-    // particle masses and smoothing length
-    m[part] = rho[part]*sph_smoothing_length/10.;
-    h[part] = sph_smoothing_length;
+    } // for part=0..nparticles
+  }
+  if(equal_mass){
+    for(int64_t part=0; part<tparticles; ++part){
+      id[part] = posid++;
+      if(x[part] < cbox_min[0] || x[part] > cbox_max[0]){
+        P[part] = pressure_2;
+        rho[part] = rho_2;
+        vx[part] = vx_2;
+      } else{
+        P[part] = pressure_1;
+        rho[part] = rho_1;
+        vx[part] = vx_1;
+      }
 
-    // P,Y,Z,VY,VZ,AX,AY,AZ stay 0
-    // Move to the next particle
-    lposition += sph_separation;
+      // compute internal energy using gamma-law eos
+      u[part] = P[part]/(poly_gamma-1.)/rho[part];
 
-  } // for part=0..nparticles
+      // particle masses and smoothing length
+      m[part] = mass;
+      h[part] = sph_smoothing_length;
 
+    } // for part=0..nparticles
+  }
+  clog_one(info) << "Real number of particles: " << tparticles << std::endl;
   // delete the output file if exists
   remove(initial_data_file.c_str());
 
@@ -203,9 +329,9 @@ int main(int argc, char * argv[]){
   testDataSet.createDataset(initial_data_file,MPI_COMM_WORLD);
 
   // add the global attributes
-  testDataSet.writeDatasetAttribute("nparticles","int64_t",nparticles);
+  testDataSet.writeDatasetAttribute("nparticles","int64_t",tparticles);
   testDataSet.writeDatasetAttribute("timestep","double",timestep);
-  testDataSet.writeDatasetAttribute("dimension","int32_t",1);
+  testDataSet.writeDatasetAttribute("dimension","int32_t",gdimension);
   testDataSet.writeDatasetAttribute("use_fixed_timestep","int32_t",1);
 
   //testDataSet.writeDatasetAttributeArray("name","string",simName);
@@ -216,9 +342,9 @@ int main(int argc, char * argv[]){
 
   Flecsi_Sim_IO::Variable _d1,_d2,_d3;
 
-  _d1.createVariable("x",Flecsi_Sim_IO::point,"double",nparticlesproc,x);
-  _d2.createVariable("y",Flecsi_Sim_IO::point,"double",nparticlesproc,y);
-  _d3.createVariable("z",Flecsi_Sim_IO::point,"double",nparticlesproc,z);
+  _d1.createVariable("x",Flecsi_Sim_IO::point,"double",tparticles,x);
+  _d2.createVariable("y",Flecsi_Sim_IO::point,"double",tparticles,y);
+  _d3.createVariable("z",Flecsi_Sim_IO::point,"double",tparticles,z);
 
   testDataSet.vars.push_back(_d1);
   testDataSet.vars.push_back(_d2);
@@ -226,7 +352,7 @@ int main(int argc, char * argv[]){
 
   testDataSet.writeVariables();
 
-  _d1.createVariable("vx",Flecsi_Sim_IO::point,"double",nparticlesproc,vx);
+  _d1.createVariable("vx",Flecsi_Sim_IO::point,"double",tparticles,vx);
   //_d2.createVariable("vy",Flecsi_Sim_IO::point,"double",nparticlesproc,vy);
   //_d3.createVariable("vz",Flecsi_Sim_IO::point,"double",nparticlesproc,vz);
 
@@ -247,9 +373,9 @@ int main(int argc, char * argv[]){
   //testDataSet.writeVariables();
 
 
-  _d1.createVariable("h",Flecsi_Sim_IO::point,"double",nparticlesproc,h);
-  _d2.createVariable("rho",Flecsi_Sim_IO::point,"double",nparticlesproc,rho);
-  _d3.createVariable("u",Flecsi_Sim_IO::point,"double",nparticlesproc,u);
+  _d1.createVariable("h",Flecsi_Sim_IO::point,"double",tparticles,h);
+  _d2.createVariable("rho",Flecsi_Sim_IO::point,"double",tparticles,rho);
+  _d3.createVariable("u",Flecsi_Sim_IO::point,"double",tparticles,u);
 
   testDataSet.vars.push_back(_d1);
   testDataSet.vars.push_back(_d2);
@@ -257,9 +383,9 @@ int main(int argc, char * argv[]){
 
   testDataSet.writeVariables();
 
-  _d1.createVariable("P",Flecsi_Sim_IO::point,"double",nparticlesproc,P);
-  _d2.createVariable("m",Flecsi_Sim_IO::point,"double",nparticlesproc,m);
-  _d3.createVariable("id",Flecsi_Sim_IO::point,"int64_t",nparticlesproc,id);
+  _d1.createVariable("P",Flecsi_Sim_IO::point,"double",tparticles,P);
+  _d2.createVariable("m",Flecsi_Sim_IO::point,"double",tparticles,m);
+  _d3.createVariable("id",Flecsi_Sim_IO::point,"int64_t",tparticles,id);
 
   testDataSet.vars.push_back(_d1);
   testDataSet.vars.push_back(_d2);

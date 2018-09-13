@@ -1,0 +1,18 @@
+#
+# Neutron star test
+#
+# initial data
+  initial_data_prefix = "bns"
+
+# gravity related parameters:
+  fmm_macangle = 0.0
+  fmm_max_cell_mass = 10.0
+
+# evolution parameters:
+  sph_kernel = "Quintic Spline"
+  initial_dt = 0.0025 # TODO: better use Courant factor X sph_separation
+  final_iteration = 50
+  out_screen_every = 1
+  out_scalar_every = 10
+  out_h5data_every = 10
+  output_h5data_prefix = "bns_evolution"

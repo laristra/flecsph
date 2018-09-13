@@ -3,7 +3,7 @@
 #
 # initial data
   initial_data_prefix = "noh_sqn100"
-  sqrt_nparticles = 100   # sqrt of the total number of particles
+  lattice_nx = 100            # particle lattice dimension
   ### poly_gamma = 1.6666667  # polytropic index
   rho_initial = 1.0
   pressure_initial = 1.0e-6

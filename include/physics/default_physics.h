@@ -29,10 +29,10 @@
 #include <vector>
 
 #include "params.h"
+#include "eos.h"
 #include "utils.h"
 #include "kernels.h"
 #include "tree.h"
-#include <boost/algorithm/string.hpp>
 
 namespace physics{
   using namespace param;
@@ -53,74 +53,6 @@ namespace physics{
   int64_t iteration = 0;
 
   /**
-   * @brief      Kernel selector: types, global variables and the function
-   *
-   * @param      kstr     Kernel string descriptor
-   *
-   * @return     Pointer to the kernel
-   */
-  typedef double  (*kernel_function_t)(const double,    const double);
-  typedef point_t (*kernel_gradient_t)(const point_t &, const double);
-  kernel_function_t kernel;
-  kernel_gradient_t gradKernel;
-
-  void
-  select_kernel(const std::string& kstr) {
-    if (boost::iequals(kstr,"cubic spline")) {
-      kernel = kernels::cubic_spline;
-      gradKernel = kernels::gradient_cubic_spline;
-    }
-    else if (boost::iequals(kstr, "quintic spline")) {
-      kernel = kernels::quintic_spline;
-      gradKernel = kernels::gradient_quintic_spline;
-    }
-    else if (boost::iequals(kstr, "wendland c2")) {
-      if (gdimension == 1) {
-        kernel = kernels::wendland_c2_1d;
-        gradKernel = kernels::gradient_wendland_c2_1d;
-      } else {
-        kernel = kernels::wendland_c2_23d;
-        gradKernel = kernels::gradient_wendland_c2_23d;
-      }
-    }
-    else if (boost::iequals(kstr, "wendland c4")) {
-      if (gdimension == 1) {
-        kernel = kernels::wendland_c4_1d;
-        gradKernel = kernels::gradient_wendland_c4_1d;
-      } else {
-        kernel = kernels::wendland_c4_23d;
-        gradKernel = kernels::gradient_wendland_c4_23d;
-      }
-    }
-    else if (boost::iequals(kstr, "wendland c6")) {
-      if (gdimension == 1) {
-        kernel = kernels::wendland_c6_1d;
-        gradKernel = kernels::gradient_wendland_c6_1d;
-      } else {
-        kernel = kernels::wendland_c6_23d;
-        gradKernel = kernels::gradient_wendland_c6_23d;
-      }
-    }
-    else if (boost::iequals(kstr, "gaussian")) {
-      kernel = kernels::gaussian;
-      gradKernel = kernels::gradient_gaussian;
-    }
-    else if (boost::iequals(kstr, "super gaussian")) {
-      kernel = kernels::super_gaussian;
-      gradKernel = kernels::gradient_super_gaussian;
-    }
-    else if (boost::iequals(kstr, "sinc")) {
-      kernels::set_sinc_kernel_normalization(sph_sinc_index);
-      kernel = kernels::sinc_ker;
-      gradKernel = kernels::gradient_sinc_ker;
-    }
-    else {
-      clog(error) << "Bad kernel parameter" << std::endl;
-    }
-  }
-
-
-  /**
    * @brief      Compute the density 
    * Based on Fryer/05 eq(10)
    * @param      srch  The source's body holder
@@ -138,7 +70,7 @@ namespace physics{
       body* nb = nbh->getBody();
       double dist = flecsi::distance(source->getPosition(),nb->getPosition());
       mpi_assert(dist>=0.0);
-      double kernelresult = kernel(dist,
+      double kernelresult = kernels::kernel(dist,
             .5*(source->getSmoothinglength()+nb->getSmoothinglength()));
       density += kernelresult*nb->getMass();
     } // for
@@ -146,96 +78,6 @@ namespace physics{
     source->setDensity(density);
   } // compute_density
 
-  /**
-   * @brief      Compute the pressure
-   * Ideal gas EOS
-   * @param      srch  The source's body holder
-   */
-  void 
-  compute_pressure(
-      body_holder* srch)
-  { 
-    using namespace param;
-    body* source = srch->getBody();
-    double pressure = (poly_gamma-1.0)*
-      source->getDensity()*source->getInternalenergy();
-    source->setPressure(pressure);
-  } // compute_pressure
-
-#ifdef ADIABATIC
-  /**
-   * @brief      Compute the pressure based on adiabatic index
-   *
-   * @param      srch  The source's body holder
-   */
-  void 
-  compute_pressure_adiabatic(
-      body_holder* srch)
-  { 
-    using namespace param;
-    body* source = srch->getBody();
-    double pressure = source->getAdiabatic()*
-      pow(source->getDensity(),poly_gamma);
-    source->setPressure(pressure);
-  } // compute_pressure
-#endif 
-
-  /**
-   * @brief      Zero temperature EOS from Chandrasechkar's 
-   * 		 This can be used white dwarf system
-   *
-   * @param      srch  The srch
-   */
-  void 
-  compute_pressure_wd(
-      body_holder* srch)
-  { 
-    body* source = srch->getBody();
-    double A_dwd = 6.00288e22;
-    double B_dwd = 9.81011e5;
-
-    double x_dwd = pow((source->getDensity())/B_dwd,1.0/3.0);
-    double pressure = A_dwd*(x_dwd*(2.0*x_dwd*x_dwd-3.0)*
- 		      pow(x_dwd*x_dwd+1.0,1.0/2.0)+3.0*asinh(x_dwd));
-    source->setPressure(pressure);
-  } // compute_pressure_wd
-
-// HL : Compute pressure from tabulated EOS. Working now..
-
-#if 1
-
-#ifdef _EOS_TAB_SC
-
-  void
-  compute_pressure_tabEOS_SC(
-      body_holder* srch)
-  { 
-    using namespace param;
-    body* source = srch->getBody();
-    double pressure = source->getAdiabatic()*
-      pow(source->getDensity(),poly_gamma);
-    source->setPressure(pressure);
-  } // compute_pressure_tabEOS_SC
-
-#endif
-
-#endif
-  /**
-   * @brief      Compute the sound speed
-   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics 
-   * 
-   * @param      srch  The source's body holder
-   */
-  void 
-  compute_soundspeed(
-      body_holder* srch)
-  {
-    using namespace param;
-    body* source = srch->getBody();
-    double soundspeed = sqrt(poly_gamma*source->getPressure()
-                                       /source->getDensity());
-    source->setSoundspeed(soundspeed);
-  } // computeSoundspeed
 
   /**
    * @brief      Compute the density, EOS and spundspeed in the same function 
@@ -250,21 +92,10 @@ namespace physics{
     std::vector<body_holder*>& nbsh)
   {
     compute_density(srch,nbsh);
-    compute_pressure(srch);
-    compute_soundspeed(srch); 
+    eos::compute_pressure(srch);
+    eos::compute_soundspeed(srch); 
   }
 
-#ifdef ADIABATIC
-  void 
-  compute_density_pressure_adiabatic_soundspeed(
-    body_holder* srch, 
-    std::vector<body_holder*>& nbsh)
-  {
-    compute_density(srch,nbsh);
-    compute_pressure_adiabatic(srch);
-    compute_soundspeed(srch); 
-  }
-#endif
 
   /**
    * @brief      mu_ij for the artificial viscosity 
@@ -365,7 +196,7 @@ namespace physics{
           + nb->getPressure()/(rho_b*rho_b);
 
       // Kernel computation
-      point_t sourcekernelgradient = gradKernel(
+      point_t sourcekernelgradient = kernels::gradKernel(
           vecPosition,source->getSmoothinglength());
       point_t resultkernelgradient = sourcekernelgradient;
 
@@ -408,7 +239,7 @@ namespace physics{
     
       // Compute the gradKernel ij      
       point_t vecPosition = source->getPosition()-nb->getPosition();
-      point_t sourcekernelgradient = gradKernel(
+      point_t sourcekernelgradient = kernels::gradKernel(
           vecPosition,source->getSmoothinglength());
       space_vector_t resultkernelgradient = 
           flecsi::point_to_vector(sourcekernelgradient);
@@ -431,8 +262,6 @@ namespace physics{
   } // compute_dudt
 
 
-
-#ifdef ADIABATIC
   /**
    * @brief      Compute the adiabatic index for the particles 
    *
@@ -467,7 +296,7 @@ namespace physics{
       mpi_assert(viscosity>=0.0);
 
       point_t vecPosition = source->getPosition()-nb->getPosition();
-      point_t sourcekernelgradient = gradKernel(
+      point_t sourcekernelgradient = kernels::gradKernel(
           vecPosition,source->getSmoothinglength());
       point_t resultkernelgradient = sourcekernelgradient;
 
@@ -486,23 +315,8 @@ namespace physics{
  
 
   } // compute_hydro_acceleration
-#endif 
 
   /**
-   * @brief      Integrate the internal energy variation, update internal energy
-   *
-   * @param      srch  The source's body holder
-   */
-  void dudt_integration(
-      body_holder* srch)
-  {
-    body* source = srch->getBody(); 
-    source->setInternalenergy(
-      source->getInternalenergy()+dt*source->getDudt());
-  }
-
-#ifdef ADIABATIC 
-    /**
    * @brief      Integrate the internal energy variation, update internal energy
    *
    * @param      srch  The source's body holder
@@ -514,7 +328,7 @@ namespace physics{
     source->setAdiabatic(
       source->getAdiabatic()+dt*source->getDadt());
   }
-#endif 
+
 
   /**
    * @brief      Apply boundaries if they are set
@@ -578,36 +392,12 @@ namespace physics{
     return considered;
   }
 
-#if 0 
-  // \TODO VERSION USED IN THE BNS, CHECK VALIDITY REGARDING THE OTHER ONE 
-  void 
-  leapfrog_integration(
-      body_holder* srch)
-  {
-    body* source = srch->getBody();
-    
-
-    point_t velocity = source->getVelocityhalf()+
-      source->getAcceleration() * dt / 2.;
-    point_t velocityHalf = velocity+
-      source->getAcceleration() * dt / 2.;
-    point_t position = source->getPosition()+velocityHalf*dt;
-    // integrate dadt 
-    double adiabatic_factor = source->getAdiabatic() + source->getDadt()* dt;
-
-    source->setVelocity(velocity);
-    source->setVelocityhalf(velocityHalf);
-    source->setPosition(position);
-    source->setAdiabatic(adiabatic_factor);
-    
-    mpi_assert(!std::isnan(position[0])); 
-  }
-#endif
-
   /**
-   * @brief      Leapfrog integration, first step 
+   * @brief Leapfrog integration, first step 
+   *        TODO: deprecate; new Leapfrog should be implemented with
+   *              the kick-drift-kick formulae
    *
-   * @param      srch  The source's body holder
+   * @param srch  The source's body holder
    */
   void 
   leapfrog_integration_first_step(
@@ -641,9 +431,11 @@ namespace physics{
   }
 
   /**
-   * @brief      Leapfrog integration
+   * @brief Leapfrog integration
+   *        TODO: deprecate; new Leapfrog should be implemented with
+   *              the kick-drift-kick formulae
    *
-   * @param      srch  The source's body holder
+   * @param srch  The source's body holder
    */
   void 
   leapfrog_integration(
@@ -734,44 +526,7 @@ namespace physics{
     source->setPosition(source->getPosition()
                    + dt*source->getVelocity());
   }
-  /*******************************************************/
 
-
-  /**
-   * @brief      Leapfrog integration
-   *
-   * @param      srch  The source's body holder
-   */
-  void 
-  leapfrog_integration_old(
-      body_holder* srch)
-  {
-    body* source = srch->getBody();
-    
-    // If wall, reset velocity and dont move 
-    if(source->is_wall()){
-      source->setVelocity(point_t{});
-      source->setVelocityhalf(point_t{}); 
-      return; 
-    }
-    
-    point_t velocityHalf = source->getVelocityhalf() + 
-        dt*source->getAcceleration();
-    point_t position = source->getPosition()+velocityHalf*dt;
-    point_t velocity = 1./2.*(source->getVelocityhalf()+velocityHalf);
-
-    if(do_boundaries){
-      if(physics::compute_boundaries(srch)){
-        return;
-      }
-    }
-
-    source->setVelocityhalf(velocityHalf);
-    source->setVelocity(velocity);
-    source->setPosition(position);
-    
-    mpi_assert(!std::isnan(position[0])); 
-  }
 
   /**
    * @brief      Compute the timestep from acceleration and mu 

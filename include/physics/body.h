@@ -64,14 +64,10 @@ public:
       //electronFraction_(electronFraction),
       smoothinglength_(smoothinglength),
       soundspeed_(0.0)
-      #ifdef INTERNAL_ENERGY 
       ,internalenergy_(0.0)
       ,dudt_(0.0)
-      #endif
-      #ifdef ADIABATIC
       ,adiabatic_(0.0)
       ,dadt_(0.0)
-      #endif 
       //gravforce_(point_t{}),
       //hydroforce_(point_t{})
   {};
@@ -127,19 +123,15 @@ public:
   void setType(int type){type_ = type;}; 
 
   // Dependent of the problem 
-  #ifdef INTERNAL_ENERGY
     double getInternalenergy() const{return internalenergy_;}
     void setInternalenergy(double internalenergy)
         {internalenergy_=internalenergy;};
     void setDudt(double dudt){dudt_ = dudt;};
     double getDudt(){return dudt_;};
-  #endif 
-  #ifdef ADIABATIC
     double getAdiabatic() const{return adiabatic_;}
     void setAdiabatic(double adiabatic){adiabatic_ = adiabatic;};
     double getDadt() const{return dadt_;};
     void setDadt(double dadt){dadt_ = dadt;};
-  #endif 
   #ifdef VERLET
     double getDensityNM1(){return densityNM1_;};
     point_t getVelocityCor(){return velocityCor_;};
@@ -188,14 +180,10 @@ private:
   double mass_;
   double smoothinglength_; 
   double soundspeed_;
-  #ifdef INTERNAL_ENERGY
   double internalenergy_;
   double dudt_;
-  #endif
-  #ifdef ADIABATIC
   double adiabatic_; 
   double dadt_;
-  #endif 
   #ifdef VERLET
   double densityNM1_;
   point_t velocityCor_;
