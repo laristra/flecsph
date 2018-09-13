@@ -63,7 +63,7 @@ void set_derived_params() {
   using namespace param;
 
   // set kernel
-  physics::select_kernel(sph_kernel);
+  kernels::select(sph_kernel);
 
   // filenames (this will change for multiple files output)
   std::ostringstream oss;
@@ -156,6 +156,8 @@ void mpi_init_task(const char * parameter_file){
     MPI_Barrier(MPI_COMM_WORLD);
 
     // Integration step
+    // TODO: leapfrog integration implemented incorrectly;
+    //       update similarly to what is in the drivers/hydro.
     clog_one(trace)<<"Leapfrog integration"<<std::flush; 
     wt = omp_get_wtime(); 
     bs.apply_all(physics::leapfrog_integration);
@@ -197,10 +199,10 @@ void mpi_init_task(const char * parameter_file){
     bs.update_iteration();
 
     MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace)<<"compute_density_pressure_adiabatic_soundspeed"<<std::flush; 
+    clog_one(trace)<<"compute_density_pressure_soundspeed"<<std::flush; 
     wt = omp_get_wtime(); 
     bs.apply_in_smoothinglength(
-      physics::compute_density_pressure_adiabatic_soundspeed); 
+      physics::compute_density_pressure_soundspeed); 
     clog_one(trace)<<".done "<< omp_get_wtime() - wt << "s" <<std::endl;
 
     bs.update_neighbors();
@@ -210,7 +212,7 @@ void mpi_init_task(const char * parameter_file){
       source->getBody()->setAcceleration(point_t{});
     });
 
-
+    
     clog_one(trace)<<"Accel FMM"<<std::flush; 
     wt = omp_get_wtime(); 
     bs.gravitation_fmm();

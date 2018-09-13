@@ -7,7 +7,7 @@ all: gen
 
 .PHONY: clean
 clean: 
-	rm -rf bns_generator
+	rm -rf nsID
 
 gen: 
-	${CXX} generator_bns_3D.cpp ${CXXFLAGS} -o bns_generator ${LDFLAGS}
+	${CXX} nsID_gen.cpp ${CXXFLAGS} -o nsID ${LDFLAGS}
