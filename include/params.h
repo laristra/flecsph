@@ -221,13 +221,9 @@ namespace param {
   DECLARE_PARAM(int32_t,out_h5data_every,10)
 #endif
 
-//- Choose output style
-//  1 : Generate separate h5part output with respect to iteration
-//  2 : Generate single h5part file 
-//  otherwise : Exit the code
-//  TODO : Add different output style rather than h5part
-#ifndef out_style
-  DECLARE_PARAM(int32_t,out_style,1)
+//- produce separate HDF5 file per iteration
+#ifndef out_h5data_separate_iterations
+  DECLARE_PARAM(bool,out_h5data_separate_iterations,false)
 #endif
 
 //
@@ -445,8 +441,8 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(out_h5data_every)
 # endif
 
-# ifndef out_style
-  READ_NUMERIC_PARAM(out_style)
+# ifndef out_h5data_separate_iterations
+  READ_BOOLEAN_PARAM(out_h5data_separate_iterations)
 # endif
 
   // viscosity and equation of state ----------------------------------------
