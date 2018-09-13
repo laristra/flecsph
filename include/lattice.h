@@ -22,9 +22,8 @@
  * @date July 2018
  * @brief function to choose lattice type and populate initial conditions
  *
- * Module for determining lattice types for different tests. Making it modular
- * for better readability of code and more generic applicability to different
- * tests.
+ * Module for generating lattices of different types, suitable for a wide variety
+ * of problems, making it essential building block for initial data construction.
  *
  * Having dimension set in the user.h file, this function will currently populate
  * either a rectangular lattice, a triangular lattice, an FCC lattice, or a HCP
@@ -48,53 +47,42 @@
  * TODO: include variables for paralellization (mpi rank)
  */
 
- #include <stdlib.h>
- #include "mpi.h"
- #include "user.h"
- #include "params.h"
- #include <vector>
- #include "tree.h"
- #include <math.h>
+#include <stdlib.h>
+#include "user.h"
+#include "tree.h"
+#include <math.h>
 
 namespace particle_lattice {
- /**
-  * @brief      in_domain checks to see if the entered particle position info
-  *             is valid within the restrictive domain_type and total domain
-  *             Returns boolean: true or false
-  *
-  * @param      x,y,z       - position of the particle
-  *             x0,y0,z0    - position of the center of the domain (relevant for
-  *                           spheres and cubes)
-  *             bbox_min    - minimum position for the total domain
-  *             bbox_max    - maximum position for the total domain
-  *             r           - radius of the sphere or 1/2 length of cube edge
-  *             domain_type - int value, 0:cube, 1:sphere, 2:full domain
-  */
-  bool in_domain_1d(
-      const double x,
-      const double x0,
-      const point_t& bbox_min,
-      const point_t& bbox_max,
-      const double r,
-      const int domain_type)
-  {
-    // within_domain checks to see if the position is within the total domain
-    bool within_domain = true;
-    // Assigning value to within_domain, checking each dimension
-    if(x < bbox_min[0] || x > bbox_max[0]) within_domain = false;
-    // Check if within domain_type
-    if(domain_type==0){
-      if(std::abs(x-x0)<=r){
-        return true*within_domain;
-      } else{
-        return false*within_domain;
-      }
-    } else if(domain_type==1){
-      return ((x-x0)*(x-x0)<r*r)*within_domain;
-    } else if(domain_type==2){
-      return true*within_domain;
-    }
-  }
+
+/**
+ * @brief      in_domain checks to see if the entered particle position info
+ *             is valid within the restrictive domain_type and total domain
+ *             Returns boolean: true or false
+ *
+ * @param      x,y,z       - position of the particle
+ *             x0,y0,z0    - position of the center of the domain (relevant for
+ *                           spheres and cubes)
+ *             bbox_min    - minimum position for the total domain
+ *             bbox_max    - maximum position for the total domain
+ *             r           - radius of the sphere or 1/2 length of cube edge
+ *             domain_type - int value, 0:cube, 1:sphere, 2:full domain
+ */
+bool in_domain_1d(
+    const double x,
+    const double x0,
+    const double xmin,
+    const double xmax,
+    const double r,
+    const int domain_type)
+{
+  // within_domain checks to see if the position is within the total domain
+  bool within_domain = (x>=xmin && x<=xmax);
+
+  // Check if within domain_type
+  if (domain_type == 0 || domain_type == 1)
+    within_domain *= (std::abs(x-x0)<=r);
+  return within_domain;
+}
 
 bool in_domain_2d(
     const double x,
@@ -107,22 +95,16 @@ bool in_domain_2d(
     const int domain_type)
 {
   // within_domain checks to see if the position is within the total domain
-  bool within_domain = true;
-  // Assigning value to within_domain, checking each dimension
-  if(x < bbox_min[0] || x > bbox_max[0]) within_domain = false;
-  if(y < bbox_min[1] || y > bbox_max[1]) within_domain = false;
+  double xmin = bbox_min[0], xmax = bbox_max[0];
+  double ymin = bbox_min[1], ymax = bbox_max[1];
+  bool within_domain = x>=xmin && x<=xmax && y>=ymin && y<=ymax;
+
   // Check if within domain_type
-  if(domain_type==0){
-    if(std::abs(x-x0)<=r && std::abs(y-y0)<=r){
-      return true*within_domain;
-    } else{
-      return false*within_domain;
-    }
-  } else if(domain_type==1){
-    return ((x-x0)*(x-x0)+(y-y0)*(y-y0)<r*r)*within_domain;
-  } else if(domain_type==2){
-    return true*within_domain;
-  }
+  if(domain_type==0)
+    within_domain *= (std::abs(x-x0)<=r && std::abs(y-y0)<=r);
+  else if(domain_type==1)
+    within_domain *= ((x-x0)*(x-x0)+(y-y0)*(y-y0) <r*r);
+  return within_domain;
 }
 
 bool in_domain_3d(
@@ -138,23 +120,18 @@ bool in_domain_3d(
     const int domain_type)
 {
   // within_domain checks to see if the position is within the total domain
-  bool within_domain = true;
-  // Assigning value to within_domain, checking each dimension
-  if(x < bbox_min[0] || x > bbox_max[0]) within_domain = false;
-  if(y < bbox_min[1] || y > bbox_max[1]) within_domain = false;
-  if(z < bbox_min[2] || z > bbox_max[2]) within_domain = false;
+  double xmin = bbox_min[0], xmax = bbox_max[0];
+  double ymin = bbox_min[1], ymax = bbox_max[1];
+  double zmin = bbox_min[2], zmax = bbox_max[2];
+  bool within_domain = 
+       x>=xmin && x<=xmax && y>=ymin && y<=ymax && z>=zmin && z<=zmax;
+
   // Check if within domain_type
-  if(domain_type==0){
-    if(std::abs(x-x0)<=r && std::abs(y-y0)<=r && std::abs(z-z0)<=r){
-      return true*within_domain;
-    } else{
-      return false*within_domain;
-    }
-  } else if(domain_type==1){
-    return ((x-x0)*(x-x0)+(y-y0)*(y-y0)+(z-z0)*(z-z0)<r*r)*within_domain;
-  } else if(domain_type==2){
-    return true*within_domain;
-  }
+  if(domain_type==0)
+    within_domain *= (std::abs(x-x0)<=r && std::abs(y-y0)<=r && std::abs(z-z0)<=r);
+  else if(domain_type==1)
+    within_domain *= ((x-x0)*(x-x0)+(y-y0)*(y-y0)+(z-z0)*(z-z0) < r*r);
+  return within_domain;
 }
 
 /**
@@ -190,8 +167,9 @@ int64_t generator_lattice_1d(
   int64_t tparticles = 0;
 
   // regular lattice in 1D
-  for(double x_p = bbox_min[0]; x_p < bbox_max[0]; x_p += sph_sep){
-    if(in_domain_1d(x_p,x_c,bbox_min,bbox_max,radius,domain_type)){
+  double xmin = bbox_min[0], xmax = bbox_max[0];
+  for(double x_p = xmin; x_p < xmax; x_p += sph_sep){
+    if(in_domain_1d(x_p,x_c,xmin,xmax,radius,domain_type)){
       tparticles++;
       if(!count_only){
         x[posid] = x_p;
@@ -374,7 +352,7 @@ generator_lattice_3d(
    return tparticles;
 }
 
-// wrappers
+// wrappers (because function pointers don't accept default parameters)
 int64_t generate_lattice_1d(const int lattice_type, const int domain_type,
     const point_t& bbox_min, const point_t& bbox_max, const double sph_sep,
     int64_t posid, double * x, double * y, double * z) {
