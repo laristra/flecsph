@@ -3,9 +3,7 @@
 #
 # initial data
   initial_data_prefix = "sodtube_t1_n100"
-  nparticles = 1000       # global number of particles, assuming 1D
-  sqrt_nparticles = 100   # sqrt of the total number of particles, assuming 2D square lattice
-  cbrt_nparticles = 10    # cbrt of the total number of particles, assuming 3D square lattice
+  lattice_nx = 100        # particle lattice linear dimension
   poly_gamma = 1.4        # polytropic index
   sodtest_num  = 1        # which test to generate
   equal_mass = yes        # determines whether equal mass particles are used or equal separation

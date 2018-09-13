@@ -59,7 +59,13 @@ void set_derived_params() {
   using namespace param;
 
   // total number of particles
-  SET_PARAM(nparticles, sqrt_nparticles*sqrt_nparticles);
+  if (gdimension == 2) {
+    SET_PARAM(nparticles, lattice_nx*lattice_nx);
+  } 
+  else {
+    SET_PARAM(nparticles, lattice_nx*lattice_nx*lattice_nx);
+  }
+
   SET_PARAM(uint_initial, (pressure_initial/(rho_initial*(poly_gamma-1.0))));
   SET_PARAM(sph_smoothing_length, (5.*sph_separation));
   r_blast = sedov_blast_radius * sph_separation;   // Radius of injection region
@@ -100,15 +106,8 @@ int main(int argc, char * argv[]){
   // Header data
   // the number of particles = nparticles
   // The value for constant timestep
-  double timestep = 0.001;  // TODO: replace with parameter initial_dt
-  double radius;
-  if(gdimension==1){
-    radius = sph_separation*(nparticles-1.)/2.;
-  } else if(gdimension==2){
-    radius = sph_separation*(sqrt_nparticles-1.)/2.;
-  } else if(gdimension==3){
-    radius = sph_separation*(cbrt_nparticles-1.)/2.;
-  }
+  double timestep = initial_dt;
+  double radius   = sph_separation*(lattice_nx-1.)/2.;
   const point_t bbox_max = radius;
   const point_t bbox_min = -radius;
 
@@ -117,10 +116,9 @@ int main(int argc, char * argv[]){
   double y_c = 0.0;
   double z_c = 0.0;
 
-  bool count = true;
-
-  int64_t tparticles = call_generate_lattice(lattice_type,domain_type,bbox_min,bbox_max,sph_separation,0,count);
-  count = false;
+  int64_t tparticles = 
+      call_generate_lattice(lattice_type,domain_type,
+      bbox_min,bbox_max,sph_separation,0,true);  // count number of particles
 
   // Initialize the arrays to be filled later
   // Position
@@ -150,7 +148,9 @@ int main(int argc, char * argv[]){
   // Timestep
   double* dt = new double[tparticles]();
 
-  tparticles = call_generate_lattice(lattice_type,domain_type,bbox_min,bbox_max,sph_separation,0,count, x, y, z);
+  assert(tparticles ==
+      call_generate_lattice(lattice_type,domain_type,
+      bbox_min,bbox_max,sph_separation,0,false, x, y, z));
 
   // particle id number
   int64_t posid = 0;

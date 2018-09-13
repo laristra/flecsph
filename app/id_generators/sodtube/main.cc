@@ -38,23 +38,20 @@ void set_derived_params() {
   using namespace std;
   using namespace param;
 
-  // total number of particles
-  if(gdimension==2){
-    SET_PARAM(nparticles, sqrt_nparticles*sqrt_nparticles);
-  } else if(gdimension==3){
-    SET_PARAM(nparticles, cbrt_nparticles*cbrt_nparticles*cbrt_nparticles);
-  }
+  // compute the total number of particles
+  int64_t npd = lattice_nx;
+  for (size_t j=1; j<gdimension; ++j)
+    npd *= lattice_nx;
+  SET_PARAM(nparticles, npd);
 
   // particle spacing and smoothing length
+  SET_PARAM(sph_separation, (1.0/(double)(lattice_nx - 1)));
   if(gdimension==1){
-    SET_PARAM(sph_separation, 1.0/((double)nparticles-1.));
     SET_PARAM(sph_smoothing_length, (sph_separation*25.)); // TODO: use sph_eta instead
   } else if(gdimension==2){
-    SET_PARAM(sph_separation, 1.0/((double)sqrt_nparticles-1.));
-    SET_PARAM(sph_smoothing_length, (sph_separation*4.)); // TODO: use sph_eta instead
+    SET_PARAM(sph_smoothing_length, (sph_separation*4.)); // TODO: ???
   } else if(gdimension==3){
-    SET_PARAM(sph_separation, 1.0/((double)cbrt_nparticles-1.));
-    SET_PARAM(sph_smoothing_length, (sph_separation*3.)); // TODO: use sph_eta instead
+    SET_PARAM(sph_smoothing_length, (sph_separation*3.)); // TODO: ???
   }
 
   // test selector
@@ -144,45 +141,26 @@ int main(int argc, char * argv[]){
 
   // set the dimensions of the rectangles: left, center, right
   // currently 3 cubes of length 2*cbox_max[0]
-  if(gdimension==1){
-    cbox_max[0] = (nparticles-1.)*sph_separation/2.;
-    cbox_min[0] = -cbox_max[0];
-  } else if(gdimension==2){
-    cbox_max[0] = (sqrt_nparticles-1.)*sph_separation/2.;
-    cbox_max[1] = cbox_max[0];
+  cbox_max[0] = (lattice_nx-1.)*sph_separation/2.;
+  cbox_min[0] = -cbox_max[0];
 
-    cbox_min[0] = -cbox_max[0];
-    cbox_min[1] = -cbox_max[0];
-  } else{
-    cbox_max[0] = (cbrt_nparticles-1.)*sph_separation/2.;
-    cbox_max[1] = cbox_max[0];
-    cbox_max[2] = cbox_max[0];
+  rbox_max[0] = 3.*cbox_max[0] + sph_separation;
+  rbox_min[0] =    cbox_max[0] + sph_separation;
 
-    cbox_min[0] = -cbox_max[0];
-    cbox_min[1] = -cbox_max[0];
-    cbox_min[2] = -cbox_max[0];
+  lbox_max[0] =    cbox_min[0] - sph_separation;
+  lbox_min[0] = 3.*cbox_min[0] - sph_separation;
+
+  for (size_t j=1; j<gdimension; ++j) {
+    cbox_max[j] = cbox_max[0];
+    cbox_min[j] = cbox_min[0];
+
+    rbox_max[j] = cbox_max[j];
+    rbox_min[j] = cbox_min[j];
+
+    lbox_max[j] = cbox_max[j];
+    lbox_min[j] = cbox_min[j];
   }
-
-  rbox_max[0] = 3.*cbox_max[0]+sph_separation;
-  rbox_min[0] = cbox_max[0]+sph_separation;
-
-  lbox_max[0] = cbox_min[0]-sph_separation;
-  lbox_min[0] = 3.*cbox_min[0]-sph_separation;
-  if(gdimension>1){
-    rbox_max[1] = cbox_max[1];
-    rbox_min[1] = cbox_min[1];
-
-    lbox_max[1] = cbox_max[1];
-    lbox_min[1] = cbox_min[1];
-  }
-  if(gdimension>2){
-    rbox_max[2] = cbox_max[2];
-    rbox_min[2] = cbox_min[2];
-
-    lbox_max[2] = cbox_max[2];
-    lbox_min[2] = cbox_min[2];
-  }
-
+  
   // allocate arrays
   int64_t tparticles = 0;
   int64_t parts_mid= 0;

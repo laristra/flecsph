@@ -3,9 +3,7 @@
 #
 ## initial data
   initial_data_prefix = "sedov_sqn100"
-  nparticles= 1000         # global number of particles, assuming 1D
-  sqrt_nparticles = 100    # sqrt of the total number of particles, assuming 2D square lattice
-  cbrt_nparticles = 10     # cbrt of the total number of particles, assuming 3D square lattice
+  lattice_nx = 100         # particle lattice dimension
   poly_gamma = 1.4         # polytropic index
   rho_initial = 1.0
   pressure_initial = 1.0e-7

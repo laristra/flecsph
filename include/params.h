@@ -144,14 +144,9 @@ namespace param {
   DECLARE_PARAM(int64_t,nparticles,1000)
 #endif
 
-//- square root of the total number of particles (for 2D setups)
-#ifndef sqrt_nparticles
-  DECLARE_PARAM(int64_t,sqrt_nparticles,100)
-#endif
-
-//- cube root of the total number of particles (for 3D setups)
-#ifndef cbrt_nparticles
-  DECLARE_PARAM(int64_t,cbrt_nparticles,10)
+//- particle lattice linear dimension
+#ifndef lattice_nx
+  DECLARE_PARAM(int64_t,lattice_nx,100)
 #endif
 
 //- SPH eta parameter, eta = h (rho/m)^1/D (Rosswog'09, eq.51)
@@ -382,12 +377,8 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(nparticles)
 # endif
 
-# ifndef sqrt_nparticles
-  READ_NUMERIC_PARAM(sqrt_nparticles)
-# endif
-
-# ifndef cbrt_nparticles
-  READ_NUMERIC_PARAM(cbrt_nparticles)
+# ifndef lattice_nx
+  READ_NUMERIC_PARAM(lattice_nx)
 # endif
 
 # ifndef sph_eta
