@@ -123,7 +123,7 @@ int main(int argc, char * argv[]){
   // set simulation parameters
   param::mpi_read_params(argv[1]);
   set_derived_params();
-  lattice_space::select_lat_dimension();
+  particle_lattice::select();
 
   // screen output
   clog_one(info) << "Sod test #" << sodtest_num << " in " << gdimension
@@ -167,20 +167,23 @@ int main(int argc, char * argv[]){
   int64_t parts_lr = 0;
   double mass = 0;
   bool equal_separation = !equal_mass;
-  bool count = true;
   if(equal_separation){
-    tparticles = call_generate_lattice(lattice_type,2,cbox_min,cbox_max,sph_separation,0,count);
+    tparticles =  particle_lattice::count(lattice_type,2,cbox_min,cbox_max,
+                                          sph_separation,0);
     parts_mid = tparticles;
-    tparticles += call_generate_lattice(lattice_type,2,rbox_min,rbox_max,sph_separation,tparticles-1,count);
+    tparticles += particle_lattice::count(lattice_type,2,rbox_min,rbox_max,
+                                          sph_separation,tparticles-1);
     parts_lr = tparticles-parts_mid;
-    tparticles += call_generate_lattice(lattice_type,2,lbox_min,lbox_max,sph_separation,tparticles-1,count);
-    count = false;
+    tparticles += particle_lattice::count(lattice_type,2,lbox_min,lbox_max,
+                                          sph_separation,tparticles-1);
   }
+
   double lr_sph_sep = 0.;
   double temp_part = 0;
   double temp_part_new = 0;
   if(equal_mass){
-    tparticles = call_generate_lattice(lattice_type,2,cbox_min,cbox_max,sph_separation,0,count);
+    tparticles = particle_lattice::count(lattice_type,2,cbox_min,cbox_max,
+                                         sph_separation,0);
     if(gdimension==1){
       mass = rho_1*(cbox_max[0]-cbox_min[0])/tparticles;
       if(lattice_type==0){
@@ -209,9 +212,10 @@ int main(int argc, char * argv[]){
       temp_part_new = rho_2/rho_1*(temp_part);
       lr_sph_sep = 1./((int)cbrt(temp_part_new)-1.);
     }
-    tparticles += call_generate_lattice(lattice_type,2,rbox_min,rbox_max,lr_sph_sep,tparticles-1,count);
-    tparticles += call_generate_lattice(lattice_type,2,lbox_min,lbox_max,lr_sph_sep,tparticles-1,count);
-    count = false;
+    tparticles += particle_lattice::count(lattice_type,2,rbox_min,rbox_max,
+                                          lr_sph_sep,tparticles-1);
+    tparticles += particle_lattice::count(lattice_type,2,lbox_min,lbox_max,
+                                          lr_sph_sep,tparticles-1);
   }
 
 
@@ -244,14 +248,20 @@ int main(int argc, char * argv[]){
   double* dt = new double[tparticles]();
 
   if(equal_separation){
-    tparticles = call_generate_lattice(lattice_type,2,cbox_min,cbox_max,sph_separation,0,count,x,y,z);
-    tparticles += call_generate_lattice(lattice_type,2,rbox_min,rbox_max,sph_separation,tparticles-1,count,x,y,z);
-    tparticles += call_generate_lattice(lattice_type,2,lbox_min,lbox_max,sph_separation,tparticles-1,count,x,y,z);
+    tparticles =  particle_lattice::generate(lattice_type,2,cbox_min,cbox_max,
+                                             sph_separation,0,x,y,z);
+    tparticles += particle_lattice::generate(lattice_type,2,rbox_min,rbox_max,
+                                             sph_separation,tparticles-1,x,y,z);
+    tparticles += particle_lattice::generate(lattice_type,2,lbox_min,lbox_max,
+                                             sph_separation,tparticles-1,x,y,z);
   }
   if(equal_mass){
-    tparticles = call_generate_lattice(lattice_type,2,cbox_min,cbox_max,sph_separation,0,count,x,y,z);
-    tparticles += call_generate_lattice(lattice_type,2,rbox_min,rbox_max,lr_sph_sep,tparticles-1,count,x,y,z);
-    tparticles += call_generate_lattice(lattice_type,2,lbox_min,lbox_max,lr_sph_sep,tparticles-1,count,x,y,z);
+    tparticles =  particle_lattice::generate(lattice_type,2,cbox_min,cbox_max,
+                                             sph_separation,0,x,y,z);
+    tparticles += particle_lattice::generate(lattice_type,2,rbox_min,rbox_max,
+                                             lr_sph_sep,tparticles-1,x,y,z);
+    tparticles += particle_lattice::generate(lattice_type,2,lbox_min,lbox_max,
+                                             lr_sph_sep,tparticles-1,x,y,z);
   }
 
   // particle id number

@@ -101,7 +101,7 @@ int main(int argc, char * argv[]){
   param::mpi_read_params(argv[1]);
   set_derived_params();
 
-  lattice_space::select_lat_dimension();
+  particle_lattice::select();
 
   // Header data
   // the number of particles = nparticles
@@ -116,9 +116,10 @@ int main(int argc, char * argv[]){
   double y_c = 0.0;
   double z_c = 0.0;
 
+  // Count number of particles
   int64_t tparticles = 
-      call_generate_lattice(lattice_type,domain_type,
-      bbox_min,bbox_max,sph_separation,0,true);  // count number of particles
+      particle_lattice::count(lattice_type,domain_type,
+      bbox_min,bbox_max,sph_separation,0); 
 
   // Initialize the arrays to be filled later
   // Position
@@ -148,9 +149,10 @@ int main(int argc, char * argv[]){
   // Timestep
   double* dt = new double[tparticles]();
 
+  // Generate the lattice
   assert(tparticles ==
-      call_generate_lattice(lattice_type,domain_type,
-      bbox_min,bbox_max,sph_separation,0,false, x, y, z));
+      particle_lattice::generate(lattice_type,domain_type,
+      bbox_min,bbox_max,sph_separation,0, x, y, z));
 
   // particle id number
   int64_t posid = 0;

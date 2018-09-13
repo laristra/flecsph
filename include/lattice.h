@@ -56,7 +56,7 @@
  #include "tree.h"
  #include <math.h>
 
-namespace lattice_space{
+namespace particle_lattice {
  /**
   * @brief      in_domain checks to see if the entered particle position info
   *             is valid within the restrictive domain_type and total domain
@@ -165,59 +165,58 @@ bool in_domain_3d(
  *
  * @param      Refer to inputs section in introduction
  */
- int64_t
- generate_lattice_1d(
-     const int lattice_type,
-     const int domain_type,
-     const point_t& bbox_min,
-     const point_t& bbox_max,
-     const double sph_sep,
-     int64_t posid,
-     bool count_only,
-     double x[] = NULL,
-     double y[] = NULL,
-     double z[] = NULL)
-  {
-    // Determine radius of the domain as a radius of inscribed sphere
-    double radius = 0.0;
-    if(domain_type==1 || domain_type==0) {
-       radius = 0.5*(bbox_max[0] - bbox_min[0]);
-    }
-
-    // Central coordinates: in most cases this should be centered at 0
-    double x_c = (bbox_max[0] + bbox_min[0])/2.;
-
-    // True number of particles to be determined and returned
-    int64_t tparticles = 0;
-
-    // regular lattice in 1D
-    for(double x_p = bbox_min[0]; x_p < bbox_max[0]; x_p += sph_sep){
-      if(in_domain_1d(x_p,x_c,bbox_min,bbox_max,radius,domain_type)){
-        tparticles++;
-        if(!count_only){
-          x[posid] = x_p;
-          y[posid] = 0.0;
-          z[posid] = 0.0;
-        }
-        posid++;
-      }
-    }
-    return tparticles;
+int64_t generator_lattice_1d(
+   const int lattice_type,
+   const int domain_type,
+   const point_t& bbox_min,
+   const point_t& bbox_max,
+   const double sph_sep,
+   int64_t posid,
+   bool count_only = true,
+   double x[] = NULL,
+   double y[] = NULL,
+   double z[] = NULL)
+{
+  // Determine radius of the domain as a radius of inscribed sphere
+  double radius = 0.0;
+  if(domain_type==1 || domain_type==0) {
+     radius = 0.5*(bbox_max[0] - bbox_min[0]);
   }
 
+  // Central coordinates: in most cases this should be centered at 0
+  double x_c = (bbox_max[0] + bbox_min[0])/2.;
+
+  // True number of particles to be determined and returned
+  int64_t tparticles = 0;
+
+  // regular lattice in 1D
+  for(double x_p = bbox_min[0]; x_p < bbox_max[0]; x_p += sph_sep){
+    if(in_domain_1d(x_p,x_c,bbox_min,bbox_max,radius,domain_type)){
+      tparticles++;
+      if(!count_only){
+        x[posid] = x_p;
+        y[posid] = 0.0;
+        z[posid] = 0.0;
+      }
+      posid++;
+    }
+  }
+  return tparticles;
+}
+
 int64_t
-generate_lattice_2d(
+generator_lattice_2d(
     const int lattice_type,
     const int domain_type,
     const point_t& bbox_min,
     const point_t& bbox_max,
     const double sph_sep,
     int64_t posid,
-    bool count_only,
+    bool count_only = true,
     double x[] = NULL,
     double y[] = NULL,
     double z[] = NULL)
- {
+{
    // Determine radius of the domain as a radius of inscribed sphere
    double radius = 0.0;
    if(domain_type == 1 || domain_type == 0) {
@@ -244,7 +243,7 @@ generate_lattice_2d(
 
    if (lattice_type==0) { // rectangular lattice
      for(double y_p=ymin; y_p<ymax; y_p+=dx)
-     for(double x_p=xmin; x_p<xmax; x_p+=dx) 
+     for(double x_p=xmin; x_p<xmax; x_p+=dx)
      if(in_domain_2d(x_p,y_p,
                      x_c,y_c,
                      bbox_min,bbox_max,
@@ -257,10 +256,10 @@ generate_lattice_2d(
        tparticles++;
        posid++;
      } // if in domain
-   } 
+   }
    else { // triangular lattice
      for(double y_p=ymin,    yo=0; y_p<ymax; y_p+=dy,yo=1-yo)
-     for(double x_p=xmin +yo*dx/2; x_p<xmax; x_p+=dx) 
+     for(double x_p=xmin +yo*dx/2; x_p<xmax; x_p+=dx)
      if(in_domain_2d(x_p,y_p,
                      x_c,y_c,
                      bbox_min,bbox_max,
@@ -275,21 +274,22 @@ generate_lattice_2d(
      } // if in domain
    } // lattice
    return tparticles;
- }
+}
+
 
 int64_t
-generate_lattice_3d(
+generator_lattice_3d(
     const int lattice_type,
     const int domain_type,
     const point_t& bbox_min,
     const point_t& bbox_max,
     const double sph_sep,
     int64_t posid,
-    bool count_only,
+    bool count_only = true,
     double x[] = NULL,
     double y[] = NULL,
     double z[] = NULL)
- {
+{
    // Determine radius of the domain as a radius of inscribed sphere
    double radius = 0.0;
    if(domain_type==1 || domain_type==0) {
@@ -322,7 +322,7 @@ generate_lattice_3d(
    if(lattice_type==0){
      for(double z_p=xmin; z_p<zmax; z_p+=dx)
      for(double y_p=ymin; y_p<ymax; y_p+=dx)
-     for(double x_p=zmin; x_p<xmax; x_p+=dx) 
+     for(double x_p=zmin; x_p<xmax; x_p+=dx)
      if(in_domain_3d(x_p,y_p,z_p,
                      x_c,y_c,z_c,
                      bbox_min,bbox_max,
@@ -335,11 +335,11 @@ generate_lattice_3d(
        }
        posid++;
      } // if in domain
-   } 
+   }
    else if(lattice_type==1){//hcp lattice in 3D
      for(double z_p=zmin,         zo=0; z_p<zmax; z_p+=dz, zo=1-zo)
      for(double y_p=ymin-zo*dy/3, yo=0; y_p<ymax; y_p+=dy, yo=1-yo)
-     for(double x_p=xmin+(yo-zo)*dx/2.; x_p<xmax; x_p+=dx) 
+     for(double x_p=xmin+(yo-zo)*dx/2.; x_p<xmax; x_p+=dx)
      if(in_domain_3d(x_p,y_p,z_p,
                      x_c,y_c,z_c,
                      bbox_min,bbox_max,
@@ -352,11 +352,11 @@ generate_lattice_3d(
        tparticles++;
        posid++;
      } // if in domain
-   } 
+   }
    else if(lattice_type==2) {//fcc lattice in 3D
      for(double z_p=zmin,         zl=0; z_p<zmax; z_p+=dz, zl=(zl+1)*(zl<3))
      for(double y_p=ymin-zl*dy/3, yo=0; y_p<ymax; y_p+=dy, yo=1-yo)
-     for(double x_p=xmin+(yo-zl)*dx/2.; x_p<xmax; x_p+=dx) 
+     for(double x_p=xmin+(yo-zl)*dx/2.; x_p<xmax; x_p+=dx)
      if(in_domain_3d(x_p,y_p,z_p,
                      x_c,y_c,z_c,
                      bbox_min,bbox_max,
@@ -372,50 +372,79 @@ generate_lattice_3d(
    } // lattice_type
 
    return tparticles;
- }
+}
 
- // set lattice generator
- /**
-  * @brief      generate_lattice selector
-  *
-  * @return     Pointer to the generator
-  */
- typedef int64_t (*lattice_function_t)(const int,
- const int,
- const point_t&,
- const point_t&,
- const double,
- int64_t,
- bool,
- double*,
- double*,
- double*);
- lattice_function_t generate_lattice;
+// wrappers
+int64_t generate_lattice_1d(const int lattice_type, const int domain_type,
+    const point_t& bbox_min, const point_t& bbox_max, const double sph_sep,
+    int64_t posid, double * x, double * y, double * z) {
+  return generator_lattice_1d(lattice_type,domain_type,
+         bbox_min,bbox_max,sph_sep,posid, false, x,y,z);
+}
+int64_t count_lattice_1d(const int lattice_type, const int domain_type,
+    const point_t& bbox_min, const point_t& bbox_max, const double sph_sep,
+    int64_t posid) {
+  return generator_lattice_1d(lattice_type,domain_type,
+         bbox_min,bbox_max,sph_sep,posid);
+}
 
- void
- select_lat_dimension() {
-   if(gdimension==1){
-     generate_lattice = generate_lattice_1d;
-   } else if(gdimension==2){
-     generate_lattice = generate_lattice_2d;
-   } else if(gdimension==3){
-     generate_lattice = generate_lattice_3d;
-   }
- }
-}; //lattice
+int64_t generate_lattice_2d(const int lattice_type, const int domain_type,
+    const point_t& bbox_min, const point_t& bbox_max, const double sph_sep,
+    int64_t posid, double * x, double * y, double * z) {
+  return generator_lattice_2d(lattice_type,domain_type,
+         bbox_min,bbox_max,sph_sep,posid, false, x,y,z);
+}
+int64_t count_lattice_2d(const int lattice_type, const int domain_type,
+    const point_t& bbox_min, const point_t& bbox_max, const double sph_sep,
+    int64_t posid) {
+  return generator_lattice_2d(lattice_type,domain_type,
+         bbox_min,bbox_max,sph_sep,posid);
+}
 
-int64_t
-call_generate_lattice(
-    const int lattice_type,
-    const int domain_type,
-    const point_t& bbox_min,
-    const point_t& bbox_max,
-    const double sph_sep,
-    int64_t posid,
-    bool count_only,
-    double x[] = NULL,
-    double y[] = NULL,
-    double z[] = NULL)
- {
-   return lattice_space::generate_lattice(lattice_type,domain_type,bbox_min,bbox_max,sph_sep,posid,count_only,x,y,z);
- }
+int64_t generate_lattice_3d(const int lattice_type, const int domain_type,
+    const point_t& bbox_min, const point_t& bbox_max, const double sph_sep,
+    int64_t posid, double * x, double * y, double * z) {
+  return generator_lattice_3d(lattice_type,domain_type,
+         bbox_min,bbox_max,sph_sep,posid, false, x,y,z);
+}
+int64_t count_lattice_3d(const int lattice_type, const int domain_type,
+    const point_t& bbox_min, const point_t& bbox_max, const double sph_sep,
+    int64_t posid) {
+  return generator_lattice_3d(lattice_type,domain_type,
+         bbox_min,bbox_max,sph_sep,posid);
+}
+
+
+// pointer types
+typedef int64_t (*lattice_generate_function_t)(const int, const int,
+    const point_t&, const point_t&, const double, int64_t,
+    double*, double*, double*);
+typedef int64_t (*particle_count_function_t)(const int, const int,
+    const point_t&, const point_t&, const double, int64_t);
+lattice_generate_function_t generate;
+particle_count_function_t   count;
+
+/**
+ * @brief  Installs the 'generate' and 'count' function pointers
+ */
+void select() {
+  switch(gdimension) {
+  case 1:
+    generate = generate_lattice_1d;
+    count = count_lattice_1d;
+    break;
+  case 2:
+    generate = generate_lattice_2d;
+    count = count_lattice_2d;
+    break;
+  case 3:
+    generate = generate_lattice_3d;
+    count = count_lattice_3d;
+    break;
+  default:
+    std::cerr << "you should not be here" << std::endl;
+  }
+}
+
+} // namespace particle_lattice
+
