@@ -178,8 +178,6 @@ bool in_domain_3d(
      double y[] = NULL,
      double z[] = NULL)
   {
-    using namespace param;
-
     // Determine radius of the domain as a radius of inscribed sphere
     double radius = 0.0;
     if(domain_type==1 || domain_type==0) {
@@ -220,8 +218,6 @@ generate_lattice_2d(
     double y[] = NULL,
     double z[] = NULL)
  {
-   using namespace param;
-
    // Determine radius of the domain as a radius of inscribed sphere
    double radius = 0.0;
    if(domain_type == 1 || domain_type == 0) {
@@ -235,42 +231,49 @@ generate_lattice_2d(
    double x_c = (bbox_max[0]+bbox_min[0])/2.;
    double y_c = (bbox_max[1]+bbox_min[1])/2.;
 
+   // Coordinate extents
+   double xmin = bbox_min[0], xmax = bbox_max[0];
+   double ymin = bbox_min[1], ymax = bbox_max[1];
+
+   // Lattice spacing in x- and y-directions
+   double dx = sph_sep;
+   double dy = sph_sep*sqrt(3.)/2.;
+
    // True number of particles to be determined and returned
    int64_t tparticles = 0;
 
    if (lattice_type==0) { // rectangular lattice
-     double dx = sph_sep, dy = sph_sep;
-     for(double y_p=bbox_min[1]; y_p<bbox_max[1]; y_p+=dy)
-     for(double x_p=bbox_min[0]; x_p<bbox_max[0]; x_p+=dx) {
-       // rectangular lattice in 2D
-       if(in_domain_2d(x_p,y_p,x_c,y_c,bbox_min,bbox_max,
-                       radius,domain_type)){
-         if(!count_only){
-           x[posid] = x_p;
-           y[posid] = y_p;
-           z[posid] = 0.0;
-         }
-         tparticles++;
-         posid++;
+     for(double y_p=ymin; y_p<ymax; y_p+=dx)
+     for(double x_p=xmin; x_p<xmax; x_p+=dx) 
+     if(in_domain_2d(x_p,y_p,
+                     x_c,y_c,
+                     bbox_min,bbox_max,
+                     radius,domain_type)){
+       if(!count_only){
+         x[posid] = x_p;
+         y[posid] = y_p;
+         z[posid] = 0.0;
        }
-     } // xy-loop
+       tparticles++;
+       posid++;
+     } // if in domain
    } 
    else { // triangular lattice
-     double dx = sph_sep, dy = sph_sep*sqrt(3.)/2.;
-     for(double y_p = bbox_min[1], j=0;   y_p<bbox_max[1]; y_p+=dy,j=1-j)
-     for(double x_p = bbox_min[0] + j*.5*dx; x_p<bbox_max[0]; x_p+=dx) {
-       if(in_domain_2d(x_p,y_p,x_c,y_c,bbox_min,bbox_max,
-                       radius,domain_type)){
-         if(!count_only){
-           x[posid] = x_p;
-           y[posid] = y_p;
-           z[posid] = 0.0;
-         }
-         tparticles++;
-         posid++;
+     for(double y_p=ymin,    yo=0; y_p<ymax; y_p+=dy,yo=1-yo)
+     for(double x_p=xmin +yo*dx/2; x_p<xmax; x_p+=dx) 
+     if(in_domain_2d(x_p,y_p,
+                     x_c,y_c,
+                     bbox_min,bbox_max,
+                     radius,domain_type)){
+       if(!count_only){
+         x[posid] = x_p;
+         y[posid] = y_p;
+         z[posid] = 0.0;
        }
-     } // xy-loop
-   } 
+       tparticles++;
+       posid++;
+     } // if in domain
+   } // lattice
    return tparticles;
  }
 
@@ -287,8 +290,6 @@ generate_lattice_3d(
     double y[] = NULL,
     double z[] = NULL)
  {
-   using namespace param;
-
    // Determine radius of the domain as a radius of inscribed sphere
    double radius = 0.0;
    if(domain_type==1 || domain_type==0) {
@@ -304,116 +305,71 @@ generate_lattice_3d(
    double y_c = (bbox_max[1]+bbox_min[1])/2.;
    double z_c = (bbox_max[2]+bbox_min[2])/2.;
 
-   // Setting the coordinates to start building the lattice
-   //    _topproc is the initial position to start the scan in x,y,z dimensions
-   double x_topproc = bbox_min[0];
-   double y_topproc = bbox_min[1];
-   double z_topproc = bbox_min[2];
-
-   // Nx,y,z is maximum number of particles that can be fit within the domain
-   //    given the supplied lattice_type. This is needed to loop over the
-   //    particles and assign their positions
-   int64_t Nx = 1;
-   int64_t Ny = 1;
-   int64_t Nz = 1;
-   if(lattice_type==0){
-     Nx = int((bbox_max[0]-bbox_min[0])/sph_sep+0.5);
-     Ny = int((bbox_max[1]-bbox_min[1])/sph_sep+0.5);
-     Nz = int((bbox_max[2]-bbox_min[2])/sph_sep+0.5);
-   } else if(lattice_type==1){
-     Nx = int((bbox_max[0]-bbox_min[0]+sph_sep/2.)/sph_sep+0.5);
-     Ny = int(2.*(bbox_max[1]-bbox_min[1]+sqrt(3)*sph_sep/6.)/sph_sep/sqrt(3.)+0.5);
-     Nz = int(sqrt(3./2.)*(bbox_max[2]-bbox_min[2])/sph_sep+0.5);
-   } else if(lattice_type==2){
-     Nx = int((bbox_max[0]-bbox_min[0]+sph_sep/2.)/sph_sep+0.5);
-     Ny = int(2.*(bbox_max[1]-bbox_min[1]+sqrt(3)*sph_sep/6.)/sph_sep/sqrt(3.)+0.5);
-     Nz = int(sqrt(3./2.)*(bbox_max[2]-bbox_min[2])/sph_sep+0.5);
-   }
-
    // True number of particles to be determined and returned
    int64_t tparticles = 0;
 
-   // Declaring the doubles that store the current particle coordinates
-   double x_position;
-   double y_position;
-   double z_position;
+   // Coordinate extents
+   double xmin = bbox_min[0], xmax = bbox_max[0];
+   double ymin = bbox_min[1], ymax = bbox_max[1];
+   double zmin = bbox_min[2], zmax = bbox_max[2];
+
+   // Lattice spacing
+   double dx = sph_sep;
+   double dy = sph_sep*sqrt(3.)/2.;
+   double dz = sph_sep*sqrt(2./3.);
 
    // The loop for lattice_type==0 (rectangular)
    if(lattice_type==0){
-     for(int i=0;i<Nz;i++)
-     for(int j=0;j<Ny;j++)
-     for(int k=0;k<Nx;k++){
-       // rectangular lattice in 3D
-       z_position = z_topproc + i*sph_sep;
-       y_position = y_topproc + j*sph_sep;
-       x_position = x_topproc + k*sph_sep;
-       if(in_domain_3d(x_position,y_position,z_position,
-                       x_c,y_c,z_c,bbox_min,bbox_max,
-                       radius,domain_type)){
-         tparticles++;
-         if(!count_only){
-           x[posid] = x_position;
-           y[posid] = y_position;
-           z[posid] = z_position;
-         }
-         posid++;
+     for(double z_p=xmin; z_p<zmax; z_p+=dx)
+     for(double y_p=ymin; y_p<ymax; y_p+=dx)
+     for(double x_p=zmin; x_p<xmax; x_p+=dx) 
+     if(in_domain_3d(x_p,y_p,z_p,
+                     x_c,y_c,z_c,
+                     bbox_min,bbox_max,
+                     radius,domain_type)) {
+       tparticles++;
+       if(!count_only){
+         x[posid] = x_p;
+         y[posid] = y_p;
+         z[posid] = z_p;
        }
-     } // ijk
+       posid++;
+     } // if in domain
    } 
    else if(lattice_type==1){//hcp lattice in 3D
-     for(int i=0;i<Nz;i++)
-     for(int j=0;j<Ny;j++)
-     for(int k=0;k<Nx;k++){
-       //hcp lattice in 2 or 3D
-       z_position = z_topproc + i*sqrt(2./3.)*sph_sep;
-       y_position = y_topproc - (i%2)*sqrt(3)*sph_sep/6. + j*sqrt(3.)/2.*sph_sep;
-       if(i%2){
-         x_position = x_topproc + k*sph_sep + (j%2-1)*sph_sep/2.;
-       } else {
-         x_position = x_topproc + k*sph_sep - (j%2)*sph_sep/2.;
+     for(double z_p=zmin,         zo=0; z_p<zmax; z_p+=dz, zo=1-zo)
+     for(double y_p=ymin-zo*dy/3, yo=0; y_p<ymax; y_p+=dy, yo=1-yo)
+     for(double x_p=xmin+(yo-zo)*dx/2.; x_p<xmax; x_p+=dx) 
+     if(in_domain_3d(x_p,y_p,z_p,
+                     x_c,y_c,z_c,
+                     bbox_min,bbox_max,
+                     radius,domain_type)){
+       if(!count_only){
+         x[posid] = x_p;
+         y[posid] = y_p;
+         z[posid] = z_p;
        }
-       if(in_domain_3d(x_position,y_position,z_position,
-                       x_c,y_c,z_c,bbox_min,bbox_max,
-                       radius,domain_type)){
-         tparticles++;
-         if(!count_only){
-           x[posid] = x_position;
-           y[posid] = y_position;
-           z[posid] = z_position;
-         }
-         posid++;
-       }
-     } // ijk
+       tparticles++;
+       posid++;
+     } // if in domain
    } 
-   else if(lattice_type==2){//fcc lattice in 3D
-     for(int i=0;i<Nz;i++)
-     for(int j=0;j<Ny;j++)
-     for(int k=0;k<Nx;k++){
-       //fcc lattice in 2 or 3D
-       z_position = z_topproc + i*sqrt(2./3.)*sph_sep;
-       if(i%3==0){
-         y_position = y_topproc + j*sqrt(3.)/2.*sph_sep;
-         x_position = x_topproc - (j%2)*sph_sep/2. + k*sph_sep;
-       } else if(i%3==1) {
-         y_position = y_topproc - sqrt(3)*sph_sep/6. + j*sqrt(3.)/2.*sph_sep;
-         x_position = x_topproc - (1-j%2)*sph_sep/2. + k*sph_sep;
-       } else if(i%3==2){
-         y_position = y_topproc + sqrt(3)*sph_sep/6. + j*sqrt(3.)/2.*sph_sep;
-         x_position = x_topproc - (1-j%2)*sph_sep/2. + k*sph_sep;
+   else if(lattice_type==2) {//fcc lattice in 3D
+     for(double z_p=zmin,         zl=0; z_p<zmax; z_p+=dz, zl=(zl+1)*(zl<3))
+     for(double y_p=ymin-zl*dy/3, yo=0; y_p<ymax; y_p+=dy, yo=1-yo)
+     for(double x_p=xmin+(yo-zl)*dx/2.; x_p<xmax; x_p+=dx) 
+     if(in_domain_3d(x_p,y_p,z_p,
+                     x_c,y_c,z_c,
+                     bbox_min,bbox_max,
+                     radius,domain_type)) {
+       if(!count_only){
+         x[posid] = x_p;
+         y[posid] = y_p;
+         z[posid] = z_p;
        }
-       if(in_domain_3d(x_position,y_position,z_position,
-                       x_c,y_c,z_c,bbox_min,bbox_max,
-                       radius,domain_type)){
-         tparticles++;
-         if(!count_only){
-           x[posid] = x_position;
-           y[posid] = y_position;
-           z[posid] = z_position;
-         }
-         posid++;
-       }
-     } // ijk
-   }
+       tparticles++;
+       posid++;
+     } // if in domain
+   } // lattice_type
 
    return tparticles;
  }
