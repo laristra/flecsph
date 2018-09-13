@@ -2,10 +2,14 @@
 # Sodtube test #1 for 1000 particles
 #
 # initial data
-  nparticles= 1000    # global number of particles                                                                    
-  poly_gamma = 1.4    # polytropic index
-  sodtest_num  = 1    # which test to generate                                                                    
   initial_data_prefix = "sodtube_t1_n100"
+  lattice_nx = 100        # particle lattice linear dimension
+  poly_gamma = 1.4        # polytropic index
+  sodtest_num  = 1        # which test to generate
+  equal_mass = yes        # determines whether equal mass particles are used or equal separation
+  sph_separation = 0.001  # TODO: use sph_eta instead
+  lattice_type = 1        # 0:rectangular, 1:hcp, 2:fcc  **in 2d both hcp and fcc are triangular**
+  domain_type = 1         # 0:cube, 1:sphere, 2:full box
 
 # evolution
   sph_kernel = "Wendland C2"
@@ -13,7 +17,5 @@
   final_iteration = 50
   out_screen_every = 1
   out_scalar_every = 10
-  out_style = 0 # 0 for one single h5part file, 1 for separate h5part file 
   out_h5data_every = 10
   output_h5data_prefix = "sodtube_evolution"
-
