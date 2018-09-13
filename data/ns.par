@@ -8,6 +8,9 @@
   fmm_macangle = 0.0
   fmm_max_cell_mass = 10.0
 
+# equation of state
+  eos_type = "polytropic"
+
 # evolution parameters:
   sph_kernel = "Quintic Spline"
   initial_dt = 0.0025 # TODO: better use Courant factor X sph_separation

@@ -33,7 +33,7 @@
 #include <boost/algorithm/string.hpp>
 
 
-namespace eos{
+namespace eos {
   using namespace param;
 
   /**
@@ -141,7 +141,7 @@ namespace eos{
     source->setSoundspeed(soundspeed);
   }
 
-  // TODO: tabulates SC eos
+  // TODO: add tabulated eos from SC
   
   // eos function types and pointers
   typedef void (*compute_pressure_t)(body_holder*);
@@ -149,6 +149,28 @@ namespace eos{
   compute_pressure_t compute_pressure = compute_pressure_ideal;
   compute_soundspeed_t compute_soundspeed = compute_soundspeed_ideal;
 
-}; // namespace eos
+/**
+ * @brief  Installs the 'compute_pressure' and 'compute_soundspeed' 
+ *         function pointers, depending on the value of eos_type
+ */
+void select(const std::string& eos_type) {
+  if(boost::iequals(eos_type, "ideal fluid")) {
+    compute_pressure = compute_pressure_ideal;
+    compute_soundspeed = compute_soundspeed_ideal;
+  }
+  else if(boost::iequals(eos_type, "polytropic")) {
+    compute_pressure = compute_pressure_adiabatic;
+    compute_soundspeed = compute_soundspeed_ideal;
+  }
+  else if(boost::iequals(eos_type, "white dwarf")) {
+    compute_pressure = compute_pressure_wd;
+    compute_soundspeed = compute_soundspeed_wd;
+  }
+  else {
+    std::cerr << "Bad eos_type parameter" << std::endl;
+  }
+}
+
+} // namespace eos
 
 #endif // _eos_h_
