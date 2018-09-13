@@ -262,6 +262,31 @@ namespace param {
   DECLARE_PARAM(double,fmm_max_cell_mass, 1.0e-4)
 # endif
 
+//
+// Drag force parameters
+//
+// HL : These parameters are used to relax star from 
+//      initial star in both single and binary system.
+//      Drag force is applied to acceleration computation
+//      during beginning of steps.
+//      If we have some IDs that do not require relaxation,
+//      this can be neglected
+//
+//- Do drag froce boolean
+#ifndef do_drag
+  DECLARE_PARAM(bool,do_drag,false)
+#endif
+
+//- relaxation steps
+# ifndef relax_steps
+  DECLARE_PARAM(int,relax_steps,10)
+# endif
+
+//- Drag force coefficients. 
+# ifndef drag_coeff
+  DECLARE_PARAM(double,drag_coeff,1.e-6)
+# endif
+
 
 //
 // Specific apps
@@ -469,6 +494,19 @@ void set_param(const std::string& param_name,
 
 # ifndef fmm_max_cell_mass
   READ_NUMERIC_PARAM(fmm_max_cell_mass)
+# endif
+
+// Drag force parameters ---------------------------------------------------
+#ifndef do_drag
+  READ_BOOLEAN_PARAM(do_drag)
+#endif
+
+# ifndef relax_steps
+  READ_NUMERIC_PARAM(relax_steps)
+# endif
+
+# ifndef drag_coeff
+  READ_NUMERIC_PARAM(drag_coeff)
 # endif
 
   // specific apps  ---------------------------------------------------------

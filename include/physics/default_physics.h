@@ -206,6 +206,17 @@ namespace physics{
     }
     hydro = -1.0*hydro;
     acceleration += hydro;
+
+    #if 0
+    //HL : Drag force applied here. Better place?
+    //Style of applying drag force:
+       if(do_drag && iteration < relax_step){
+        
+        acceleration -=drag_coeff*vel
+
+       }
+    #endif
+
     source->setAcceleration(acceleration);
   } // compute_hydro_acceleration
 
