@@ -71,12 +71,12 @@ namespace eos{
   void compute_pressure_wd( body_holder* srch)
   { 
     body* source = srch->getBody();
-    double A_dwd = 6.00288e22;
-    double B_dwd = 9.81011e5;
+    double A_wd = 6.00288e22;
+    double B_wd = 9.81011e5;
 
-    double x_dwd = pow((source->getDensity())/B_dwd,1.0/3.0);
-    double pressure = A_dwd*(x_dwd*(2.0*x_dwd*x_dwd-3.0)*
- 		      pow(x_dwd*x_dwd+1.0,1.0/2.0)+3.0*asinh(x_dwd));
+    double x_wd = pow((source->getDensity())/B_wd,1.0/3.0);
+    double pressure = A_wd*(x_wd*(2.0*x_wd*x_wd-3.0)*
+ 		      sqrt(x_wd*x_wd+1.0)+3.0*asinh(x_wd));
     source->setPressure(pressure);
   } // compute_pressure_wd
 
@@ -120,8 +120,28 @@ namespace eos{
     source->setSoundspeed(soundspeed);
   }
 
-  // TODO: add soundspeed for WDs and tabulates SC eos
+  /**
+   * @brief      Compute sound speed for wd eos
+   * 
+   * @param      srch  The source's body holder
+   */
+  void compute_soundspeed_wd(body_holder* srch) {
+    using namespace param;
+    body* source = srch->getBody();
+    double A_wd = 6.00288e22;
+    double B_wd = 9.81011e5;
+    double x_wd = pow((source->getDensity())/B_wd,1./3.);
 
+    double numer = 8.*source->getDensity()*x_wd - 3.*B_wd;
+    double deno = 3*B_wd*B_wd*x_wd*x_wd*sqrt(x_wd*x_wd+1);
+
+    double soundspeed = A_wd*(numer/deno + 
+                              x_wd/(3.*source->getDensity()
+                                    *sqrt(1-x_wd*x_wd)));
+    source->setSoundspeed(soundspeed);
+  }
+
+  // TODO: tabulates SC eos
   
   // eos function types and pointers
   typedef void (*compute_pressure_t)(body_holder*);
