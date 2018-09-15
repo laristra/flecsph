@@ -65,6 +65,9 @@ void set_derived_params() {
   physics::iteration = initial_iteration;
   physics::totaltime = initial_time;
   physics::dt = initial_dt; // TODO: use particle separation and Courant factor
+
+  // set equation of state
+  eos::select(eos_type);
 }
 
 namespace flecsi{

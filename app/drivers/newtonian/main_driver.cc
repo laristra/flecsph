@@ -51,7 +51,7 @@
 #include "default_physics.h"
 #include "BNS_physics.h"
 #include "analysis.h"
-
+#include "eos.h"
 
 namespace flecsi{
 namespace execution{
@@ -76,6 +76,9 @@ void set_derived_params() {
   physics::iteration = initial_iteration;
   physics::totaltime = initial_time;
   physics::dt = initial_dt; // TODO: use particle separation and Courant factor
+
+  // set equation of state
+  eos::select(eos_type);
 }
 
 void mpi_init_task(const char * parameter_file){
