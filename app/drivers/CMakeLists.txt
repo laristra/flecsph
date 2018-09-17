@@ -91,10 +91,12 @@ cinch_add_unit(sodtube_test
 )
 
 if(ENABLE_UNIT_TESTS)
+
 add_custom_target(
     sodtube_generator_test 
     COMMAND ../id_generators/sodtube_generator ${PROJECT_SOURCE_DIR}/data/sodtube_t1_n100.par
     COMMAND mv sodtube_t1_n100.h5part ../../test/drivers
+    DEPENDS ../id_generators/sodtube_generator
 )
 add_dependencies(sodtube_test sodtube_generator_test)
 endif()
@@ -121,6 +123,7 @@ add_custom_target(
     sedov_generator_test 
     COMMAND ../id_generators/sedov_generator ${PROJECT_SOURCE_DIR}/data/sedov_sqn100.par
     COMMAND mv sedov_sqn100.h5part ../../test/drivers
+    DEPENDS ../id_generators/sedov_generator
 )
 add_dependencies(sedov_test sedov_generator_test)
 endif()
@@ -147,6 +150,7 @@ add_custom_target(
     noh_generator_test 
     COMMAND ../id_generators/noh_generator ${PROJECT_SOURCE_DIR}/data/noh_sqn100.par
     COMMAND mv noh_sqn100.h5part ../../test/drivers
+    DEPENDS ../id_generators/noh_generator
 )
 add_dependencies(noh_test noh_generator_test)
 endif()

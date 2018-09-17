@@ -229,6 +229,14 @@ namespace param {
 //
 // Viscosity and equation of state
 //
+//- which equation of state to use?
+//  * "ideal fluid" (default)
+//  * "polytropic"
+//  * "white dwarf"
+#ifndef eos_type
+  DECLARE_STRING_PARAM(eos_type,"ideal fluid")
+#endif
+
 //- polytropic index
 #ifndef poly_gamma
   DECLARE_PARAM(double,poly_gamma,1.4)
@@ -471,6 +479,10 @@ void set_param(const std::string& param_name,
 # endif
 
   // viscosity and equation of state ----------------------------------------
+# ifndef eos_type
+  READ_STRING_PARAM(eos_type)
+# endif
+
 # ifndef poly_gamma
   READ_NUMERIC_PARAM(poly_gamma)
 # endif
