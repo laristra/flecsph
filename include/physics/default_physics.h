@@ -171,6 +171,7 @@ namespace physics{
     body_holder* srch, 
     std::vector<body_holder*>& ngbsh)
   { 
+    using namespace param;
     body* source = srch->getBody();
 
     // Reset the accelerastion 
@@ -207,13 +208,13 @@ namespace physics{
     hydro = -1.0*hydro;
     acceleration += hydro;
 
-    #if 0
+    #if 1
     //HL : Drag force applied here. Better place?
     //Style of applying drag force:
-       if(do_drag && iteration < relax_step){
-        
-        acceleration -=drag_coeff*vel
-
+       if(do_drag && iteration <= relax_steps){
+         //Redefine drag coefficient with dt
+         double drag_coeff_dt = drag_coeff/dt;
+         acceleration -=drag_coeff*source->getVelocity();
        }
     #endif
 
@@ -232,6 +233,7 @@ namespace physics{
     body_holder* srch,
     std::vector<body_holder*>& ngbsh)
   {
+    using namespace param;
     body* source = srch->getBody();
 
     double dudt = 0;
@@ -268,6 +270,11 @@ namespace physics{
     double P_a = source->getPressure();
     double rho_a = source->getDensity();
     dudt = P_a/(rho_a*rho_a)*dudt_pressure + .5*dudt_visc;
+
+    //Do not change internal energy during relaxation
+    if(do_drag && iteration <= relax_steps){
+       dudt = 0.0;
+    }
 
     source->setDudt(dudt);
   } // compute_dudt
