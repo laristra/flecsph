@@ -32,6 +32,7 @@ add_executable(sedov_2d_generator    sedov/main.cc)
 add_executable(sedov_3d_generator    sedov/main.cc)
 add_executable(noh_2d_generator      noh/main.cc)
 add_executable(noh_3d_generator      noh/main.cc)
+add_executable(implosion_generator   implosion/main.cc)
 add_executable(fluid_2d_generator    fluid_2d/main.cc)
 add_executable(fluid_3d_generator    fluid_3d/main.cc)
 
@@ -49,6 +50,8 @@ target_link_libraries(noh_2d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 target_link_libraries(noh_3d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
+target_link_libraries(implosion_generator
+  ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 target_link_libraries(fluid_2d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 target_link_libraries(fluid_3d_generator
@@ -61,5 +64,6 @@ target_compile_definitions(sedov_2d_generator    PUBLIC -DEXT_GDIMENSION=2)
 target_compile_definitions(sedov_3d_generator    PUBLIC -DEXT_GDIMENSION=3)
 target_compile_definitions(noh_2d_generator      PUBLIC -DEXT_GDIMENSION=2)
 target_compile_definitions(noh_3d_generator      PUBLIC -DEXT_GDIMENSION=3)
+target_compile_definitions(implosion_generator   PUBLIC -DEXT_GDIMENSION=2)
 target_compile_definitions(fluid_2d_generator    PUBLIC -DEXT_GDIMENSION=2)
 target_compile_definitions(fluid_3d_generator    PUBLIC -DEXT_GDIMENSION=3)
