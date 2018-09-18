@@ -94,6 +94,9 @@ mpi_init_task(const char * parameter_file){
   body_system<double,gdimension> bs;
   bs.read_bodies(initial_data_file.c_str(),initial_iteration);
 
+  // adjust internal energy with the external potential
+  bs.apply_all(external_force::adjust_internal_energy);
+
   // boundaries
 /*
   auto range_boundaries = bs.getRange();

@@ -476,7 +476,6 @@ namespace physics{
    * @brief      v -> v12
    *
    * @param      srch  The source's body holder
-   * @param      nbsh  The neighbors' body holders
    */
   void 
   save_velocityhalf (body_holder* srch) {
