@@ -19,7 +19,7 @@
 /**
  * @file eos.h
  * @brief Namespace for both analytic and tabulated EOS
- *        for pressure computation
+ *        for pressure computation and sound speed
  */
 
 #ifndef _eos_h_
@@ -31,7 +31,6 @@
 #include "utils.h"
 #include "tree.h"
 #include <boost/algorithm/string.hpp>
-
 
 namespace eos {
   using namespace param;
@@ -80,31 +79,31 @@ namespace eos {
     source->setPressure(pressure);
   } // compute_pressure_wd
 
-// HL : Compute pressure from tabulated EOS. Working now..
+// HL : Compute pressure from tabulated EOS. Linking to static lib somewhat
+//      need to be fixing
+
+// EOS prep stage for fill eos info from table
 
 #if 0
-
-#ifdef _EOS_TAB_SC
-
   void
   EOS_prep(body_holder* srch)
   {
     body* source = srch->getBody();
-    EOS_SC_Fill();
+    EOS_SC_fill(source->getDensity(), source->getInternalenergy(),
+                source->getElectronfraction(), 
+                1.0//This field should be field for eos cache);
+  //May need different source field?
   }
-
+#endif
   void
-  compute_pressure_tabEOS_SC(
+  compute_pressure_sc(
       body_holder* srch)
   { 
     using namespace param;
     body* source = srch->getBody();
-    double pressure = EOS_pressure();
-  } // compute_pressure_tabEOS_SC
-
-#endif
-
-#endif
+    //double pressure = EOS_pressure_rho0_u(source->eoscache());
+    //source->setPressure(pressure)
+  } // compute_pressure_sc
 
   /**
    * @brief      Compute sound speed for ideal fluid or polytropic eos
@@ -140,8 +139,6 @@ namespace eos {
                                     *sqrt(1-x_wd*x_wd)));
     source->setSoundspeed(soundspeed);
   }
-
-  // TODO: add tabulated eos from SC
   
   // eos function types and pointers
   typedef void (*compute_pressure_t)(body_holder*);
@@ -165,6 +162,10 @@ void select(const std::string& eos_type) {
   else if(boost::iequals(eos_type, "white dwarf")) {
     compute_pressure = compute_pressure_wd;
     compute_soundspeed = compute_soundspeed_wd;
+  }
+  else if(boost::iequals(eos_type, "stellar collapse")) {
+    compute_pressure = compute_pressure_sc;
+    compute_soundspeed = compute_soundspeed_ideal;
   }
   else {
     std::cerr << "Bad eos_type parameter" << std::endl;
