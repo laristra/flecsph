@@ -61,9 +61,17 @@ In this configuration, all dependencies are installed in `${HOME}/FLECSPH/local`
 
 ## Install the dependencies
 
+You will need the following tools:
+
+- gcc version > 6.2;
+- MPI library: openmpi or mpich, compiled with the gcc compiler above; and with `--enable-mpi-thread-multiple`;
+- cmake version > 3.7
+- boost library
+
+
 On DARWIN supercomputer load the modules:
 
-    % module load gcc/6.2.0 openmpi/2.0.1-gcc_6.2.0 git/2.8.0 cinch/cinch-utils cmake/3.7.1 boost/1.59.0_gcc-6.2.0
+    % module load gcc/6.2.0 openmpi/2.0.1-gcc_6.2.0 git/2.8.0 cmake/3.7.1 boost/1.59.0_gcc-6.2.0
 
 ### FleCSI third part libraries
 
