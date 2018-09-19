@@ -192,6 +192,12 @@ Configure, build and install:
 
     % make -j8 install
 
+### Build FleCSPH on Different machines
+There are several different instructions about building FleCSPH in
+different machines/architecture. Please check under [doc/instruction_build](https://github.com/laristra/flecsph/tree/doc/hlim/doc/instruction_build)
+to find the system that you want. We also ask users to put their instructions during your compiling
+experiences.
+
  # Running test cases
 
  You can find each test case in the corresponding app/ directory. Currently, we have below cases:
@@ -221,7 +227,8 @@ FleCSI coding style is documented here:
 https://github.com/laristra/flecsi/blob/master/flecsi/style.md
 
 # Development Logistic
-If you would are new person for development of the FleCSPH, please check development logistic under doc/DEVELOPMENT.md
+If you would are new person for development of the FleCSPH, please check development logistic under 
+[doc/DEVELOPMENT.md](https://github.com/laristra/flecsph/blob/doc/hlim/doc/DEVELOPMENT.md)
 
 # Logs 
 
