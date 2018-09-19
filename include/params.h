@@ -145,9 +145,9 @@ namespace param {
   DECLARE_PARAM(int64_t,nparticles,1000)
 #endif
 
-//- square root of the total number of particles (for 2D setups)
-#ifndef sqrt_nparticles
-  DECLARE_PARAM(int64_t,sqrt_nparticles,100)
+//- particle lattice linear dimension
+#ifndef lattice_nx
+  DECLARE_PARAM(int64_t,lattice_nx,100)
 #endif
 
 //- SPH eta parameter, eta = h (rho/m)^1/D (Rosswog'09, eq.51)
@@ -221,18 +221,22 @@ namespace param {
   DECLARE_PARAM(int32_t,out_h5data_every,10)
 #endif
 
-//- Choose output style
-//  1 : Generate separate h5part output with respect to iteration
-//  2 : Generate single h5part file 
-//  otherwise : Exit the code
-//  TODO : Add different output style rather than h5part
-#ifndef out_style
-  DECLARE_PARAM(int32_t,out_style,1)
+//- produce separate HDF5 file per iteration
+#ifndef out_h5data_separate_iterations
+  DECLARE_PARAM(bool,out_h5data_separate_iterations,false)
 #endif
 
 //
 // Viscosity and equation of state
 //
+//- which equation of state to use?
+//  * "ideal fluid" (default)
+//  * "polytropic"
+//  * "white dwarf"
+#ifndef eos_type
+  DECLARE_STRING_PARAM(eos_type,"ideal fluid")
+#endif
+
 //- polytropic index
 #ifndef poly_gamma
   DECLARE_PARAM(double,poly_gamma,1.4)
@@ -273,6 +277,11 @@ namespace param {
 /// number of Sodtest to run (1..5)
 #ifndef sodtest_num
   DECLARE_PARAM(unsigned short,sodtest_num,1)
+#endif
+
+// equal mass or equal particle separation switch for sodtube
+#ifndef equal_mass
+  DECLARE_PARAM(bool,equal_mass,true)
 #endif
 
 // characteristic density for an initial conditions
@@ -351,7 +360,10 @@ void set_param(const std::string& param_name,
   // for boolean parameters
   bool lparam_value = (str_value == "yes"
                     or str_value == "'yes'"
-                    or str_value == "\"yes\"");
+                    or str_value == "\"yes\""
+                    or str_value == "true"
+                    or str_value == "'true'"
+                    or str_value == "\"true\"");
   // timestepping and iterations --------------------------------------------
 # ifndef initial_iteration
   READ_NUMERIC_PARAM(initial_iteration)
@@ -379,8 +391,8 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(nparticles)
 # endif
 
-# ifndef sqrt_nparticles
-  READ_NUMERIC_PARAM(sqrt_nparticles)
+# ifndef lattice_nx
+  READ_NUMERIC_PARAM(lattice_nx)
 # endif
 
 # ifndef sph_eta
@@ -437,11 +449,15 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(out_h5data_every)
 # endif
 
-# ifndef out_style
-  READ_NUMERIC_PARAM(out_style)
+# ifndef out_h5data_separate_iterations
+  READ_BOOLEAN_PARAM(out_h5data_separate_iterations)
 # endif
 
   // viscosity and equation of state ----------------------------------------
+# ifndef eos_type
+  READ_STRING_PARAM(eos_type)
+# endif
+
 # ifndef poly_gamma
   READ_NUMERIC_PARAM(poly_gamma)
 # endif
@@ -471,6 +487,10 @@ void set_param(const std::string& param_name,
 # ifndef sodtest_num
   READ_NUMERIC_PARAM(sodtest_num)
 # endif
+
+#ifndef equal_mass
+  READ_BOOLEAN_PARAM(equal_mass)
+#endif
 
 # ifndef rho_initial
   READ_NUMERIC_PARAM(rho_initial)
