@@ -1530,7 +1530,7 @@ public:
   void 
   find_sub_cells(
       branch_t * b,
-      int64_t criterion,
+      uint64_t criterion,
       std::vector<branch_t*>& search_list)
   {
     std::stack<branch_t*> stk;

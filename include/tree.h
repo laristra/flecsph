@@ -378,7 +378,7 @@ public:
 
     void insert(body_holder* ent){
       // Check if same id in the branch 
-      entity_key_t nkey = entity_key_t(ent->coordinates()); 
+      // entity_key_t nkey = entity_key_t(ent->coordinates());  // unused
       ents_.push_back(ent); 
       if(ents_.size() > (1<<dimension)){
         refine();
