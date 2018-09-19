@@ -52,7 +52,7 @@ namespace external_force {
   double potential_zero(body_holder* srch)
   { 
     // body* source = srch->getBody();
-    return -666.0; // POISON IT
+    return param::zero_potential_poison_value; // POISON IT
   }
 
   // acceleration and potential function types and pointers

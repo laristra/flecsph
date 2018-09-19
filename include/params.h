@@ -272,6 +272,13 @@ namespace param {
 
 
 //
+// Parameters for external acceleration
+//
+# ifndef zero_potential_poison_value
+  DECLARE_PARAM(double,zero_potential_poison_value, 0.0)
+# endif
+
+//
 // Specific apps
 //
 /// number of Sodtest to run (1..5)
@@ -481,6 +488,11 @@ void set_param(const std::string& param_name,
 
 # ifndef fmm_max_cell_mass
   READ_NUMERIC_PARAM(fmm_max_cell_mass)
+# endif
+
+  // external force  --------------------------------------------------------
+# ifndef zero_potential_poison_value
+  READ_NUMERIC_PARAM(zero_potential_poison_value)
 # endif
 
   // specific apps  ---------------------------------------------------------
