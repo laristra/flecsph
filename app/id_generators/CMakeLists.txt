@@ -25,25 +25,41 @@ include_directories(${CMAKE_SOURCE_DIR}/third-party-libraries/ScalingFramework/I
 # Executables    
 #------------------------------------------------------------------------------#
 
-add_executable(sodtube_generator  sodtube/main.cc)
-add_executable(sedov_generator    sedov/main.cc)
-add_executable(noh_generator      noh/main.cc)
-add_executable(fluid_2d_generator fluid_2d/main.cc)
-add_executable(fluid_3d_generator fluid_3d/main.cc)
+add_executable(sodtube_1d_generator  sodtube/main.cc)
+add_executable(sodtube_2d_generator  sodtube/main.cc)
+add_executable(sodtube_3d_generator  sodtube/main.cc)
+add_executable(sedov_2d_generator    sedov/main.cc)
+add_executable(sedov_3d_generator    sedov/main.cc)
+add_executable(noh_2d_generator      noh/main.cc)
+add_executable(noh_3d_generator      noh/main.cc)
+add_executable(fluid_2d_generator    fluid_2d/main.cc)
+add_executable(fluid_3d_generator    fluid_3d/main.cc)
 
-target_link_libraries(sodtube_generator 
+target_link_libraries(sodtube_1d_generator 
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
-target_link_libraries(sedov_generator 
+target_link_libraries(sodtube_2d_generator 
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
-target_link_libraries(noh_generator
+target_link_libraries(sodtube_3d_generator 
+  ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
+target_link_libraries(sedov_2d_generator 
+  ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
+target_link_libraries(sedov_3d_generator 
+  ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
+target_link_libraries(noh_2d_generator
+  ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
+target_link_libraries(noh_3d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 target_link_libraries(fluid_2d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 target_link_libraries(fluid_3d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 
-target_compile_definitions(sodtube_generator  PUBLIC -DEXT_GDIMENSION=1)
-target_compile_definitions(sedov_generator    PUBLIC -DEXT_GDIMENSION=2)
-target_compile_definitions(noh_generator      PUBLIC -DEXT_GDIMENSION=2)
-target_compile_definitions(fluid_2d_generator PUBLIC -DEXT_GDIMENSION=2)
-target_compile_definitions(fluid_3d_generator PUBLIC -DEXT_GDIMENSION=3)
+target_compile_definitions(sodtube_1d_generator  PUBLIC -DEXT_GDIMENSION=1)
+target_compile_definitions(sodtube_2d_generator  PUBLIC -DEXT_GDIMENSION=2)
+target_compile_definitions(sodtube_3d_generator  PUBLIC -DEXT_GDIMENSION=3)
+target_compile_definitions(sedov_2d_generator    PUBLIC -DEXT_GDIMENSION=2)
+target_compile_definitions(sedov_3d_generator    PUBLIC -DEXT_GDIMENSION=3)
+target_compile_definitions(noh_2d_generator      PUBLIC -DEXT_GDIMENSION=2)
+target_compile_definitions(noh_3d_generator      PUBLIC -DEXT_GDIMENSION=3)
+target_compile_definitions(fluid_2d_generator    PUBLIC -DEXT_GDIMENSION=2)
+target_compile_definitions(fluid_3d_generator    PUBLIC -DEXT_GDIMENSION=3)
