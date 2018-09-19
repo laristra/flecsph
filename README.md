@@ -192,43 +192,74 @@ Configure, build and install:
 
     % make -j8 install
 
-### Build FleCSPH on Different machines
-There are several different instructions about building FleCSPH in
-different machines/architecture. Please check under [doc/instruction_build](https://github.com/laristra/flecsph/tree/doc/hlim/doc/instruction_build)
-to find the system that you want. We also ask users to put their instructions during your compiling
-experiences.
+### Building FleCSPH on various architectures
+Architecture-/machine-specific notes for building FleCSPH are collected in
+[doc/machines](https://github.com/laristra/flecsph/tree/master/doc/machines)
+We appreciate user contributions.
 
- # Running test cases
+# Runnig existing applications
+Current FleCSPH contains several initial data generators and two evolution
+drivers: `hydro` and `newtonian`. Initial data generators are located in
+`app/id_generators/`:
 
- You can find each test case in the corresponding app/ directory. Currently, we have below cases:
+- `sodtube`: 1D/2D/3D sodtube shock test;
+- `sedov`: 2D and 3D Sedov blast wave;
+- `noh`: 2D and 3D Noh implosion test.
 
- - sodtube : 1D Sod shock tube problem
- - sedov : 2D circular Sedov blast wave expansion
- - fluid : 3D simple fluid drop simulation
- - bwd : 3D binary white dwarf merger with analytic zero temperature EOS
+Evolution drivers are located in `app/drivers`:
 
- Also, app/miscell directory contains python scripts that perform different aspects for initial data generators and converter for h5part format.
+- `hydro`: 1D/2D/3D hydro evolution without gravity;
+- `newtonian`: 3D hydro evolution with self-gravity.
 
-# Adding your own projects
-FleCSPH can handle different projects. To add your own project, you first need to create a corresponding directory in the `app` folder, for example `myproject`. In `myproject`, you must have the following files: `CMakeLists.txt`, `generator/main.cc`, `/include/user.h`, `main.cc`, and `main_driver.cc`. It is also advisable to have a README.md file that describes the problem you want to run. In order to get all files easily and correctly, you can copy them from other application directories such as `sodtube`, paste them into `myproject` and modify according to your needs.
+To run a test, you also need a parameter file, specifying parameters of the
+problem. Parameter files are located in `data/` subdirectory. Running an 
+application consists of two steps:
 
-You need to modify the file `CMakeLists.txt` to have the correct name of your executable. The file `generator/main.cc` should contain the initialization of your problem. All values and functions that you want to put into your project and/or change from their default values should go into `main_driver.cc`. While `generator/main.cc` initializes your problem, `main_driver.cc` describes how it is run. The file `/include/user.h` defines the dimensions of your problem. Do not edit `main.cc`.
+- generating intitial data;
+- running evolution code.
 
-To compile your project, you need to add it in `flecsph/config/project.cmake`: At the end of this file you have a section called `Add application targets`. Here, you need to add:
+For instance, to run a `sodtube` 1D shock test, do the following (assuming
+you are in your build directory after having successfully built FleCSPH):
+```{engine=sh}
+  cp ../data/sodtube_t1_n1000.par sodtube.par
+  # edit the file sodtube.par to adjust the number of particles etc.
+  app/id_generators/sodtube_1d_generator  sodtube.par
+  app/driver/hydro_1d sodtube.par
+```
 
-```cinch add application directory("app/myproject")```
+# Creating your own initial data or drivers
+You can add your own initial data generator or a new evolution module under
+`app/id_generators` or `app/drivers` directories. Create a directory with 
+unique name for your project and modify CMakeLists.txt to inform the cmake
+system that your project needs to be built. 
 
-Then, `cmake` links your project and you can compile it. 
+A new initial data generator usually has a single `main.cc` file and an optional
+include file. You can use existing interfaces for lattice generators or equations 
+of state in the `include/` directory. 
+The file `app/drivers/include/user.h` defines the dimensions of your problem, both
+for initial data generators and for the evolution drivers. 
+This is done via a compile-time macro `EXT_GDIMENSION`, which allows users to have
+the same source code for different problem dimensions. Actual dimension is set at 
+compile time via the `target_compile_definitions` directive of cmake, e.g.:
+```
+   target_compile_definitions(sodtube_1d_generator PUBLIC -DEXT_GDIMENSION=1)
+   target_compile_definitions(sodtube_2d_generator PUBLIC -DEXT_GDIMENSION=2)
+```
+
+A new evolution driver must have a `main.cc` and `main_driver.cc` files. Do not edit 
+`main.cc`, because FleCSI expects certain format of this file. It is easier to start 
+by copying existing files to your folder under `app/drivers`. Include cmake 
+targets with different dimensions using examples in `app/drivers/CMakeLists.txt`.
+
+Make sure to document your subproject in a corresponding `README.md` file 
+that describes the problem you want to run. In order to get all files easily and 
+correctly, you can copy them from other subprojects such as `sodtube` or `hydro`.
 
 # Style guide
 
 FleCSPH follows the FleCSI coding style, which in turn follows (in general) the Google coding conventions.
 FleCSI coding style is documented here:
 https://github.com/laristra/flecsi/blob/master/flecsi/style.md
-
-# Development Logistic
-If you would are new person for development of the FleCSPH, please check development logistic under 
-[doc/DEVELOPMENT.md](https://github.com/laristra/flecsph/blob/doc/hlim/doc/DEVELOPMENT.md)
 
 # Logs 
 
