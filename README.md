@@ -105,7 +105,7 @@ Here add:
 - `ENABLE_MPI_CXX_BINDINGS`: ON
 - `ENABLE_OPENMP`: ON
 - `ENABLE_LEGION`: ON
-- `FLECSI_RUNTIME_MODEL`: mpi
+- `FLECSI_RUNTIME_MODEL`: legion
 
 Press `c` to reconfigure and `g` to generate configurations scripts.
 
