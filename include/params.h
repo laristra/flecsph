@@ -274,6 +274,12 @@ namespace param {
 //
 // Parameters for external acceleration
 //
+//- which external force to apply?
+//  * "none" (default)
+#ifndef external_force_type
+  DECLARE_STRING_PARAM(external_force_type,"none")
+#endif
+
 # ifndef zero_potential_poison_value
   DECLARE_PARAM(double,zero_potential_poison_value, 0.0)
 # endif
@@ -491,6 +497,10 @@ void set_param(const std::string& param_name,
 # endif
 
   // external force  --------------------------------------------------------
+#ifndef external_force_type
+  READ_STRING_PARAM(external_force_type)
+#endif
+
 # ifndef zero_potential_poison_value
   READ_NUMERIC_PARAM(zero_potential_poison_value)
 # endif

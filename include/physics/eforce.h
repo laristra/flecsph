@@ -24,12 +24,10 @@
 #ifndef _eforce_h_
 #define _eforce_h_
 
-#include <vector>
+#include <boost/algorithm/string.hpp>
 
-#include "params.h"
-#include "utils.h"
 #include "tree.h"
-
+#include "params.h"
 
 namespace external_force {
 
@@ -39,8 +37,7 @@ namespace external_force {
    */
   point_t acceleration_zero(body_holder* srch) { 
     // body* source = srch->getBody();
-    point_t a = {};
-    a = 0.0;
+    point_t a = 0.0;
     return a;
   }
 
@@ -60,6 +57,20 @@ namespace external_force {
   typedef point_t (*acceleration_t)(body_holder*);
   potential_t    potential = potential_zero;
   acceleration_t acceleration = acceleration_zero;
+
+  /**
+   * @brief      External force selector
+   * @param      efstr    ext. force string
+   */
+  void select(const std::string& efstr) {
+    if (boost::iequals(efstr,"zero") or boost::iequals(efstr,"none")) {
+      potential = potential_zero;
+      acceleration = acceleration_zero;
+    }
+    else {
+      clog_one(fatal) << "ERROR: bad external_force_type" << std::endl;
+    }
+  }
 
   /**
    * @brief      add external potential to the internal energy

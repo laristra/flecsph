@@ -667,22 +667,16 @@ namespace kernels{
     return result; 
   }
 
-
-  /**
-   * @brief      Kernel selector: types, global variables and the function
-   *
-   * @param      kstr     Kernel string descriptor
-   *
-   * @return     Pointer to the kernel
-   */
+  // kernel function pointers
   typedef double  (*kernel_function_t)(const double,    const double);
   typedef point_t (*kernel_gradient_t)(const point_t &, const double);
-
-  // kernel function pointers
   kernel_function_t kernel = quintic_spline;
   kernel_gradient_t gradKernel = gradient_quintic_spline;
 
-
+  /**
+   * @brief      Kernel selector: types, global variables and the function
+   * @param      kstr     Kernel string descriptor
+   */
   void select(const std::string& kstr) {
     if (boost::iequals(kstr,"cubic spline")) {
       kernel = cubic_spline;
