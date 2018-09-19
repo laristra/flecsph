@@ -27,7 +27,7 @@
 #define _mpisph_utils_
 
 // Local version of assert to handle MPI abort
-#define mpi_assert( err )  ((err) ? 0 : \
+#define mpi_assert( assertion )  ((assertion) ? true : \
     (fprintf(stderr,"Failed assertion in %s in %d\n",__FILE__,__LINE__) \
      && MPI_Abort(MPI_COMM_WORLD, 1)));
 
