@@ -176,6 +176,22 @@ namespace param {
 #endif
 
 //
+// Geometric parameters
+//
+//- rectangular configuration parameters (e.g. sodtube in 2D/3D)
+#ifndef box_length
+  DECLARE_PARAM(double,box_length,3.0)
+#endif
+
+#ifndef box_width
+  DECLARE_PARAM(double,box_width,1.0)
+#endif
+
+#ifndef box_height
+  DECLARE_PARAM(double,box_height,1.0)
+#endif
+
+//
 // Boundary conditions
 //
 //- TODO: add description
@@ -426,6 +442,19 @@ void set_param(const std::string& param_name,
 
 # ifndef sph_sinc_index
   READ_NUMERIC_PARAM(sph_sinc_index)
+# endif
+
+  // geometric configuration  -----------------------------------------------
+# ifndef box_length
+  READ_NUMERIC_PARAM(box_length)
+# endif
+
+# ifndef box_width
+  READ_NUMERIC_PARAM(box_width)
+# endif
+
+# ifndef box_height
+  READ_NUMERIC_PARAM(box_height)
 # endif
 
   // boundary conditions  ---------------------------------------------------
