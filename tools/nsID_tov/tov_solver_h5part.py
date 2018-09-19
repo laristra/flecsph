@@ -3,10 +3,8 @@
 # Author : Hyun Lim
 # Date : June.26.2017
 # This is a python script that solves the TOV equation (in Newtonian sense)
-# with piecewise polytrope EOS and generates data for SPH. 
-# It generates h5part format
+# with piecewise polytrope EOS and generates SPH data in H5part format.
 
-# Here is the packages that I use normally for this
 import numpy as np
 import h5py
 import sys
@@ -15,7 +13,7 @@ from matplotlib import pylab
 from scipy.constants import pi, G, c, hbar, m_n #Physical constants (Not needed maybe but keep anyway)
 from scipy.interpolate import interp1d
 from random import uniform
-from scipy import optimize
+#from scipy import optimize # UNUSED
 
 # User input parameters
 num_particles = int(sys.argv[1]) # Number of particles that you want to obtain in the data
@@ -38,7 +36,10 @@ KR = (3.0*pi**2)**(1.0/3.0)*hbar*c/(4.0*m_n**(4.0/3.0))
 P1 = K0*rho1**Gamma0
 K1 = P1/rho1**Gamma1
 
-# Some unit conversions to avoid over/under flow problems (HL, TODO : I just made assumptions. We may need to change the value of this based on our code or not need this part if we have normalized everything in the code)
+# Some unit conversions to avoid over/under flow problems 
+# (HL, TODO : I just made assumptions. We may need to change 
+#  the value of this based on our code or not need this part 
+#  if we have normalized everything in the code)
 
 # Here is the conversion factors (memory from 2HOT)
 # mass_cu = 1.0e20g
