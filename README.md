@@ -6,21 +6,21 @@
 [![Quality Gate](https://sonarqube.com/api/badges/gate?key=flecsph%3A%2Fmaster)](https://sonarqube.com/dashboard?id=flecsph%3A%2Fmaster)
 --->
 
-# SPH on FleCSI
+# SPH with FleCSI
 
-This project is an implementation of SPH problem using FleCSI framework.
-This code intent to provide distributed and parallel implementation of the octree data structure provide by FleCSI.
-The Binary, Quad and Oct tree respectively for 1, 2 and 3 dimensions is developed here for Smoothed Particle Hydrodynamics problems.
+This project implements smoothed particles hydrodynamics (SPH) method of
+simulating fluids and gases using the FleCSI framework.
+Currently, particle affinity and gravitation is handled using the parallel 
+implementation of the octree data structure provided by FleCSI.
 
-For the first version of the code we intent to provide several basic physics problems:
+We provide examples of several basic physics problems:
 
-- Sod Shock Tube Tests in 1D
-- Sedov Blast Wave 2D
-- Binary Compact Object Merger 3D
+- Sod shock tubes in 1D/2D/3D;
+- Noh tests in 2D/3D;
+- Sedov blast waves 2D and 3D;
+- Single and binary stars with Newtonian gravity in 3D.
 
-You can find detail ingredients of FleCSPH such as formulations and algorithm under `doc/notes.pdf`. The document is constantly updated to contain latest development of FleCSPH
-
-# Getting the Code
+# Getting the code
 
 FleCSPH can be installed anywhere in your system; to be particular, below we
 assume that all repositories are downloaded in FLECSPH root directory `${HOME}/FLECSPH`.
@@ -31,12 +31,6 @@ The code requires:
 - shared local directory
 
 ### Suggested directory structure
-
-```{engine=sh}
-   mkdir -p $HOME/FLECSPH/local
-   cd $HOME/FLECSPH
-   git clone --recursive git@github.com:laristra/flecsph.git
-```    
 
 ```{engine=sh}
   ${HOME}/FLECSPH
@@ -66,23 +60,18 @@ You will need the following tools:
 - gcc version > 6.2;
 - MPI library: openmpi or mpich, compiled with the gcc compiler above; and with `--enable-mpi-thread-multiple`;
 - cmake version > 3.7
-- boost library
-
-
-On DARWIN supercomputer load the modules:
-
-    % module load gcc/6.2.0 openmpi/2.0.1-gcc_6.2.0 git/2.8.0 cmake/3.7.1 boost/1.59.0_gcc-6.2.0
+- boost library version > 1.59
 
 ### FleCSI third part libraries
 
-Clone the FleCSI repo with third party libraries and check out FleCSPH-compatible branch `flecsph`:
+Clone FleCSI with third-party libraries repo and check out the compatible branch `FleCSPH`:
 
 ```{engine=sh}    
    cd $HOME/FLECSPH
    git clone --recursive git@github.com:laristra/flecsi-third-party.git
    cd flecsi-third-party
    git checkout FleCSPH
-   git submodule update
+   git submodule update --recursive
    mkdir build ; cd build
    ccmake ..
 ```    
@@ -91,7 +80,7 @@ Let all the flags ON, make sure the conduit of GASNET is MPI.
 Set `CMAKE_INSTALL_PREFIX -> ~/FLECSPH/local`.
 Build the libraries using several cores (note that no install step is required):
 
-    % make -j8
+    % make -j
 
 ### FleCSI
 
@@ -116,7 +105,7 @@ Here add:
 - `ENABLE_MPI_CXX_BINDINGS`: ON
 - `ENABLE_OPENMP`: ON
 - `ENABLE_LEGION`: ON
-- `FLECSI_RUNTIME_MODEL`: legion
+- `FLECSI_RUNTIME_MODEL`: mpi
 
 Press `c` to reconfigure and `g` to generate configurations scripts.
 
@@ -142,12 +131,21 @@ In case of errors: if you are rebuilding everything from scratch,
 make sure that your installation directory (`$HOME/FLECSPH/local` 
 in our example) is empty.
 
-# Build
+### Clone FleCSPH
 
-## Dependencies
+Clone the FleCSPH git repo:
+```{engine=sh}
+   mkdir -p $HOME/FLECSPH/local
+   cd $HOME/FLECSPH
+   git clone --recursive git@github.com:laristra/flecsph.git
+```    
 
-In order to build flecsph some other dependencies can be found in the third-party-libraries/ directory.
-- Use the scripts to install HDF5 and H5Hut from within build/ directory:
+### Build additional dependencies
+
+FleCSPH has specific HDF5 dependencies which need to be built; they 
+are located in `flecsph/third-party-libraries/` directory.
+Use the following scripts to install HDF5 and H5Hut them from within 
+your build/ directory:
 
 ```{engine=sh}
    cd ~/FLECSPH/flecsph
@@ -156,9 +154,7 @@ In order to build flecsph some other dependencies can be found in the third-part
    ../third-party-libraries/install_h5hut.sh
 ```    
 
-- ScalingFramework is available in LANL property right now, soon open-source
-
-## Build FleCSPH
+### Build FleCSPH
 
 Continue with the build:
 
@@ -190,14 +186,14 @@ ccmake ..
 
 Configure, build and install:
 
-    % make -j8 install
+    % make -j install
 
 ### Building FleCSPH on various architectures
 Architecture-/machine-specific notes for building FleCSPH are collected in
 [doc/machines](https://github.com/laristra/flecsph/tree/master/doc/machines)
 We appreciate user contributions.
 
-# Runnig existing applications
+# Running FleCSPH applications
 Current FleCSPH contains several initial data generators and two evolution
 drivers: `hydro` and `newtonian`. Initial data generators are located in
 `app/id_generators/`:
