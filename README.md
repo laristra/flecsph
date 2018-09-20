@@ -20,7 +20,7 @@ We provide examples of several basic physics problems:
 - Sedov blast waves 2D and 3D;
 - Single and binary stars with Newtonian gravity in 3D.
 
-# Getting the code
+# Building the FleCSPH
 
 FleCSPH can be installed anywhere in your system; to be particular, below we
 assume that all repositories are downloaded in FLECSPH root directory `${HOME}/FLECSPH`.
@@ -31,6 +31,9 @@ The code requires:
 - shared local directory
 
 ### Suggested directory structure
+
+We recommend to use and isolated installation of FleCSPH, FleCSI and all their 
+dependencies in a separate directory, with the following directory structure:
 
 ```{engine=sh}
   ${HOME}/FLECSPH
@@ -52,6 +55,9 @@ The code requires:
 ```
 
 In this configuration, all dependencies are installed in `${HOME}/FLECSPH/local`.
+Set your CMAKE prefix to this location:
+
+    % export CMAKE_PREFIX_PATH=${HOME}/FLECSPH/local
 
 ## Install the dependencies
 
@@ -73,59 +79,41 @@ Clone FleCSI with third-party libraries repo and check out the compatible branch
    git checkout FleCSPH
    git submodule update --recursive
    mkdir build ; cd build
-   ccmake ..
+   cmake .. \
+        -DGASNet_CONDUIT=mpi \
+        -DENABLE_EXODUS=OFF -DENABLE_HPX=OFF \
+        -DCMAKE_INSTALL_PREFIX=${HOME}/FLECSPH/local
 ```    
 
-Let all the flags ON, make sure the conduit of GASNET is MPI.
-Set `CMAKE_INSTALL_PREFIX -> ~/FLECSPH/local`.
 Build the libraries using several cores (note that no install step is required):
 
     % make -j
 
 ### FleCSI
 
-Clone FleCSI repo and change to FlecSPH branch:
+Clone FleCSI repo and change to the `stable/flecsph-compatible` branch:
 
 ```{engine=sh}    
    cd $HOME/FLECSPH
    git clone --recursive git@github.com:laristra/flecsi.git
    cd flecsi
    git checkout stable/flecsph-compatible
-   git submodule update
+   git submodule update --recursive
    mkdir build ; cd build
-   ccmake ..
+   export CMAKE_PREFIX_PATH=${HOME}/FLECSPH/local
+   cmake .. \
+       -DCMAKE_INSTALL_PREFIX=$HOME/FLECSPH/local \
+       -DENABLE_MPI=ON                            \
+       -DENABLE_MPI_CXX_BINDINGS=ON               \
+       -DENABLE_OPENMP=ON                         \
+       -DENABLE_LEGION=ON                         \
+       -DFLECSI_RUNTIME_MODEL=legion
 ```    
 
-Press `c` to do initial configuring.
-- Set `CMAKE_INSTALL_PREFIX -> ~/FLECSPH/local`.
-
-Press `c` to reconfigure. Press `t` for advanced options; scroll down to select:
-Here add:
-- `ENABLE_MPI`: ON
-- `ENABLE_MPI_CXX_BINDINGS`: ON
-- `ENABLE_OPENMP`: ON
-- `ENABLE_LEGION`: ON
-- `FLECSI_RUNTIME_MODEL`: legion
-
-Press `c` to reconfigure and `g` to generate configurations scripts.
-
-You can also supply CMakeCache.txt to avoid multiple reconfigures:
-
-```{engine=sh}
-cat > CMakeCache.txt << EOF
-  CMAKE_INSTALL_PREFIX:PATH=$HOME/FLECSPH/local
-  ENABLE_MPI:BOOL=ON
-  ENABLE_MPI_CXX_BINDINGS:BOOL=ON
-  ENABLE_OPENMP:BOOL=ON
-  ENABLE_LEGION:BOOL=ON
-  FLECSI_RUNTIME_MODEL:STRING=legion
-EOF
-ccmake ..
-```
-
+In this configuration, Legion is used as FleCSI backend. 
 If no errors appeared, build and install:
 
-    % make -j8 install
+    % make -j install
 
 In case of errors: if you are rebuilding everything from scratch, 
 make sure that your installation directory (`$HOME/FLECSPH/local` 
@@ -133,9 +121,8 @@ in our example) is empty.
 
 ### Clone FleCSPH
 
-Clone the FleCSPH git repo:
+Clone the master branch from the FleCSPH git repo:
 ```{engine=sh}
-   mkdir -p $HOME/FLECSPH/local
    cd $HOME/FLECSPH
    git clone --recursive git@github.com:laristra/flecsph.git
 ```    
@@ -144,7 +131,7 @@ Clone the FleCSPH git repo:
 
 FleCSPH has specific HDF5 dependencies which need to be built; they 
 are located in `flecsph/third-party-libraries/` directory.
-Use the following scripts to install HDF5 and H5Hut them from within 
+Use the following scripts to install HDF5 and H5Hut from within 
 your build/ directory:
 
 ```{engine=sh}
@@ -156,32 +143,19 @@ your build/ directory:
 
 ### Build FleCSPH
 
-Continue with the build:
-
-    % ccmake ..
-
-Set the following options:
-- `CMAKE_INSTALL_PREFIX`: ~/FLECSPH/local
-- `ENABLE_MPI`: ON
-- `ENABLE_OPENMPI`: ON
-- `ENABLE_LEGION`: ON
-- `ENABLE_UNIT_TESTS`: ON
-- `HDF5_C_LIBRARY_hdf5`: `~/FLECSPH/local/lib/libhdf5.so`
-
-You can also use the following command to setup cmake cache:
+Configure and build FleCSPH:
 
 ```{engine=sh}
-cat > CMakeCache.txt << EOF
-  CMAKE_INSTALL_PREFIX:PATH=$HOME/FLECSPH/local
-  ENABLE_LEGION:BOOL=ON
-  ENABLE_MPI:BOOL=ON
-  ENABLE_MPI_CXX_BINDINGS:BOOL=ON
-  ENABLE_OPENMP:BOOL=ON
-  ENABLE_UNIT_TESTS:BOOL=ON
-  HDF5_C_LIBRARY_hdf5:FILEPATH=$HOME/FLECSPH/local/lib/libhdf5.so
-  VERSION_CREATION:STRING=
-EOF
-ccmake ..
+   # in ${HOME}/FLECSPH/build:
+   export CMAKE_PREFIX_PATH=${HOME}/FLECSPH/local
+   cmake .. \
+       -DCMAKE_INSTALL_PREFIX=$HOME/FLECSPH/local \
+       -DENABLE_LEGION=ON                         \
+       -DENABLE_MPI=ON                            \
+       -DENABLE_OPENMP=ON                         \
+       -DENABLE_UNIT_TESTS=ON                     \
+       -DHDF5_C_LIBRARY_hdf5=$HOME/FLECSPH/local/lib/libhdf5.so \
+       -DVERSION_CREATION:STRING=
 ```
 
 Configure, build and install:
@@ -251,7 +225,11 @@ Make sure to document your subproject in a corresponding `README.md` file
 that describes the problem you want to run. In order to get all files easily and 
 correctly, you can copy them from other subprojects such as `sodtube` or `hydro`.
 
-# Style guide
+# For developers
+Please refer to the following page:
+[Development Guidelines](https://github.com/laristra/flecsph/blob/doc/hlim/doc/development.md)
+
+## Style guide
 
 FleCSPH follows the FleCSI coding style, which in turn follows (in general) the Google coding conventions.
 FleCSI coding style is documented here:
