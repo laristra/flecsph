@@ -30,7 +30,7 @@ The code requires:
 - FleCSI
 - shared local directory
 
-### Suggested directory structure
+## Suggested directory structure
 
 We recommend to use and isolated installation of FleCSPH, FleCSI and all their 
 dependencies in a separate directory, with the following directory structure:
@@ -59,18 +59,22 @@ Set your CMAKE prefix to this location:
 
     % export CMAKE_PREFIX_PATH=${HOME}/FLECSPH/local
 
-## Install the dependencies
+## Prerequisites
 
 You will need the following tools:
 
+- git version > 2.14;
 - gcc version > 6.2;
-- MPI library: openmpi or mpich, compiled with the gcc compiler above; and with `--enable-mpi-thread-multiple`;
-- cmake version > 3.7
-- boost library version > 1.59
+- MPI libraries, compiled with the gcc compiler above and multithread support 
+  (`--enable-mpi-thread-multiple` for OpenMPI and 
+   `--enable-threads=multiple` for MPICH);
+- cmake version > 3.7;
+- boost library version > 1.59;
+- Python version > 2.7.
 
-### FleCSI third part libraries
+## FleCSI third-party libraries
 
-Clone FleCSI with third-party libraries repo and check out the compatible branch `FleCSPH`:
+Clone the FleCSI third-party libraries repo and check out the compatible branch `FleCSPH`:
 
 ```{engine=sh}    
    cd $HOME/FLECSPH
@@ -85,13 +89,14 @@ Clone FleCSI with third-party libraries repo and check out the compatible branch
         -DCMAKE_INSTALL_PREFIX=${HOME}/FLECSPH/local
 ```    
 
-Build the libraries using several cores (note that no install step is required):
+Build the libraries using several cores (no install step is required):
 
     % make -j
 
-### FleCSI
+## FleCSI
 
-Clone FleCSI repo and change to the `stable/flecsph-compatible` branch:
+Clone FleCSI repo and change to the `stable/flecsph-compatible` branch.
+Checkout submodules recursively, then configure as below:
 
 ```{engine=sh}    
    cd $HOME/FLECSPH
@@ -110,7 +115,7 @@ Clone FleCSI repo and change to the `stable/flecsph-compatible` branch:
        -DFLECSI_RUNTIME_MODEL=legion
 ```    
 
-In this configuration, Legion is used as FleCSI backend. 
+In this configuration, Legion is used as FleCSI backend.
 If no errors appeared, build and install:
 
     % make -j install
@@ -119,7 +124,7 @@ In case of errors: if you are rebuilding everything from scratch,
 make sure that your installation directory (`$HOME/FLECSPH/local` 
 in our example) is empty.
 
-### Clone FleCSPH
+## FleCSPH
 
 Clone the master branch from the FleCSPH git repo:
 ```{engine=sh}
@@ -127,7 +132,7 @@ Clone the master branch from the FleCSPH git repo:
    git clone --recursive git@github.com:laristra/flecsph.git
 ```    
 
-### Build additional dependencies
+### FleCSPH/third-party-libraries: some more dependencies
 
 FleCSPH has specific HDF5 dependencies which need to be built; they 
 are located in `flecsph/third-party-libraries/` directory.
@@ -141,7 +146,7 @@ your build/ directory:
    ../third-party-libraries/install_h5hut.sh
 ```    
 
-### Build FleCSPH
+### Building FleCSPH
 
 Configure and build FleCSPH:
 
@@ -162,9 +167,38 @@ Configure, build and install:
 
     % make -j install
 
+### Building the latest-FleCSI compatible branch
+
+The procedure above describes building FleCSPH based on an old version of
+FleCSI. To take advantage of the most recent features of FleCSI, you need
+the branch which is compatible with the latest FleCSI. The following
+combination of branches is supported:
+
+- `flecsi-third-party`: branch `master`;
+- `flecsi`: branch `feature/flecsph`;
+- `flecsph`: branch `latest-flecsi`.
+
+You can follow the building procedure described above with the difference
+that you will need these branches for new FleCSPH to work.
+You will also need a C++17-able compiler, such as GCC v.7 or later.
+
+Use the following flags to configure the latest-flecsi branch build:
+```{engine=sh}
+   export CMAKE_PREFIX_PATH=${HOME}/FLECSPH/local
+   cmake -Wno-dev ..  \
+       -DCMAKE_INSTALL_PREFIX=$HOME/FLECSPH/local \
+       -DENABLE_UNIT_TESTS=ON \
+       -DCXX_CONFORMANCE_STANDARD='c++17' \
+       -DCMAKE_CXX_FLAGS='-DPARALLEL_IO' \
+       -DENABLE_CLOG=ON \
+       -DHDF5_IS_PARALLEL=ON
+```
+
 ### Building FleCSPH on various architectures
 Architecture-/machine-specific notes for building FleCSPH are collected in
-[doc/machines](https://github.com/laristra/flecsph/tree/master/doc/machines)
+[doc/machines](https://github.com/laristra/flecsph/tree/master/doc/machines).
+If you succeeded in compiling and running FleCSPH on new architectures, 
+please do not hesitate to share your recipe.
 We appreciate user contributions.
 
 # Running FleCSPH applications
