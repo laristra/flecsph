@@ -569,6 +569,7 @@ void set_param(const std::string& param_name,
 
 # ifndef drag_coeff
   READ_NUMERIC_PARAM(drag_coeff)
+# endif
 
 // external force  --------------------------------------------------------
 #ifndef external_force_type
