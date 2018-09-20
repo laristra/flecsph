@@ -68,6 +68,9 @@ void set_derived_params() {
 
   // set equation of state
   eos::select(eos_type);
+
+  // set external force
+  external_force::select(external_force_type);
 }
 
 namespace flecsi{
@@ -93,6 +96,9 @@ mpi_init_task(const char * parameter_file){
   // read input file
   body_system<double,gdimension> bs;
   bs.read_bodies(initial_data_file.c_str(),initial_iteration);
+
+  // adjust internal energy with the external potential
+  bs.apply_all(external_force::adjust_internal_energy);
 
   // boundaries
 /*

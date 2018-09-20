@@ -1,8 +1,10 @@
+#!/usr/bin/env python
 """
-Step mergers for h5part files 
-This merger takes in input several h5part and merge them regarding the 
-iterations:  f_0001.h5part f_0002.h5part ==> merged.h5part
-THIS MERGER DOES NOT MERGE FILES FROM DIFFERENT PROCESSES
+Combines h5part files form separate iterations  into a single file:
+
+  f_0001.h5part f_0002.h5part ==> merged.h5part
+
+Note: does not merge files from separate ranks!
 """
 
 # Store data in h5part format

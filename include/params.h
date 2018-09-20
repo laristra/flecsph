@@ -176,6 +176,22 @@ namespace param {
 #endif
 
 //
+// Geometric parameters
+//
+//- rectangular configuration parameters (e.g. sodtube in 2D/3D)
+#ifndef box_length
+  DECLARE_PARAM(double,box_length,3.0)
+#endif
+
+#ifndef box_width
+  DECLARE_PARAM(double,box_width,1.0)
+#endif
+
+#ifndef box_height
+  DECLARE_PARAM(double,box_height,1.0)
+#endif
+
+//
 // Boundary conditions
 //
 //- TODO: add description
@@ -295,6 +311,27 @@ namespace param {
   DECLARE_PARAM(double,drag_coeff,1.e-6)
 # endif
 
+
+//
+// Parameters for external acceleration
+//
+//- which external force to apply?
+//  * "none" (default)
+#ifndef external_force_type
+  DECLARE_STRING_PARAM(external_force_type,"none")
+#endif
+
+# ifndef zero_potential_poison_value
+  DECLARE_PARAM(double,zero_potential_poison_value, 0.0)
+# endif
+
+# ifndef extforce_sqwell_power
+  DECLARE_PARAM(double,extforce_sqwell_power, 5.0)
+# endif
+
+# ifndef extforce_sqwell_steepness
+  DECLARE_PARAM(double,extforce_sqwell_steepness, 1e6)
+# endif
 
 //
 // Specific apps
@@ -440,6 +477,19 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(sph_sinc_index)
 # endif
 
+  // geometric configuration  -----------------------------------------------
+# ifndef box_length
+  READ_NUMERIC_PARAM(box_length)
+# endif
+
+# ifndef box_width
+  READ_NUMERIC_PARAM(box_width)
+# endif
+
+# ifndef box_height
+  READ_NUMERIC_PARAM(box_height)
+# endif
+
   // boundary conditions  ---------------------------------------------------
 # ifndef do_boundaries
   READ_BOOLEAN_PARAM(do_boundaries)
@@ -519,6 +569,22 @@ void set_param(const std::string& param_name,
 
 # ifndef drag_coeff
   READ_NUMERIC_PARAM(drag_coeff)
+
+// external force  --------------------------------------------------------
+#ifndef external_force_type
+  READ_STRING_PARAM(external_force_type)
+#endif
+
+# ifndef zero_potential_poison_value
+  READ_NUMERIC_PARAM(zero_potential_poison_value)
+# endif
+
+# ifndef extforce_sqwell_power
+  READ_NUMERIC_PARAM(extforce_sqwell_power)
+# endif
+
+# ifndef extforce_sqwell_steepness
+  READ_NUMERIC_PARAM(extforce_sqwell_steepness)
 # endif
 
   // specific apps  ---------------------------------------------------------

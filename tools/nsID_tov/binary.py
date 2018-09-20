@@ -9,16 +9,15 @@
 
 # Usage : binary.py <separation> <input1> <input2> <output_name>
 
-# Here is the packages that I use normally for this
-from __future__ import print_function
+#from __future__ import print_function # UNUSED
 import numpy as np
 import h5py
 import sys
-import multiprocessing as multi
-from matplotlib import pylab
-from scipy.interpolate import interp1d
-from random import uniform
-from scipy import optimize
+#import multiprocessing as multi  # UNUSED
+#from matplotlib import pylab   # UNUSED
+#from scipy.interpolate import interp1d  # UNUSED
+#from random import uniform  # UNUSED
+#from scipy import optimize # UNUSED
 
 USE_PN=True
 USE_TIDALLY_LOCKED=True
@@ -294,6 +293,6 @@ if __name__ == "__main__":
     file1 = sys.argv[2]
     file2 = sys.argv[3]
     output_name = sys.argv[4]
-    print("Making binary initial data..")
+    print("Making binary initial data...")
     get_initial_data(separation,file1,file2,output_name)
-    print("Finish! Have fun with your simulation with this data!")
+    print("Finished: have fun with your simulations using these data!")
