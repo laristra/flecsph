@@ -1,30 +1,30 @@
-# General Logistic
+# General development guidelines
 
-FleCSPH is open-source code which is developed among many different
-people from domain scientists to computer scientists in many different
-institutions. We would like to use version control to collaborate
-productively and ensure correct code. We also aim to adapt our toolkit 
-for the community. Thus, stable `master` branch is required to provide 
-the best performance for users.
+Firstly, we discourage development on the master branch. 
 
-Furthermore, if you are directly working on the `master` branch, it can
-interfere with other people's work and it makes hard to maintain quality
-of the FleCSPH.
-Unless the chages are obvious typos or simple quick fixed, all major
-works/developments should be done at different branch.
+Indeed, FleCSPH is an open-source project which is developed for a broad 
+community of computer scientists, applied mathematicians and physicists
+in various institutions across the globe.
+Our ultimate goal is to provide a functional toolkit which is easy to 
+download and deploy anytime, such that the code can be used and not broken 
+due to various experimental features in the course of development.
+That is why we use git version control and github.com platform as a tool 
+for productive collaboration and as a means to ensure code correctness and 
+reliability.
+Therefore, if you are directly working on the `master` branch, it can
+interfere with the work of others.
+Unless the chages are obvious typos or trivial quick fixes, all major
+work and development should be done on separate branches.
 
-[Here](https://www.atlassian.com/git/tutorials/comparing-workflows) is
-good description on git workflows.
-
-So, we generally ask people who develop/maintain the FleCSPH to follow
-below flow.
+We follow the standard git development workflow.
+[Here](https://guides.github.com/introduction/flow/) is a good description 
+of the git workflow that we adopt, specifically used in github service.
+We further describe some specifics of the FleCSPH development workflow:
 
 # Development Flow
 
-If not otherwise indicated, the FleCSPH development style follows below. 
-
-## 1. Create your own branch for development
-There are many ways to create the branch but here is simple way:
+## 1. Create your own branch, based on master branch
+There are many ways to create a branch; here is what we recommend:
 ```{engine=sh}
    git fetch --all # This fetchs all the updates from the origin without merging
    git checkout master
@@ -32,55 +32,86 @@ There are many ways to create the branch but here is simple way:
    git checkout -b <your_branch>
 ```
 
+### Branch naming conventions
+We follow the FleCSI branch naming convention:
+
+`<category>/<your username>/<description>`
+
+The `<category>` tells us what is major objective of this branch. We are currently 
+using `fix`, `feature`, and `stable` etc:
+- feature/<user>/<description>: if you are adding a feature;
+- fix/<user>/<description>: if you are working on a fix;
+- stable/<descriptive-name>: a stable, thoroughly tested version which can 
+  be converted into a release.
+
+With these naming conventions, it is easy to identify who is working on the
+branch and what they are doing. When naming your new branch, take time to 
+come up with a short and snappy description which effectively communicates 
+the nature of your work to your team. 
+
+Also, please do not work on other people's branch unless you communicated those
+people in advance. Modifying/Deleting someone's branch without notification can
+be very dangerous in many ways.
+
 ## 2. Working and developing in your branch
-Once you create your branch, you can edit/commit as usual git enviroment such that:
+Once you have your branch, you can develop it by editing the code and producing
+one or more commits. Once you are ready, you can publish your branch by pushing
+it back to the origin:
 ```{engine=sh}
    <editing>
    <commiting>
    ...
    git push origin <your_branch>
 ```
-and so on
 
 ## 3. Pull request
-Once you introduce major changes and/or restructures of code, you
-may want to merge it to `master`branch. In git verseion control
-system, you can simply use `git merge` commands but we ask to use
-`pull request`.
+As soon as you have finished developing your feature or fixing a problem, you
+may want to request adding it to the code by merging it into `master` branch. 
+You can do it by creating the '''pull request'''.
 
-A detail instruction for pull request can be found
-[here](https://help.github.com/articles/creating-a-pull-request/). Note
-that if you are added in the project (i.e. authorized developer for LARISTRA),
-please do not sign yourself for pull request.
+Detailed introduction into the concept of pull requests can be found
+[here](https://help.github.com/articles/creating-a-pull-request/). 
+You can create pull requests both if you are an authorized LA Ristra developer,
+and if you have created your own fork of the project.
 
-Most of time, your own development will not be problematic when you
-try to merge. Sometimes you may encounter with merging problem. If
-that case is happend, please ask below contact person before you
-request merge.
+When creating a pull request, you will need to assign reviewers and approvers. 
+Please refrain from assigning yourself unless you have a split personality with 
+one of your alter egos being a disengaged expert without conflict of interest.
+
+## 4. Merge conflicts
+Most of the time, your own development will not generate merge conflicts. However,
+if merge conflicts arise, it is better to contact the person who developed a 
+conflicting path for correct conflict resolution.
+If the conflicts are trivial, you can try to resolve them in your local git
+repository and then push the merged version:
+```{engine=sh}
+   git checkout master
+   git pull origin master # get recent updates
+   git checkout <your_branch>
+   git merge master # this pulls recent changes in master into your branch
+   <... ! merge conflict ...>
+   <resolve merge conflict by editing conflicted files>
+   git add <resolved conflict files>
+   git commit # complete merge after conflict has been resolved
+   git push origin <your_branch>
+```
+[This link](https://help.github.com/articles/resolving-a-merge-conflict-using-the-command-line/)
+gives further explanation about how to resolve merge conflicts.
 
 Once you are done with your local branch and no plan to use anymore,
 please delete to avoid any possible redundancies. You can simply do it via:
 ```{engine=sh}
    git branch -D <your_branch>
-   git push --delete origin <your_branch>
+   git push --delete origin <your_branch> # or:
+   git push origin :<your_branch>         # also deletes the branch
 ```
 
-## 4. Branch naming convention
-We follow branch naming convention as FleCSI:
+# C++ development style guide
 
-`<category>/<your username>/<description>`
+FleCSPH follows the FleCSI coding style, which in turn follows (in general) the Google coding conventions.
+FleCSI coding style is documented here:
+https://github.com/laristra/flecsi/blob/master/flecsi/style.md
 
-`category` tells us what is major objective of this branch. For example, 
-you can use `debug`, `feature`, and `stable` etc.
-
-We also ask to put your name (or github username) then we can track who is working
-on that branch
-
-`description` tells us specific goals for that branch
-
-Also, please do not work on other people's branch unless you already commited 
-with that people. Modifying/Deleting someone's branch without notification can
-cause potential conflictions.
 
 # Contact
 
