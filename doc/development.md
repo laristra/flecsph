@@ -1,6 +1,6 @@
 # General development guidelines
 
-Firstly, we discourage development on the master branch. 
+We discourage development on the `master` branch. 
 
 Indeed, FleCSPH is an open-source project which is developed for a broad 
 community of computer scientists, applied mathematicians and physicists
@@ -9,12 +9,12 @@ Our ultimate goal is to provide a functional toolkit which is easy to
 download and deploy anytime, such that the code can be used and not broken 
 due to various experimental features in the course of development.
 That is why we use git version control and github.com platform as a tool 
-for productive collaboration and as a means to ensure code correctness and 
+for productive collaboration and as means to ensure code correctness and 
 reliability.
 Therefore, if you are directly working on the `master` branch, it can
 interfere with the work of others.
-Unless the chages are obvious typos or trivial quick fixes, all major
-work and development should be done on separate branches.
+Unless the changes are obvious typos or trivial quick fixes, all work and 
+development should be done on separate personal branches.
 
 We follow the standard git development workflow.
 [Here](https://guides.github.com/introduction/flow/) is a good description 
@@ -26,10 +26,10 @@ We further describe some specifics of the FleCSPH development workflow:
 ## 1. Create your own branch, based on master branch
 There are many ways to create a branch; here is what we recommend:
 ```{engine=sh}
-   git fetch --all # This fetchs all the updates from the origin without merging
-   git checkout master
-   git pull origin master
-   git checkout -b <your_branch>
+   git fetch --all         # fetches all the updates from the origin without merging
+   git checkout master     # switch to master branch
+   git pull origin master  # update master if necessary
+   git checkout -b <your_branch>  # branch off of master
 ```
 
 ### Branch naming conventions
@@ -37,26 +37,27 @@ We follow the FleCSI branch naming convention:
 
 `<category>/<your username>/<description>`
 
-The `<category>` tells us what is major objective of this branch. We are currently 
-using `fix`, `feature`, and `stable` etc:
-- feature/<user>/<description>: if you are adding a feature;
-- fix/<user>/<description>: if you are working on a fix;
-- stable/<descriptive-name>: a stable, thoroughly tested version which can 
+The `<category>` tells what is the major objective of this branch. We are 
+currently using `fix`, `feature`, `doc`, `stable` etc:
+- _feature_: if you are adding a feature;
+- _fix_: if you are working on a fix;
+- _doc_: if you are editing documentation;
+- _stable_: a stable, thoroughly tested version which can 
   be converted into a release.
 
 With these naming conventions, it is easy to identify who is working on the
 branch and what they are doing. When naming your new branch, take time to 
 come up with a short and snappy description which effectively communicates 
-the nature of your work to your team. 
+the nature of your work. 
 
-Also, please do not work on other people's branch unless you communicated those
-people in advance. Modifying/Deleting someone's branch without notification can
-be very dangerous in many ways.
+Also, please do not work on other people's branches unless you discussed it with
+those people in advance. Modifying/deleting someone's branch without notification 
+can be very dangerous in many ways.
 
 ## 2. Working and developing in your branch
 Once you have your branch, you can develop it by editing the code and producing
-one or more commits. Once you are ready, you can publish your branch by pushing
-it back to the origin:
+one or more commits. While you are working, you can publish your new commits by 
+pushing your branch upstream:
 ```{engine=sh}
    <editing>
    <commiting>
@@ -65,9 +66,10 @@ it back to the origin:
 ```
 
 ## 3. Pull request
-As soon as you have finished developing your feature or fixing a problem, you
-may want to request adding it to the code by merging it into `master` branch. 
-You can do it by creating the '''pull request'''.
+As soon as you have finished developing your feature, fixing a problem, or otherwise
+consider your work complete, you may want to request it to be added to the `master` 
+branch. You can do it by creating a _pull request_ and assigning other developers to
+examine your changes for approval.
 
 Detailed introduction into the concept of pull requests can be found
 [here](https://help.github.com/articles/creating-a-pull-request/). 
@@ -79,7 +81,7 @@ Please refrain from assigning yourself unless you have a split personality with
 one of your alter egos being a disengaged expert without conflict of interest.
 
 ## 4. Merge conflicts
-Most of the time, your own development will not generate merge conflicts. However,
+Most of the time, your code development will generate merge conflicts. However,
 if merge conflicts arise, it is better to contact the person who developed a 
 conflicting path for correct conflict resolution.
 If the conflicts are trivial, you can try to resolve them in your local git
@@ -98,12 +100,12 @@ repository and then push the merged version:
 [This link](https://help.github.com/articles/resolving-a-merge-conflict-using-the-command-line/)
 gives further explanation about how to resolve merge conflicts.
 
-Once you are done with your local branch and no plan to use anymore,
-please delete to avoid any possible redundancies. You can simply do it via:
+Once you are done with your local branch and do not plan to use it anymore,
+please delete it to avoid redundancies. You can simply do it via:
 ```{engine=sh}
    git branch -D <your_branch>
    git push --delete origin <your_branch> # or:
-   git push origin :<your_branch>         # also deletes the branch
+   git push origin :<your_branch>         # also deletes the branch on remote
 ```
 
 # C++ development style guide
@@ -115,4 +117,5 @@ https://github.com/laristra/flecsi/blob/master/flecsi/style.md
 
 # Contact
 
-If you have any questions or concern related with this, please contact Oleg Korobkin (korobkin@lanl.gov), Julien Loiseau (julien.loiseau@univ-reims.fr), or Hyun Lim (hylim1988@gmail.com) 
+If you have any questions or concerns, please contact Oleg Korobkin (korobkin@lanl.gov), 
+Julien Loiseau (julien.loiseau@univ-reims.fr), or Hyun Lim (hylim1988@gmail.com) 
