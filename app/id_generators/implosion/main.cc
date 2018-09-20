@@ -45,9 +45,16 @@ void set_derived_params() {
   if (gdimension == 2) {
     SET_PARAM(nparticles, lattice_nx*lattice_nx);
   } 
-  else {
+  else if (gdimension == 3) {
     SET_PARAM(nparticles, lattice_nx*lattice_nx*lattice_nx);
   }
+  else {
+    clog_one(error) << "This test only works for 2D and 3D" << std::endl;    
+    print_usage();
+    MPI_Finalize();
+    exit(0);
+ }
+
 
   SET_PARAM(uint_initial, (pressure_initial/(rho_initial*(poly_gamma-1.0))));
   SET_PARAM(sph_smoothing_length, (5.*sph_separation));
@@ -157,7 +164,8 @@ int main(int argc, char * argv[]){
     h[part] = sph_smoothing_length;
     id[part] = posid++;
 
-    double particle_radius = sqrt((x[part]-x_c)*(x[part]-x_c) + (y[part]-y_c)*(y[part]-y_c));
+    double particle_radius = sqrt((x[part]-x_c)*(x[part]-x_c) + (y[part]-y_c)*(y[part]-y_c)
+                             + (z[part]-z_c)*(z[part]-z_c));
     if (particle_radius >= inner_radius) {
       double m = 1.0;
       double y = 1.0;
