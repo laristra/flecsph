@@ -31,6 +31,7 @@
 
 namespace external_force {
 
+
   /**
    * @brief      Trivial case: zero acceleration
    * @param      srch  The source's body holder
@@ -41,16 +42,54 @@ namespace external_force {
     return a;
   }
 
-
-  /**
-   * @brief      Trivial case: zero potential
-   * @param      srch  The source's body holder
-   */
   double potential_zero(body_holder* srch)
   { 
     // body* source = srch->getBody();
     return param::zero_potential_poison_value; // POISON IT
   }
+
+  /**
+   * @brief      Square well in y- and z-dimension
+   * @param      srch  The source's body holder
+   */
+  point_t acceleration_squarewell_yz(body_holder* srch) { 
+    using namespace param;
+    point_t a = 0.0;
+    point_t rp =  srch->getBody()->getPosition();
+    double box[3];
+    box[0] = 0.0;
+    box[1] = 0.5*box_width;
+    box[2] = 0.5*box_height;
+    const double pw_n = extforce_sqwell_power;
+    const double pw_a = extforce_sqwell_steepness;
+    for (unsigned short i=1; i<gdimension; ++i) {
+      a[i]  = (((rp[i] <- box[i]) ? pow(-rp[i]- box[i], pw_n - 1) : 0.0)
+              -((rp[i] >  box[i]) ? pow(rp[i] - box[i], pw_n - 1) : 0.0))
+            * pw_n*pw_a;
+    }
+    return a;
+  }
+
+  double potential_squarewell_yz(body_holder* srch)
+  { 
+    // body* source = srch->getBody();
+    using namespace param;
+    double phi = 0.0;
+    point_t rp =  srch->getBody()->getPosition();
+    double box[3];
+    box[0] = 0.0;
+    box[1] = 0.5*box_width;
+    box[2] = 0.5*box_height;
+    const double pw_n = extforce_sqwell_power;
+    const double pw_a = extforce_sqwell_steepness;
+    for (unsigned short i=1; i<gdimension; ++i) {
+      phi += (((rp[i] <- box[i]) ? pow(-rp[i]- box[i], pw_n) : 0.0)
+             +((rp[i] >  box[i]) ? pow(rp[i] - box[i], pw_n) : 0.0))
+            *pw_a;
+    }
+    return phi; // POISON IT
+  }
+
 
   // acceleration and potential function types and pointers
   typedef double  (*potential_t)(body_holder*);
@@ -66,6 +105,10 @@ namespace external_force {
     if (boost::iequals(efstr,"zero") or boost::iequals(efstr,"none")) {
       potential = potential_zero;
       acceleration = acceleration_zero;
+    }
+    if (boost::iequals(efstr,"square yz-well")) {
+      potential = potential_squarewell_yz;
+      acceleration = acceleration_squarewell_yz;
     }
     else {
       clog_one(fatal) << "ERROR: bad external_force_type" << std::endl;

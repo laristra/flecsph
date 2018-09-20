@@ -300,6 +300,14 @@ namespace param {
   DECLARE_PARAM(double,zero_potential_poison_value, 0.0)
 # endif
 
+# ifndef extforce_sqwell_power
+  DECLARE_PARAM(double,extforce_sqwell_power, 5.0)
+# endif
+
+# ifndef extforce_sqwell_steepness
+  DECLARE_PARAM(double,extforce_sqwell_steepness, 1e6)
+# endif
+
 //
 // Specific apps
 //
@@ -532,6 +540,14 @@ void set_param(const std::string& param_name,
 
 # ifndef zero_potential_poison_value
   READ_NUMERIC_PARAM(zero_potential_poison_value)
+# endif
+
+# ifndef extforce_sqwell_power
+  READ_NUMERIC_PARAM(extforce_sqwell_power)
+# endif
+
+# ifndef extforce_sqwell_steepness
+  READ_NUMERIC_PARAM(extforce_sqwell_steepness)
 # endif
 
   // specific apps  ---------------------------------------------------------
