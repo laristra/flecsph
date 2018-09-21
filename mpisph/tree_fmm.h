@@ -465,11 +465,11 @@ public:
         assert(recvcells[j].position ==  recvcells[i*ncells+j].position );
         assert(recvcells[j].id == recvcells[i*ncells+j].id);
         recvcells[j].fc += recvcells[i*ncells+j].fc;
-        for(long unsigned int k=0;k<dimension*dimension;++k){
+        for(size_t k=0;k<dimension*dimension;++k){
           recvcells[j].dfcdr[k] += recvcells[i*ncells+j].dfcdr[k];
           assert(recvcells[j].dfcdr[k] < 1000);
         }
-        for(int k=0;k<dimension*dimension*dimension;++k){ 
+        for(size_t k=0;k<dimension*dimension*dimension;++k){ 
           recvcells[j].dfcdrdr[k] += recvcells[i*ncells+j].dfcdrdr[k];
           assert(recvcells[j].dfcdrdr[k] < 1000);
         } // for
@@ -501,7 +501,7 @@ public:
       int distant_contrib = 0;
       // Add the contribution of received particles 
       //#pragma omp parallel for reduction(+:distant_contrib)
-      for(long unsigned int j = 0 ; j < recv_particles_.size(); ++j){
+      for(size_t j = 0 ; j < recv_particles_.size(); ++j){
         if(recvcells[i].id == recv_particles_[j].id_sink){
           tree_traversal_p2p_distant(
             tree,sink,
