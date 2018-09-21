@@ -164,7 +164,7 @@ public:
     int size, rank;
     MPI_Comm_size(MPI_COMM_WORLD,&size);
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    double start = omp_get_wtime();
+    // double start = omp_get_wtime(); // unused
 
     // Sort the keys 
     std::sort(rbodies.begin(),rbodies.end(),
@@ -287,7 +287,7 @@ public:
     
 #ifdef OUTPUT
     MPI_Barrier(MPI_COMM_WORLD);
-    double start = omp_get_wtime();
+    // double start = omp_get_wtime(); // unused
     #ifdef OUTPUT_TREE_INFO
     clog_one(trace)<<"Branches repartition" << std::flush;
     #endif 

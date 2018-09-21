@@ -30,6 +30,7 @@
 #include "params.h"
 #include "utils.h"
 #include "tree.h"
+#include "eforce.h"
 #include <boost/algorithm/string.hpp>
 
 namespace eos {
@@ -42,8 +43,8 @@ namespace eos {
   void compute_pressure_ideal(body_holder* srch) { 
     using namespace param;
     body* source = srch->getBody();
-    double pressure = (poly_gamma-1.0)*
-      source->getDensity()*source->getInternalenergy();
+    double pressure = (poly_gamma-1.0)*source->getDensity()
+        * (source->getInternalenergy() - external_force::potential(srch));
     source->setPressure(pressure);
   }
 
@@ -63,7 +64,7 @@ namespace eos {
 
   /**
    * @brief      Zero temperature EOS from Chandrasechkar's 
-   * 		 This can be used white dwarf system
+   * 		     This can be used for a cold white dwarf
    *
    * @param      srch  The srch
    */
