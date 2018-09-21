@@ -87,7 +87,7 @@ namespace external_force {
              +((rp[i] >  box[i]) ? pow(rp[i] - box[i], pw_n) : 0.0))
             *pw_a;
     }
-    return phi; // POISON IT
+    return phi;
   }
 
 
@@ -106,7 +106,7 @@ namespace external_force {
       potential = potential_zero;
       acceleration = acceleration_zero;
     }
-    if (boost::iequals(efstr,"square yz-well")) {
+    else if (boost::iequals(efstr,"square yz-well")) {
       potential = potential_squarewell_yz;
       acceleration = acceleration_squarewell_yz;
     }
