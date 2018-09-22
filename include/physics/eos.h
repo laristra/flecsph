@@ -30,7 +30,6 @@
 #include "params.h"
 #include "utils.h"
 #include "tree.h"
-#include "eforce.h"
 #include <boost/algorithm/string.hpp>
 
 
@@ -44,8 +43,8 @@ namespace eos {
   void compute_pressure_ideal(body_holder* srch) { 
     using namespace param;
     body* source = srch->getBody();
-    double pressure = (poly_gamma-1.0)*source->getDensity()
-        * (source->getInternalenergy() - external_force::potential(srch));
+    double pressure = (poly_gamma-1.0)*source->getDensity() 
+                                      *source->getInternalenergy();
     source->setPressure(pressure);
   }
 
