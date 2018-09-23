@@ -3,7 +3,7 @@
  * All rights reserved.
  *~--------------------------------------------------------------------------~*/
 
- /*~--------------------------------------------------------------------------~*
+/*~--------------------------------------------------------------------------~*
  * 
  * /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
  * /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
@@ -113,15 +113,6 @@ namespace external_force {
     else {
       clog_one(fatal) << "ERROR: bad external_force_type" << std::endl;
     }
-  }
-
-  /**
-   * @brief      add external potential to the internal energy
-   * @param      srch  The source's body holder
-   */
-  void adjust_internal_energy (body_holder* srch) {
-    body* source = srch->getBody();
-    source->setInternalenergy(source->getInternalenergy() + potential(srch));
   }
 
 } // namespace external_force
