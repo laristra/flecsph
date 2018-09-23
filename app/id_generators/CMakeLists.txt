@@ -36,6 +36,8 @@ add_executable(implosion_2d_generator   implosion/main.cc)
 add_executable(implosion_3d_generator   implosion/main.cc)
 add_executable(fluid_2d_generator       fluid_2d/main.cc)
 add_executable(fluid_3d_generator       fluid_3d/main.cc)
+add_executable(airfoil_2d_generator     airfoil/main.cc)
+add_executable(airfoil_3d_generator     airfoil/main.cc)
 
 target_link_libraries(sodtube_1d_generator 
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
@@ -59,6 +61,10 @@ target_link_libraries(fluid_2d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 target_link_libraries(fluid_3d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
+target_link_libraries(airfoil_2d_generator
+  ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
+target_link_libraries(airfoil_3d_generator
+  ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 
 target_compile_definitions(sodtube_1d_generator     PUBLIC -DEXT_GDIMENSION=1)
 target_compile_definitions(sodtube_2d_generator     PUBLIC -DEXT_GDIMENSION=2)
@@ -71,3 +77,5 @@ target_compile_definitions(implosion_2d_generator   PUBLIC -DEXT_GDIMENSION=2)
 target_compile_definitions(implosion_3d_generator   PUBLIC -DEXT_GDIMENSION=3)
 target_compile_definitions(fluid_2d_generator       PUBLIC -DEXT_GDIMENSION=2)
 target_compile_definitions(fluid_3d_generator       PUBLIC -DEXT_GDIMENSION=3)
+target_compile_definitions(airfoil_2d_generator     PUBLIC -DEXT_GDIMENSION=2)
+target_compile_definitions(airfoil_3d_generator     PUBLIC -DEXT_GDIMENSION=3)
