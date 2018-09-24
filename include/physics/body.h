@@ -64,6 +64,7 @@ public:
       smoothinglength_(smoothinglength),
       soundspeed_(0.0)
       ,internalenergy_(0.0)
+      ,totalenergy_(0.0)
       ,dudt_(0.0)
       ,adiabatic_(0.0)
       ,dadt_(0.0)
@@ -124,7 +125,9 @@ public:
   // Dependent of the problem 
     double getInternalenergy() const{return internalenergy_;}
     void setInternalenergy(double internalenergy)
-        {internalenergy_=internalenergy;};
+        {internalenergy_=internalenergy;}
+    double getTotalenergy() const{return totalenergy_;}
+    void setTotalenergy(double totalenergy) {totalenergy_=totalenergy;}
     void setDudt(double dudt){dudt_ = dudt;};
     double getDudt(){return dudt_;};
     double getAdiabatic() const{return adiabatic_;}
@@ -180,6 +183,7 @@ private:
   double smoothinglength_; 
   double soundspeed_;
   double internalenergy_;
+  double totalenergy_;
   double dudt_;
   double adiabatic_; 
   double dadt_;
