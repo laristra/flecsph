@@ -135,7 +135,7 @@ namespace physics{
 
 
   /**
-   * @brief      Artificial viscosity 
+   * @brief      Artificial viscosity term, Pi_ab
    * From Rosswog'09 (arXiv:0903.5075) - 
    * Astrophysical Smoothed Particle Hydrodynamics, eq.(59) 
    *
@@ -159,6 +159,7 @@ namespace physics{
     mpi_assert(res>=0.0);
     return res;
   }
+
 
   /**
    * @brief      Calculates the hydro acceleration
@@ -211,18 +212,15 @@ namespace physics{
     source->setAcceleration(acceleration);
   } // compute_hydro_acceleration
 
+
   /**
-   * @brief      Calculates the dudt, variation of internal energy.
+   * @brief      Calculates the dudt, time derivative of internal energy.
    * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics 
    *
    * @param      srch  The source's body holder
    * @param      nbsh  The neighbors' body holders
    */
-  void
-  compute_dudt(
-    body_holder* srch,
-    std::vector<body_holder*>& ngbsh)
-  {
+  void compute_dudt(body_holder* srch, std::vector<body_holder*>& ngbsh) {
     body* source = srch->getBody();
 
     double dudt = 0;
@@ -262,6 +260,60 @@ namespace physics{
 
     source->setDudt(dudt);
   } // compute_dudt
+
+
+  /**
+   * @brief      Calculates the dedt, time derivative of either 
+   *             thermokinetic (internal + kinetic) or total 
+   *             (internal + kinetic + potential) energy.
+   * See e.g. Rosswog (2009) "Astrophysical SPH" eq. (34) 
+   *
+   * @param      srch  The source's body holder
+   * @param      nbsh  The neighbors' body holders
+   */
+  void compute_dedt(body_holder* srch, std::vector<body_holder*>& ngbsh) {
+    body* source = srch->getBody();
+
+    double dedt = 0;
+
+    const point_t pos_a = source->getPosition(),
+                  vel_a = source->getVelocity();
+    const double h_a = source->getSmoothinglength(),
+                 P_a = source->getPressure(),
+                 rho_a = source->getDensity();
+    const double Prho2_a = P_a/(rho_a*rho_a);
+
+    for(auto nbh: ngbsh){
+      body* nb = nbh->getBody();
+      const point_t pos_b = nb->getPosition();
+      if(pos_a == pos_b)
+        continue;
+
+      // Compute the \nabla_a W_ab      
+      const point_t Da_Wab = kernels::gradKernel(pos_a - pos_b, h_a),
+                    vel_b = nb->getVelocity();
+    
+      // va*DaWab and vb*DaWab
+      double va_dot_DaWab = vel_a[0]*Da_Wab[0];
+      double vb_dot_DaWab = vel_b[0]*Da_Wab[0];
+      for (unsigned short i=1; i<gdimension; ++i) {
+        va_dot_DaWab += vel_a[i]*Da_Wab[i],
+        vb_dot_DaWab += vel_b[i]*Da_Wab[i];
+      }
+
+      const double m_b = nb->getMass(),
+                   P_b = nb->getPressure(),
+                   rho_b = nb->getDensity();
+      const double Prho2_b = P_b/(rho_b*rho_b),
+                   Pi_ab = viscosity(source,nb);
+
+      // add this neighbour's contribution
+      dedt += m_b*(-Prho2_a*vb_dot_DaWab - Prho2_b*va_dot_DaWab 
+                + .5*Pi_ab*(va_dot_DaWab - vb_dot_DaWab));
+    }
+    
+    source->setDudt(dedt);
+  } // compute_dedt
 
 
   /**

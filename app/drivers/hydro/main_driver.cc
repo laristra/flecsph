@@ -97,6 +97,11 @@ mpi_init_task(const char * parameter_file){
   body_system<double,gdimension> bs;
   bs.read_bodies(initial_data_file.c_str(),initial_iteration);
 
+  if(thermokinetic_formulation) {
+    // compute total energy for every particle
+    bs.apply_all(external_force::compute_total_energy);
+  }
+
   // boundaries
 /*
   auto range_boundaries = bs.getRange();
