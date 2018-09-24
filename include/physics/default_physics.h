@@ -568,6 +568,22 @@ namespace physics{
 
 
   /**
+   * @brief      Leapfrog: kick thermokinetic or total energy
+   *             e^{n+1/2} = e^{n} + (de/dt)^n * dt/2
+   *             or
+   *             e^{n+1} = e^{n+1/2} + (de/dt)^n * dt/2
+   *
+   * @param      srch  The source's body holder
+   */
+  void 
+  leapfrog_kick_e (body_holder* srch) {
+    body* source = srch->getBody();
+    source->setTotalenergy(source->getTotalenergy()
+                     + 0.5*dt*source->getDedt());
+  }
+
+
+  /**
    * @brief      Leapfrog: drift
    *             r^{n+1} = r^{n} + v^{n+1/2} * dt
    *
