@@ -66,6 +66,7 @@ public:
       ,internalenergy_(0.0)
       ,totalenergy_(0.0)
       ,dudt_(0.0)
+      ,dedt_(0.0)
       ,adiabatic_(0.0)
       ,dadt_(0.0)
       //gravforce_(point_t{}),
@@ -129,7 +130,9 @@ public:
     double getTotalenergy() const{return totalenergy_;}
     void setTotalenergy(double totalenergy) {totalenergy_=totalenergy;}
     void setDudt(double dudt){dudt_ = dudt;};
+    void setDedt(double dedt){dedt_ = dedt;};
     double getDudt(){return dudt_;};
+    double getDedt(){return dudt_;};
     double getAdiabatic() const{return adiabatic_;}
     void setAdiabatic(double adiabatic){adiabatic_ = adiabatic;};
     double getDadt() const{return dadt_;};
@@ -185,6 +188,7 @@ private:
   double internalenergy_;
   double totalenergy_;
   double dudt_;
+  double dedt_;
   double adiabatic_; 
   double dadt_;
   #ifdef VERLET
