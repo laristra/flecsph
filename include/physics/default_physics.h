@@ -81,26 +81,7 @@ namespace physics{
 
 
   /**
-   * @brief      Compute the density, EOS and spundspeed in the same function 
-   * reduce time to gather the neighbors
-   *
-   * @param      srch  The source's body holder
-   * @param      nbsh  The neighbors' body holders
-   */
-  void 
-  compute_density_pressure_soundspeed(
-    body_holder* srch, 
-    std::vector<body_holder*>& nbsh)
-  {
-    compute_density(srch,nbsh);
-    eos::compute_pressure(srch);
-    eos::compute_soundspeed(srch); 
-  }
-
-
-  /**
    * @brief      Calculates total energy for every particle
-   *
    * @param      srch  The source's body holder
    */
   void set_total_energy (body_holder* srch) { 
@@ -115,6 +96,47 @@ namespace physics{
     ekin *= .5;
     source->setTotalenergy(eint + epot + ekin);
   } // set_total_energy
+
+
+  /**
+   * @brief      Subtracts mechanical energy from total energy 
+   *             to recover internal energy
+   * @param      srch  The source's body holder
+   */
+  void recover_internal_energy (body_holder* srch) { 
+    body* source = srch->getBody();
+    const point_t pos = source->getPosition(),
+                  vel = source->getVelocity();
+    const double etot = source->getTotalenergy(),
+                 epot = external_force::potential(srch);
+    double ekin = vel[0]*vel[0];
+    for (unsigned short i=0; i<gdimension; ++i)
+      ekin += vel[i]*vel[i];
+    ekin *= .5;
+    const double eint = etot - ekin - epot;
+    mpi_assert (eint > 0.0);
+    source->setInternalenergy(eint);
+  } // recover_internal_energy
+
+
+  /**
+   * @brief      Compute the density, EOS and spundspeed in the same function 
+   * reduce time to gather the neighbors
+   *
+   * @param      srch  The source's body holder
+   * @param      nbsh  The neighbors' body holders
+   */
+  void 
+  compute_density_pressure_soundspeed(
+    body_holder* srch, 
+    std::vector<body_holder*>& nbsh)
+  {
+    compute_density(srch,nbsh);
+    if (thermokinetic_formulation)
+      recover_internal_energy(srch);
+    eos::compute_pressure(srch);
+    eos::compute_soundspeed(srch); 
+  }
 
 
   /**
