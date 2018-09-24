@@ -99,7 +99,7 @@ mpi_init_task(const char * parameter_file){
 
   if(thermokinetic_formulation) {
     // compute total energy for every particle
-    bs.apply_all(external_force::compute_total_energy);
+    bs.apply_all(physics::set_total_energy);
   }
 
   // boundaries

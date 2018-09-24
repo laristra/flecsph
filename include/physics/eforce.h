@@ -114,25 +114,6 @@ namespace external_force {
     }
   }
 
-  /**
-   * @brief      Calculates total energy
-   *
-   * @param      srch  The source's body holder
-   */
-  void compute_total_energy (body_holder* srch) { 
-    body* source = srch->getBody();
-    const point_t pos = source->getPosition(),
-                  vel = source->getVelocity();
-    const double eint = source->getInternalenergy(),
-                 epot = potential(srch);
-    double ekin = vel[0]*vel[0];
-    for (unsigned short i=0; i<gdimension; ++i)
-      ekin += vel[i]*vel[i];
-    ekin *= .5;
-    source->setTotalenergy(eint + epot + ekin);
-  } // compute_total_energy
-
-
 } // namespace external_force
 
 #endif // _eforce_h_

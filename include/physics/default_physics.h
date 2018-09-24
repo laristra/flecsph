@@ -99,6 +99,25 @@ namespace physics{
 
 
   /**
+   * @brief      Calculates total energy for every particle
+   *
+   * @param      srch  The source's body holder
+   */
+  void set_total_energy (body_holder* srch) { 
+    body* source = srch->getBody();
+    const point_t pos = source->getPosition(),
+                  vel = source->getVelocity();
+    const double eint = source->getInternalenergy(),
+                 epot = external_force::potential(srch);
+    double ekin = vel[0]*vel[0];
+    for (unsigned short i=0; i<gdimension; ++i)
+      ekin += vel[i]*vel[i];
+    ekin *= .5;
+    source->setTotalenergy(eint + epot + ekin);
+  } // set_total_energy
+
+
+  /**
    * @brief      mu_ij for the artificial viscosity 
    * From Rosswog'09 (arXiv:0903.5075) - 
    * Astrophysical Smoothed Particle Hydrodynamics, eq.(60) 
