@@ -33,6 +33,7 @@
 #include "utils.h"
 #include "kernels.h"
 #include "tree.h"
+#include "eforce.h"
 
 namespace physics{
   using namespace param;
@@ -175,7 +176,7 @@ namespace physics{
 
     // Reset the accelerastion 
     // \TODO add a function to reset in main_driver
-    point_t acceleration = point_t{};
+    point_t acceleration = {};
 
     point_t hydro = {};
     for(auto nbh : ngbsh){ 
@@ -206,6 +207,7 @@ namespace physics{
     }
     hydro = -1.0*hydro;
     acceleration += hydro;
+    acceleration += external_force::acceleration(srch);
     source->setAcceleration(acceleration);
   } // compute_hydro_acceleration
 
@@ -474,7 +476,6 @@ namespace physics{
    * @brief      v -> v12
    *
    * @param      srch  The source's body holder
-   * @param      nbsh  The neighbors' body holders
    */
   void 
   save_velocityhalf (body_holder* srch) {

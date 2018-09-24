@@ -68,6 +68,9 @@ void set_derived_params() {
 
   // set equation of state
   eos::select(eos_type);
+
+  // set external force
+  external_force::select(external_force_type);
 }
 
 namespace flecsi{

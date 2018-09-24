@@ -478,7 +478,6 @@ namespace kernels{
         hd *= h;
 
       double rh2 = (1 - rh)*(1 - rh);
-      double rh3 = rh2*(1 - rh);
       double rh4 = rh2*rh2;
       double sigma = wendland_c6_sigma[gdimension-1]/hd;
       result = sigma*rh4*rh4*(1 + rh*(8 + rh*(25 + rh*32)));
@@ -503,7 +502,6 @@ namespace kernels{
     if(rh < 1.0) {
       double rh2 = (1 - rh)*(1 - rh);
       double rh3 = rh2*(1 - rh);
-      double rh4 = rh2*rh2;
       double sigma = wendland_c6_sigma[0]/(h*h);
       double dWdr  = -6.*rh*rh3*rh3*(3 + rh*(18 + rh*35));
       result = vecP*sigma*dWdr/r; 
@@ -612,7 +610,7 @@ namespace kernels{
     double result = 0.;
     if(rh < 1.) {
       double hd = h;
-      for (int i=1; i<gdimension; i++) 
+      for (unsigned int i=1; i<gdimension; i++) 
         hd *= h;
 
       double sinc = 1.0;
@@ -647,7 +645,7 @@ namespace kernels{
     point_t result = 0.0;
     if(rh < 1.) {
       double hd = h*h;
-      for (int i=1; i<gdimension; i++) 
+      for (unsigned int i=1; i<gdimension; i++) 
         hd *= h;
       double sigma = sinc_sigma[gdimension-1]/hd;
 
@@ -667,22 +665,16 @@ namespace kernels{
     return result; 
   }
 
-
-  /**
-   * @brief      Kernel selector: types, global variables and the function
-   *
-   * @param      kstr     Kernel string descriptor
-   *
-   * @return     Pointer to the kernel
-   */
+  // kernel function pointers
   typedef double  (*kernel_function_t)(const double,    const double);
   typedef point_t (*kernel_gradient_t)(const point_t &, const double);
-
-  // kernel function pointers
   kernel_function_t kernel = quintic_spline;
   kernel_gradient_t gradKernel = gradient_quintic_spline;
 
-
+  /**
+   * @brief      Kernel selector: types, global variables and the function
+   * @param      kstr     Kernel string descriptor
+   */
   void select(const std::string& kstr) {
     if (boost::iequals(kstr,"cubic spline")) {
       kernel = cubic_spline;
