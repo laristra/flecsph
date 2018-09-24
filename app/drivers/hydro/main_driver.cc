@@ -97,11 +97,6 @@ mpi_init_task(const char * parameter_file){
   body_system<double,gdimension> bs;
   bs.read_bodies(initial_data_file.c_str(),initial_iteration);
 
-  if(thermokinetic_formulation) {
-    // compute total energy for every particle
-    bs.apply_all(physics::set_total_energy);
-  }
-
   // boundaries
 /*
   auto range_boundaries = bs.getRange();
@@ -115,10 +110,14 @@ mpi_init_task(const char * parameter_file){
   clog_one(info) << "Limits: " << physics::min_boundary << " ; "
          << physics::max_boundary << std::endl;
  */
-#ifdef OUTPUT
   if(out_scalar_every > 0 && physics::iteration % out_scalar_every == 0){
     MPI_Barrier(MPI_COMM_WORLD);
     bs.update_iteration();
+    if(thermokinetic_formulation) {
+      // compute total energy for every particle
+      bs.apply_all(physics::set_total_energy);
+    }
+
     bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
     
     // Compute conserved quantities
@@ -130,7 +129,6 @@ mpi_init_task(const char * parameter_file){
   }
 
   bs.write_bodies(output_h5data_prefix,physics::iteration);
-#endif
 
   ++physics::iteration;
   do {
@@ -159,16 +157,22 @@ mpi_init_task(const char * parameter_file){
       // necessary for computing dv/dt and du/dt in the next step
       bs.update_neighbors();
 
-      clog_one(trace) << "compute accelerations and dudt" << std::flush;
+      clog_one(trace) << "compute rhs of evolution equations" << std::flush;
       bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
-      bs.apply_in_smoothinglength(physics::compute_dudt);
+      if (thermokinetic_formulation)
+        bs.apply_in_smoothinglength(physics::compute_dedt);
+      else
+        bs.apply_in_smoothinglength(physics::compute_dudt);
       clog_one(trace) << ".done" << std::endl;
 
     }
     else {
       clog_one(trace) << "leapfrog: kick one" << std::flush;
       bs.apply_all(physics::leapfrog_kick_v);
-      bs.apply_all(physics::leapfrog_kick_u);
+      if (thermokinetic_formulation)
+        bs.apply_all(physics::leapfrog_kick_e);
+      else
+        bs.apply_all(physics::leapfrog_kick_u);
       bs.apply_all(physics::save_velocityhalf);
       clog_one(trace) << ".done" << std::endl;
 
@@ -192,9 +196,15 @@ mpi_init_task(const char * parameter_file){
       // sync velocities
       bs.update_neighbors();
 
-      clog_one(trace) << "leapfrog: kick two (int. energy)" << std::flush;
-      bs.apply_in_smoothinglength(physics::compute_dudt);
-      bs.apply_all(physics::leapfrog_kick_u);
+      clog_one(trace) << "leapfrog: kick two (energy)" << std::flush;
+      if (thermokinetic_formulation) {
+        bs.apply_in_smoothinglength(physics::compute_dedt);
+        bs.apply_all(physics::leapfrog_kick_e);
+      }
+      else {
+        bs.apply_in_smoothinglength(physics::compute_dudt);
+        bs.apply_all(physics::leapfrog_kick_u);
+      }
       clog_one(trace) << ".done" << std::endl;
     }
 
