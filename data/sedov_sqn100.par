@@ -16,7 +16,7 @@
 
 # evolution parameters:
   sph_kernel = "Quintic Spline"
-  initial_dt = 0.0025 # TODO: better use Courant factor X sph_separation
+  initial_dt = 2.e-5  # TODO: better use Courant factor X sph_separation
   final_iteration = 50
   out_screen_every = 1
   out_scalar_every = 10
