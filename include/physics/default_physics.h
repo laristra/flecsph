@@ -91,7 +91,7 @@ namespace physics{
     const double eint = source->getInternalenergy(),
                  epot = external_force::potential(srch);
     double ekin = vel[0]*vel[0];
-    for (unsigned short i=0; i<gdimension; ++i)
+    for (unsigned short i=1; i<gdimension; ++i)
       ekin += vel[i]*vel[i];
     ekin *= .5;
     source->setTotalenergy(eint + epot + ekin);
@@ -110,11 +110,18 @@ namespace physics{
     const double etot = source->getTotalenergy(),
                  epot = external_force::potential(srch);
     double ekin = vel[0]*vel[0];
-    for (unsigned short i=0; i<gdimension; ++i)
+    for (unsigned short i=1; i<gdimension; ++i)
       ekin += vel[i]*vel[i];
     ekin *= .5;
     const double eint = etot - ekin - epot;
-    mpi_assert (eint > 0.0);
+    if (eint < 0.0) {
+      std::cerr << "ERROR: internal energy is negative!" << std::endl
+                << "particle id: " << source->getId()    << std::endl
+                << "total energy: " << etot              << std::endl
+                << "kinetic energy: " << ekin            << std::endl
+                << "particle position: " << pos          << std::endl;
+      mpi_assert(false);
+    }
     source->setInternalenergy(eint);
   } // recover_internal_energy
 
@@ -349,8 +356,8 @@ namespace physics{
                    Pi_ab = viscosity(source,nb);
 
       // add this neighbour's contribution
-      dedt += m_b*(-Prho2_a*vb_dot_DaWab - Prho2_b*va_dot_DaWab 
-                + .5*Pi_ab*(va_dot_DaWab - vb_dot_DaWab));
+      dedt -= m_b*( Prho2_a*vb_dot_DaWab + Prho2_b*va_dot_DaWab 
+                + .5*Pi_ab*(va_dot_DaWab + vb_dot_DaWab));
     }
     
     source->setDudt(dedt);

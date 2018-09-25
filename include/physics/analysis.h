@@ -84,12 +84,12 @@ namespace analysis{
       std::vector<body_holder*>& bodies)
   {
     using namespace param;
+    total_energy = 0.;
     if (thermokinetic_formulation) {
       for(auto nbh: bodies)
-        total_energy += nbh->getBody()->getTotalenergy();
+        total_energy += nbh->getBody()->getMass()*nbh->getBody()->getTotalenergy();
     }
     else {
-      total_energy = 0.;
       for(auto nbh: bodies) {
         total_energy += nbh->getBody()->getMass()*nbh->getBody()->getInternalenergy();
         linear_velocity = nbh->getBody()->getVelocity();
