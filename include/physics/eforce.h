@@ -31,7 +31,6 @@
 
 namespace external_force {
 
-
   /**
    * @brief      Trivial case: zero acceleration
    * @param      srch  The source's body holder

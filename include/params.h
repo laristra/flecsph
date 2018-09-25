@@ -308,6 +308,10 @@ namespace param {
   DECLARE_PARAM(double,extforce_sqwell_steepness, 1e6)
 # endif
 
+# ifndef thermokinetic_formulation
+  DECLARE_PARAM(bool,thermokinetic_formulation, true)
+# endif
+
 //
 // Specific apps
 //
@@ -548,6 +552,10 @@ void set_param(const std::string& param_name,
 
 # ifndef extforce_sqwell_steepness
   READ_NUMERIC_PARAM(extforce_sqwell_steepness)
+# endif
+
+# ifndef thermokinetic_formulation
+  READ_BOOLEAN_PARAM(thermokinetic_formulation)
 # endif
 
   // specific apps  ---------------------------------------------------------
