@@ -103,7 +103,7 @@ namespace external_force {
    *  - airfoil_anchor_y:       the y-coordinate of the anchor;
    *  - airfoil_attack_angle:   angle of attack - rotation from initial position
    *                            which is parallel to the x-axis.
-   * TODO: implement parameterization
+   *
    * @param      srch  The source's body holder
    */
   point_t acceleration_airfoil (body_holder* srch) {
@@ -112,28 +112,31 @@ namespace external_force {
     assert (gdimension > 1);
     
     point_t rp =  srch->getBody()->getPosition();
-    const double x1 = rp[0] + 1.6;
-    const double y1 = rp[1] + 0.3;
-    const double alpha = 10*M_PI/180.0;
+    const double x1 = rp[0] - airfoil_anchor_x;
+    const double y1 = rp[1] - airfoil_anchor_y;
+    const double alpha = airfoil_attack_angle*M_PI/180.0;
     const double x = x1*cos(alpha) + y1*sin(alpha);
     const double y =-x1*sin(alpha) + y1*cos(alpha);
     const double pw_n = extforce_sqwell_power;
     const double pw_a = extforce_sqwell_steepness;
 
-    bool inside_bounding_box = std::abs(y)<0.25 && x>-0.05 && x<2.05;
-    double upper_surface = .05*x*sqrt(4 - x*x);
-    double camber_line   = .1*sin(M_PI*x/2.);
+    bool inside_bounding_box = std::abs(y)<2.5*airfoil_thickness
+        && x>-airfoil_size*0.02 && x< airfoil_size*1.02;
+    double upper_surface = airfoil_thickness*x
+                         * sqrt(airfoil_size*airfoil_size - x*x);
+    double camber_line   = airfoil_camber*sin(M_PI*x/2.);
     double phi = SQ(upper_surface) - SQ(y-camber_line) + 0.002;
     if (inside_bounding_box && phi>0.0) {
       double a0, a1;
       a0 = pw_n*pw_a*pow(phi,pw_n-1)
-           * ( 2.*(y-camber_line)*(-.1*M_PI/2.*cos(M_PI/2.*x))
-             - .0025*(4*x*(2 - x*x)));
+           * ( 2.*(y-camber_line)*(-airfoil_camber*M_PI/2.*cos(M_PI/2.*x))
+             - airfoil_thickness*airfoil_thickness*2*x
+                  *(airfoil_size*airfoil_size  -   2*x*x));
       a1 = pw_n*pw_a*pow(phi,pw_n-1) * 2.*(y-camber_line);
       a[0] = a0*cos(alpha) - a1*sin(alpha);
       a[1] = a0*sin(alpha) + a1*cos(alpha);
     }
-    return acceleration_squarewell_yz(srch) + a;
+    return a + acceleration_squarewell_yz(srch);
   }
 
   double potential_airfoil (body_holder* srch)
@@ -143,17 +146,19 @@ namespace external_force {
     assert (gdimension > 1);
     
     point_t rp =  srch->getBody()->getPosition();
-    const double x1 = rp[0] + 1.6;
-    const double y1 = rp[1] + 0.3;
-    const double alpha = 10*M_PI/180.0;
+    const double x1 = rp[0] - airfoil_anchor_x;
+    const double y1 = rp[1] - airfoil_anchor_y;
+    const double alpha = airfoil_attack_angle*M_PI/180.0;
     const double x = x1*cos(alpha) + y1*sin(alpha);
     const double y =-x1*sin(alpha) + y1*cos(alpha);
     const double pw_n = extforce_sqwell_power;
     const double pw_a = extforce_sqwell_steepness;
 
-    bool inside_bounding_box = std::abs(y)<0.25 && x>-0.05 && x<2.05;
-    double upper_surface = .05*x*sqrt(4 - x*x);
-    double camber_line   = .1*sin(M_PI*x/2.);
+    bool inside_bounding_box = std::abs(y)<2.5*airfoil_thickness
+        && x>-airfoil_size*0.02 && x< airfoil_size*1.02;
+    double upper_surface = airfoil_thickness*x
+                         * sqrt(airfoil_size*airfoil_size - x*x);
+    double camber_line   = airfoil_camber*sin(M_PI*x/2.);
     double aux = SQ(upper_surface) - SQ(y-camber_line) + 0.002;
     if (inside_bounding_box && aux>0.0) 
       phi = pw_a*pow(aux,pw_n);
