@@ -15,34 +15,27 @@
 #include "hdf5ParticleIO.h"
 #include "lattice.h"
 
+/*
+ * Wind tunnel test
+ * ----------------
+ * In the wind tunnel problem, a flow is confined to a square well potential in
+ * y and z directions. It is initialized in a section of the tunnel upstream with
+ * the following parameters:
+ *  - box_length:             length of the section which contains intial flow;
+ *  - box_width, box_height:  the size of the yz-well in y- and z-directions;
+ *  - flow_velocity:          initial velocity;
+ *  - initial_pressure, initial_density
+ * Different obstacles (e.g. airfoil) can be placed in the tunnel to study their
+ * aerodynamical properties.
+ *
+ */
 //
 // help message
 //
-//
-// In the airfoil problem, a flow is confined in a square well potential in
-// y and z directions. The airfoil profile is centered at the anchor, tilted
-// at an angle to the flow. Parameters are as follows:
-//  - box_length:             the length of the chunk of fluid in the pipe;
-//  - box_width, box_height:  the size of the yz-well in y- and z-directions
-//  - flow_velocity:          initial velocity of the fluid;
-//  - initial_pressure:       initial pressure in the flow;
-//  - initial_density:        initial density.
-//
-// The shape of the airfoil can be roughly described by these three parameters:
-//  - airfoil_size:           how much does the airfoil extends in x-direction;
-//  - airfoil_thickness:      how thick is it;
-//  - airfoil_camber:         maximum deviation of camber line from the chord;
-//
-// Airfoil is positioned and rotated around the rear tip of the wing:
-//  - airfoil_anchor_x:       the x-coordinate of the anchor;
-//  - airfoil_anchor_y:       the y-coordinate of the anchor;
-//  - airfoil_attack_angle:   angle of attack - rotation from initial position
-//                            which is parallel to the x-axis.
-//
 void print_usage() {
   using namespace std;
-  clog_one(warn) << "Initial data generator for the airfoil test problem in" 
-                 << gdimension << "D" << endl << "Usage: ./airfoil_" 
+  clog_one(warn) << "Initial data generator for the wind tunnel test in" 
+                 << gdimension << "D" << endl << "Usage: ./wtunnel_" 
                  << gdimension << "d_generator <parameter-file.par>"
                  << endl;
 }
@@ -93,9 +86,9 @@ void set_derived_params() {
   }
 
   // physical parameters
-  rho0 = 1.0;
-  vx0  =-0.2;
-  P0   = 0.1;
+  rho0 = 1.0; // TODO
+  vx0  =-0.2; // TODO
+  P0   = 0.1; // TODO
 
   // file to be generated
   std::ostringstream oss;
@@ -130,7 +123,7 @@ int main(int argc, char * argv[]){
   particle_lattice::select();
 
   // screen output
-  clog_one(info) << "Airfoil test in " << gdimension
+  clog_one(info) << "Wind tunnel problem in " << gdimension
          << "D:" << endl << " - number of particles: " << nparticles
          << endl << " - particles per core:  " << nparticlesproc << endl
          << " - generated initial data file: " << initial_data_file << endl;

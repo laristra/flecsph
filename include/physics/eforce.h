@@ -89,7 +89,21 @@ namespace external_force {
 
 
   /**
-   * @brief      2D airfoil in a hydrodynamic tube
+   * @brief      2D airfoil in a wind tunnel
+   *
+   * The airfoil profile is centered at the anchor, tilted
+   * at an angle to the flow. The shape of the airfoil can be described by the
+   * following three parameters:
+   *  - airfoil_size:           airfoil horizontal extent;
+   *  - airfoil_thickness:      how thick is it;
+   *  - airfoil_camber:         maximum deviation of camber line from the chord.
+   * 
+   * Airfoil is positioned and rotated relative to its rear tip:
+   *  - airfoil_anchor_x:       the x-coordinate of the anchor;
+   *  - airfoil_anchor_y:       the y-coordinate of the anchor;
+   *  - airfoil_attack_angle:   angle of attack - rotation from initial position
+   *                            which is parallel to the x-axis.
+   * TODO: implement parameterization
    * @param      srch  The source's body holder
    */
   point_t acceleration_airfoil (body_holder* srch) {
@@ -169,33 +183,6 @@ namespace external_force {
     else if (boost::iequals(efstr,"airfoil")) {
       potential = potential_airfoil;
       acceleration = acceleration_airfoil;
-/*      for(double x= 0.0; x<2.0; x+=0.01) {
-      for(double y=-0.5; y<0.5; y+=0.01) {
-
-  {
-    using namespace param;
-    double phi = 0.0, ax = 0.0, ay = 0.0;
-    assert (gdimension > 1);
-    
-    const double pw_n = extforce_sqwell_power;
-    const double pw_a = extforce_sqwell_steepness;
-
-    bool inside_bounding_box = std::abs(y)<0.25 && x>0 && x<2;
-    double upper_surface = .05*x*sqrt(4 - x*x);
-    double camber_line   = .1*sin(M_PI*x/2.);
-    double aux = -SQ(y-camber_line) + SQ(upper_surface);
-    if (inside_bounding_box && aux>0) 
-      phi = pw_a*pow(aux,pw_n);
-      ax = pw_n*pw_a*pow(phi,pw_n-1)
-           * ( 2.*(y-camber_line)*(-.1*M_PI/2.*cos(M_PI/2.*x))
-             - .0025*(4*x*(2 - x*x)));
-      ay = pw_n*pw_a*pow(phi,pw_n-1) * 2.*(y-camber_line);
-    std::cout << x << " " << y <<  " " << phi << " " << ax << " " << ay << " " << std::endl;
-  }
-      } std::cout << std::endl;
-      }
-  exit(0);
-*/
     }
     else {
       clog_one(fatal) << "ERROR: bad external_force_type" << std::endl;
