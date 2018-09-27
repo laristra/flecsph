@@ -257,19 +257,6 @@ namespace physics{
     }
     hydro = -1.0*hydro;
     acceleration += hydro;
-
-    #if 0
-    //Aug.20 : will add this to external namespace. Keep it now 
-    //         for reference
-    //HL : Drag force applied here. Better place?
-    //Style of applying drag force:
-       if(do_drag && iteration <= relax_steps){
-         //Redefine drag coefficient with dt
-         double drag_coeff_dt = drag_coeff/dt;
-         acceleration -=drag_coeff*source->getVelocity();
-       }
-    #endif
-
     acceleration += external_force::acceleration(srch);
     source->setAcceleration(acceleration);
   } // compute_hydro_acceleration

@@ -165,6 +165,29 @@ namespace external_force {
     return phi + potential_squarewell_yz(srch);
   }
 
+  /**
+   * @brief      Drag case : apply drag force to 
+   * 	         relax the initial star during initial
+   * 	         few steps
+   * @param      srch  The source's body holder
+   */
+  point_t acceleration_do_drag(body_holder* srch) {
+    using namespace param;
+    body* source = srch->getBody();
+    int64_t iteration = 0;
+    point_t a = 0.0;
+    if(do_drag && iteration <= relax_steps){
+      //Redefine drag coefficient with dt
+      double drag_coeff_dt = drag_coeff/initial_dt;
+      a -=drag_coeff_dt*source->getVelocity();
+    }
+    return a;
+  }
+
+  double potential_do_drag(body_holder* srch) {
+    // No potential for dragging. Only du/dt = 0 during relaxation
+    return 0.0; // POISON IT
+  }
 
   // acceleration and potential function types and pointers
   typedef double  (*potential_t)(body_holder*);
@@ -188,6 +211,10 @@ namespace external_force {
     else if (boost::iequals(efstr,"airfoil")) {
       potential = potential_airfoil;
       acceleration = acceleration_airfoil;
+    }
+    else if (boost::iequals(efstr,"drag")) {
+      potential = potential_do_drag;
+      acceleration = acceleration_do_drag;
     }
     else {
       clog_one(fatal) << "ERROR: bad external_force_type" << std::endl;
