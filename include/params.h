@@ -308,6 +308,10 @@ namespace param {
   DECLARE_PARAM(double,extforce_sqwell_steepness, 1e6)
 # endif
 
+# ifndef thermokinetic_formulation
+  DECLARE_PARAM(bool,thermokinetic_formulation, true)
+# endif
+
 //
 // Specific apps
 //
@@ -355,6 +359,38 @@ namespace param {
 // in Sedov test: set the lattice types
 # ifndef domain_type
   DECLARE_PARAM(int,domain_type,0)
+# endif
+
+// in several tests: initial velocity of the flow
+# ifndef flow_velocity
+  DECLARE_PARAM(double,flow_velocity,0.0)
+# endif
+
+//
+// Airfoil parameters
+//
+# ifndef airfoil_size
+  DECLARE_PARAM(double,airfoil_size, 2.0)
+# endif
+
+# ifndef airfoil_thickness
+  DECLARE_PARAM(double,airfoil_thickness, 0.05)
+# endif
+
+# ifndef airfoil_camber
+  DECLARE_PARAM(double,airfoil_camber, 0.1)
+# endif
+
+# ifndef airfoil_anchor_x
+  DECLARE_PARAM(double,airfoil_anchor_x, -1.0)
+# endif
+
+# ifndef airfoil_anchor_y
+  DECLARE_PARAM(double,airfoil_anchor_y, 0.0)
+# endif
+
+# ifndef airfoil_attack_angle
+  DECLARE_PARAM(double,airfoil_attack_angle, 0.0)
 # endif
 
 // ---
@@ -550,6 +586,10 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(extforce_sqwell_steepness)
 # endif
 
+# ifndef thermokinetic_formulation
+  READ_BOOLEAN_PARAM(thermokinetic_formulation)
+# endif
+
   // specific apps  ---------------------------------------------------------
 # ifndef sodtest_num
   READ_NUMERIC_PARAM(sodtest_num)
@@ -586,6 +626,36 @@ void set_param(const std::string& param_name,
 # ifndef domain_type
   READ_NUMERIC_PARAM(domain_type)
 # endif
+
+# ifndef flow_velocity
+  READ_NUMERIC_PARAM(flow_velocity)
+# endif
+
+  // airfoil parameters  ----------------------------------------------------
+# ifndef airfoil_size
+  READ_NUMERIC_PARAM(airfoil_size)
+# endif
+
+# ifndef airfoil_thickness
+  READ_NUMERIC_PARAM(airfoil_thickness)
+# endif
+
+# ifndef airfoil_camber
+  READ_NUMERIC_PARAM(airfoil_camber)
+# endif
+
+# ifndef airfoil_anchor_x
+  READ_NUMERIC_PARAM(airfoil_anchor_x)
+# endif
+
+# ifndef airfoil_anchor_y
+  READ_NUMERIC_PARAM(airfoil_anchor_y)
+# endif
+
+# ifndef airfoil_attack_angle
+  READ_NUMERIC_PARAM(airfoil_attack_angle)
+# endif
+
   // unknown parameter -------------------------------
   if (unknown_param) {
     clog(error) << "ERROR: unknown parameter " << param_name << endl;

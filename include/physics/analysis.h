@@ -83,16 +83,23 @@ namespace analysis{
   compute_total_energy(
       std::vector<body_holder*>& bodies)
   {
+    using namespace param;
     total_energy = 0.;
-    for(auto nbh: bodies) {
-      total_energy += nbh->getBody()->getMass()*nbh->getBody()->getInternalenergy();
-      linear_velocity = nbh->getBody()->getVelocity();
-      velocity_part = 0.;
-      for(size_t i = 0 ; i < gdimension ; ++i){
-        velocity_part += pow(linear_velocity[i],2);
-        part_position = nbh->getBody()->getPosition();
+    if (thermokinetic_formulation) {
+      for(auto nbh: bodies)
+        total_energy += nbh->getBody()->getMass()*nbh->getBody()->getTotalenergy();
+    }
+    else {
+      for(auto nbh: bodies) {
+        total_energy += nbh->getBody()->getMass()*nbh->getBody()->getInternalenergy();
+        linear_velocity = nbh->getBody()->getVelocity();
+        velocity_part = 0.;
+        for(size_t i = 0 ; i < gdimension ; ++i){
+          velocity_part += pow(linear_velocity[i],2);
+          part_position = nbh->getBody()->getPosition();
+        }
+        total_energy += 1./2.*velocity_part*nbh->getBody()->getMass();
       }
-      total_energy += 1./2.*velocity_part*nbh->getBody()->getMass();
     }
     reduce_sum(total_energy);
   }
