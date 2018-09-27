@@ -12,7 +12,7 @@
  * /@@////   /@@/@@@@@@@/@@       ////////@@/@@////  /@@//////@@
  * /@@       /@@/@@//// //@@    @@       /@@/@@      /@@     /@@
  * /@@       @@@//@@@@@@ //@@@@@@  @@@@@@@@ /@@      /@@     /@@
- * //       ///  //////   //////  ////////  //       //      //  
+ * //       ///  //////   //////  ////////  //       //      //
  *
  *~--------------------------------------------------------------------------~*/
 
@@ -28,6 +28,7 @@
 
 #include "tree.h"
 #include "params.h"
+#define SQ(x) ((x)*(x))
 
 namespace external_force {
 
@@ -35,14 +36,13 @@ namespace external_force {
    * @brief      Trivial case: zero acceleration
    * @param      srch  The source's body holder
    */
-  point_t acceleration_zero(body_holder* srch) { 
+  point_t acceleration_zero(body_holder* srch) {
     // body* source = srch->getBody();
     point_t a = 0.0;
     return a;
   }
 
-  double potential_zero(body_holder* srch)
-  { 
+  double potential_zero(body_holder* srch) {
     // body* source = srch->getBody();
     return param::zero_potential_poison_value; // POISON IT
   }
@@ -51,7 +51,7 @@ namespace external_force {
    * @brief      Square well in y- and z-dimension
    * @param      srch  The source's body holder
    */
-  point_t acceleration_squarewell_yz(body_holder* srch) { 
+  point_t acceleration_squarewell_yz(body_holder* srch) {
     using namespace param;
     point_t a = 0.0;
     point_t rp =  srch->getBody()->getPosition();
@@ -69,9 +69,7 @@ namespace external_force {
     return a;
   }
 
-  double potential_squarewell_yz(body_holder* srch)
-  { 
-    // body* source = srch->getBody();
+  double potential_squarewell_yz(body_holder* srch) {
     using namespace param;
     double phi = 0.0;
     point_t rp =  srch->getBody()->getPosition();
@@ -87,6 +85,84 @@ namespace external_force {
             *pw_a;
     }
     return phi;
+  }
+
+
+  /**
+   * @brief      2D airfoil in a wind tunnel
+   *
+   * The airfoil profile is centered at the anchor, tilted
+   * at an angle to the flow. The shape of the airfoil can be described by the
+   * following three parameters:
+   *  - airfoil_size:           airfoil horizontal extent;
+   *  - airfoil_thickness:      how thick is it;
+   *  - airfoil_camber:         maximum deviation of camber line from the chord.
+   * 
+   * Airfoil is positioned and rotated relative to its rear tip:
+   *  - airfoil_anchor_x:       the x-coordinate of the anchor;
+   *  - airfoil_anchor_y:       the y-coordinate of the anchor;
+   *  - airfoil_attack_angle:   angle of attack - rotation from initial position
+   *                            which is parallel to the x-axis.
+   *
+   * @param      srch  The source's body holder
+   */
+  point_t acceleration_airfoil (body_holder* srch) {
+    using namespace param;
+    point_t a = 0.0;
+    assert (gdimension > 1);
+    
+    point_t rp =  srch->getBody()->getPosition();
+    const double x1 = rp[0] - airfoil_anchor_x;
+    const double y1 = rp[1] - airfoil_anchor_y;
+    const double alpha = airfoil_attack_angle*M_PI/180.0;
+    const double x = x1*cos(alpha) + y1*sin(alpha);
+    const double y =-x1*sin(alpha) + y1*cos(alpha);
+    const double pw_n = extforce_sqwell_power;
+    const double pw_a = extforce_sqwell_steepness;
+
+    bool inside_bounding_box = std::abs(y)<2.5*airfoil_thickness
+        && x>-airfoil_size*0.02 && x< airfoil_size*1.02;
+    double upper_surface = airfoil_thickness*x
+                         * sqrt(airfoil_size*airfoil_size - x*x);
+    double camber_line   = airfoil_camber*sin(M_PI*x/2.);
+    double phi = SQ(upper_surface) - SQ(y-camber_line) + 0.002;
+    if (inside_bounding_box && phi>0.0) {
+      double a0, a1;
+      a0 = pw_n*pw_a*pow(phi,pw_n-1)
+           * ( 2.*(y-camber_line)*(-airfoil_camber*M_PI/2.*cos(M_PI/2.*x))
+             - airfoil_thickness*airfoil_thickness*2*x
+                  *(airfoil_size*airfoil_size  -   2*x*x));
+      a1 = pw_n*pw_a*pow(phi,pw_n-1) * 2.*(y-camber_line);
+      a[0] = a0*cos(alpha) - a1*sin(alpha);
+      a[1] = a0*sin(alpha) + a1*cos(alpha);
+    }
+    return a + acceleration_squarewell_yz(srch);
+  }
+
+  double potential_airfoil (body_holder* srch)
+  {
+    using namespace param;
+    double phi = 0.0;
+    assert (gdimension > 1);
+    
+    point_t rp =  srch->getBody()->getPosition();
+    const double x1 = rp[0] - airfoil_anchor_x;
+    const double y1 = rp[1] - airfoil_anchor_y;
+    const double alpha = airfoil_attack_angle*M_PI/180.0;
+    const double x = x1*cos(alpha) + y1*sin(alpha);
+    const double y =-x1*sin(alpha) + y1*cos(alpha);
+    const double pw_n = extforce_sqwell_power;
+    const double pw_a = extforce_sqwell_steepness;
+
+    bool inside_bounding_box = std::abs(y)<2.5*airfoil_thickness
+        && x>-airfoil_size*0.02 && x< airfoil_size*1.02;
+    double upper_surface = airfoil_thickness*x
+                         * sqrt(airfoil_size*airfoil_size - x*x);
+    double camber_line   = airfoil_camber*sin(M_PI*x/2.);
+    double aux = SQ(upper_surface) - SQ(y-camber_line) + 0.002;
+    if (inside_bounding_box && aux>0.0) 
+      phi = pw_a*pow(aux,pw_n);
+    return phi + potential_squarewell_yz(srch);
   }
 
 
@@ -109,6 +185,10 @@ namespace external_force {
       potential = potential_squarewell_yz;
       acceleration = acceleration_squarewell_yz;
     }
+    else if (boost::iequals(efstr,"airfoil")) {
+      potential = potential_airfoil;
+      acceleration = acceleration_airfoil;
+    }
     else {
       clog_one(fatal) << "ERROR: bad external_force_type" << std::endl;
     }
@@ -116,4 +196,5 @@ namespace external_force {
 
 } // namespace external_force
 
+#undef SQ
 #endif // _eforce_h_
