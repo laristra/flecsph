@@ -24,7 +24,7 @@
  *  - box_length:             length of the section which contains intial flow;
  *  - box_width, box_height:  the size of the yz-well in y- and z-directions;
  *  - flow_velocity:          initial velocity;
- *  - initial_pressure, initial_density
+ *  - rho_initial, pressure_initial
  * Different obstacles (e.g. airfoil) can be placed in the tunnel to study their
  * aerodynamical properties.
  *
@@ -44,9 +44,6 @@ void print_usage() {
 // derived parameters
 //
 static int64_t nparticlesproc;        // number of particles per proc
-static double rho0;                   // density
-static double vx0;                    // velocity
-static double P0;                     // pressure
 static std::string initial_data_file; // = initial_data_prefix + ".h5part"
 
 // geometric extents of the flow (box-shaped)
@@ -84,11 +81,6 @@ void set_derived_params() {
   } else if(gdimension==3){
     SET_PARAM(sph_smoothing_length, (sph_separation*3.)); // TODO: ???
   }
-
-  // physical parameters
-  rho0 = 1.0; // TODO
-  vx0  =-0.2; // TODO
-  P0   = 0.1; // TODO
 
   // file to be generated
   std::ostringstream oss;
@@ -176,20 +168,20 @@ int main(int argc, char * argv[]){
   int64_t posid = 0;
 
   // max. value for the speed of sound
-  double cs = sqrt(poly_gamma*P0/rho0);
+  double cs = sqrt(poly_gamma*pressure_initial/rho_initial);
 
   // The value for constant timestep
   double timestep = 0.5*sph_separation/cs;
 
   for(int64_t part=0; part<tparticles; ++part){
     id[part] = posid++;
-    P[part] = P0;
-    rho[part] = rho0;
-    vx[part] = vx0;
-    m[part] = rho[part]/(double)tparticles;
+    P[part] = pressure_initial;
+    rho[part] = rho_initial;
+    vx[part] = -flow_velocity;
+    m[part] = rho_initial/(double)tparticles;
 
     // compute internal energy using gamma-law eos
-    u[part] = P[part]/(poly_gamma-1.)/rho[part];
+    u[part] = pressure_initial/(poly_gamma-1.)/rho_initial;
 
     // particle smoothing length
     h[part] = sph_smoothing_length;

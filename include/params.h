@@ -361,6 +361,11 @@ namespace param {
   DECLARE_PARAM(int,domain_type,0)
 # endif
 
+// in several tests: initial velocity of the flow
+# ifndef flow_velocity
+  DECLARE_PARAM(double,flow_velocity,0.0)
+# endif
+
 //
 // Airfoil parameters
 //
@@ -620,6 +625,10 @@ void set_param(const std::string& param_name,
 
 # ifndef domain_type
   READ_NUMERIC_PARAM(domain_type)
+# endif
+
+# ifndef flow_velocity
+  READ_NUMERIC_PARAM(flow_velocity)
 # endif
 
   // airfoil parameters  ----------------------------------------------------
