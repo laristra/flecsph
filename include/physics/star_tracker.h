@@ -31,6 +31,8 @@
 #include "kernels.h"
 #include "tree.h"
 
+#if 0
+
 namespace star_tracker{
 
   //Need to: 
@@ -46,6 +48,7 @@ namespace star_tracker{
       double radius; //Radius of star
       double com[gdimension]; //Center of mass of star
       double spin[gdimension]; //Angular momentue of star
+      double velocity[gdimension];
   } singleStarData_t;
 
 
@@ -63,7 +66,7 @@ namespace star_tracker{
       double separation;
   } binaryStarData_t;
 
-  double vec_dist(const point_t &p1, const point_t &p2) {
+  double get_vec_dist(const point_t &p1, const point_t &p2) {
     if (gdimension==3) {
       return sqrt((p2[0]-p1[0])*(p2[0]-p1[0])
                   +(p2[1]-p1[1])*(p2[1]-p1[1])
@@ -74,19 +77,41 @@ namespace star_tracker{
     } else
       return abs(p2[0]-p1[0]);
   }
+ 
+  // Input need to estimate of center and radius of star
+  void find_maxRho_parts(body_holder* srch, const double *center, double radius) {
 
-  void find_maxRho_parts(body_holder* srch) {
+    body* source = srch->getBody();
+    const body* max_density_part = srch->ColPart(); //HL : need to add body for collection of part
+
+    double max_density = source->getDensity();
+    double vec_dist;
+
+    for(const body* p=srch->ColPart(); p < srch->ColPart() + srch->nobj() ;p++) {
+        if(p->getDensity() > max_density) {
+	   vec_dist = get_vec_dist(source->getPosition(),center)
+           if(vec_dist < radius){
+             max_density_part = p;
+             max_density = p->getDensity();
+           }
+        }
+    }
+    
+    return max_density_part;
+  
   }
 
-  void find_starRho(body_holder* srch) {
+  void find_starRho(body_holder* srch, singleStarData_t* star) {
   }
 
-  void find_systemRho(body_holder* srch) {
+  void find_systemRho(body_holder* srch, singleStarData_t* star, int nstars) {
   }
 
-  void find_angMom_parts(body_holder* srch) {
+  void find_angMom_parts(body_holder* srch, double ang_mom, const singleStarData_t* star) {
   }
 
 }; //star_tracker
 
-#endif // _star_tracker_h
+#endif // _star_tracker_ha
+
+#endif // Block comment
