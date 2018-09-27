@@ -204,7 +204,7 @@ mpi_init_task(const char * parameter_file){
         bs.apply_in_smoothinglength(physics::compute_dudt);
         bs.apply_all(physics::leapfrog_kick_u);
       }
-      ranl|| clog(trace) << ".done" << std::endl;
+      rank|| clog(trace) << ".done" << std::endl;
     }
 
     if(out_scalar_every > 0 && physics::iteration % out_scalar_every == 0){
