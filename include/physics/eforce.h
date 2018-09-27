@@ -112,15 +112,15 @@ namespace external_force {
     assert (gdimension > 1);
     
     point_t rp =  srch->getBody()->getPosition();
-    const double x1 = rp[0] - airfoil_anchor_x;
-    const double y1 = rp[1] - airfoil_anchor_y;
-    const double alpha = airfoil_attack_angle*M_PI/180.0;
-    const double x = x1*cos(alpha) + y1*sin(alpha);
-    const double y =-x1*sin(alpha) + y1*cos(alpha);
-    const double pw_n = extforce_sqwell_power;
-    const double pw_a = extforce_sqwell_steepness;
+    const double x1 = rp[0] - airfoil_anchor_x,
+                 y1 = rp[1] - airfoil_anchor_y,
+                 alpha = airfoil_attack_angle*M_PI/180.0,
+                 pw_n = extforce_sqwell_power,
+                 pw_a = extforce_sqwell_steepness;
+    const double x = x1*cos(alpha) + y1*sin(alpha),
+                 y =-x1*sin(alpha) + y1*cos(alpha);
 
-    bool inside_bounding_box = std::abs(y)<2.5*airfoil_thickness
+    bool inside_bounding_box = std::abs(y)<5.0*airfoil_thickness
         && x>-airfoil_size*0.02 && x< airfoil_size*1.02;
     double upper_surface = airfoil_thickness*x
                          * sqrt(airfoil_size*airfoil_size - x*x);
@@ -146,15 +146,15 @@ namespace external_force {
     assert (gdimension > 1);
     
     point_t rp =  srch->getBody()->getPosition();
-    const double x1 = rp[0] - airfoil_anchor_x;
-    const double y1 = rp[1] - airfoil_anchor_y;
-    const double alpha = airfoil_attack_angle*M_PI/180.0;
-    const double x = x1*cos(alpha) + y1*sin(alpha);
-    const double y =-x1*sin(alpha) + y1*cos(alpha);
-    const double pw_n = extforce_sqwell_power;
-    const double pw_a = extforce_sqwell_steepness;
+    const double x1 = rp[0] - airfoil_anchor_x,
+                 y1 = rp[1] - airfoil_anchor_y,
+                 alpha = airfoil_attack_angle*M_PI/180.0,
+                 pw_n = extforce_sqwell_power,
+                 pw_a = extforce_sqwell_steepness;
+    const double x = x1*cos(alpha) + y1*sin(alpha),
+                 y =-x1*sin(alpha) + y1*cos(alpha);
 
-    bool inside_bounding_box = std::abs(y)<2.5*airfoil_thickness
+    bool inside_bounding_box = std::abs(y)<5.0*airfoil_thickness
         && x>-airfoil_size*0.02 && x< airfoil_size*1.02;
     double upper_surface = airfoil_thickness*x
                          * sqrt(airfoil_size*airfoil_size - x*x);
