@@ -280,8 +280,8 @@ public:
     std::vector<std::pair<entity_key_t,body>>& rbodies,
     std::vector<std::array<point_t,2>>& ranges,
     std::array<point_t,2>& range_total,
-    double smoothinglength,
-    std::vector<std::pair<body_holder*,bool>>& dbodies)
+    double smoothinglength
+  )
   {
     int rank,size;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -308,9 +308,8 @@ public:
 
     #pragma omp parallel for 
     for(long unsigned int i=0;i<search_branches.size();++i){
-      send_branches[i][0] = search_branches[i]->bmin();//-smoothinglength;
-      send_branches[i][1] = search_branches[i]->bmax();//+smoothinglength;
-      //std::cout<<rank<<" - "<<i<<" = "<<send_branches[i][0] <<" - "<< send_branches[i][1] <<std::endl;
+      send_branches[i][0] = search_branches[i]->bmin();
+      send_branches[i][1] = search_branches[i]->bmax();
     }
 
     int nbranches = send_branches.size();
@@ -368,7 +367,6 @@ public:
     std::vector<body_holder_mpi_t> sendbuffer;
     int cur = 0;
 
-    //std::cout<<rank<<" Generating vector of particlies"<<std::endl;
     // Compute the requested nodes 
     // Search in the tree for each processes 
     for(int i=0;i<size;++i)
@@ -379,8 +377,6 @@ public:
       }
       std::vector<body_holder_mpi_t> tmpsendbuffer; 
       for(int j = cur; j < cur+count_search_branches[i]; ++j ){
-        //std::cout<<rank<<" - "<<j<<" = "<<recv_search_branches[j][0] <<" - "
-        //  << recv_search_branches[j][1] <<std::endl;
         // Then for each branches 
         auto ents = tree.find_in_box_b(
             recv_search_branches[j][0],
@@ -415,8 +411,6 @@ public:
     std::vector<body_holder_mpi_t> recvbuffer;
     mpi_alltoallv(scount,sendbuffer,recvbuffer); 
 
-    dbodies.clear();
-
     // Add them in the tree 
     for(auto bi: recvbuffer)
     {
@@ -424,7 +418,6 @@ public:
       assert(bi.mass!=0.);
       auto nbi = tree.make_entity(bi.position,nullptr,bi.owner,bi.mass,bi.id);
       tree.insert(nbi);
-      dbodies.push_back(std::make_pair(nbi,false));
     }
 
 #ifdef OUTPUT_TREE_INFO
@@ -437,8 +430,8 @@ public:
 
 
 void mpi_refresh_ghosts(
-    tree_topology_t& tree/*,*/ 
-    /*std::array<point_t,2>& range*/)
+    tree_topology_t& tree
+    )
   {
     int rank,size;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -487,24 +480,6 @@ void mpi_refresh_ghosts(
             break;
           }
         }
-      }
-    }
-
-    // Check loop 
-    for(auto nl: ghosts_data.rbodies)
-    {
-      bool found = false; 
-      for(auto lb: ents)
-      {
-        if(nl.getId() == lb->getId())
-        {
-          found = true; 
-          break;
-        }
-      }
-      if(!found)
-      {
-        std::cout<<rank<<": NOT FOUND: "<<nl<<std::endl;
       }
     }
 
@@ -600,12 +575,6 @@ void mpi_refresh_ghosts(
       totalsbodies += ghosts_data.nsbodies[i];
     }
 
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //if(rank==0)
-    //  std::cout<<"Step 1: "<<omp_get_wtime()-start_1<<" total="<<totalsbodies<<std::endl<<std::flush;
-    
-    //start_1 = omp_get_wtime();
-
     std::vector<int> offset(size,0);
     for(int i=1; i<size; ++i)
     {
@@ -648,9 +617,6 @@ void mpi_refresh_ghosts(
         } // if 
       } // for 
     } // for 
-
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //std::cout<<"Step 2: "<<omp_get_wtime()-start_1<<std::endl<<std::flush;
 
     MPI_Alltoall(&ghosts_data.nsbodies[0],1,MPI_INT,
         &ghosts_data.nrbodies[0],1,MPI_INT,MPI_COMM_WORLD);

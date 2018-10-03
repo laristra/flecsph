@@ -314,7 +314,7 @@ public:
 
     // Exchnage usefull body_holder from my tree to other processes
     tcolorer_.mpi_branches_exchange(*tree_,localbodies_,rangeposproc_,
-        range_,smoothinglength_,dbodies_);
+        range_,smoothinglength_);
 
     // Update the tree 
     tree_->update_branches(smoothinglength_+smoothinglength_/100.);
@@ -509,7 +509,6 @@ private:
   double smoothinglength_;    // Keep track of the biggest smoothing length 
   double totalmass_;          // Check the total mass of the system 
   double minmass_;            // Check the minimal mass of the system
-  std::vector<std::pair<body_holder*,bool>> dbodies_; 
   
   std::vector<int64_t> neighbors_count_;
   std::vector<body_holder*> neighbors_; 
