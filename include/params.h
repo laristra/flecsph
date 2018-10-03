@@ -414,6 +414,13 @@ std::string trim(const std::string& str) {
  */
 void set_param(const std::string& param_name,
                const std::string& param_value) {
+  
+  // RANK/SIZE for CLOG output 
+  int rank = 0;
+  int size = 1; 
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  MPI_Comm_size(MPI_COMM_WORLD,&size);
+
   using namespace std;
   bool unknown_param = true;
 
@@ -662,7 +669,7 @@ void set_param(const std::string& param_name,
     exit(2);
   }
 
-  clog(trace) << param_name << ": " << param_value << endl;
+  rank || clog(trace) << param_name << ": " << param_value << endl;
 }
 
 /**
@@ -762,8 +769,8 @@ void mpi_read_params(const char * parameter_file) {
   MPI_Bcast(&len, 1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(parfile, len+1, MPI_CHAR, 0, MPI_COMM_WORLD);
 
-  clog(trace) << "Parameter file name on rank " << rank
-              << ": " << parfile << std::endl << std::flush;
+  rank || clog(trace) << "Parameter file name on rank " << rank << " over "<<
+              size << ": " << parfile << std::endl << std::flush;
 
   // queue ranks to read the parfile sequentially;
   // wait for a message from previous rank, unless this is rank 0

@@ -86,13 +86,14 @@ cinch_add_unit(sodtube_test
     ${FleCSPH_LIBRARIES}
   DEFINES
     -DEXT_GDIMENSION=1
+  POLICY MPI
 )
 
 if(ENABLE_UNIT_TESTS)
 
 add_custom_target(
     sodtube_1d_generator_test 
-    COMMAND ../id_generators/sodtube_1d_generator ${PROJECT_SOURCE_DIR}/data/sodtube_t1_n100.par
+    COMMAND mpirun -n 1 ../id_generators/sodtube_1d_generator ${PROJECT_SOURCE_DIR}/data/sodtube_t1_n100.par
     COMMAND mv sodtube_t1_n100.h5part ../../test/drivers
     DEPENDS ../id_generators/sodtube_1d_generator
 )
@@ -114,12 +115,13 @@ cinch_add_unit(sedov_test
     ${FleCSPH_LIBRARIES}
   DEFINES
     -DEXT_GDIMENSION=2
+  POLICY MPI
 )
 
 if(ENABLE_UNIT_TESTS)
 add_custom_target(
     sedov_2d_generator_test 
-    COMMAND ../id_generators/sedov_2d_generator ${PROJECT_SOURCE_DIR}/data/sedov_sqn100.par
+    COMMAND mpirun -n 1 ../id_generators/sedov_2d_generator ${PROJECT_SOURCE_DIR}/data/sedov_sqn100.par
     COMMAND mv sedov_sqn100.h5part ../../test/drivers
     DEPENDS ../id_generators/sedov_2d_generator
 )
@@ -141,12 +143,13 @@ cinch_add_unit(noh_test
     ${FleCSPH_LIBRARIES}
   DEFINES
     -DEXT_GDIMENSION=2
+  POLICY MPI
 )
 
 if(ENABLE_UNIT_TESTS)
 add_custom_target(
     noh_2d_generator_test 
-    COMMAND ../id_generators/noh_2d_generator ${PROJECT_SOURCE_DIR}/data/noh_sqn100.par
+    COMMAND mpirun -n 1 ../id_generators/noh_2d_generator ${PROJECT_SOURCE_DIR}/data/noh_sqn100.par
     COMMAND mv noh_sqn100.h5part ../../test/drivers
     DEPENDS ../id_generators/noh_2d_generator
 )

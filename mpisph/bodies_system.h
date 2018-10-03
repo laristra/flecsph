@@ -48,10 +48,13 @@ public:
   body_system():totalnbodies_(0L),localnbodies_(0L),macangle_(0.0),
   maxmasscell_(1.0e-40),tree_(nullptr)
   {
+    int rank = 0; 
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     // Display the number of threads in DEBUG mode
     #pragma omp parallel 
     #pragma omp single 
-    clog(warn)<<"USING OMP THREADS: "<<omp_get_num_threads()<<std::endl;
+    rank || clog(warn)<<"USING OMP THREADS: "<<
+      omp_get_num_threads()<<std::endl;
   };
 
   /**
@@ -195,8 +198,6 @@ public:
     MPI_Allreduce(MPI_IN_PLACE,&smoothinglength_,1,MPI_DOUBLE,MPI_MAX,
         MPI_COMM_WORLD);
 
-    rank|| clog(trace)<<"H="<<smoothinglength_<<std::endl;
-
     return smoothinglength_;
 
   }
@@ -213,17 +214,7 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
-    // Choose the smoothing length to be the biggest from everyone 
-    smoothinglength_ = 0;
-    for(auto bi: localbodies_){
-      if(smoothinglength_ < bi.second.getSmoothinglength()){
-        smoothinglength_ = bi.second.getSmoothinglength();
-      }
-    }
-    MPI_Allreduce(MPI_IN_PLACE,&smoothinglength_,1,MPI_DOUBLE,MPI_MAX,
-        MPI_COMM_WORLD);
-
-    rank|| clog(trace)<<"H="<<smoothinglength_<<std::endl;
+    getSmoothinglength();
 
     tcolorer_.mpi_compute_range(localbodies_,range_,smoothinglength_);
     return range_;
@@ -293,7 +284,7 @@ public:
     MPI_SUM,MPI_COMM_WORLD); 
     assert(checknparticles==totalnbodies_);
 
-    tree_->update_branches(smoothinglength_); 
+    tree_->update_branches(smoothinglength_+smoothinglength_/100.); 
 
 #ifdef DEBUG
     std::vector<int> nentities(size);
@@ -316,6 +307,9 @@ public:
     }
     oss << std::endl;
     rank|| clog(trace) << oss.str() << std::flush;
+
+    oss.str("");
+    oss.clear();
 #endif
 
     // Exchnage usefull body_holder from my tree to other processes
@@ -323,7 +317,7 @@ public:
         range_,smoothinglength_);
 
     // Update the tree 
-    tree_->update_branches(smoothinglength_);
+    tree_->update_branches(smoothinglength_+smoothinglength_/100.);
 
 #ifdef DEBUG
     lentities = tree_->root()->sub_entities();
