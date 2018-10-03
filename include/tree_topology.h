@@ -1846,10 +1846,9 @@ public:
     return ents;
   }
 
-
-  /*!
+/*!
     Return an index space containing all entities within the specified
-   box.
+    spheroid.
    */
   subentity_space_t
   find_in_box_b(
@@ -1860,39 +1859,39 @@ public:
     subentity_space_t ents;
     ents.set_master(entities_);
 
-    // Tree traversal from root down 
-    // Recursive version 
-    std::function<void(branch_t*)> traverse;
-    traverse = [this,&ents,&traverse,&min,&max](branch_t* b){
-      if(b->is_leaf())
-      {
-        for(auto child: *b)
-        {
-            if(geometry_t::within_box(child->coordinates(),min,max))
-            {
+    // ITERATIVE VERSION
+    std::stack<branch_t*> stk;
+    stk.push(root());
+
+    while(!stk.empty()){
+      branch_t* b = stk.top();
+      stk.pop();
+      if(b->is_leaf()){
+        for(auto child: *b){
+            // Check if in box 
+            if(geometry_t::within_box(child->coordinates(),min,max)){
               ents.push_back(child);
             }
         }
       }else{
-        for(int i=0 ; i<(1<<dimension);++i)
-        {
+        for(int i=0 ; i<(1<<dimension);++i){
           auto branch = child(b,i);
-          if(branch->sub_entities() > 0 && geometry_t::intersects_box_box(
+          if(geometry_t::intersects_box_box(
                 min,
                 max,
                 branch->bmin(),
-                branch->bmax()))
+                branch->bmax()
+                ))
           {
-            traverse(branch);
+            stk.push(branch);
           }
         }
       }
-    };
-
-    traverse(root()); 
-
+    }
     return ents;
   }
+
+
 
   /*!
     Return an index space containing all entities within the specified

@@ -80,7 +80,7 @@ private:
   // To share the ghosts data within the radius
   mpi_ghosts_t ghosts_data;
 
-  const int criterion_branches = 1024; // Number of branches to share in 
+  const int criterion_branches = 64; // Number of branches to share in 
                                        // exchange_branches
   const size_t noct = 256*1024;        // Number of octets used for quicksort    
 
@@ -248,11 +248,12 @@ public:
     MPI_Allgather(&mybodies,1,MPI_INT,&totalprocbodies[0],1,MPI_INT,
       MPI_COMM_WORLD);
     #ifdef OUTPUT_TREE_INFO
-    rank|| clog(trace)<<"Repartition: ";
+    std::ostringstream oss; 
+    oss<<"Repartition: ";
     for(auto num: totalprocbodies)
-    rank||   clog(trace)<<num<<";";
+      oss<<num<<";";
     double end = omp_get_wtime();
-    rank|| clog(trace)<< end-start << "s "<<std::endl;
+    rank|| clog(trace)<<oss.str()<<std::endl;
     #endif
 #endif // OUTPUT
   } // mpi_qsort
@@ -279,7 +280,8 @@ public:
     std::vector<std::pair<entity_key_t,body>>& rbodies,
     std::vector<std::array<point_t,2>>& ranges,
     std::array<point_t,2>& range_total,
-    double smoothinglength)
+    double smoothinglength,
+    std::vector<std::pair<body_holder*,bool>>& dbodies)
   {
     int rank,size;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -287,9 +289,8 @@ public:
     
 #ifdef OUTPUT
     MPI_Barrier(MPI_COMM_WORLD);
-    // double start = omp_get_wtime(); // unused
     #ifdef OUTPUT_TREE_INFO
-    rank|| clog(trace)<<"Branches repartition" << std::flush;
+    rank|| clog(trace)<<"Branches repartition" << std::endl << std::flush;
     #endif 
 #endif
 
@@ -307,8 +308,8 @@ public:
 
     #pragma omp parallel for 
     for(long unsigned int i=0;i<search_branches.size();++i){
-      send_branches[i][0] = search_branches[i]->bmin();
-      send_branches[i][1] = search_branches[i]->bmax();
+      send_branches[i][0] = search_branches[i]->bmin();//-smoothinglength;
+      send_branches[i][1] = search_branches[i]->bmax();//+smoothinglength;
       //std::cout<<rank<<" - "<<i<<" = "<<send_branches[i][0] <<" - "<< send_branches[i][1] <<std::endl;
     }
 
@@ -327,12 +328,12 @@ public:
     );
 
     #ifdef OUTPUT_TREE_INFO
-    rank|| clog(trace)<<"Packets with ncrit="<<criterion_branches<<" = ";
+    std::ostringstream oss;
+    oss <<"Packets with ncrit="<<criterion_branches<<" = ";
     for(auto v: count_search_branches){
-      rank|| clog(trace)<<v<<";";
+      oss <<v<<";";
     }
-    rank|| clog(trace)t<<std::endl;
-    }
+    rank|| clog(trace) << oss.str()<<std::endl;
     #endif 
 
     std::vector<int> count_search_branches_byte(size);
@@ -414,6 +415,8 @@ public:
     std::vector<body_holder_mpi_t> recvbuffer;
     mpi_alltoallv(scount,sendbuffer,recvbuffer); 
 
+    dbodies.clear();
+
     // Add them in the tree 
     for(auto bi: recvbuffer)
     {
@@ -421,12 +424,12 @@ public:
       assert(bi.mass!=0.);
       auto nbi = tree.make_entity(bi.position,nullptr,bi.owner,bi.mass,bi.id);
       tree.insert(nbi);
+      dbodies.push_back(std::make_pair(nbi,false));
     }
 
 #ifdef OUTPUT_TREE_INFO
     MPI_Barrier(MPI_COMM_WORLD);
-    double end = omp_get_wtime();
-    rank|| clog(trace)<<".done "<< end-start << "s" <<std::endl;
+    rank || clog(trace)<<".done "<<std::endl;
 #endif
 
   }
@@ -477,7 +480,7 @@ void mpi_refresh_ghosts(
       {
         for(auto& nl: ghosts_data.rbodies)
         {
-          if(bi->coordinates() == nl.coordinates())
+          if(bi->getId() == nl.getId())
           {
             totalfound++;
             bi->setBody(&(nl));
@@ -486,13 +489,34 @@ void mpi_refresh_ghosts(
         }
       }
     }
+
+    // Check loop 
+    for(auto nl: ghosts_data.rbodies)
+    {
+      bool found = false; 
+      for(auto lb: ents)
+      {
+        if(nl.getId() == lb->getId())
+        {
+          found = true; 
+          break;
+        }
+      }
+      if(!found)
+      {
+        std::cout<<rank<<": NOT FOUND: "<<nl<<std::endl;
+      }
+    }
+
+    if(totalfound != (int) ghosts_data.rbodies.size())
+      std::cout<<rank<<": t="<<totalfound<<" g="<<ghosts_data.rbodies.size()<<
+       std::endl; 
     
     assert(totalfound == (int)ghosts_data.rbodies.size()); 
   
 #ifdef OUTPUT_TREE_INFO
     MPI_Barrier(MPI_COMM_WORLD);
-    double end = omp_get_wtime();
-    rank|| clog(trace)".done "<< end-start << "s "<< std::endl << std::flush;
+    rank|| clog(trace) <<".done "<< std::endl << std::flush;
 
 #endif
   }
@@ -519,12 +543,11 @@ void mpi_refresh_ghosts(
     int rank,size;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
-  
 
+    // No need to compute ghosts for one process
     if(size == 1){
       return;
     }
- 
 
 #ifdef OUTPUT_TREE_INFO
     MPI_Barrier(MPI_COMM_WORLD);
@@ -544,15 +567,14 @@ void mpi_refresh_ghosts(
     std::fill(ghosts_data.nrbodies.begin(),ghosts_data.nrbodies.end(),0);
 
     int64_t nelem = lbodies.size();
-   
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //double start_1 = omp_get_wtime();  
 
     // Count send
 #pragma omp parallel for 
     for(int64_t i=0; i<nelem;++i)
     {
+      // array of bools to check unique send 
       std::vector<bool> proc(size,false);
+      proc[rank] = true; 
       body_holder * bi = lbodies[i];
       assert(bi->is_local());  
       auto nbs = tree.find_in_radius_b(
@@ -563,10 +585,10 @@ void mpi_refresh_ghosts(
       {
         if(!nb->is_local() && !proc[nb->getOwner()])
         {
-          proc[nb->getOwner()] = true;
+          // Mark this particle as sent for this process
+          proc[nb->getOwner()] = true; 
 #pragma omp atomic update
           ghosts_data.nsbodies[nb->getOwner()]++; 
-          //localsbodies[nb->getOwner()]++; 
         } // if
       } // for
     } // for 
@@ -600,7 +622,8 @@ void mpi_refresh_ghosts(
 #pragma omp parallel for 
     for(int64_t i=0; i<nelem; ++i)
     {
-      std::vector<bool> proc(size,false); 
+      std::vector<bool> proc(size,false);
+      proc[rank] = true;
       body_holder* bi = lbodies[i];
       assert(bi->is_local());
       auto nbs = tree.find_in_radius_b(
@@ -611,8 +634,8 @@ void mpi_refresh_ghosts(
       {
         if(!nb->is_local() && !proc[nb->getOwner()])
         {
+          proc[nb->getOwner()] = true; 
           int pos = 0;
-          proc[nb->getOwner()] = true;
 
 #pragma omp atomic capture
           pos = spbodies[nb->getOwner()]++;

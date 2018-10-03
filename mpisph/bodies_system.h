@@ -198,8 +198,6 @@ public:
     MPI_Allreduce(MPI_IN_PLACE,&smoothinglength_,1,MPI_DOUBLE,MPI_MAX,
         MPI_COMM_WORLD);
 
-    //rank|| clog(trace)<<"H="<<smoothinglength_<<std::endl;
-
     return smoothinglength_;
 
   }
@@ -217,18 +215,6 @@ public:
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
     getSmoothinglength();
-
-    // Choose the smoothing length to be the biggest from everyone 
-    //smoothinglength_ = 0;
-    //for(auto bi: localbodies_){
-    //  if(smoothinglength_ < bi.second.getSmoothinglength()){
-    //    smoothinglength_ = bi.second.getSmoothinglength();
-    //  }
-    //}
-    //MPI_Allreduce(MPI_IN_PLACE,&smoothinglength_,1,MPI_DOUBLE,MPI_MAX,
-    //    MPI_COMM_WORLD);
-
-    //rank|| clog(trace)<<"H="<<smoothinglength_<<std::endl;
 
     tcolorer_.mpi_compute_range(localbodies_,range_,smoothinglength_);
     return range_;
@@ -298,7 +284,7 @@ public:
     MPI_SUM,MPI_COMM_WORLD); 
     assert(checknparticles==totalnbodies_);
 
-    tree_->update_branches(smoothinglength_); 
+    tree_->update_branches(smoothinglength_+smoothinglength_/100.); 
 
 #ifdef DEBUG
     std::vector<int> nentities(size);
@@ -328,10 +314,10 @@ public:
 
     // Exchnage usefull body_holder from my tree to other processes
     tcolorer_.mpi_branches_exchange(*tree_,localbodies_,rangeposproc_,
-        range_,smoothinglength_);
+        range_,smoothinglength_,dbodies_);
 
     // Update the tree 
-    tree_->update_branches(smoothinglength_);
+    tree_->update_branches(smoothinglength_+smoothinglength_/100.);
 
 #ifdef DEBUG
     lentities = tree_->root()->sub_entities();
@@ -523,6 +509,7 @@ private:
   double smoothinglength_;    // Keep track of the biggest smoothing length 
   double totalmass_;          // Check the total mass of the system 
   double minmass_;            // Check the minimal mass of the system
+  std::vector<std::pair<body_holder*,bool>> dbodies_; 
   
   std::vector<int64_t> neighbors_count_;
   std::vector<body_holder*> neighbors_; 
