@@ -84,12 +84,16 @@ void inputDataHDF5(
   int64_t& nbodies,
   int startiteration)
 {
+
+  // Lower message level, handle them here on one process 
+  H5SetVerbosityLevel  (0); 
+
   
   int rank, size; 
   MPI_Comm_size(MPI_COMM_WORLD,&size); 
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
-  rank|| clog(trace)<<"Input particles";
+  rank|| clog(trace)<<"Input particles" << std::endl;
   
   //--------------- OPEN FILE AND READ NUMBER OF PARTICLES -------------------- 
   auto dataFile = H5OpenFile(filename,H5_O_RDONLY
@@ -142,12 +146,26 @@ void inputDataHDF5(
   double* dataY = new double[nparticlesproc];
   double* dataZ = new double[nparticlesproc];
   int64_t* dataInt = new int64_t[nparticlesproc];
-  int * dataInt32 = new int[nparticlesproc]; 
+  int * dataInt32 = new int[nparticlesproc];
+
+  // Handle errors from H5HUT 
+  h5_err_t errX, errY, errZ;  
 
   // Positions
-  H5PartReadDataFloat64(dataFile,"x",dataX);
-  H5PartReadDataFloat64(dataFile,"y",dataY);
-  H5PartReadDataFloat64(dataFile,"z",dataZ);
+  errX = H5PartReadDataFloat64(dataFile,"x",dataX);
+  if(gdimension > 1)
+    errY = H5PartReadDataFloat64(dataFile,"y",dataY);
+  if(gdimension > 2)
+    errZ = H5PartReadDataFloat64(dataFile,"z",dataZ);
+
+  if(errX != H5_SUCCESS)
+    rank || clog(warn) << "Unable to read x" << std::endl;
+  if(errY != H5_SUCCESS) 
+    rank || clog(warn) << "Unable to read y" << std::endl;
+  if(errZ != H5_SUCCESS) 
+    rank || clog(warn) << "Unable to read z" << std::endl;
+
+
   for(int64_t i=0; i<nparticlesproc; ++i){
     point_t position; 
     position[0] = dataX[i];
@@ -166,9 +184,19 @@ void inputDataHDF5(
   std::fill(dataZ,dataZ+nparticlesproc,0.); 
 
   // Velocity
-  H5PartReadDataFloat64(dataFile,"vx",dataX);
-  H5PartReadDataFloat64(dataFile,"vy",dataY);
-  H5PartReadDataFloat64(dataFile,"vz",dataZ);
+  errX = H5PartReadDataFloat64(dataFile,"vx",dataX);
+  if(gdimension > 1)
+    errY = H5PartReadDataFloat64(dataFile,"vy",dataY);
+  if(gdimension > 2)
+    errZ = H5PartReadDataFloat64(dataFile,"vz",dataZ);
+ 
+  if(errX != H5_SUCCESS)
+    rank || clog(warn) << "Unable to read vx" << std::endl;
+  if(errY != H5_SUCCESS) 
+    rank || clog(warn) << "Unable to read vy" << std::endl;
+  if(errZ != H5_SUCCESS) 
+    rank || clog(warn) << "Unable to read vz" << std::endl;
+
   for(int64_t i=0; i<nparticlesproc; ++i){
     point_t velocity;
     velocity[0] = dataX[i];
@@ -187,9 +215,19 @@ void inputDataHDF5(
   std::fill(dataZ,dataZ+nparticlesproc,0.); 
 
   // Acceleration
-  H5PartReadDataFloat64(dataFile,"ax",dataX);
-  H5PartReadDataFloat64(dataFile,"ay",dataY);
-  H5PartReadDataFloat64(dataFile,"az",dataZ);
+  errX = H5PartReadDataFloat64(dataFile,"ax",dataX);
+  if(gdimension > 1)
+    errY = H5PartReadDataFloat64(dataFile,"ay",dataY);
+  if(gdimension > 2)
+    errZ = H5PartReadDataFloat64(dataFile,"az",dataZ);
+  
+  if(errX != H5_SUCCESS)
+    rank || clog(warn) << "Unable to read ax" << std::endl;
+  if(errY != H5_SUCCESS) 
+    rank || clog(warn) << "Unable to read ay" << std::endl;
+  if(errZ != H5_SUCCESS) 
+    rank || clog(warn) << "Unable to read az" << std::endl;
+
   for(int64_t i=0; i<nparticlesproc; ++i){
     point_t acceleration;
     acceleration[0] = dataX[i];
@@ -201,23 +239,26 @@ void inputDataHDF5(
     }
     bodies[i].second.setAcceleration(acceleration);
   }
- 
 
   // Reset buffer to 0, if next value not present 
   std::fill(dataX,dataX+nparticlesproc,0.);
   std::fill(dataY,dataY+nparticlesproc,0.);
   std::fill(dataZ,dataZ+nparticlesproc,0.); 
 
-  H5PartReadDataFloat64(dataFile,"m",dataX);
+  errX = H5PartReadDataFloat64(dataFile,"m",dataX); 
+  errY = H5PartReadDataFloat64(dataFile,"rho",dataY);
+  errZ = H5PartReadDataFloat64(dataFile,"h",dataZ);
+
+  if(errX != H5_SUCCESS)
+    rank || clog(warn) << "Unable to read m" << std::endl;
+  if(errY != H5_SUCCESS)
+    rank || clog(warn) << "Unable to read rho" << std::endl;
+  if(errZ != H5_SUCCESS)
+    rank || clog(warn) << "Unable to read h" << std::endl;
+
   for(int64_t i=0; i<nparticlesproc; ++i){
     bodies[i].second.setMass(dataX[i]);
-  }
-  H5PartReadDataFloat64(dataFile,"rho",dataY);
-  for(int64_t i=0; i<nparticlesproc; ++i){
     bodies[i].second.setDensity(dataY[i]);
-  }
-  H5PartReadDataFloat64(dataFile,"h",dataZ);
-  for(int64_t i=0; i<nparticlesproc; ++i){
     bodies[i].second.setSmoothinglength(dataZ[i]);
   }
 
@@ -227,7 +268,9 @@ void inputDataHDF5(
   std::fill(dataZ,dataZ+nparticlesproc,0.); 
 
   // Pressure  
-  H5PartReadDataFloat64(dataFile,"P",dataX);
+  errX = H5PartReadDataFloat64(dataFile,"P",dataX);
+  if(errX != H5_SUCCESS)
+    rank || clog(warn) << "Unable to read P" <<std::endl;
   for(int64_t i=0; i<nparticlesproc; ++i){
     bodies[i].second.setPressure(dataX[i]);
   }
@@ -236,7 +279,9 @@ void inputDataHDF5(
   #ifdef INTERNAL_ENERGY
   rank|| clog(trace)<<"Reading internal energy"<<std::endl;
   std::fill(dataX,dataX+nparticlesproc,0.);
-  H5PartReadDataFloat64(dataFile,"u",dataX);
+  errX = H5PartReadDataFloat64(dataFile,"u",dataX);
+  if(errX != H5_SUCCESS)
+    rank || clog(warn) << "Unable to read u"<<std::endl;
   for(int64_t i=0; i<nparticlesproc; ++i){
     bodies[i].second.setInternalenergy(dataX[i]);
   }
@@ -266,7 +311,9 @@ void inputDataHDF5(
   std::fill(dataX,dataX+nparticlesproc,0.);
 
   // delta T   
-  H5PartReadDataFloat64(dataFile,"dt",dataX);
+  errX = H5PartReadDataFloat64(dataFile,"dt",dataX);
+  if(errX != H5_SUCCESS)
+    rank || clog(warn) << "Unable to read dt" << std::endl;
   for(int64_t i=0; i<nparticlesproc; ++i){
     bodies[i].second.setDt(dataX[i]);
   }
@@ -275,7 +322,9 @@ void inputDataHDF5(
   std::fill(dataInt32,dataInt32+nparticlesproc,0.);
 
   // delta T   
-  H5PartReadDataInt32(dataFile,"type",dataInt32);
+  errX = H5PartReadDataInt32(dataFile,"type",dataInt32);
+  if(errX != H5_SUCCESS)
+    rank || clog(warn) << "Unable to read type"<< std::endl;
   for(int64_t i=0; i<nparticlesproc; ++i){
     bodies[i].second.setType(dataInt32[i]);
   }
@@ -290,8 +339,10 @@ void inputDataHDF5(
   MPI_Barrier(MPI_COMM_WORLD);
   H5CloseFile(dataFile);
 
-  rank|| clog(trace)<<".done"<<std::endl;
+  rank|| clog(trace)<<"Input particles.done"<<std::endl;
 
+  // Restore the H5HUT error level
+  H5SetVerbosityLevel  (1); 
 }// inputDataHDF5
 
 // Output data in HDF5 format 
