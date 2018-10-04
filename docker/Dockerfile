@@ -42,7 +42,6 @@ USER root
 RUN rm -rf /usr/local/include/legion* /usr/local/include/realm*
 RUN make VERBOSE=1 -j4
 RUN make install
-RUN ls /usr/local/lib64/
 USER flecsi
 
 #build flecsi
