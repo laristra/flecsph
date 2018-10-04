@@ -99,14 +99,10 @@ public:
     int getOwner(){return owner_;};
     element_t getMass(){return mass_;};
     int64_t getId(){return id_;}; 
-    double getWeight(){return weight_;};
-    int64_t index(){return index_;};
     
     void setBody(body * bodyptr){bodyptr_ = bodyptr;};
     void setPosition(point_t position){position_ = position;};
     void setId(int64_t id){id_ = id;}; 
-    void setWeight(double weight){weight_ = weight;};
-    void set_index(int64_t index){index_ = index;};
 
     friend std::ostream& operator<<(std::ostream& os, const body_holder& b){
       os << std::setprecision(10);
@@ -132,9 +128,6 @@ public:
     element_t mass_;
     // Id of the particle behind
     int64_t id_;
-    // Weight of the body_holder, init to 0 
-    double weight_;
-    int64_t index_;
   };
     
   using entity_t = body_holder;
