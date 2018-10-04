@@ -39,7 +39,7 @@ WORKDIR /home/flecsi/tpl/build
 RUN  cmake .. -DENABLE_HPX=OFF  
 USER root
 RUN rm -rf /usr/local/include/legion* /usr/local/include/realm*
-RUN make VERBOSE=1 -j2
+RUN make VERBOSE=1 -j4
 RUN ls /usr/local/lib/
 USER flecsi
 
@@ -56,7 +56,7 @@ RUN  cmake .. -DFLECSI_RUNTIME_MODEL=legion \
               -DENABLE_MPI_CXX_BINDINGS=ON \
               -DENABLE_CONFORMANCE_STANDARD=c++17 \
               -DENABLE_BOOST_PREPROCESSOR=ON 
-RUN make VERBOSE=1
+RUN make VERBOSE=1 -j4
 USER root
 RUN make install
 USER flecsi
