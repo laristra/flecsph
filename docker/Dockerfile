@@ -33,8 +33,6 @@ USER flecsi
 #rebuild flecsi-third-party
 WORKDIR /home/flecsi/tpl
 RUN git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
-RUN git fetch origin FleCSPH
-RUN git checkout FleCSPH
 RUN git submodule update --recursive
 RUN rm -rf build && mkdir build
 WORKDIR /home/flecsi/tpl/build
@@ -47,7 +45,7 @@ USER flecsi
 
 #build flecsi
 WORKDIR /home/flecsi
-RUN git clone -b stable/flecsph-compatible --depth 1 --recursive https://github.com/laristra/flecsi flecsi 
+RUN git clone -b feature/flecsph --depth 1 --recursive https://github.com/laristra/flecsi flecsi 
 RUN  cd flecsi && mkdir build && cd build
 WORKDIR flecsi/build
 RUN  cmake .. -DFLECSI_RUNTIME_MODEL=legion \
