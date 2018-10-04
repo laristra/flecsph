@@ -36,7 +36,7 @@ RUN git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
 RUN git submodule update --recursive
 RUN rm -rf build && mkdir build
 WORKDIR /home/flecsi/tpl/build
-RUN  cmake .. 
+RUN  cmake .. -DENABLE_HPX=OFF  
 USER root
 RUN rm -rf /usr/local/include/legion* /usr/local/include/realm*
 RUN make VERBOSE=1 -j2
@@ -53,7 +53,9 @@ RUN  cmake .. -DFLECSI_RUNTIME_MODEL=legion \
               -DENABLE_CLOG=OFF \
               -DENABLE_MPI=ON \
               -DENABLE_OPENMP=ON \
-              -DENABLE_MPI_CXX_BINDINGS=ON 
+              -DENABLE_MPI_CXX_BINDINGS=ON \
+              -DENABLE_CONFORMANCE_STANDARD=c++17 \
+              -DENABLE_BOOST_PREPROCESSOR=ON 
 RUN make VERBOSE=1
 USER root
 RUN make install
@@ -86,6 +88,10 @@ RUN cmake -DENABLE_MPI=$MPI \
           -DENABLE_LEGION=ON \
           -DENABLE_DOXYGEN=ON \
           -DCMAKE_CXX_FLAGS="-fpermissive" \
+          -DCXX_CONFORMANCE_STANDARD=c++17 \
+          -DENABLE_BOOST_PREPROCESSOR=ON \
+          -DENABLE_CLOG=ON \
+          -DENABLE_COLOR_UNIT_TEST=ON \
           ${COVERAGE:+-DENABLE_COVERAGE_BUILD=ON} ..
 
 RUN HDF5_USE_SHLIB=yes ${SONARQUBE:+build-wrapper-linux-x86-64 --out-dir bw-output} make VERBOSE=1 -j2
