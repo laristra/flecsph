@@ -366,6 +366,10 @@ namespace param {
   DECLARE_PARAM(double,flow_velocity,0.0)
 # endif
 
+# ifndef variable_smoothinglength 
+  DECLARE_PARAM(bool, variable_smoothinglength,false)
+# endif 
+
 //
 // Airfoil parameters
 //
@@ -637,6 +641,10 @@ void set_param(const std::string& param_name,
 # ifndef flow_velocity
   READ_NUMERIC_PARAM(flow_velocity)
 # endif
+
+# ifndef variable_smoothinglength
+  READ_BOOLEAN_PARAM(variable_smoothinglength)
+# endif 
 
   // airfoil parameters  ----------------------------------------------------
 # ifndef airfoil_size

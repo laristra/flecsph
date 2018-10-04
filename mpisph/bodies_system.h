@@ -492,6 +492,19 @@ public:
     return localbodies_;
   };
 
+  /** 
+   * @ brief return the number of local bodies 
+   */
+  int64_t getNLocalBodies()
+  {
+    return localnbodies_;
+  }
+
+  int64_t getNBodies()
+  {
+    return totalnbodies_;
+  }
+
 private:
   int64_t totalnbodies_;        // Total number of local particles
   int64_t localnbodies_;        // Local number of particles
