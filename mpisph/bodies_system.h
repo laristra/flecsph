@@ -248,8 +248,6 @@ public:
     // Choose the smoothing length to be the biggest from everyone 
     smoothinglength_ = getSmoothinglength();
 
-    rank|| clog(trace)<<"H="<<smoothinglength_<<std::endl;
-
     // Then compute the range of the system 
     tcolorer_.mpi_compute_range(localbodies_,range_,smoothinglength_);
 
@@ -286,7 +284,7 @@ public:
 
     tree_->update_branches(smoothinglength_+smoothinglength_/100.); 
 
-#ifdef DEBUG
+#ifdef OUTPUT_TREE_INFO
     std::vector<int> nentities(size);
     int lentities = tree_->root()->sub_entities();
     // Get on 0 
@@ -319,7 +317,7 @@ public:
     // Update the tree 
     tree_->update_branches(smoothinglength_+smoothinglength_/100.);
 
-#ifdef DEBUG
+#ifdef OUTPUT_TREE_INFO
     lentities = tree_->root()->sub_entities();
     // Get on 0 
     MPI_Gather(
