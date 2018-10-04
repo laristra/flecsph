@@ -137,7 +137,4 @@ RUN cd .. && if [ ${SONARQUBE} ]; then \
        -Dsonar.github.oauth=${SONARQUBE_GITHUB_TOKEN}) \
     -Dsonar.login=${SONARQUBE_TOKEN}; \
 fi && cd -
-USER root
-RUN make install
-USER flecsi
 WORKDIR /home/flecsi
