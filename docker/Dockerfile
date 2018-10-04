@@ -78,13 +78,17 @@ RUN ./configure --disable-static --enable-shared --enable-parallel --prefix=/usr
 USER root
 RUN make install --quiet
 USER flecsi
-RUN ldd /usr/local/lib/libH5hut.so
 
 WORKDIR /home/flecsi/flecsph
 RUN mkdir build
 
 WORKDIR build
 RUN ccache -z
+# FleCSI lib location regarding distro
+RUN export FleCSI_LIB=/usr/local/lib64/libFleCSI.so
+RUN if [ ! -f $FleCSI_LIB ]; then \
+  export FleCSI_LIB=/usr/local/lib/libFleCSI.so \
+  fi
 RUN cmake -DENABLE_MPI=$MPI \
           -DENABLE_UNIT_TESTS=ON \
           -DENABLE_OPENMP=ON \
@@ -98,7 +102,7 @@ RUN cmake -DENABLE_MPI=$MPI \
           -DLegion_ROOT=/usr/local \
           -DFleCSI_INCLUDE_DIR=/usr/local/include \
           -DFleCSI_RUNTIME=/usr/local/share/FleCSI/runtime \
-          -DFleCSI_LIBRARY=/usr/local/lib64/libFleCSI.so \
+          -DFleCSI_LIBRARY=$FleCSI_LIB \
           ${COVERAGE:+-DENABLE_COVERAGE_BUILD=ON} ..
 
 RUN HDF5_USE_SHLIB=yes ${SONARQUBE:+build-wrapper-linux-x86-64 --out-dir bw-output} make VERBOSE=1 -j2
