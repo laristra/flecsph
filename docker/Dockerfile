@@ -96,9 +96,9 @@ RUN cmake -DENABLE_MPI=$MPI \
           -DENABLE_CLOG=ON \
           -DENABLE_COLOR_UNIT_TEST=ON \
           -DLegion_ROOT=/usr/local \
-          -DFleCSI_INCLUDE_DIR=/usr/local/include \
-          -DFleCSI_RUNTIME=/usr/local/share/FleCSI/runtime \
-          -DFleCSI_LIBRARY=/usr/local/lib64/libFleCSI.so \
+          #-DFleCSI_INCLUDE_DIR=/usr/local/include \
+          #-DFleCSI_RUNTIME=/usr/local/share/FleCSI/runtime \
+          #-DFleCSI_LIBRARY=/usr/local/lib64/libFleCSI.so \
           ${COVERAGE:+-DENABLE_COVERAGE_BUILD=ON} ..
 
 RUN HDF5_USE_SHLIB=yes ${SONARQUBE:+build-wrapper-linux-x86-64 --out-dir bw-output} make VERBOSE=1 -j2
