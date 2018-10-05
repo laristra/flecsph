@@ -221,6 +221,7 @@ namespace physics{
     body_holder* srch, 
     std::vector<body_holder*>& ngbsh)
   { 
+    using namespace param;
     body* source = srch->getBody();
 
     // Reset the accelerastion 
@@ -305,6 +306,11 @@ namespace physics{
     double P_a = source->getPressure();
     double rho_a = source->getDensity();
     dudt = P_a/(rho_a*rho_a)*dudt_pressure + .5*dudt_visc;
+
+    //Do not change internal energy during relaxation
+    if(do_drag && iteration <= relax_steps){
+       dudt = 0.0;
+    }
 
     source->setDudt(dudt);
   } // compute_dudt
