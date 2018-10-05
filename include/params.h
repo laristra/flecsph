@@ -197,6 +197,10 @@ namespace param {
   DECLARE_PARAM(double,box_height,1.0)
 #endif
 
+#ifndef sphere_radius
+  DECLARE_PARAM(double,sphere_radius,1.0)
+#endif
+
 //
 // Boundary conditions
 //
@@ -306,12 +310,12 @@ namespace param {
   DECLARE_PARAM(double,zero_potential_poison_value, 0.0)
 # endif
 
-# ifndef extforce_sqwell_power
-  DECLARE_PARAM(double,extforce_sqwell_power, 5.0)
+# ifndef extforce_wall_powerindex
+  DECLARE_PARAM(double,extforce_wall_powerindex, 5.0)
 # endif
 
-# ifndef extforce_sqwell_steepness
-  DECLARE_PARAM(double,extforce_sqwell_steepness, 1e6)
+# ifndef extforce_wall_steepness
+  DECLARE_PARAM(double,extforce_wall_steepness, 1e6)
 # endif
 
 # ifndef thermokinetic_formulation
@@ -518,6 +522,10 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(box_height)
 # endif
 
+# ifndef sphere_radius
+  READ_NUMERIC_PARAM(sphere_radius)
+# endif
+
   // boundary conditions  ---------------------------------------------------
 # ifndef do_boundaries
   READ_BOOLEAN_PARAM(do_boundaries)
@@ -595,12 +603,12 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(zero_potential_poison_value)
 # endif
 
-# ifndef extforce_sqwell_power
-  READ_NUMERIC_PARAM(extforce_sqwell_power)
+# ifndef extforce_wall_powerindex
+  READ_NUMERIC_PARAM(extforce_wall_powerindex)
 # endif
 
-# ifndef extforce_sqwell_steepness
-  READ_NUMERIC_PARAM(extforce_sqwell_steepness)
+# ifndef extforce_wall_steepness
+  READ_NUMERIC_PARAM(extforce_wall_steepness)
 # endif
 
 # ifndef thermokinetic_formulation

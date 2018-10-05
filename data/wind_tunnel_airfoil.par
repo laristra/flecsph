@@ -21,8 +21,8 @@
   airfoil_attack_angle = 10.0
   zero_potential_poison_value = 0.0
   external_force_type = "airfoil"
-  extforce_sqwell_steepness = 1e12
-  extforce_sqwell_power = 5
+  extforce_wall_steepness = 1e12
+  extforce_wall_powerindex = 5
   airfoil_anchor_x  = -1.6
   airfoil_anchor_y = -0.3
 
