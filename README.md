@@ -158,16 +158,13 @@ Configure and build FleCSPH:
    # in ${HOME}/FLECSPH/build:
    cmake .. \
        -DCMAKE_INSTALL_PREFIX=$HOME/FLECSPH/local \
-       -DENABLE_LEGION=ON                         \
        -DENABLE_MPI=ON                            \
        -DENABLE_OPENMP=ON                         \
        -DENABLE_UNIT_TESTS=ON                     \
        -DCXX_CONFORMANCE_STANDARD=c++17           \
        -CENABLE_CLOG=ON                           \
        -DCMAKE_CXX_FLAGS=-DPARALLEL_IO            \
-       -DHDF5_IS_PARALLEL=ON                      \
-       -DHDF5_C_LIBRARY_hdf5=$HOME/FLECSPH/local/lib/libhdf5.so \
-       -DVERSION_CREATION:STRING=
+       -DHDF5_IS_PARALLEL=ON
 ```
 
 Configure, build and install:
