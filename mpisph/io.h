@@ -150,6 +150,7 @@ void inputDataHDF5(
 
   // Handle errors from H5HUT 
   h5_err_t errX, errY, errZ;  
+  errX = errY = errZ = H5_SUCCESS; // prevent warnings
 
   // Positions
   errX = H5PartReadDataFloat64(dataFile,"x",dataX);
