@@ -207,10 +207,10 @@ mpi_init_task(const char * parameter_file){
       rank|| clog(trace) << ".done" << std::endl;
     }
 
-    if(variable_smoothinglength){
+    if(sph_update_uniform_h){
       // The particles moved, compute new smoothing length 
-      rank || clog(trace) << "smoothing length: computation"<<std::flush;
-      bs.get_all(physics::compute_smoothinglength,bs.getNBodies());
+      rank || clog(trace) << "updating smoothing length"<<std::flush;
+      bs.get_all(physics::compute_average_smoothinglength,bs.getNBodies());
       rank || clog(trace) << ".done" << std::endl << std::flush;
     }
 
