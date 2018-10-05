@@ -162,7 +162,7 @@ Configure and build FleCSPH:
        -DENABLE_OPENMP=ON                         \
        -DENABLE_UNIT_TESTS=ON                     \
        -DCXX_CONFORMANCE_STANDARD=c++17           \
-       -CENABLE_CLOG=ON                           \
+       -DENABLE_CLOG=ON                           \
        -DCMAKE_CXX_FLAGS=-DPARALLEL_IO            \
        -DHDF5_IS_PARALLEL=ON
 ```
