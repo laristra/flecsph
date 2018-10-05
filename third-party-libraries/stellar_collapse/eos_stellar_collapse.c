@@ -506,14 +506,13 @@ void do_ye_fixup(int i, int j, int k,
 
 // Front-facing API
 // ----------------------------------------------------------------------
-// void EOS_SC_fill(double rho, double u, double ye, double* restrict eos)
-void EOS_SC_fill(double* restrict p, double* restrict eos)
+ void EOS_SC_fill(double* rhoIn, double* uIn, double* yeIn, double* restrict eos)
 {
   double lTguess,leosTemp;
   double lrho, e, le;
-  double u      = p[UU];
-  double rho    = p[RHO];
-  double ye     = p[YE];
+  double u      = uIn[UU];
+  double rho    = rhoIn[RHO];
+  double ye     = yeIn[YE];
   //double yedens = p[YE];
   double lT     = eos[EOS_LT];
 
@@ -587,7 +586,7 @@ void EOS_SC_fill(double* restrict p, double* restrict eos)
     le = EOS_SC_interp(lrho,leosTemp,ye,tab_le);
     e = le2e(le);
     u = rho*e;
-    p[UU] = u/U_unit;
+    uIn[UU] = u/U_unit;
   }
   #endif // SC_THROTTLE_CS
 

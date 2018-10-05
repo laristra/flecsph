@@ -52,6 +52,7 @@
 #include "BNS_physics.h"
 #include "analysis.h"
 #include "eos.h"
+//#include "star_tracker.h"
 
 namespace flecsi{
 namespace execution{

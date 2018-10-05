@@ -206,7 +206,7 @@ double EOS_u_press(double press, double rho, double* extra);
 // eos_stellar_collapse.c
 #if EOS == EOS_TYPE_TABLE
 void EOS_SC_init(char *name);
-void EOS_SC_fill(double* restrict p, double* restrict eos);
+void EOS_SC_fill(double* rhoIn, double* uIn, double* yeIn, double* restrict eos);
 double EOS_SC_pressure_rho0_u(double lrho, double lT, double ye);
 double EOS_SC_pressure_rho0_w(double rho, double w, double ye, double *lTold);
 double EOS_SC_specific_enthalpy_rho0_u(double lrho, double lT, double ye);
@@ -281,7 +281,7 @@ double EOS_Poly_adiabatic_constant(double rho, double u, double K, double Gam);
 // eos_stellar_collapse.c
 #if EOS == EOS_TYPE_TABLE
 void EOS_SC_init(char *name);
-void EOS_SC_fill(double* restrict p, double* restrict eos);
+void EOS_SC_fill(double* rhoIn, double* uIn, double* yeIn, double* restrict eos);
 double EOS_SC_pressure_rho0_u(double lrho, double lT, double ye);
 double EOS_SC_pressure_rho0_w(double rho, double w, double ye, double *lTold);
 double EOS_SC_specific_enthalpy_rho0_u(double lrho, double lT, double ye);

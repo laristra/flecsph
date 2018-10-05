@@ -69,6 +69,8 @@ add_executable(newtonian_3d
   ${FleCSI_RUNTIME}/runtime_driver.cc
 )
 target_link_libraries(newtonian_3d ${FleCSPH_LIBRARIES})
+target_link_libraries(newtonian_3d ${CMAKE_SOURCE_DIR}/third-party-libraries/stellar_collapse/libTABEOS_RF.a)
+target_link_libraries(newtonian_3d ${CMAKE_SOURCE_DIR}/third-party-libraries/stellar_collapse/libTABEOS_SC.a)
 target_compile_definitions(newtonian_3d PUBLIC -DEXT_GDIMENSION=3)
 
 #------------------------------------------------------------------------------#

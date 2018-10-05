@@ -17,5 +17,6 @@
   final_iteration = 50
   out_screen_every = 1
   out_scalar_every = 10
+  out_style = 0 # 0 for one single h5part file, 1 for separate h5part file
   out_h5data_every = 10
   output_h5data_prefix = "bns_evolution"

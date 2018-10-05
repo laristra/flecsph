@@ -49,7 +49,7 @@ public:
       const double density, 
       const double pressure, 
       const double entropy, 
-      const double electronFraction,
+      const double electronfraction,
       const double mass,
       const double smoothinglength
   ):  position_(position), 
@@ -58,9 +58,9 @@ public:
       acceleration_(acceleration),
       density_(density),
       pressure_(pressure),
-      //entropy_(entropy),
+      entropy_(entropy),
       mass_(mass),
-      //electronFraction_(electronFraction),
+      electronfraction_(electronfraction),
       smoothinglength_(smoothinglength),
       soundspeed_(0.0)
       ,internalenergy_(0.0)
@@ -71,19 +71,19 @@ public:
       ,dadt_(0.0)
       //gravforce_(point_t{}),
       //hydroforce_(point_t{})
-  {};
+   {};
 
-  body()
-  {};
-
-  const point_t& coordinates() const{return position_;}
+   body()
+   {};
+      
+  const point_t& coordinates() const{return position_;}   
   const point_t& getPosition() const{return position_;}
   double getMass() const{return mass_;}
   double getSmoothinglength() const{return smoothinglength_;}
   double getPressure() const{return pressure_;}
   double getSoundspeed() const{return soundspeed_;}
-  //double getEntropy() const{return entropy_;}
-  //double getElectronFraction() const{return electronFraction_;}
+  double getEntropy() const{return entropy_;}
+  double getElectronfraction() const{return electronfraction_;}
   double getDensity() const{return density_;}
   point_t getVelocity() const{return velocity_;}
   //point_t getHydroForce() const{return hydroforce_;}
@@ -113,6 +113,8 @@ public:
   //void setHydroForce(point_t hydroforce){hydroforce_ = hydroforce;}
   void setSoundspeed(double soundspeed){soundspeed_ = soundspeed;}
   void setPressure(double pressure){pressure_ = pressure;}
+  void setEntropy(double entropy){entropy_ = entropy;}
+  void setElectronfraction(double electronfraction){electronfraction_ = electronfraction;}
   void setDensity(double density){density_ = density;}
   void setMass(double mass){mass_ = mass;};
   //void setLinMomentum(point_t lin_momentum){lin_momentum_ = lin_momentum;}
@@ -182,6 +184,7 @@ private:
   double density_;
   double pressure_; 
   double entropy_;
+  double electronfraction_;
   double mass_;
   double smoothinglength_; 
   double soundspeed_;
