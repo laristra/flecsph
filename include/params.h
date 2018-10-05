@@ -191,6 +191,10 @@ namespace param {
   DECLARE_PARAM(double,box_height,1.0)
 #endif
 
+#ifndef sphere_radius
+  DECLARE_PARAM(double,sphere_radius,1.0)
+#endif
+
 //
 // Boundary conditions
 //
@@ -510,6 +514,10 @@ void set_param(const std::string& param_name,
 
 # ifndef box_height
   READ_NUMERIC_PARAM(box_height)
+# endif
+
+# ifndef sphere_radius
+  READ_NUMERIC_PARAM(sphere_radius)
 # endif
 
   // boundary conditions  ---------------------------------------------------
