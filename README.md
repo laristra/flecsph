@@ -13,14 +13,14 @@ simulating fluids and gases using the FleCSI framework.
 Currently, particle affinity and gravitation is handled using the parallel 
 implementation of the octree data structure provided by FleCSI.
 
-We provide examples of several basic physics problems:
+We provide several examples of physics problems in 1D, 2D and 3D:
 
 - Sod shock tubes in 1D/2D/3D;
-- Noh tests in 2D/3D;
+- Noh shock test in 2D/3D;
 - Sedov blast waves 2D and 3D;
-- Wind Tunnel 2D and 3D; 
-- Implosion 2D and 3D; 
-- Single and binary stars with Newtonian gravity in 3D.
+- airfoil flow in a wind tunnel (2D/3D); 
+- pressure-induced spherical implosion (2D/3D); 
+- single and binary stars with Newtonian gravity in 3D.
 
 # Building the FleCSPH
 
@@ -65,8 +65,8 @@ Set your CMAKE prefix to this location:
 
 You will need the following tools:
 
+- C++17 - capable compiler, such as gcc version >= 7;
 - git version > 2.14;
-- gcc version >= 7;
 - MPI libraries, compiled with the gcc compiler above and multithread support 
   (`--enable-mpi-thread-multiple` for OpenMPI and 
    `--enable-threads=multiple` for MPICH);
@@ -113,10 +113,9 @@ Checkout submodules recursively, then configure as below:
        -DENABLE_MPI=ON                            \
        -DENABLE_MPI_CXX_BINDINGS=ON               \
        -DENABLE_OPENMP=ON                         \
-       -DENABLE_LEGION=ON                         \
        -DCXX_CONFORMANCE_STANDARD=c++17           \
        -DENABLE_CLOG=ON                           \
-       -DFLECSI_RUNTIME_MODEL=legion
+       -DFLECSI_RUNTIME_MODEL=mpi
 ```    
 
 In this configuration, Legion is used as FleCSI backend.
@@ -198,7 +197,7 @@ Evolution drivers are located in `app/drivers`:
 - `hydro`: 1D/2D/3D hydro evolution without gravity;
 - `newtonian`: 3D hydro evolution with self-gravity.
 
-To run a test, you also need a parameter file, specifying parameters of the
+To run a test, you also need an input parameter file, specifying parameters of the
 problem. Parameter files are located in `data/` subdirectory. Running an 
 application consists of two steps:
 
@@ -210,14 +209,14 @@ you are in your build directory after having successfully built FleCSPH):
 ```{engine=sh}
   cp ../data/sodtube_t1_n1000.par sodtube.par
   # edit the file sodtube.par to adjust the number of particles etc.
-  app/id_generators/sodtube_1d_generator  sodtube.par
+  app/id_generators/sodtube_1d_generator sodtube.par
   app/driver/hydro_1d sodtube.par
 ```
 
 # Creating your own initial data or drivers
 You can add your own initial data generator or a new evolution module under
 `app/id_generators` or `app/drivers` directories. Create a directory with 
-unique name for your project and modify CMakeLists.txt to inform the cmake
+unique name for your project and modify `CMakeLists.txt` to inform the cmake
 system that your project needs to be built. 
 
 A new initial data generator usually has a single `main.cc` file and an optional
