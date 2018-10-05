@@ -18,6 +18,8 @@ We provide examples of several basic physics problems:
 - Sod shock tubes in 1D/2D/3D;
 - Noh tests in 2D/3D;
 - Sedov blast waves 2D and 3D;
+- Wind Tunnel 2D and 3D; 
+- Implosion 2D and 3D; 
 - Single and binary stars with Newtonian gravity in 3D.
 
 # Building the FleCSPH
@@ -64,7 +66,7 @@ Set your CMAKE prefix to this location:
 You will need the following tools:
 
 - git version > 2.14;
-- gcc version > 6.2;
+- gcc version >= 7;
 - MPI libraries, compiled with the gcc compiler above and multithread support 
   (`--enable-mpi-thread-multiple` for OpenMPI and 
    `--enable-threads=multiple` for MPICH);
@@ -80,7 +82,6 @@ Clone the FleCSI third-party libraries repo and check out the compatible branch 
    cd $HOME/FLECSPH
    git clone --recursive git@github.com:laristra/flecsi-third-party.git
    cd flecsi-third-party
-   git checkout FleCSPH
    git submodule update --recursive
    mkdir build ; cd build
    cmake .. \
@@ -89,20 +90,21 @@ Clone the FleCSI third-party libraries repo and check out the compatible branch 
         -DCMAKE_INSTALL_PREFIX=${HOME}/FLECSPH/local
 ```    
 
-Build the libraries using several cores (no install step is required):
+Build the libraries using several cores:
 
     % make -j
+    % make install
 
 ## FleCSI
 
-Clone FleCSI repo and change to the `stable/flecsph-compatible` branch.
+Clone FleCSI repo and change to the `feature/flecsph` branch.
 Checkout submodules recursively, then configure as below:
 
 ```{engine=sh}    
    cd $HOME/FLECSPH
    git clone --recursive git@github.com:laristra/flecsi.git
    cd flecsi
-   git checkout stable/flecsph-compatible
+   git checkout feature/flecsph
    git submodule update --recursive
    mkdir build ; cd build
    export CMAKE_PREFIX_PATH=${HOME}/FLECSPH/local
@@ -112,13 +114,16 @@ Checkout submodules recursively, then configure as below:
        -DENABLE_MPI_CXX_BINDINGS=ON               \
        -DENABLE_OPENMP=ON                         \
        -DENABLE_LEGION=ON                         \
+       -DCXX_CONFORMANCE_STANDARD=c++17           \
+       -DENABLE_CLOG=ON                           \
        -DFLECSI_RUNTIME_MODEL=legion
 ```    
 
 In this configuration, Legion is used as FleCSI backend.
 If no errors appeared, build and install:
 
-    % make -j install
+    % make -j
+    % make install 
 
 In case of errors: if you are rebuilding everything from scratch, 
 make sure that your installation directory (`$HOME/FLECSPH/local` 
@@ -152,47 +157,25 @@ Configure and build FleCSPH:
 
 ```{engine=sh}
    # in ${HOME}/FLECSPH/build:
-   export CMAKE_PREFIX_PATH=${HOME}/FLECSPH/local
    cmake .. \
        -DCMAKE_INSTALL_PREFIX=$HOME/FLECSPH/local \
        -DENABLE_LEGION=ON                         \
        -DENABLE_MPI=ON                            \
        -DENABLE_OPENMP=ON                         \
        -DENABLE_UNIT_TESTS=ON                     \
+       -DCXX_CONFORMANCE_STANDARD=c++17           \
+       -CENABLE_CLOG=ON                           \
+       -DCMAKE_CXX_FLAGS=-DPARALLEL_IO            \
+       -DHDF5_IS_PARALLEL=ON                      \
        -DHDF5_C_LIBRARY_hdf5=$HOME/FLECSPH/local/lib/libhdf5.so \
        -DVERSION_CREATION:STRING=
 ```
 
 Configure, build and install:
 
-    % make -j install
+    % make -j
+    % make install
 
-### Building the latest-FleCSI compatible branch
-
-The procedure above describes building FleCSPH based on an old version of
-FleCSI. To take advantage of the most recent features of FleCSI, you need
-the branch which is compatible with the latest FleCSI. The following
-combination of branches is supported:
-
-- `flecsi-third-party`: branch `master`;
-- `flecsi`: branch `feature/flecsph`;
-- `flecsph`: branch `latest-flecsi`.
-
-You can follow the building procedure described above with the difference
-that you will need these branches for new FleCSPH to work.
-You will also need a C++17-able compiler, such as GCC v.7 or later.
-
-Use the following flags to configure the latest-flecsi branch build:
-```{engine=sh}
-   export CMAKE_PREFIX_PATH=${HOME}/FLECSPH/local
-   cmake -Wno-dev ..  \
-       -DCMAKE_INSTALL_PREFIX=$HOME/FLECSPH/local \
-       -DENABLE_UNIT_TESTS=ON \
-       -DCXX_CONFORMANCE_STANDARD='c++17' \
-       -DCMAKE_CXX_FLAGS='-DPARALLEL_IO' \
-       -DENABLE_CLOG=ON \
-       -DHDF5_IS_PARALLEL=ON
-```
 
 ### Building FleCSPH on various architectures
 Architecture-/machine-specific notes for building FleCSPH are collected in
@@ -280,13 +263,11 @@ export CLOG_ENABLE_STDLOG=1
 In the code, you can set the level of output from trace(0) and info(1) to warn(2), error(3) and fatal(4).
 You can then control the level of output at compile time by setting the flag `CLOG_STRIP_LEVEL`:
 by default it is set to 0 (trace), but for simulations it is perhaps preferrable to set it to 1 (info).
-In the code, if you only want a single rank (e.g. rank 0) to output, you need to use `clog_one` command,
-and indicate the output rank using the `clog_set_output_rank(rank)` macro right after MPI initialization:
 ```cpp
-clog_set_output_rank(0);
-clog_one(info) << "This is essential output (level 1)" << std::endl;
-clog_one(trace) << "This is verbose output  (level 0)" << std::endl;
-clog_one(fatal) << "Farewell!" << std::endl; 
+clog(trace) << "This is verbose output  (level 0)" << std::endl;
+clog(info) << "This is essential output (level 1)" << std::endl;
+clog(warn) << "This is a warning output (level 2)" << std::endl;
+clog(fatal) << "Farewell!" << std::endl; 
 ```
 
 For further details, refer to the documentation at: 
@@ -294,5 +275,5 @@ https://github.com/laristra/cinch/blob/master/logging/README.md
 
  # Contacts
 
- If you have any questions or find any worries about FleCSPH, please contact Julien Loiseau (julien.loiseau@univ-reims.fr) and/or Hyun Lim (hylim1988@gmail.com)
+ If you have any questions or find any worries about FleCSPH, please contact Julien Loiseau (julien.loiseau@univ-reims.fr), Oleg Korobkin and/or Hyun Lim (hylim1988@gmail.com)
 

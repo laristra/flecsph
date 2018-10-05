@@ -175,6 +175,12 @@ namespace param {
   DECLARE_PARAM(double,sph_sinc_index,4.0)
 #endif
 
+//- if true, recompute (uniform) smoothing length every timestep 
+//  h = average { sph_eta (m/rho)^1/D } (Rosswog'09, eq.51)
+# ifndef sph_update_uniform_h
+  DECLARE_PARAM(bool, sph_update_uniform_h,false)
+# endif 
+
 //
 // Geometric parameters
 //
@@ -494,6 +500,10 @@ void set_param(const std::string& param_name,
 # ifndef sph_sinc_index
   READ_NUMERIC_PARAM(sph_sinc_index)
 # endif
+
+# ifndef sph_update_uniform_h
+  READ_BOOLEAN_PARAM(sph_update_uniform_h)
+# endif 
 
   // geometric configuration  -----------------------------------------------
 # ifndef box_length
