@@ -74,7 +74,7 @@ WORKDIR ${H5Hut}
 RUN sed -i 's/H5Pset_fapl_mpiposix (fapl_id, comm, use_gpfs)/H5Pset_fapl_mpio (fapl_id, comm, \&use_gpfs)/g' src/h5core/h5_hdf5_private.h
 RUN autoreconf -i -f
 #ubuntu needs CC=h5pcc amd HDF5_USE_SHLIB=yes is needed for shared lib
-RUN ./configure --disable-static --enable-shared --enable-parallel --prefix=/usr/local CC=h5pcc && HDF5_USE_SHLIB=yes make --quiet
+RUN ./configure --disable-static --enable-shared --enable-parallel --prefix=/usr/local CC=h5pcc && HDF5_USE_SHLIB=yes make --quiet 
 USER root
 RUN make install --quiet
 USER flecsi
@@ -85,10 +85,6 @@ RUN mkdir build
 WORKDIR build
 RUN ccache -z
 # FleCSI lib location regarding distro
-RUN export FleCSI_LIB=/usr/local/lib64/libFleCSI.so
-RUN if [ ! -f $FleCSI_LIB ]; then \
-  export FleCSI_LIB=/usr/local/lib/libFleCSI.so \
-  fi
 RUN cmake -DENABLE_MPI=$MPI \
           -DENABLE_UNIT_TESTS=ON \
           -DENABLE_OPENMP=ON \
@@ -102,7 +98,7 @@ RUN cmake -DENABLE_MPI=$MPI \
           -DLegion_ROOT=/usr/local \
           -DFleCSI_INCLUDE_DIR=/usr/local/include \
           -DFleCSI_RUNTIME=/usr/local/share/FleCSI/runtime \
-          -DFleCSI_LIBRARY=$FleCSI_LIB \
+          -DFleCSI_LIBRARY=/usr/local/lib*/libFleCSI.so \
           ${COVERAGE:+-DENABLE_COVERAGE_BUILD=ON} ..
 
 RUN HDF5_USE_SHLIB=yes ${SONARQUBE:+build-wrapper-linux-x86-64 --out-dir bw-output} make VERBOSE=1 -j2

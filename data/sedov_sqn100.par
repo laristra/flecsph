@@ -22,4 +22,3 @@
   out_scalar_every = 10
   out_h5data_every = 10
   output_h5data_prefix = "sedov_evolution"
-  variable_smoothinglength=true
