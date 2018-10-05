@@ -59,8 +59,8 @@ namespace external_force {
     box[0] = 0.0;
     box[1] = 0.5*box_width;
     box[2] = 0.5*box_height;
-    const double pw_n = extforce_sqwell_power;
-    const double pw_a = extforce_sqwell_steepness;
+    const double pw_n = extforce_wall_powerindex;
+    const double pw_a = extforce_wall_steepness;
     for (unsigned short i=1; i<gdimension; ++i) {
       a[i]  = (((rp[i] <- box[i]) ? pow(-rp[i]- box[i], pw_n - 1) : 0.0)
               -((rp[i] >  box[i]) ? pow(rp[i] - box[i], pw_n - 1) : 0.0))
@@ -77,8 +77,8 @@ namespace external_force {
     box[0] = 0.0;
     box[1] = 0.5*box_width;
     box[2] = 0.5*box_height;
-    const double pw_n = extforce_sqwell_power;
-    const double pw_a = extforce_sqwell_steepness;
+    const double pw_n = extforce_wall_powerindex;
+    const double pw_a = extforce_wall_steepness;
     for (unsigned short i=1; i<gdimension; ++i) {
       phi += (((rp[i] <- box[i]) ? pow(-rp[i]- box[i], pw_n) : 0.0)
              +((rp[i] >  box[i]) ? pow(rp[i] - box[i], pw_n) : 0.0))
@@ -115,8 +115,8 @@ namespace external_force {
     const double x1 = rp[0] - airfoil_anchor_x,
                  y1 = rp[1] - airfoil_anchor_y,
                  alpha = airfoil_attack_angle*M_PI/180.0,
-                 pw_n = extforce_sqwell_power,
-                 pw_a = extforce_sqwell_steepness;
+                 pw_n = extforce_wall_powerindex,
+                 pw_a = extforce_wall_steepness;
     const double x = x1*cos(alpha) + y1*sin(alpha),
                  y =-x1*sin(alpha) + y1*cos(alpha);
 
@@ -149,8 +149,8 @@ namespace external_force {
     const double x1 = rp[0] - airfoil_anchor_x,
                  y1 = rp[1] - airfoil_anchor_y,
                  alpha = airfoil_attack_angle*M_PI/180.0,
-                 pw_n = extforce_sqwell_power,
-                 pw_a = extforce_sqwell_steepness;
+                 pw_n = extforce_wall_powerindex,
+                 pw_a = extforce_wall_steepness;
     const double x = x1*cos(alpha) + y1*sin(alpha),
                  y =-x1*sin(alpha) + y1*cos(alpha);
 
