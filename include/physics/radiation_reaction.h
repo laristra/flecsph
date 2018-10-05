@@ -16,11 +16,15 @@
   *
   *~--------------------------------------------------------------------------~*/
 
+
 /*
  * @file radiation_reaction.h
  * @brief Implementation of utilities for GW 
  *        radiation reaction
  */
+
+#if 0
+// TODO : Finish this Oct.6.2018
 
 #ifndef _radiation_reaction_h_
 #define _radiation_reaction_h_
@@ -75,3 +79,5 @@ void get_ang_mom_vec(){
 }
 
 #endif // _radiation_reaction_h
+
+#endif // Block comment

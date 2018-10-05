@@ -33,6 +33,8 @@
 
 #if 0
 
+// TODO : Finish this Oct.6.2018
+
 namespace star_tracker{
 
   //Need to: 
