@@ -89,6 +89,45 @@ namespace external_force {
 
 
   /**
+   * @brief      Round or spherical boundary wall
+   * @param      srch  The source's body holder
+   */
+  point_t acceleration_spherical_wall(body_holder* srch) {
+    using namespace param;
+    point_t a = 0.0;
+    point_t rp =  srch->getBody()->getPosition();
+    const double pw_n = extforce_wall_powerindex;
+    const double pw_a = extforce_wall_steepness;
+    double r = rp[0]*rp[0];
+    for (unsigned short i=1; i<gdimension; ++i) 
+      r += rp[i]*rp[i];
+    r = sqrt(r);
+    if (r > sphere_radius) {
+      const double ar = pw_n*pw_a*pow(r - sphere_radius, pw_n - 1);
+      for (unsigned short i=0; i<gdimension; ++i) 
+        a[i] = -rp[i]/r * ar;
+    }
+     
+    return a;
+  }
+
+  double potential_spherical_wall(body_holder* srch) {
+    using namespace param;
+    double phi = 0.0;
+    point_t rp =  srch->getBody()->getPosition();
+    const double pw_n = extforce_wall_powerindex;
+    const double pw_a = extforce_wall_steepness;
+    double r = rp[0]*rp[0];
+    for (unsigned short i=1; i<gdimension; ++i) 
+      r += rp[i]*rp[i];
+    r = sqrt(r);
+    if (r > sphere_radius) 
+      phi = pw_a*pow(r - sphere_radius, pw_n);
+    return phi;
+  }
+
+
+  /**
    * @brief      2D airfoil in a wind tunnel
    *
    * The airfoil profile is centered at the anchor, tilted
@@ -184,6 +223,10 @@ namespace external_force {
     else if (boost::iequals(efstr,"square yz-well")) {
       potential = potential_squarewell_yz;
       acceleration = acceleration_squarewell_yz;
+    }
+    else if (boost::iequals(efstr,"spherical wall")) {
+      potential = potential_spherical_wall;
+      acceleration = acceleration_spherical_wall;
     }
     else if (boost::iequals(efstr,"airfoil")) {
       potential = potential_airfoil;
