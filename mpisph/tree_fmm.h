@@ -41,7 +41,7 @@ using namespace mpi_utils;
 struct body_holder_fmm_t{
   static const size_t dimension = gdimension;
   using element_t = type_t; 
-  using point_t = flecsi::point<element_t, dimension>;
+  using point_t = flecsi::point__<element_t, dimension>;
 
   point_t position; 
   int owner; 
@@ -230,7 +230,7 @@ public:
 
     assert(send_particles_count_[rank] == 0);
     MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace)<<"mpi_compute_fmm in "<<omp_get_wtime()-time<<
+    rank|| clog(trace)<<"mpi_compute_fmm in "<<omp_get_wtime()-time<<
       "s"<<std::endl<<std::flush;
   }
 
@@ -395,10 +395,10 @@ public:
     MPI_Allgatherv(&vcells[0],nrecvCOM_[rank],MPI_BYTE,
       &recvCOM_[0],&nrecvCOM_[0],&noffsets[0],MPI_BYTE,MPI_COMM_WORLD);
     
-    clog_one(trace)<<"FMM COM = ";
+    rank|| clog(trace)<<"FMM COM = ";
     for(auto v: nrecvCOM_)
-     clog_one(trace)<<v/sizeof(mpi_cell_t)<<";";
-    clog_one(trace)<<std::endl;
+     rank|| clog(trace)<<v/sizeof(mpi_cell_t)<<";";
+    rank|| clog(trace)<<std::endl;
 
     // Check if mine are in the right order 
     #pragma omp parallel for 
@@ -408,7 +408,7 @@ public:
     }// for
 
     MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace)<<"mpi_exchange_cells in "<<omp_get_wtime()-time<<
+    rank|| clog(trace)<<"mpi_exchange_cells in "<<omp_get_wtime()-time<<
       "s"<<std::endl<<std::flush;
   } // mpi_exchange_cells
 
@@ -518,7 +518,7 @@ public:
       assert(recvcells[i].ninterations == totalnbodies);
     }
     MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace)<<"mpi_gather_cells in "<<omp_get_wtime()-time<<
+    rank|| clog(trace)<<"mpi_gather_cells in "<<omp_get_wtime()-time<<
       "s"<<std::endl<<std::flush;
   } // mpi_gather_cells
 

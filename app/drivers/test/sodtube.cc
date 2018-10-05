@@ -17,7 +17,7 @@ using namespace flecsi;
 using namespace execution;
 
 TEST(sodtube, working) {
-  MPI_Init(NULL,NULL);
+  //MPI_Init(NULL,NULL);
   mpi_init_task("sodtube_t1_n100.par");
-  MPI_Finalize();
+  //MPI_Finalize();
 }

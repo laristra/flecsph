@@ -48,7 +48,7 @@ void driver(int argc, char*argv[]);
 struct body_holder_mpi_t{
   static const size_t dimension = gdimension;
   using element_t = type_t; 
-  using point_t = flecsi::point<element_t, dimension>;
+  using point_t = flecsi::point__<element_t, dimension>;
 
   point_t position; 
   int owner; 
@@ -62,7 +62,7 @@ public:
   using branch_int_t = uint64_t;
   static const size_t dimension = gdimension;
   using element_t = type_t; 
-  using point_t = flecsi::point<element_t, dimension>;
+  using point_t = flecsi::point__<element_t, dimension>;
   using space_vector_t = flecsi::space_vector<element_t,dimension>;
   using geometry_t = flecsi::topology::tree_geometry<element_t, gdimension>;
 
@@ -99,14 +99,10 @@ public:
     int getOwner(){return owner_;};
     element_t getMass(){return mass_;};
     int64_t getId(){return id_;}; 
-    double getWeight(){return weight_;};
-    int64_t index(){return index_;};
     
     void setBody(body * bodyptr){bodyptr_ = bodyptr;};
     void setPosition(point_t position){position_ = position;};
     void setId(int64_t id){id_ = id;}; 
-    void setWeight(double weight){weight_ = weight;};
-    void set_index(int64_t index){index_ = index;};
 
     friend std::ostream& operator<<(std::ostream& os, const body_holder& b){
       os << std::setprecision(10);
@@ -132,9 +128,6 @@ public:
     element_t mass_;
     // Id of the particle behind
     int64_t id_;
-    // Weight of the body_holder, init to 0 
-    double weight_;
-    int64_t index_;
   };
     
   using entity_t = body_holder;
@@ -408,7 +401,7 @@ public:
 
     point_t 
     coordinates(
-        const std::array<flecsi::point<element_t, dimension>,2>& range) const{
+        const std::array<flecsi::point__<element_t, dimension>,2>& range) const{
       point_t p;
       branch_id_t bid = id(); 
       bid.coordinates(range,p);

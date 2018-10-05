@@ -80,7 +80,7 @@ private:
   // To share the ghosts data within the radius
   mpi_ghosts_t ghosts_data;
 
-  const int criterion_branches = 1024; // Number of branches to share in 
+  const int criterion_branches = 64; // Number of branches to share in 
                                        // exchange_branches
   const size_t noct = 256*1024;        // Number of octets used for quicksort    
 
@@ -110,7 +110,7 @@ private:
 
 public:
   static const size_t dimension = D;
-  using point_t = flecsi::point<T,dimension>;
+  using point_t = flecsi::point__<T,dimension>;
 
 
   tree_colorer(){
@@ -191,13 +191,13 @@ public:
 
     if(neighbors_count.size() > 1){
       #ifdef OUTPUT_TREE_INFO
-      clog_one(trace)<<"Weight function"<<std::endl;
+      rank|| clog(trace)<<"Weight function"<<std::endl;
       #endif
       generate_splitters_weight(splitters,rbodies,totalnbodies,neighbors_count); 
     }else{
       generate_splitters_samples(splitters,rbodies,totalnbodies);
       #ifdef OUTPUT_TREE_INFO
-      clog_one(trace)<<"Normal function"<<std::endl;
+      rank|| clog(trace)<<"Normal function"<<std::endl;
       #endif
     }
 
@@ -248,11 +248,12 @@ public:
     MPI_Allgather(&mybodies,1,MPI_INT,&totalprocbodies[0],1,MPI_INT,
       MPI_COMM_WORLD);
     #ifdef OUTPUT_TREE_INFO
-    clog_one(trace)<<"Repartition: ";
+    std::ostringstream oss; 
+    oss<<"Repartition: ";
     for(auto num: totalprocbodies)
-      clog_one(trace)<<num<<";";
+      oss<<num<<";";
     double end = omp_get_wtime();
-    clog_one(trace)<< end-start << "s "<<std::endl;
+    rank|| clog(trace)<<oss.str()<<std::endl;
     #endif
 #endif // OUTPUT
   } // mpi_qsort
@@ -279,7 +280,8 @@ public:
     std::vector<std::pair<entity_key_t,body>>& rbodies,
     std::vector<std::array<point_t,2>>& ranges,
     std::array<point_t,2>& range_total,
-    double smoothinglength)
+    double smoothinglength
+  )
   {
     int rank,size;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -287,9 +289,8 @@ public:
     
 #ifdef OUTPUT
     MPI_Barrier(MPI_COMM_WORLD);
-    // double start = omp_get_wtime(); // unused
     #ifdef OUTPUT_TREE_INFO
-    clog_one(trace)<<"Branches repartition" << std::flush;
+    rank|| clog(trace)<<"Branches repartition" << std::endl << std::flush;
     #endif 
 #endif
 
@@ -309,7 +310,6 @@ public:
     for(long unsigned int i=0;i<search_branches.size();++i){
       send_branches[i][0] = search_branches[i]->bmin();
       send_branches[i][1] = search_branches[i]->bmax();
-      //std::cout<<rank<<" - "<<i<<" = "<<send_branches[i][0] <<" - "<< send_branches[i][1] <<std::endl;
     }
 
     int nbranches = send_branches.size();
@@ -327,12 +327,12 @@ public:
     );
 
     #ifdef OUTPUT_TREE_INFO
-    clog_one(trace)<<"Packets with ncrit="<<criterion_branches<<" = ";
+    std::ostringstream oss;
+    oss <<"Packets with ncrit="<<criterion_branches<<" = ";
     for(auto v: count_search_branches){
-      clog_one(trace)<<v<<";";
+      oss <<v<<";";
     }
-    clog_one(trace)t<<std::endl;
-    }
+    rank|| clog(trace) << oss.str()<<std::endl;
     #endif 
 
     std::vector<int> count_search_branches_byte(size);
@@ -367,7 +367,6 @@ public:
     std::vector<body_holder_mpi_t> sendbuffer;
     int cur = 0;
 
-    //std::cout<<rank<<" Generating vector of particlies"<<std::endl;
     // Compute the requested nodes 
     // Search in the tree for each processes 
     for(int i=0;i<size;++i)
@@ -378,8 +377,6 @@ public:
       }
       std::vector<body_holder_mpi_t> tmpsendbuffer; 
       for(int j = cur; j < cur+count_search_branches[i]; ++j ){
-        //std::cout<<rank<<" - "<<j<<" = "<<recv_search_branches[j][0] <<" - "
-        //  << recv_search_branches[j][1] <<std::endl;
         // Then for each branches 
         auto ents = tree.find_in_box_b(
             recv_search_branches[j][0],
@@ -425,8 +422,7 @@ public:
 
 #ifdef OUTPUT_TREE_INFO
     MPI_Barrier(MPI_COMM_WORLD);
-    double end = omp_get_wtime();
-    clog_one(trace)<<".done "<< end-start << "s" <<std::endl;
+    rank || clog(trace)<<".done "<<std::endl;
 #endif
 
   }
@@ -434,8 +430,8 @@ public:
 
 
 void mpi_refresh_ghosts(
-    tree_topology_t& tree/*,*/ 
-    /*std::array<point_t,2>& range*/)
+    tree_topology_t& tree
+    )
   {
     int rank,size;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -447,7 +443,7 @@ void mpi_refresh_ghosts(
   
 #ifdef OUTPUT_TREE_INFO
     MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace)<<"Refresh Ghosts" << std::flush;
+    rank|| clog(trace)<<"Refresh Ghosts" << std::flush;
     double start = omp_get_wtime(); 
 #endif 
    // Refresh the sendbodies with new data
@@ -477,7 +473,7 @@ void mpi_refresh_ghosts(
       {
         for(auto& nl: ghosts_data.rbodies)
         {
-          if(bi->coordinates() == nl.coordinates())
+          if(bi->getId() == nl.getId())
           {
             totalfound++;
             bi->setBody(&(nl));
@@ -486,13 +482,16 @@ void mpi_refresh_ghosts(
         }
       }
     }
+
+    if(totalfound != (int) ghosts_data.rbodies.size())
+      std::cout<<rank<<": t="<<totalfound<<" g="<<ghosts_data.rbodies.size()<<
+       std::endl; 
     
     assert(totalfound == (int)ghosts_data.rbodies.size()); 
   
 #ifdef OUTPUT_TREE_INFO
     MPI_Barrier(MPI_COMM_WORLD);
-    double end = omp_get_wtime();
-    clog_one(trace)".done "<< end-start << "s "<< std::endl << std::flush;
+    rank|| clog(trace) <<".done "<< std::endl << std::flush;
 
 #endif
   }
@@ -519,16 +518,15 @@ void mpi_refresh_ghosts(
     int rank,size;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
-  
 
+    // No need to compute ghosts for one process
     if(size == 1){
       return;
     }
- 
 
 #ifdef OUTPUT_TREE_INFO
     MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace)<<"Compute Ghosts" << std::flush;
+    rank|| clog(trace)<<"Compute Ghosts" << std::flush;
     double start = omp_get_wtime();
 #endif
 
@@ -544,15 +542,14 @@ void mpi_refresh_ghosts(
     std::fill(ghosts_data.nrbodies.begin(),ghosts_data.nrbodies.end(),0);
 
     int64_t nelem = lbodies.size();
-   
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //double start_1 = omp_get_wtime();  
 
     // Count send
 #pragma omp parallel for 
     for(int64_t i=0; i<nelem;++i)
     {
+      // array of bools to check unique send 
       std::vector<bool> proc(size,false);
+      proc[rank] = true; 
       body_holder * bi = lbodies[i];
       assert(bi->is_local());  
       auto nbs = tree.find_in_radius_b(
@@ -563,10 +560,10 @@ void mpi_refresh_ghosts(
       {
         if(!nb->is_local() && !proc[nb->getOwner()])
         {
-          proc[nb->getOwner()] = true;
+          // Mark this particle as sent for this process
+          proc[nb->getOwner()] = true; 
 #pragma omp atomic update
           ghosts_data.nsbodies[nb->getOwner()]++; 
-          //localsbodies[nb->getOwner()]++; 
         } // if
       } // for
     } // for 
@@ -577,12 +574,6 @@ void mpi_refresh_ghosts(
     {
       totalsbodies += ghosts_data.nsbodies[i];
     }
-
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //if(rank==0)
-    //  std::cout<<"Step 1: "<<omp_get_wtime()-start_1<<" total="<<totalsbodies<<std::endl<<std::flush;
-    
-    //start_1 = omp_get_wtime();
 
     std::vector<int> offset(size,0);
     for(int i=1; i<size; ++i)
@@ -600,7 +591,8 @@ void mpi_refresh_ghosts(
 #pragma omp parallel for 
     for(int64_t i=0; i<nelem; ++i)
     {
-      std::vector<bool> proc(size,false); 
+      std::vector<bool> proc(size,false);
+      proc[rank] = true;
       body_holder* bi = lbodies[i];
       assert(bi->is_local());
       auto nbs = tree.find_in_radius_b(
@@ -611,8 +603,8 @@ void mpi_refresh_ghosts(
       {
         if(!nb->is_local() && !proc[nb->getOwner()])
         {
+          proc[nb->getOwner()] = true; 
           int pos = 0;
-          proc[nb->getOwner()] = true;
 
 #pragma omp atomic capture
           pos = spbodies[nb->getOwner()]++;
@@ -625,9 +617,6 @@ void mpi_refresh_ghosts(
         } // if 
       } // for 
     } // for 
-
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //std::cout<<"Step 2: "<<omp_get_wtime()-start_1<<std::endl<<std::flush;
 
     MPI_Alltoall(&ghosts_data.nsbodies[0],1,MPI_INT,
         &ghosts_data.nrbodies[0],1,MPI_INT,MPI_COMM_WORLD);
@@ -665,7 +654,7 @@ void mpi_refresh_ghosts(
 #ifdef OUTPUT_TREE_INFO
     MPI_Barrier(MPI_COMM_WORLD);
     double end = omp_get_wtime();
-    clog_one(trace)<<".done "<< end-start << "s"<<std::endl;
+    rank|| clog(trace)<<".done "<< end-start << "s"<<std::endl;
 #endif
   }
 
@@ -715,7 +704,7 @@ void mpi_refresh_ghosts(
     }
 
 #ifdef OUTPUT_TREE_INFO
-    clog_one(trace)<<"boundaries: "<< minposition << maxposition << std::endl;
+    rank|| clog(trace)<<"boundaries: "<< minposition << maxposition << std::endl;
 #endif 
 
     range[0] = minposition;
@@ -739,7 +728,7 @@ void mpi_refresh_ghosts(
       &totalneighbors,1,MPI_INT64_T,MPI_SUM,MPI_COMM_WORLD);
 
     #ifdef OUTPUT_TREE_INFO
-    clog_one(trace)<<"Total number of neighbors = "<< totalneighbors << std::endl;
+    rank|| clog(trace)<<"Total number of neighbors = "<< totalneighbors << std::endl;
     #endif
 
     // Create a vector for the samplers 

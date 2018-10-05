@@ -43,7 +43,7 @@ I.  Theoretical  Discussion,” Royal Society of London Proceedings Series A
 // help message
 //
 void print_usage() {
-  clog_one(warn)
+  std::cout
       << "Initial data generator for the " << gdimension << "D Sedov blast wave"
       << std::endl << "Usage: ./sedov_generator <parameter-file.par>"
       << std::endl;
@@ -91,7 +91,7 @@ int main(int argc, char * argv[]){
 
   // check options list: exactly one option is allowed
   if (argc != 2) {
-    clog_one(error) << "ERROR: parameter file not specified!" << std::endl;
+    clog(error) << "ERROR: parameter file not specified!" << std::endl;
     print_usage();
     MPI_Finalize();
     exit(0);
@@ -193,9 +193,9 @@ int main(int argc, char * argv[]){
     }
   }
 
-  clog_one(info) << "Real number of particles: " << tparticles << std::endl;
-  clog_one(info) << "Total number of seeded blast particles: " << particles_blast << std::endl;
-  clog_one(info) << "Total blast energy (E_blast = u_blast * total mass): "
+  clog(info) << "Real number of particles: " << tparticles << std::endl;
+  clog(info) << "Total number of seeded blast particles: " << particles_blast << std::endl;
+  clog(info) << "Total blast energy (E_blast = u_blast * total mass): "
                  << sedov_blast_energy * mass_blast << std::endl;
 
   // remove the previous file

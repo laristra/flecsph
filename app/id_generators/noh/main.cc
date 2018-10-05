@@ -45,7 +45,7 @@
 // help message
 //
 void print_usage() {
-  clog_one(warn)
+  clog(warn)
       << "Initial data generator for the Noh collapse test" << std::endl
       << "Usage: ./noh_generator <parameter-file.par>"      << std::endl;
 }
@@ -94,7 +94,7 @@ int main(int argc, char * argv[]){
 
   // check options list: exactly one command-line argument is accepted
   if (argc != 2) {
-    clog_one(error) << "ERROR: parameter file not specified!" << std::endl;
+    clog(error) << "ERROR: parameter file not specified!" << std::endl;
     print_usage();
     MPI_Finalize();
     exit(0);
@@ -112,7 +112,7 @@ int main(int argc, char * argv[]){
   double y_c = x_c;
 
 
-  clog_one(info) << "Sphere: r=" << radius << std::endl
+  clog(info) << "Sphere: r=" << radius << std::endl
                  << "origin: pos=["<<x_c<<";"<<y_c<<"]" << std::endl
                  << "Generating "  << nparticles
                  << " particles (="<< lattice_nx<<"^2) " << std::endl;
@@ -172,7 +172,7 @@ int main(int argc, char * argv[]){
   double timestep = initial_dt;  // TODO: replace with parameter initial_dt
   int dimension = 2;             // TODO: use global dimension parameter
 
-  clog_one(info) << "top_X=" << x_topproc << " top_Y="  << y_topproc    << std::endl
+  clog(info) << "top_X=" << x_topproc << " top_Y="  << y_topproc    << std::endl
                  << "maxX=" << maxxposition << " maxY=" << maxyposition << std::endl;
 
   double xposition = x_topproc;
@@ -252,7 +252,7 @@ int main(int argc, char * argv[]){
     }
   }
 
-  clog_one(info) << "Actual number of particles inside the sphere: "
+  clog(info) << "Actual number of particles inside the sphere: "
                  << tparticles << std::endl;
 
   // Particle mass given the density, number of particles, and disk radius

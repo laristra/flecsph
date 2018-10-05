@@ -33,21 +33,20 @@ USER flecsi
 #rebuild flecsi-third-party
 WORKDIR /home/flecsi/tpl
 RUN git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
-RUN git fetch origin FleCSPH
-RUN git checkout FleCSPH
 RUN git submodule update --recursive
 RUN rm -rf build && mkdir build
 WORKDIR /home/flecsi/tpl/build
-RUN  cmake .. 
+RUN  cmake .. -DENABLE_HPX=OFF \
+              -DCMAKE_INSTALL_PREFIX=/usr/local
 USER root
 RUN rm -rf /usr/local/include/legion* /usr/local/include/realm*
-RUN make VERBOSE=1 -j2
-RUN ls /usr/local/lib/
+RUN make VERBOSE=1 -j4
+RUN make install
 USER flecsi
 
 #build flecsi
 WORKDIR /home/flecsi
-RUN git clone -b stable/flecsph-compatible --depth 1 --recursive https://github.com/laristra/flecsi flecsi 
+RUN git clone -b feature/flecsph --depth 1 --recursive https://github.com/laristra/flecsi flecsi 
 RUN  cd flecsi && mkdir build && cd build
 WORKDIR flecsi/build
 RUN  cmake .. -DFLECSI_RUNTIME_MODEL=legion \
@@ -55,8 +54,12 @@ RUN  cmake .. -DFLECSI_RUNTIME_MODEL=legion \
               -DENABLE_CLOG=OFF \
               -DENABLE_MPI=ON \
               -DENABLE_OPENMP=ON \
-              -DENABLE_MPI_CXX_BINDINGS=ON 
-RUN make VERBOSE=1
+              -DENABLE_MPI_CXX_BINDINGS=ON \
+              -DENABLE_CONFORMANCE_STANDARD=c++17 \
+              -DLegion_ROOT=/usr/local \
+              -DCMAKE_INSTALL_PREFIX=/usr/local \
+              -DENABLE_BOOST_PREPROCESSOR=ON 
+RUN make VERBOSE=1 -j4
 USER root
 RUN make install
 USER flecsi
@@ -71,23 +74,31 @@ WORKDIR ${H5Hut}
 RUN sed -i 's/H5Pset_fapl_mpiposix (fapl_id, comm, use_gpfs)/H5Pset_fapl_mpio (fapl_id, comm, \&use_gpfs)/g' src/h5core/h5_hdf5_private.h
 RUN autoreconf -i -f
 #ubuntu needs CC=h5pcc amd HDF5_USE_SHLIB=yes is needed for shared lib
-RUN ./configure --disable-static --enable-shared --enable-parallel --prefix=/usr/local CC=h5pcc && HDF5_USE_SHLIB=yes make --quiet
+RUN ./configure --disable-static --enable-shared --enable-parallel --prefix=/usr/local CC=h5pcc && HDF5_USE_SHLIB=yes make --quiet 
 USER root
 RUN make install --quiet
 USER flecsi
-RUN ldd /usr/local/lib/libH5hut.so
 
 WORKDIR /home/flecsi/flecsph
 RUN mkdir build
 
 WORKDIR build
 RUN ccache -z
+# FleCSI lib location regarding distro
 RUN cmake -DENABLE_MPI=$MPI \
           -DENABLE_UNIT_TESTS=ON \
           -DENABLE_OPENMP=ON \
           -DENABLE_LEGION=ON \
           -DENABLE_DOXYGEN=ON \
           -DCMAKE_CXX_FLAGS="-fpermissive" \
+          -DCXX_CONFORMANCE_STANDARD=c++17 \
+          -DENABLE_BOOST_PREPROCESSOR=ON \
+          -DENABLE_CLOG=ON \
+          -DENABLE_COLOR_UNIT_TEST=ON \
+          -DLegion_ROOT=/usr/local \
+          -DFleCSI_INCLUDE_DIR=/usr/local/include \
+          -DFleCSI_RUNTIME=/usr/local/share/FleCSI/runtime \
+          -DFleCSI_LIBRARY=/usr/local/lib*/libFleCSI.so \
           ${COVERAGE:+-DENABLE_COVERAGE_BUILD=ON} ..
 
 RUN HDF5_USE_SHLIB=yes ${SONARQUBE:+build-wrapper-linux-x86-64 --out-dir bw-output} make VERBOSE=1 -j2
@@ -95,7 +106,7 @@ RUN ccache -s
 RUN make doxygen
 RUN make install DESTDIR=${PWD}/install && rm -rf ${PWD}/install
 RUN export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
-RUN make test ARGS="-V" || true
+RUN make test ARGS="-V"
 RUN cd .. && if [ ${COVERAGE} ]; then \
   if [ ${CC} = clang ]; then \
     $HOME/.local/bin/codecov -F "${CC}" --gcov-exec "llvm-cov gcov"; \
@@ -126,7 +137,4 @@ RUN cd .. && if [ ${SONARQUBE} ]; then \
        -Dsonar.github.oauth=${SONARQUBE_GITHUB_TOKEN}) \
     -Dsonar.login=${SONARQUBE_TOKEN}; \
 fi && cd -
-USER root
-RUN make install
-USER flecsi
 WORKDIR /home/flecsi

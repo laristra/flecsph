@@ -38,7 +38,7 @@ class body{
 
   static const size_t dimension = gdimension;
   using element_t = type_t; 
-  using point_t = flecsi::point<element_t, dimension>;
+  using point_t = flecsi::point__<element_t, dimension>;
   
 public:
   

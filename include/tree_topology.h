@@ -82,7 +82,7 @@ template<
 >
 struct tree_geometry<T, 1>
 {
-  using point_t = point<T, 1>;
+  using point_t = point__<T, 1>;
   using element_t = T;
 
   /*!
@@ -120,7 +120,11 @@ struct tree_geometry<T, 1>
     const point_t& min_b2,
     const point_t& max_b2)
   {
-    return min_b1[0] < max_b1[0] && max_b1[0] > min_b2[0];
+    return 
+      min_b1[0] <= max_b2[0] && min_b1[0] >= min_b2[0] || // b2 b1 b2 b1 
+      max_b1[0] <= max_b2[0] && max_b1[0] >= min_b2[0] || // b1 b2 b1 b2 
+      max_b1[0] >= max_b2[0] && min_b1[0] <= min_b2[0] || // b1 b2 b2 b1
+      min_b1[0] >= min_b2[0] && max_b1[0] <= max_b2[0];   // b2 b1 b1 b2
   }
 
   // initial attempt to get this working, needs to be optimized
@@ -162,41 +166,6 @@ struct tree_geometry<T, 1>
     point_t x = point_t(std::max(min[0],std::min(c[0],max[0])));  
     element_t dist = distance(x,c); 
     return dist <= r;
-  }
-
-  static
-  bool
-  intersects_box(
-    const point_t& origin,
-    element_t size,
-    const point_t& scale,
-    const point_t& min2,
-    const point_t& max2)
-  {
-    point_t max1 = origin;
-    max1[0] += size * scale[0];
-    return intersects_box_(origin, max1, min2, max2);
-  }
-
-  static
-  bool
-  intersects_box_(
-    const point_t& min1,
-    const point_t& max1,
-    const point_t& min2,
-    const point_t& max2)
-  {
-    if(max1[0] <= min2[0])
-    {
-      return false;
-    }
-
-    if(min1[0] >= max2[0])
-    {
-      return false;
-    }
-
-    return true;
   }
 
   static
@@ -247,7 +216,7 @@ template<
 >
 struct tree_geometry<T, 2>
 {
-  using point_t = point<T, 2>;
+  using point_t = point__<T, 2>;
   using element_t = T;
 
   /*!
@@ -309,7 +278,6 @@ struct tree_geometry<T, 2>
     return 2*asin(radius/distance(p1,p2)) < MAC;
   }
 
-
   static 
   bool
   intersects_box_box(
@@ -318,10 +286,17 @@ struct tree_geometry<T, 2>
     const point_t& min_b2,
     const point_t& max_b2)
   {
-    return min_b1[0] < max_b1[0] && max_b1[0] > min_b2[0] &&
-            min_b1[1] < max_b1[1] && max_b1[1] > min_b2[1];
+    return 
+      (min_b1[0] <= max_b2[0] && min_b1[0] >= min_b2[0] || // b2 b1 b2 b1 
+       max_b1[0] <= max_b2[0] && max_b1[0] >= min_b2[0] || // b1 b2 b1 b2 
+       max_b1[0] >= max_b2[0] && min_b1[0] <= min_b2[0] || // b1 b2 b2 b1
+       min_b1[0] >= min_b2[0] && max_b1[0] <= max_b2[0])   // b2 b1 b1 b2
+      &&
+      (min_b1[1] <= max_b2[1] && min_b1[1] >= min_b2[1] || // b2 b1 b2 b1 
+       max_b1[1] <= max_b2[1] && max_b1[1] >= min_b2[1] || // b1 b2 b1 b2 
+       max_b1[1] >= max_b2[1] && min_b1[1] <= min_b2[1] || // b1 b2 b2 b1
+       min_b1[1] >= min_b2[1] && max_b1[1] <= max_b2[1]);  // b2 b1 b1 b2
   }
-
 
   // Intersection of two spheres
   static 
@@ -351,51 +326,6 @@ struct tree_geometry<T, 2>
     return dist <= r;
   }
 
-
-
-  static
-  bool
-  intersects_box(
-    const point_t& origin,
-    element_t size,
-    const point_t& scale,
-    const point_t& min2,
-    const point_t& max2)
-  {
-    point_t max1 = origin;
-
-    for(size_t d = 0; d < 2; ++d)
-{
-      max1[d] += size * scale[d];
-    }
-
-    return intersects_box_(origin, max1, min2, max2);
-  }
-
-  static
-  bool
-  intersects_box_(
-    const point_t& min1,
-    const point_t& max1,
-    const point_t& min2,
-    const point_t& max2)
-  {
-
-    for(size_t d = 0; d < 2; ++d)
-    {
-      if(max1[d] <= min2[d])
-      {
-        return false;
-      }
-
-      if(min1[d] >= max2[d])
-      {
-        return false;
-      }
-    }
-
-    return true;
-  }
 
   static
   bool
@@ -435,7 +365,7 @@ template<
 >
 struct tree_geometry<T, 3>
 {
-  using point_t = point<T, 3>;
+  using point_t = point__<T, 3>;
   using element_t = T;
 
   /*!
@@ -466,6 +396,31 @@ struct tree_geometry<T, 3>
     return 2*asin(radius/distance(p1,p2)) < MAC;
   }
 
+  static 
+  bool
+  intersects_box_box(
+    const point_t& min_b1,
+    const point_t& max_b1,
+    const point_t& min_b2,
+    const point_t& max_b2)
+  {
+    return 
+      (min_b1[0] <= max_b2[0] && min_b1[0] >= min_b2[0] || // b2 b1 b2 b1 
+       max_b1[0] <= max_b2[0] && max_b1[0] >= min_b2[0] || // b1 b2 b1 b2 
+       max_b1[0] >= max_b2[0] && min_b1[0] <= min_b2[0] || // b1 b2 b2 b1
+       min_b1[0] >= min_b2[0] && max_b1[0] <= max_b2[0])   // b2 b1 b1 b2
+      &&
+      (min_b1[1] <= max_b2[1] && min_b1[1] >= min_b2[1] || // b2 b1 b2 b1 
+       max_b1[1] <= max_b2[1] && max_b1[1] >= min_b2[1] || // b1 b2 b1 b2 
+       max_b1[1] >= max_b2[1] && min_b1[1] <= min_b2[1] || // b1 b2 b2 b1
+       min_b1[1] >= min_b2[1] && max_b1[1] <= max_b2[1])   // b2 b1 b1 b2
+      &&
+      (min_b1[2] <= max_b2[2] && min_b1[2] >= min_b2[2] || // b2 b1 b2 b1 
+       max_b1[2] <= max_b2[2] && max_b1[2] >= min_b2[2] || // b1 b2 b1 b2 
+       max_b1[2] >= max_b2[2] && min_b1[2] <= min_b2[2] || // b1 b2 b2 b1
+       min_b1[2] >= min_b2[2] && max_b1[2] <= max_b2[2]);  // b2 b1 b1 b2
+  }
+
 
   /*!
     Return true if point origin lies within the box specified by min/max point.
@@ -483,18 +438,6 @@ struct tree_geometry<T, 3>
   }
 
 
-  static 
-  bool
-  intersects_box_box(
-    const point_t& min_b1,
-    const point_t& max_b1,
-    const point_t& min_b2,
-    const point_t& max_b2)
-  {
-    return min_b1[0] < max_b1[0] && max_b1[0] > min_b2[0] &&
-            min_b1[1] < max_b1[1] && max_b1[1] > min_b2[1] && 
-            min_b1[2] < max_b1[2] && max_b1[2] > min_b2[2];
-  }
 
   /*!
     Spheroid/box intersection test.
@@ -548,52 +491,6 @@ struct tree_geometry<T, 3>
         std::max(min[2],std::min(c[2],max[2]))); 
     element_t dist = distance(x,c); 
     return dist <= r;
-  }
-
-
-
-  static
-  bool
-  intersects_box(
-    const point_t& origin,
-    element_t size,
-    const point_t& scale,
-    const point_t& min2,
-    const point_t& max2)
-  {
-    point_t max1 = origin;
-
-    for(size_t d = 0; d < 3; ++d)
-{
-      max1[d] += size * scale[d];
-    }
-
-    return intersects_box_(origin, max1, min2, max2);
-  }
-
-  static
-  bool
-  intersects_box_(
-    const point_t& min1,
-    const point_t& max1,
-    const point_t& min2,
-    const point_t& max2)
-  {
-
-    for(size_t d = 0; d < 3; ++d)
-    {
-      if(max1[d] <= min2[d])
-      {
-        return false;
-      }
-
-      if(min1[d] >= max2[d])
-      {
-        return false;
-      }
-    }
-
-    return true;
   }
 
   static
@@ -657,8 +554,8 @@ public:
     typename S
   >
   branch_id(
-    const std::array<point<S, dimension>, 2>& range,
-    const point<S, dimension>& p,
+    const std::array<point__<S, dimension>, 2>& range,
+    const point__<S, dimension>& p,
     size_t depth)
   : id_(int_t(1) << depth * dimension + (bits - 1) % dimension)
   {
@@ -886,8 +783,8 @@ public:
   >
   void
   coordinates(
-    const std::array<point<S, dimension>, 2>& range,
-    point<S, dimension>& p) const
+    const std::array<point__<S, dimension>, 2>& range,
+    point__<S, dimension>& p) const
   {
     std::array<int_t, dimension> coords;
     coords.fill(int_t(0));
@@ -1034,7 +931,7 @@ public:
 
   using element_t = typename Policy::element_t;
 
-  using point_t = point<element_t, dimension>;
+  using point_t = point__<element_t, dimension>;
 
   using range_t = std::pair<element_t, element_t>;
 
@@ -1060,11 +957,11 @@ public:
 
   using geometry_t = tree_geometry<element_t, dimension>;
 
-  using entity_space_t = index_space<entity_t*, true, true, false>;
+  using entity_space_t = index_space__<entity_t*, true, true, false>;
 
-  using branch_space_t = index_space<branch_t*, true, true, false>;
+  using branch_space_t = index_space__<branch_t*, true, true, false>;
 
-  using subentity_space_t = index_space<entity_t*, false, true, false>;
+  using subentity_space_t = index_space__<entity_t*, false, true, false>;
 
   struct filter_valid{
     bool operator()(entity_t* ent) const{
@@ -1099,8 +996,8 @@ public:
     dimension.
    */
   tree_topology(
-    const point<element_t, dimension>& start,
-    const point<element_t, dimension>& end
+    const point__<element_t, dimension>& start,
+    const point__<element_t, dimension>& end
   )
   {
     branch_id_t bid = branch_id_t::root();
@@ -1217,8 +1114,8 @@ public:
    */
   void
   update_all(
-    const point<element_t, dimension>& start,
-    const point<element_t, dimension>& end
+    const point__<element_t, dimension>& start,
+    const point__<element_t, dimension>& end
   )
   {
 
@@ -1846,10 +1743,9 @@ public:
     return ents;
   }
 
-
-  /*!
+/*!
     Return an index space containing all entities within the specified
-   box.
+    spheroid.
    */
   subentity_space_t
   find_in_box_b(
@@ -1860,39 +1756,39 @@ public:
     subentity_space_t ents;
     ents.set_master(entities_);
 
-    // Tree traversal from root down 
-    // Recursive version 
-    std::function<void(branch_t*)> traverse;
-    traverse = [this,&ents,&traverse,&min,&max](branch_t* b){
-      if(b->is_leaf())
-      {
-        for(auto child: *b)
-        {
-            if(geometry_t::within_box(child->coordinates(),min,max))
-            {
+    // ITERATIVE VERSION
+    std::stack<branch_t*> stk;
+    stk.push(root());
+
+    while(!stk.empty()){
+      branch_t* b = stk.top();
+      stk.pop();
+      if(b->is_leaf()){
+        for(auto child: *b){
+            // Check if in box 
+            if(geometry_t::within_box(child->coordinates(),min,max)){
               ents.push_back(child);
             }
         }
       }else{
-        for(int i=0 ; i<(1<<dimension);++i)
-        {
+        for(int i=0 ; i<(1<<dimension);++i){
           auto branch = child(b,i);
-          if(branch->sub_entities() > 0 && geometry_t::intersects_box_box(
+          if(geometry_t::intersects_box_box(
                 min,
                 max,
                 branch->bmin(),
-                branch->bmax()))
+                branch->bmax()
+                ))
           {
-            traverse(branch);
+            stk.push(branch);
           }
         }
       }
-    };
-
-    traverse(root()); 
-
+    }
     return ents;
   }
+
+
 
   /*!
     Return an index space containing all entities within the specified
@@ -2368,14 +2264,14 @@ public:
     char* buf = new char [alloc_size];
     uint64_t pos = 0;
 
-    std::memcpy(buf + pos, &num_entities, sizeof(num_entities));
+    memcpy(buf + pos, &num_entities, sizeof(num_entities));
     pos += sizeof(num_entities);
 
     for(size_t entity_id = 0; entity_id < num_entities; ++entity_id)
     {
       entity_t* ent = entities_[entity_id];
       branch_int_t bid = ent->get_branch_id().value_();
-      std::memcpy(buf + pos, &bid, sizeof(bid));
+      memcpy(buf + pos, &bid, sizeof(bid));
       pos += sizeof(bid);
     }
 
@@ -2390,7 +2286,7 @@ public:
     uint64_t pos = 0;
 
     uint64_t num_entities;
-    std::memcpy(&num_entities, buf + pos, sizeof(num_entities));
+    memcpy(&num_entities, buf + pos, sizeof(num_entities));
     pos += sizeof(num_entities);
 
     for(size_t entity_id = 0; entity_id < num_entities; ++entity_id)
@@ -2401,7 +2297,7 @@ public:
       entities_.push_back(ent);
 
       branch_int_t bi;
-      std::memcpy(&bi, buf + pos, sizeof(bi));
+      memcpy(&bi, buf + pos, sizeof(bi));
       pos += sizeof(bi);
 
       branch_id_t bid;
@@ -3069,8 +2965,8 @@ private:
   size_t max_depth_;
   branch_t* root_;
   entity_space_t entities_;
-  std::array<point<element_t, dimension>, 2> range_;
-  point<element_t, dimension> scale_;
+  std::array<point__<element_t, dimension>, 2> range_;
+  point__<element_t, dimension> scale_;
   element_t max_scale_;
 };
   
@@ -3193,7 +3089,7 @@ public:
 
   static constexpr size_t num_children = branch_int_t(1) << dimension;
 
-  using point_t = point<E,D>;
+  using point_t = point__<E,D>;
   using element_t = E;
 
   tree_branch()

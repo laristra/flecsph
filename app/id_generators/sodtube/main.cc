@@ -20,7 +20,7 @@
 //
 void print_usage() {
   using namespace std;
-  clog_one(warn) << "Initial data generator for Sod shocktube test in" <<
+  cout << "Initial data generator for Sod shocktube test in" <<
   gdimension << "D" << endl << "Usage: ./sodtube_generator <parameter-file.par>"
   << endl;
 }
@@ -113,7 +113,7 @@ void set_derived_params() {
       break;
 
     default:
-      clog_one(error) << "ERROR: invalid test (" << sodtest_num << ")." << endl;
+      clog(error) << "ERROR: invalid test (" << sodtest_num << ")." << endl;
       MPI_Finalize();
       exit(-1);
   }
@@ -151,7 +151,7 @@ int main(int argc, char * argv[]){
   particle_lattice::select();
 
   // screen output
-  clog_one(info) << "Sod test #" << sodtest_num << " in " << gdimension
+  clog(info) << "Sod test #" << sodtest_num << " in " << gdimension
          << "D:" << endl << " - number of particles: " << nparticles
          << endl << " - particles per core:  " << nparticlesproc << endl
          << " - generated initial data file: " << initial_data_file << endl;
