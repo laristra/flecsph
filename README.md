@@ -109,7 +109,7 @@ Checkout submodules recursively, then configure as below:
    mkdir build ; cd build
    export CMAKE_PREFIX_PATH=${HOME}/FLECSPH/local
    cmake .. \
-       -DCMAKE_INSTALL_PREFIX=$HOME/FLECSPH/local \
+       -DCMAKE_INSTALL_PREFIX=$CMAKE_PREFIX_PATH  \
        -DENABLE_MPI=ON                            \
        -DENABLE_MPI_CXX_BINDINGS=ON               \
        -DENABLE_OPENMP=ON                         \
@@ -156,8 +156,9 @@ Configure and build FleCSPH:
 
 ```{engine=sh}
    # in ${HOME}/FLECSPH/build:
+   export CMAKE_PREFIX_PATH=${HOME}/FLECSPH/local
    cmake .. \
-       -DCMAKE_INSTALL_PREFIX=$HOME/FLECSPH/local \
+       -DCMAKE_INSTALL_PREFIX=$CMAKE_PREFIX_PATH  \
        -DENABLE_MPI=ON                            \
        -DENABLE_OPENMP=ON                         \
        -DENABLE_UNIT_TESTS=ON                     \
