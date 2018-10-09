@@ -96,6 +96,9 @@ mpi_init_task(const char * parameter_file){
   body_system<double,gdimension> bs;
   bs.read_bodies(initial_data_file.c_str(),initial_iteration);
 
+  bs.setMacangle(fmm_macangle);
+  bs.setMaxmasscell(fmm_max_cell_mass);
+
   // boundaries
 /*
   auto range_boundaries = bs.getRange();
