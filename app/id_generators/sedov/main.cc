@@ -52,22 +52,34 @@ void print_usage() {
 //
 // derived parameters
 //
-static double r_blast;      // Radius of injection region
+static double r_blast;       // Radius of injection region
+static double total_mass;    // total mass of the fluid
+static double particle_mass; // mass of an individual particle
 static std::string initial_data_file; // = initial_data_prefix + ".h5part"
 
 void set_derived_params() {
   using namespace param;
 
   // total number of particles
+  total_mass = box_length*box_width*rho_initial;
   if (gdimension == 2) {
     SET_PARAM(nparticles, lattice_nx*lattice_nx);
+    if (domain_type == 1) // a circle
+      total_mass = rho_initial*M_PI*sphere_radius*sphere_radius;
   } 
   else {
     SET_PARAM(nparticles, lattice_nx*lattice_nx*lattice_nx);
+    total_mass *= box_height;
+    if (domain_type == 1) // a sphere
+      total_mass = rho_initial*4./3.*M_PI 
+                              *sphere_radius*sphere_radius*sphere_radius;
   }
+  particle_mass = total_mass / nparticles;
+  SET_PARAM(sph_smoothing_length, 
+           (sph_eta*pow(particle_mass/rho_initial,1./gdimension)));
 
   SET_PARAM(uint_initial, (pressure_initial/(rho_initial*(poly_gamma-1.0))));
-  SET_PARAM(sph_smoothing_length, (5.*sph_separation));
+  SET_PARAM(sph_separation, (2.*sphere_radius/(lattice_nx-1)));
   r_blast = sedov_blast_radius * sph_separation;   // Radius of injection region
 
   // file to be generated
@@ -107,9 +119,8 @@ int main(int argc, char * argv[]){
   // the number of particles = nparticles
   // The value for constant timestep
   double timestep = initial_dt;
-  double radius   = sph_separation*(lattice_nx-1.)/2.;
-  const point_t bbox_max = radius;
-  const point_t bbox_min = -radius;
+  const point_t bbox_max =  sphere_radius;
+  const point_t bbox_min = -sphere_radius;
 
   // Central coordinates: in most cases this should be centered at (0,0,0)
   double x_c = 0.0;
@@ -164,9 +175,9 @@ int main(int argc, char * argv[]){
   double mass_blast = 0;
   double mass;
   if(gdimension==2){
-    mass = rho_initial * M_PI*pow(radius,2.)/tparticles;
+    mass = rho_initial * M_PI*pow(sphere_radius,2.)/tparticles;
   } else{
-    mass = rho_initial * 4./3.*M_PI*pow(radius,3.)/tparticles;
+    mass = rho_initial * 4./3.*M_PI*pow(sphere_radius,3.)/tparticles;
   }
   // Assign density, pressure and specific internal energy to particles,
   // including the particles in the blast zone
@@ -175,7 +186,9 @@ int main(int argc, char * argv[]){
     m[part] = mass;
 
     // Count particles in the blast zone and sum their masses
-    if(sqrt((x[part]-x_c)*(x[part]-x_c)+(y[part]-y_c)*(y[part]-y_c)+(z[part]-z_c)*(z[part]-z_c)) < r_blast){
+    if (  (x[part]-x_c)*(x[part]-x_c) 
+        + (y[part]-y_c)*(y[part]-y_c)
+        + (z[part]-z_c)*(z[part]-z_c) < r_blast*r_blast) {
        particles_blast++;
        mass_blast += m[part];
     }
@@ -187,8 +200,10 @@ int main(int argc, char * argv[]){
     h[part] = sph_smoothing_length;
     id[part] = posid++;
 
-    if(sqrt((x[part]-x_c)*(x[part]-x_c)+(y[part]-y_c)*(y[part]-y_c)+(z[part]-z_c)*(z[part]-z_c)) < r_blast){
-       u[part] = u[part]+sedov_blast_energy/particles_blast;
+    if (  (x[part]-x_c)*(x[part]-x_c) 
+        + (y[part]-y_c)*(y[part]-y_c)
+        + (z[part]-z_c)*(z[part]-z_c) < r_blast*r_blast) {
+       u[part] = u[part] + sedov_blast_energy/particles_blast;
        P[part] = u[part]*rho[part]*(poly_gamma - 1.0);
     }
   }

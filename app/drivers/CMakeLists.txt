@@ -113,7 +113,7 @@ cinch_add_unit(sedov_test
     hydro/main_driver.cc
     ${FleCSI_RUNTIME}/runtime_driver.cc 
   INPUTS
-    ${PROJECT_SOURCE_DIR}/data/sedov_sqn100.par 
+    ${PROJECT_SOURCE_DIR}/data/sedov_nx20.par 
   LIBRARIES 
     ${FleCSPH_LIBRARIES}
   DEFINES
@@ -124,8 +124,8 @@ cinch_add_unit(sedov_test
 if(ENABLE_UNIT_TESTS)
 add_custom_target(
     sedov_2d_generator_test 
-    COMMAND mpirun -n 1 ../id_generators/sedov_2d_generator ${PROJECT_SOURCE_DIR}/data/sedov_sqn100.par
-    COMMAND mv sedov_sqn100.h5part ../../test/drivers
+    COMMAND mpirun -n 1 ../id_generators/sedov_2d_generator ${PROJECT_SOURCE_DIR}/data/sedov_nx20.par
+    COMMAND mv sedov_nx20.h5part ../../test/drivers
     DEPENDS ../id_generators/sedov_2d_generator
 )
 add_dependencies(sedov_test sedov_2d_generator_test)
