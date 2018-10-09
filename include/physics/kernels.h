@@ -697,7 +697,7 @@ namespace kernels{
         kernel = wendland_c2_23d;
         gradKernel = gradient_wendland_c2_23d;
       }
-      kernel_width = 1.0;
+      kernel_width = 2.0;
     }
     else if (boost::iequals(kstr, "wendland c4")) {
       if (gdimension == 1) {
@@ -707,7 +707,7 @@ namespace kernels{
         kernel = wendland_c4_23d;
         gradKernel = gradient_wendland_c4_23d;
       }
-      kernel_width = 1.0;
+      kernel_width = 2.0;
     }
     else if (boost::iequals(kstr, "wendland c6")) {
       if (gdimension == 1) {
@@ -717,7 +717,7 @@ namespace kernels{
         kernel = wendland_c6_23d;
         gradKernel = gradient_wendland_c6_23d;
       }
-      kernel_width = 1.0;
+      kernel_width = 2.0;
     }
     else if (boost::iequals(kstr, "gaussian")) {
       kernel = gaussian;

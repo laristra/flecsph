@@ -697,11 +697,8 @@ namespace physics{
    * 
    * ha = eta/N \sum_b pow(m_b / rho_b,1/dimension)
    */
-  void
-  compute_average_smoothinglength(
-      std::vector<body_holder*>& bodies,
-      int64_t nparticles)
-  {
+  void compute_average_smoothinglength( std::vector<body_holder*>& bodies,
+      int64_t nparticles) {
     // Compute the total 
     double total = 0.;
     for(auto b: bodies) {
@@ -711,7 +708,7 @@ namespace physics{
     // Add up with all the processes 
     MPI_Allreduce(MPI_IN_PLACE,&total,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
     // Compute the new smoothing length 
-    double new_h = sph_eta/(double)nparticles * total;
+    double new_h = sph_eta*kernels::kernel_width/(double)nparticles * total;
     for(auto b: bodies) { 
       b->getBody()->setSmoothinglength(new_h);
     }
