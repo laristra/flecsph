@@ -13,6 +13,7 @@
 #include "params.h"
 #include "hdf5ParticleIO.h"
 #include "lattice.h"
+#include "kernels.h"
 
 #define SQ(x) ((x)*(x))
 #define CU(x) ((x)*(x)*(x))
@@ -120,9 +121,13 @@ void set_derived_params() {
   assert (equal_mass);
   mass_particle = total_mass / nparticles;
 
-  // snoozing length
-  SET_PARAM(sph_smoothing_length,
-           (sph_eta*pow(mass_particle/rho_initial,1./gdimension)));
+  // set kernel
+  kernels::select(sph_kernel);
+
+  // smoothing length
+  const double sph_h = sph_eta * kernels::kernel_width
+                               * pow(mass_particle/rho_initial,1./gdimension);
+  SET_PARAM(sph_smoothing_length, sph_h);
 
   // intial internal energy
   SET_PARAM(uint_initial, (pressure_initial/(rho_initial*(poly_gamma-1.0))));
