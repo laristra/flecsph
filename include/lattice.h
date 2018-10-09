@@ -101,9 +101,9 @@ bool in_domain_2d(
 
   // Check if within domain_type
   if(domain_type==0)
-    within_domain *= (std::abs(x-x0)<=r && std::abs(y-y0)<=r);
+    within_domain &= (std::abs(x-x0)<=r && std::abs(y-y0)<=r);
   else if(domain_type==1)
-    within_domain *= ((x-x0)*(x-x0)+(y-y0)*(y-y0) <r*r);
+    within_domain &= ((x-x0)*(x-x0)+(y-y0)*(y-y0) <r*r);
   return within_domain;
 }
 
@@ -128,9 +128,9 @@ bool in_domain_3d(
 
   // Check if within domain_type
   if(domain_type==0)
-    within_domain *= (std::abs(x-x0)<=r && std::abs(y-y0)<=r && std::abs(z-z0)<=r);
+    within_domain &= (std::abs(x-x0)<=r && std::abs(y-y0)<=r && std::abs(z-z0)<=r);
   else if(domain_type==1)
-    within_domain *= ((x-x0)*(x-x0)+(y-y0)*(y-y0)+(z-z0)*(z-z0) < r*r);
+    within_domain &= ((x-x0)*(x-x0)+(y-y0)*(y-y0)+(z-z0)*(z-z0) < r*r);
   return within_domain;
 }
 

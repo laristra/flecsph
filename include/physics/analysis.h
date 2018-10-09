@@ -83,16 +83,23 @@ namespace analysis{
   compute_total_energy(
       std::vector<body_holder*>& bodies)
   {
+    using namespace param;
     total_energy = 0.;
-    for(auto nbh: bodies) {
-      total_energy += nbh->getBody()->getMass()*nbh->getBody()->getInternalenergy();
-      linear_velocity = nbh->getBody()->getVelocity();
-      velocity_part = 0.;
-      for(size_t i = 0 ; i < gdimension ; ++i){
-        velocity_part += pow(linear_velocity[i],2);
-        part_position = nbh->getBody()->getPosition();
+    if (thermokinetic_formulation) {
+      for(auto nbh: bodies)
+        total_energy += nbh->getBody()->getMass()*nbh->getBody()->getTotalenergy();
+    }
+    else {
+      for(auto nbh: bodies) {
+        total_energy += nbh->getBody()->getMass()*nbh->getBody()->getInternalenergy();
+        linear_velocity = nbh->getBody()->getVelocity();
+        velocity_part = 0.;
+        for(size_t i = 0 ; i < gdimension ; ++i){
+          velocity_part += pow(linear_velocity[i],2);
+          part_position = nbh->getBody()->getPosition();
+        }
+        total_energy += 1./2.*velocity_part*nbh->getBody()->getMass();
       }
-      total_energy += 1./2.*velocity_part*nbh->getBody()->getMass();
     }
     reduce_sum(total_energy);
   }
@@ -134,15 +141,15 @@ namespace analysis{
    * @brief Rolling screen output
    */
   void
-  screen_output()
+  screen_output(int rank)
   {
     using namespace param;
     static int count = 0;
     const int screen_length = 40;
     if (out_screen_every > 0 || physics::iteration % out_screen_every == 0) {
       (++count-1)%screen_length  ||
-      clog_one(info)<< "#-- iteration:               time:" <<std::endl;
-      clog_one(info)
+      rank || clog(info)<< "#-- iteration:               time:" <<std::endl;
+      rank || clog(info)
         << std::setw(14) << physics::iteration
         << std::setw(20) << std::scientific << std::setprecision(12)
         << physics::totaltime << std::endl;

@@ -52,6 +52,7 @@
 #include "BNS_physics.h"
 #include "analysis.h"
 #include "eos.h"
+//#include "star_tracker.h"
 
 namespace flecsi{
 namespace execution{
@@ -88,7 +89,6 @@ void mpi_init_task(const char * parameter_file){
   int size;
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  clog_set_output_rank(0);
   
   // set simulation parameters
   param::mpi_read_params(parameter_file);
@@ -124,8 +124,8 @@ void mpi_init_task(const char * parameter_file){
       });
 
   }else{
-    clog_one(info) << "Recomputing A from u"<<std::endl; 
-    clog_one(info) << "Considering velocityHalf = velocity" << std::endl;
+    rank|| clog(info) << "Recomputing A from u"<<std::endl; 
+    rank|| clog(info) << "Considering velocityHalf = velocity" << std::endl;
     // Convert internal energy to A ratio 
     bs.apply_all(physics::compute_adiabatic_from_internal_energy);
     bs.apply_all([](body_holder* source){
@@ -155,16 +155,16 @@ void mpi_init_task(const char * parameter_file){
   do
   { 
     wt_start = omp_get_wtime();
-    analysis::screen_output();
+    analysis::screen_output(rank);
     MPI_Barrier(MPI_COMM_WORLD);
 
     // Integration step
     // TODO: leapfrog integration implemented incorrectly;
     //       update similarly to what is in the drivers/hydro.
-    clog_one(trace)<<"Leapfrog integration"<<std::flush; 
+    rank|| clog(trace)<<"Leapfrog integration"<<std::flush; 
     wt = omp_get_wtime(); 
     bs.apply_all(physics::leapfrog_integration);
-    clog_one(trace)<<".done "<< omp_get_wtime() - wt << "s" <<std::endl;
+    rank|| clog(trace)<<".done "<< omp_get_wtime() - wt << "s" <<std::endl;
 
     // Get rid of distant particles for faster run 
     bs.apply_all([](body_holder* source){
@@ -185,10 +185,10 @@ void mpi_init_task(const char * parameter_file){
 
 #if RELAXATION == 0
     // Rotation of the stars
-    clog_one(trace)<<"Rotation"<<std::flush; 
+    rank|| clog(trace)<<"Rotation"<<std::flush; 
     wt = omp_get_wtime(); 
     bs.apply_all(physics::apply_rotation);
-    clog_one(trace)<<".done "<< omp_get_wtime() - wt << "s" <<std::endl;
+    rank|| clog(trace)<<".done "<< omp_get_wtime() - wt << "s" <<std::endl;
 #endif
 
     // Compute and prepare the tree for this iteration 
@@ -202,11 +202,11 @@ void mpi_init_task(const char * parameter_file){
     bs.update_iteration();
 
     MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace)<<"compute_density_pressure_soundspeed"<<std::flush; 
+    rank|| clog(trace)<<"compute_density_pressure_soundspeed"<<std::flush; 
     wt = omp_get_wtime(); 
     bs.apply_in_smoothinglength(
       physics::compute_density_pressure_soundspeed); 
-    clog_one(trace)<<".done "<< omp_get_wtime() - wt << "s" <<std::endl;
+    rank|| clog(trace)<<".done "<< omp_get_wtime() - wt << "s" <<std::endl;
 
     bs.update_neighbors();
 
@@ -215,46 +215,46 @@ void mpi_init_task(const char * parameter_file){
       source->getBody()->setAcceleration(point_t{});
     });
 
-    
-    clog_one(trace)<<"Accel FMM"<<std::flush; 
+
+    rank|| clog(trace)<<"Accel FMM"<<std::flush; 
     wt = omp_get_wtime(); 
     bs.gravitation_fmm();
-    clog_one(trace)<<".done "<< omp_get_wtime() - wt << "s" <<std::endl;
+    rank|| clog(trace)<<".done "<< omp_get_wtime() - wt << "s" <<std::endl;
 
-    clog_one(trace)<<"Accel hydro"<<std::flush; 
+    rank|| clog(trace)<<"Accel hydro"<<std::flush; 
     wt = omp_get_wtime(); 
     bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
-    clog_one(trace)<<".done "<< omp_get_wtime() - wt << "s" <<std::endl;
+    rank|| clog(trace)<<".done "<< omp_get_wtime() - wt << "s" <<std::endl;
 
-    clog_one(trace)<<"dadt"<<std::flush; 
+    rank|| clog(trace)<<"dadt"<<std::flush; 
     wt = omp_get_wtime(); 
     bs.apply_in_smoothinglength(physics::compute_dadt);
-    clog_one(trace)<<".done "<< omp_get_wtime() - wt << "s" <<std::endl;
+    rank|| clog(trace)<<".done "<< omp_get_wtime() - wt << "s" <<std::endl;
 
 #if RELAXATION == 1
-    clog_one(trace)<<"Accel rot"<<std::flush; 
+    rank|| clog(trace)<<"Accel rot"<<std::flush; 
     wt = omp_get_wtime(); 
     bs.get_all(physics::compute_QZZ);
     // Reduce QZZ
     MPI_Allreduce(MPI_IN_PLACE,&physics::QZZ,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
     bs.get_all(physics::compute_rotation);
-    clog_one(trace)<<".done "<< omp_get_wtime() - wt << "s" <<std::endl;
+    rank|| clog(trace)<<".done "<< omp_get_wtime() - wt << "s" <<std::endl;
  #endif
 
     // Compute the new DT 
     physics::dt = 1.0;
-    clog_one(trace)<<"DT computation"<<std::flush; 
+    rank|| clog(trace)<<"DT computation"<<std::flush; 
     wt = omp_get_wtime(); 
     bs.apply_in_smoothinglength(physics::compute_dt);
     mpi_utils::reduce_min(physics::dt);
 
-    clog_one(trace)<<".done "<< omp_get_wtime() - wt << "s" <<std::endl;
-    clog_one(trace)<<"dt="<<physics::dt<<std::endl;
+    rank|| clog(trace)<<".done "<< omp_get_wtime() - wt << "s" <<std::endl;
+    rank|| clog(trace)<<"dt="<<physics::dt<<std::endl;
     assert(physics::dt != 1.0);
 
     // Compute internal energy for output 
     bs.apply_all(physics::compute_internal_energy_from_adiabatic);
-    clog_one(trace) << "Total time=" << physics::totaltime << "s / "
+    rank|| clog(trace) << "Total time=" << physics::totaltime << "s / "
                     << final_time << "s" << std::endl;
 
     if(out_scalar_every > 0 && physics::iteration % out_scalar_every == 0){
@@ -277,38 +277,41 @@ void mpi_init_task(const char * parameter_file){
     physics::totaltime += physics::dt;
     
     MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace)<<"Iteration time = "<<omp_get_wtime()-wt_start<< "s" 
+    rank|| clog(trace)<<"Iteration time = "<<omp_get_wtime()-wt_start<< "s" 
       <<std::endl;
   } while(physics::iteration < final_iteration);
 }
 
-flecsi_register_mpi_task(mpi_init_task);
+flecsi_register_mpi_task(mpi_init_task,flecsi::execution);
 
-void 
-usage()
-{
-  clog_one(warn)<<"Usage:"<<std::endl<<
+void usage(int rank) {
+  rank|| clog(warn)<<"Usage:"<<std::endl<<
     "./bns_3D [Starting iteration] [Max interation] [MAC Angle]"<<std::endl;
 }
 
 void
 specialization_tlt_init(int argc, char * argv[]){
-  clog_one(trace) << "In user specialization_driver" << std::endl;
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+
+  rank|| clog(trace) << "In user specialization_driver" << std::endl;
 
   // check options list: exactly one option is allowed
   if (argc != 2) {
-    clog_one(error) << "ERROR: parameter file not specified!" << std::endl;
-    usage();
+    rank|| clog(error) << "ERROR: parameter file not specified!" << std::endl;
+    usage(rank);
     return;
   }
 
-  flecsi_execute_mpi_task(mpi_init_task, argv[1]);
+  flecsi_execute_mpi_task(mpi_init_task, flecsi::execution, argv[1]);
 
 } // specialization driver
 
 void 
 driver(int argc,  char * argv[]){
-  clog_one(warn) << "In user driver" << std::endl;
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  rank|| clog(warn) << "In user driver" << std::endl;
 } // driver
 
 

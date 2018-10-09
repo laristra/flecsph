@@ -20,7 +20,7 @@
 //
 void print_usage() {
   using namespace std;
-  clog_one(warn) << "Initial data generator for Sod shocktube test in" <<
+  cout << "Initial data generator for Sod shocktube test in" <<
   gdimension << "D" << endl << "Usage: ./sodtube_generator <parameter-file.par>"
   << endl;
 }
@@ -34,18 +34,43 @@ static double vx_1, vx_2;             // velocities
 static double pressure_1, pressure_2; // pressures
 static std::string initial_data_file; // = initial_data_prefix + ".h5part"
 
+// geometric extents of the three regions: left, right and central
+static point_t cbox_min, cbox_max;
+static point_t rbox_min, rbox_max;
+static point_t lbox_min, lbox_max;
+
 void set_derived_params() {
   using namespace std;
   using namespace param;
 
   // compute the total number of particles
   int64_t npd = lattice_nx;
-  for (size_t j=1; j<gdimension; ++j)
-    npd *= lattice_nx;
+
+  // 1D setup
+  cbox_max[0] =  box_length/6.;
+  cbox_min[0] = -cbox_max[0];
+  lbox_min[0] = -box_length/2.;
+  lbox_max[0] =  cbox_min[0];
+  rbox_min[0] =  cbox_max[0];
+  rbox_max[0] = -lbox_min[0];
+
+  // 2D case
+  if (gdimension>1) {
+     cbox_max[1] = lbox_max[1] = rbox_max[1] = box_width/2.0;
+     cbox_min[1] = lbox_min[1] = rbox_min[1] =-box_width/2.0;
+     npd *= (int64_t)((double)lattice_nx*box_width/box_length);
+  }
+
+  // 3D case
+  if (gdimension>2) {
+     cbox_max[2] = lbox_max[2] = rbox_max[2] = box_height/2.0;
+     cbox_min[2] = lbox_min[2] = rbox_min[2] =-box_height/2.0;
+     npd *= (int64_t)((double)lattice_nx*box_height/box_length);
+  }
   SET_PARAM(nparticles, npd);
 
   // particle spacing and smoothing length
-  SET_PARAM(sph_separation, (1.0/(double)(lattice_nx - 1)));
+  SET_PARAM(sph_separation, (box_length/(double)(lattice_nx - 1)));
   if(gdimension==1){
     SET_PARAM(sph_smoothing_length, (sph_separation*25.)); // TODO: use sph_eta instead
   } else if(gdimension==2){
@@ -88,7 +113,7 @@ void set_derived_params() {
       break;
 
     default:
-      clog_one(error) << "ERROR: invalid test (" << sodtest_num << ")." << endl;
+      clog(error) << "ERROR: invalid test (" << sodtest_num << ")." << endl;
       MPI_Finalize();
       exit(-1);
   }
@@ -126,41 +151,11 @@ int main(int argc, char * argv[]){
   particle_lattice::select();
 
   // screen output
-  clog_one(info) << "Sod test #" << sodtest_num << " in " << gdimension
+  clog(info) << "Sod test #" << sodtest_num << " in " << gdimension
          << "D:" << endl << " - number of particles: " << nparticles
          << endl << " - particles per core:  " << nparticlesproc << endl
          << " - generated initial data file: " << initial_data_file << endl;
 
-  // Central coordinates: in most cases this should be centered at (0,0,0)
-  point_t cbox_max = 0.;
-  point_t cbox_min = 0.;
-  point_t rbox_max = 0.;
-  point_t rbox_min = 0.;
-  point_t lbox_max = 0.;
-  point_t lbox_min = 0.;
-
-  // set the dimensions of the rectangles: left, center, right
-  // currently 3 cubes of length 2*cbox_max[0]
-  cbox_max[0] = (lattice_nx-1.)*sph_separation/2.;
-  cbox_min[0] = -cbox_max[0];
-
-  rbox_max[0] = 3.*cbox_max[0] + sph_separation;
-  rbox_min[0] =    cbox_max[0] + sph_separation;
-
-  lbox_max[0] =    cbox_min[0] - sph_separation;
-  lbox_min[0] = 3.*cbox_min[0] - sph_separation;
-
-  for (size_t j=1; j<gdimension; ++j) {
-    cbox_max[j] = cbox_max[0];
-    cbox_min[j] = cbox_min[0];
-
-    rbox_max[j] = cbox_max[j];
-    rbox_min[j] = cbox_min[j];
-
-    lbox_max[j] = cbox_max[j];
-    lbox_min[j] = cbox_min[j];
-  }
-  
   // allocate arrays
   int64_t tparticles = 0;
   int64_t parts_mid= 0;
@@ -319,7 +314,7 @@ int main(int argc, char * argv[]){
 
     } // for part=0..nparticles
   }
-  clog_one(info) << "Real number of particles: " << tparticles << std::endl;
+  clog_one(info) << "Actual number of particles: " << tparticles << std::endl;
   // delete the output file if exists
   remove(initial_data_file.c_str());
 

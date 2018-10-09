@@ -27,7 +27,7 @@
 #define _sodtube_h_
 
 
-#define INTERNAL_ENERGY 1
-#define OUTPUT
+// #define INTERNAL_ENERGY 1
+// #define OUTPUT
 
 #endif // _sodtube_h_

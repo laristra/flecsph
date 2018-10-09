@@ -41,7 +41,7 @@ using namespace mpi_utils;
 struct body_holder_fmm_t{
   static const size_t dimension = gdimension;
   using element_t = type_t; 
-  using point_t = flecsi::point<element_t, dimension>;
+  using point_t = flecsi::point__<element_t, dimension>;
 
   point_t position; 
   int owner; 
@@ -230,7 +230,7 @@ public:
 
     assert(send_particles_count_[rank] == 0);
     MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace)<<"mpi_compute_fmm in "<<omp_get_wtime()-time<<
+    rank|| clog(trace)<<"mpi_compute_fmm in "<<omp_get_wtime()-time<<
       "s"<<std::endl<<std::flush;
   }
 
@@ -395,10 +395,10 @@ public:
     MPI_Allgatherv(&vcells[0],nrecvCOM_[rank],MPI_BYTE,
       &recvCOM_[0],&nrecvCOM_[0],&noffsets[0],MPI_BYTE,MPI_COMM_WORLD);
     
-    clog_one(trace)<<"FMM COM = ";
+    rank|| clog(trace)<<"FMM COM = ";
     for(auto v: nrecvCOM_)
-     clog_one(trace)<<v/sizeof(mpi_cell_t)<<";";
-    clog_one(trace)<<std::endl;
+     rank|| clog(trace)<<v/sizeof(mpi_cell_t)<<";";
+    rank|| clog(trace)<<std::endl;
 
     // Check if mine are in the right order 
     #pragma omp parallel for 
@@ -408,7 +408,7 @@ public:
     }// for
 
     MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace)<<"mpi_exchange_cells in "<<omp_get_wtime()-time<<
+    rank|| clog(trace)<<"mpi_exchange_cells in "<<omp_get_wtime()-time<<
       "s"<<std::endl<<std::flush;
   } // mpi_exchange_cells
 
@@ -465,11 +465,11 @@ public:
         assert(recvcells[j].position ==  recvcells[i*ncells+j].position );
         assert(recvcells[j].id == recvcells[i*ncells+j].id);
         recvcells[j].fc += recvcells[i*ncells+j].fc;
-        for(long unsigned int k=0;k<dimension*dimension;++k){
+        for(size_t k=0;k<dimension*dimension;++k){
           recvcells[j].dfcdr[k] += recvcells[i*ncells+j].dfcdr[k];
           assert(recvcells[j].dfcdr[k] < 1000);
         }
-        for(int k=0;k<dimension*dimension*dimension;++k){ 
+        for(size_t k=0;k<dimension*dimension*dimension;++k){ 
           recvcells[j].dfcdrdr[k] += recvcells[i*ncells+j].dfcdrdr[k];
           assert(recvcells[j].dfcdrdr[k] < 1000);
         } // for
@@ -501,7 +501,7 @@ public:
       int distant_contrib = 0;
       // Add the contribution of received particles 
       //#pragma omp parallel for reduction(+:distant_contrib)
-      for(long unsigned int j = 0 ; j < recv_particles_.size(); ++j){
+      for(size_t j = 0 ; j < recv_particles_.size(); ++j){
         if(recvcells[i].id == recv_particles_[j].id_sink){
           tree_traversal_p2p_distant(
             tree,sink,
@@ -518,7 +518,7 @@ public:
       assert(recvcells[i].ninterations == totalnbodies);
     }
     MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace)<<"mpi_gather_cells in "<<omp_get_wtime()-time<<
+    rank|| clog(trace)<<"mpi_gather_cells in "<<omp_get_wtime()-time<<
       "s"<<std::endl<<std::flush;
   } // mpi_gather_cells
 

@@ -68,6 +68,9 @@ void set_derived_params() {
 
   // set equation of state
   eos::select(eos_type);
+
+  // set external force
+  external_force::select(external_force_type);
 }
 
 namespace flecsi{
@@ -81,7 +84,6 @@ mpi_init_task(const char * parameter_file){
   int size;
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  clog_set_output_rank(0);
 
   // set simulation parameters
   param::mpi_read_params(parameter_file);
@@ -107,12 +109,16 @@ mpi_init_task(const char * parameter_file){
   clog_one(info) << "Limits: " << physics::min_boundary << " ; "
          << physics::max_boundary << std::endl;
  */
-#ifdef OUTPUT
-  if(out_scalar_every > 0 && physics::iteration % out_scalar_every == 0){
-    MPI_Barrier(MPI_COMM_WORLD);
-    bs.update_iteration();
-    bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
+  MPI_Barrier(MPI_COMM_WORLD);
+  bs.update_iteration();
+  if(thermokinetic_formulation) {
+    // compute total energy for every particle
+    bs.apply_all(physics::set_total_energy);
+  }
+
+  bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
     
+  if(out_scalar_every > 0 && physics::iteration % out_scalar_every == 0){
     // Compute conserved quantities
     bs.get_all(analysis::compute_lin_momentum);
     bs.get_all(analysis::compute_total_mass);
@@ -122,11 +128,10 @@ mpi_init_task(const char * parameter_file){
   }
 
   bs.write_bodies(output_h5data_prefix,physics::iteration);
-#endif
 
   ++physics::iteration;
   do {
-    analysis::screen_output();
+    analysis::screen_output(rank);
     MPI_Barrier(MPI_COMM_WORLD);
 
     if (physics::iteration == 1){
@@ -143,52 +148,72 @@ mpi_init_task(const char * parameter_file){
       // at the initial iteration, P, rho and cs have not been computed yet;
       // for all subsequent steps, however, they are computed at the end 
       // of the iteration
-      clog_one(trace) << "first iteration: pressure, rho and cs" << std::flush;
+      rank|| clog(trace) << "first iteration: pressure, rho and cs" << std::flush;
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
       bs.apply_all(physics::save_velocityhalf);
-      clog_one(trace) << ".done" << std::endl;
+      rank|| clog(trace) << ".done" << std::endl;
 
       // necessary for computing dv/dt and du/dt in the next step
       bs.update_neighbors();
 
-      clog_one(trace) << "compute accelerations and dudt" << std::flush;
+      rank|| clog(trace) << "compute rhs of evolution equations" << std::flush;
       bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
-      bs.apply_in_smoothinglength(physics::compute_dudt);
-      clog_one(trace) << ".done" << std::endl;
+      if (thermokinetic_formulation)
+        bs.apply_in_smoothinglength(physics::compute_dedt);
+      else
+        bs.apply_in_smoothinglength(physics::compute_dudt);
+      rank|| clog(trace) << ".done" << std::endl;
 
     }
     else {
-      clog_one(trace) << "leapfrog: kick one" << std::flush;
+      rank|| clog(trace) << "leapfrog: kick one" << std::flush;
       bs.apply_all(physics::leapfrog_kick_v);
-      bs.apply_all(physics::leapfrog_kick_u);
+      if (thermokinetic_formulation)
+        bs.apply_all(physics::leapfrog_kick_e);
+      else
+        bs.apply_all(physics::leapfrog_kick_u);
       bs.apply_all(physics::save_velocityhalf);
-      clog_one(trace) << ".done" << std::endl;
+      rank|| clog(trace) << ".done" << std::endl;
 
       // sync velocities
       bs.update_neighbors();
 
-      clog_one(trace) << "leapfrog: drift" << std::flush;
+      rank|| clog(trace) << "leapfrog: drift" << std::flush;
       bs.apply_all(physics::leapfrog_drift);
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
-      clog_one(trace) << ".done" << std::endl;
+      rank|| clog(trace) << ".done" << std::endl;
 
       // recompute the tree and sync
       bs.update_iteration();
       bs.update_neighbors();
 
-      clog_one(trace) << "leapfrog: kick two (velocity)" << std::flush;
+      rank|| clog(trace) << "leapfrog: kick two (velocity)" << std::flush;
       bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
       bs.apply_all(physics::leapfrog_kick_v);
-      clog_one(trace) << ".done" << std::endl;
+      rank|| clog(trace) << ".done" << std::endl;
 
       // sync velocities
       bs.update_neighbors();
 
-      clog_one(trace) << "leapfrog: kick two (int. energy)" << std::flush;
-      bs.apply_in_smoothinglength(physics::compute_dudt);
-      bs.apply_all(physics::leapfrog_kick_u);
-      clog_one(trace) << ".done" << std::endl;
+      rank|| clog(trace) << "leapfrog: kick two (energy)" << std::flush;
+      if (thermokinetic_formulation) {
+        bs.apply_in_smoothinglength(physics::compute_dedt);
+        bs.apply_all(physics::leapfrog_kick_e);
+      }
+      else {
+        bs.apply_in_smoothinglength(physics::compute_dudt);
+        bs.apply_all(physics::leapfrog_kick_u);
+      }
+      rank|| clog(trace) << ".done" << std::endl;
     }
+
+    if(sph_update_uniform_h){
+      // The particles moved, compute new smoothing length 
+      rank || clog(trace) << "updating smoothing length"<<std::flush;
+      bs.get_all(physics::compute_average_smoothinglength,bs.getNBodies());
+      rank || clog(trace) << ".done" << std::endl << std::flush;
+    }
+
 
     if(out_scalar_every > 0 && physics::iteration % out_scalar_every == 0){
       // Compute the analysis values based on physics
@@ -214,34 +239,39 @@ mpi_init_task(const char * parameter_file){
 } // mpi_init_task
 
 
-flecsi_register_mpi_task(mpi_init_task);
+flecsi_register_mpi_task(mpi_init_task, flecsi::execution);
 
 void 
-usage() {
-  clog_one(warn) << "Usage: ./hydro_" << gdimension << "d <parameter-file.par>"
-                 << std::endl << std::flush;
+usage(int rank) {
+  rank|| clog(warn) << "Usage: ./hydro_" << gdimension << "d " 
+                    << "<parameter-file.par>" << std::endl << std::flush;
 }
 
 
 void
 specialization_tlt_init(int argc, char * argv[]){
-  clog_one(trace) << "In user specialization_driver" << std::endl;
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+
+  rank|| clog(trace) << "In user specialization_driver" << std::endl;
 
   // check options list: exactly one option is allowed
   if (argc != 2) {
-    clog_one(error) << "ERROR: parameter file not specified!" << std::endl;
-    usage();
+    rank|| clog(error) << "ERROR: parameter file not specified!" << std::endl;
+    usage(rank);
     return;
   }
 
-  flecsi_execute_mpi_task(mpi_init_task, argv[1]);
+  flecsi_execute_mpi_task(mpi_init_task, flecsi::execution, argv[1]);
 
 } // specialization driver
 
 
 void
 driver(int argc,  char * argv[]){
-  clog_one(trace) << "In user driver" << std::endl;
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  rank|| clog(trace) << "In user driver" << std::endl;
 } // driver
 
 

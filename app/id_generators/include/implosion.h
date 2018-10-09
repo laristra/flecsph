@@ -1,7 +1,7 @@
 /*~--------------------------------------------------------------------------~*
  * Copyright (c) 2017 Los Alamos National Security, LLC
  * All rights reserved.
- *~--------------------------------------------------------------------------~*\
+ *~--------------------------------------------------------------------------~*/
 
  /*~--------------------------------------------------------------------------~*
  * 
@@ -23,13 +23,10 @@
  * @brief User define for dimension and type 
  */
 
-#ifndef _user_h_
-#define _user_h_
+#ifndef _implosion_h_
+#define _implosion_h_
 
 #define INTERNAL_ENERGY
-#define VERLET
 #define OUTPUT
-static const size_t gdimension = 3;
-using type_t = double;
 
-#endif // _user_h_
+#endif // _implosion_h_

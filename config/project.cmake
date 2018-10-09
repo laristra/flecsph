@@ -68,6 +68,12 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 
 #------------------------------------------------------------------------------#
+# Add Boost
+#------------------------------------------------------------------------------#
+find_package(Boost REQUIRED)
+include_directories(${Boost_INCLUDE_DIR})
+
+#------------------------------------------------------------------------------#
 # H5HUT
 #------------------------------------------------------------------------------#
 # Set by hand right now
@@ -110,7 +116,5 @@ cinch_add_application_directory("include/physics/test")
 #------------------------------------------------------------------------------#
 # Add application targets
 #------------------------------------------------------------------------------#
-cinch_add_application_directory("app/fluid_3D")
-cinch_add_application_directory("app/fluid_2D")
 cinch_add_application_directory("app/id_generators")
 cinch_add_application_directory("app/drivers")

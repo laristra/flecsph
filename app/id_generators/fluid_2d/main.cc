@@ -32,7 +32,7 @@ void generate_wall(
     double x1, double y1,
     double ldistance){
   double dist_points = sqrt((x1-x0)*(x1-x0)+(y1-y0)*(y1-y0));
-  clog_one(info)<<"Distance: "<<dist_points<<std::endl;
+  clog(info)<<"Distance: "<<dist_points<<std::endl;
   int nelements = dist_points/ldistance;
   double xcur = x0;
   double ycur = y0;
@@ -61,7 +61,7 @@ int main(int argc, char * argv[]){
   int provided; 
   MPI_Init_thread(&argc,&argv,MPI_THREAD_MULTIPLE,&provided);
   if(provided<MPI_THREAD_MULTIPLE){
-	 clog_one(error)<<"Error MPI version: MPI_THREAD_MULTIPLE provided: "
+	 clog(error)<<"Error MPI version: MPI_THREAD_MULTIPLE provided: "
     <<provided<<std::endl;
     MPI_Finalize(); 
 	 exit(EXIT_FAILURE); 	
@@ -73,7 +73,7 @@ int main(int argc, char * argv[]){
 
   // Use only one process for generation in this version
   if(size > 1){
-    clog_one(error)<<
+    clog(error)<<
         "Use only one process for generation in this version"<<std::endl;
     MPI_Finalize();
     exit(EXIT_FAILURE);
@@ -83,8 +83,8 @@ int main(int argc, char * argv[]){
   int ny = 10;//atoi(argv[2]);
 
   if(argc!=3){
-    clog_one(warn)<<"./fluid_generator nx ny"<<std::endl;
-    clog_one(warn)<<"Generation with default values= 10*10=100 particles"<<std::endl;
+    clog(warn)<<"./fluid_generator nx ny"<<std::endl;
+    clog(warn)<<"Generation with default values= 10*10=100 particles"<<std::endl;
   }else{
     nx = atoi(argv[1]);
     ny = atoi(argv[2]);
@@ -96,8 +96,8 @@ int main(int argc, char * argv[]){
     nparticlesproc = nparticles - nparticlesproc*(size-1);
   }
 
-  clog_one(info)<<"Generating "<<nparticles<<" particles "<<std::endl;
-  clog_one(info)<<nparticlesproc<<" particles per proc (last "<<
+  clog(info)<<"Generating "<<nparticles<<" particles "<<std::endl;
+  clog(info)<<nparticlesproc<<" particles per proc (last "<<
     nparticles-nparticlesproc*(size-1)<<")"<<std::endl;
  
   // Generate data
@@ -158,7 +158,7 @@ int main(int argc, char * argv[]){
     nwall_proc = nwall - nwall_proc*(size-1);
   }
 
-  clog_one(info)<<"Wall particles="<<nwall<<" per proc="<<nwall_proc <<std::endl; 
+  clog(info)<<"Wall particles="<<nwall<<" per proc="<<nwall_proc <<std::endl; 
 
   int64_t totalpart = nparticlesproc+nwall_proc; 
 
@@ -192,7 +192,7 @@ int main(int argc, char * argv[]){
   // Timestep 
   double* dt = new double[totalpart]();
 
-  clog_one(info)<<"Generating: "<<nlines<<"*"<<ncols<<std::endl;
+  clog(info)<<"Generating: "<<nlines<<"*"<<ncols<<std::endl;
 
   // Id of my first particle 
   int64_t posid = nparticlesproc*rank;
@@ -248,13 +248,13 @@ int main(int argc, char * argv[]){
 
   char filename[128];
   sprintf(filename,"%s.h5part",fileprefix);
-  clog_one(info)<<"Writing to: "<<filename<<std::endl;
+  clog(info)<<"Writing to: "<<filename<<std::endl;
   remove(filename);
 
   Flecsi_Sim_IO::HDF5ParticleIO testDataSet;
   testDataSet.createDataset(filename,MPI_COMM_WORLD);
   
-  clog_one(info)<<"Writing total of "<<nparticles+nwall<<" particles"<<std::endl
+  clog(info)<<"Writing total of "<<nparticles+nwall<<" particles"<<std::endl
     <<std::flush;
 
   // add the global attributes
