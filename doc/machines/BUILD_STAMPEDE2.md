@@ -1,8 +1,8 @@
 ## Build FleCSPH on Stampede2 Supercomputer
 
 This document explains how to build FleCSPH on Stampede2 supercomputer. 
-Stampede2 is flagship supercomputer Stampede2 is the flagship supercomputer 
-at The University of Texas at Austin's Texas Advanced Computing Center (TACC). 
+Stampede2 is the flagship supercomputer at The University of Texas at Austin's 
+Texas Advanced Computing Center (TACC). 
 Specification about stampede2 supercomputer can be found 
 [here](https://portal.tacc.utexas.edu/user-guides/stampede2).
 
