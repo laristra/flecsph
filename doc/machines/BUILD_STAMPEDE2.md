@@ -21,7 +21,7 @@ cds
 ```
 when you login to your account. Then follow the suggested directory structure 
 which is decsribed 
-[here](https://github.com/laristra/flecsph/blob/master/README.md)
+[here](https://github.com/laristra/flecsph/blob/master/README.md#suggested-directory-structure)
 
 
 ### Module List
