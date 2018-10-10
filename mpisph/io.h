@@ -30,6 +30,7 @@
 #include <iostream>
 #include <vector>
 #include "params.h"
+#include "default_physics.h"
 
 #include <H5hut.h>
 
@@ -359,7 +360,6 @@ void outputDataHDF5(
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
   MPI_Barrier(MPI_COMM_WORLD);
-
   rank|| clog(trace)<<"Output particles"<<std::flush;
 
   int64_t nparticlesproc = bodies.size();
@@ -371,6 +371,13 @@ void outputDataHDF5(
   else {
     sprintf(filename,"%s.h5part",fileprefix);
   }
+
+  // Remove previous data file if iteration 0 
+  if(step == 0 && rank == 0)
+  {
+    remove(filename);
+  }
+
 
   h5_file_t* dataFile = H5OpenFile(filename,H5_O_RDWR | H5_VFD_MPIIO_IND,
       MPI_COMM_WORLD);
@@ -386,8 +393,9 @@ void outputDataHDF5(
   // Put the step header
   //simio.setTimeStep(step); 
   H5SetStep(dataFile,step);
-  H5WriteStepAttribFloat64(dataFile,"time",&totaltime,1);  
-
+  H5WriteStepAttribFloat64(dataFile,"time",&physics::totaltime,1); 
+  //int iteration = step*param::out_h5data_every;
+  H5WriteStepAttribInt64(dataFile,"iteration",&physics::iteration,1);  
   //------------------STEP DATA------------------------------------------------
 
   H5PartSetNumParticles(dataFile,nparticlesproc);

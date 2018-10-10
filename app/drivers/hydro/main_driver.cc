@@ -226,13 +226,11 @@ mpi_init_task(const char * parameter_file){
     }
 
 
-#ifdef OUTPUT
     if(out_h5data_every > 0 && physics::iteration % out_h5data_every == 0){
       bs.write_bodies(output_h5data_prefix,physics::iteration/out_h5data_every,
           physics::totaltime);
     }
     MPI_Barrier(MPI_COMM_WORLD);
-#endif
     ++physics::iteration;
     physics::totaltime += physics::dt;
 
