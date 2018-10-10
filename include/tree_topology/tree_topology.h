@@ -213,7 +213,7 @@ public:
   {
     branch_map_.emplace(branch_id_t::root(), branch_id_t::root());
     root_ = branch_map_.find(branch_id_t::root()); 
-    aasert(root_ != branch_map_.end());
+    assert(root_ != branch_map_.end());
 
     max_depth_ = 0;
     max_scale_ = element_t(1);
@@ -237,6 +237,7 @@ public:
   {
     branch_map_.emplace(branch_id_t::root(),branch_id_t::root());
     root_ = branch_map_.find(branch_id_t::root()); 
+    assert(root_ != branch_map_.end());
    
     max_depth_ = 0;
 
@@ -249,13 +250,18 @@ public:
     }
   }
 
+  /** 
+   * @brief Destroy the tree: empty the hash-table and destroy the entities 
+   * lists 
+   */
   ~tree_topology()
   {
     branch_map_.clear();
-  }
+    entities_.clear(); 
+  } 
 
-  /*!
-     Get the ci-th child of the given branch.
+  /**
+   * @brief Get the ci-th child of the given branch.
    */
   branch_t*
   child(
@@ -264,24 +270,16 @@ public:
   )
   {
     // Use the hash table 
-    branch_id_t bid = b->id(); 
-    bid.push(ci);
-    auto child = branch_map_.find(bid); 
-    assert(child != branch_map_.end());
+    branch_id_t bid = b->id(); // Branch id 
+    bid.push(ci); // Add child number 
+    auto child = branch_map_.find(bid); // Search for the child
+    // If it does not exists, return nullptr 
+    if(child == branch_map_.end())
+    {
+      return nullptr; 
+    } 
     return &child->second;
   }
-
-   size_t 
-   nbranches()
-   {
-    return branch_map_.size();
-   }
-
-   size_t 
-   nentities()
-   {
-    return entities_.size();
-   }
 
   /*!
     Return an index space containing all entities (including those removed).
@@ -312,7 +310,7 @@ public:
   {
     insert(ent, max_depth_);
   }
-
+#if 0 
   /*!
     Update is called when an entity's coordinates have changed and may trigger
     a reinsertion.
@@ -425,6 +423,7 @@ public:
     }
   }
 
+
   /*!
     Convert a point to unit coordinates.
    */
@@ -442,6 +441,8 @@ public:
 
     return pn;
   }
+#endif 
+
 
   /*!
    * Update the branch boundaries
@@ -1455,7 +1456,7 @@ public:
 
       sem.acquire();
     }
-
+#if 0 
     /*!
       Save (serialize) the tree to an archive.
      */
@@ -1553,6 +1554,18 @@ public:
         insert(ent, bid);
       }
     }
+ #endif
+
+   /**
+    * @brief Generic information for the tree topology 
+    */
+   friend std::ostream& operator<<(std::ostream& os,tree_topology& t )
+   {
+     os<<"Tree topology: "<<"#branches: "<<t.branch_map_.size()<<
+       " #entities: "<<t.entities_.size();
+     os <<" #root_subentities: "<<t.root()->sub_entities();
+     return os;
+   } 
 
   private:
     using branch_map_t = std::unordered_map<branch_id_t, branch_t,
@@ -1599,6 +1612,7 @@ public:
         }
       }
 
+#if 0 
       void
       insert(
         entity_t* ent,
@@ -1621,7 +1635,7 @@ public:
             assert(false && "invalid action");
         }
       }
-
+#endif 
       branch_t&
       find_parent_(
       branch_id_t bid
@@ -1672,7 +1686,6 @@ public:
     )
     {
       // Not leaf anymore 
-      b.set_leaf(false); 
       branch_id_t pid = b.id();
       size_t depth = pid.depth() + 1;
 
@@ -1691,6 +1704,7 @@ public:
         insert(ent, depth);
       }
 
+      b.set_leaf(false); 
       b.clear();
       b.reset();
     }

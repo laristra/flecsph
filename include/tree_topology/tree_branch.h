@@ -88,7 +88,7 @@ public:
 
   using id_t = branch_id_t;
 
-  static constexpr size_t num_children = branch_int_t(1) << dimension;
+  static constexpr size_t num_children = 1 << dimension;
 
   using point_t = point__<E,D>;
   using element_t = E;

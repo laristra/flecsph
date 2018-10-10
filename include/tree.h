@@ -92,6 +92,11 @@ public:
       locality_ = NONLOCAL;
     };
 
+    ~body_holder()
+    {
+      bodyptr_ = nullptr; 
+    }
+
     // Function used in the tree structure 
     const point_t& coordinates() const {return position_;}
     const point_t& getPosition() const {return position_;}
@@ -372,10 +377,8 @@ public:
     branch(const branch_id_t& id):tree_branch(id){}
 
     void insert(body_holder* ent){
-      // Check if same id in the branch 
-      // entity_key_t nkey = entity_key_t(ent->coordinates());  // unused
       ents_.push_back(ent); 
-      if(ents_.size() > (1<<dimension)){
+      if(ents_.size() > num_children){
         refine();
       }
     } // insert

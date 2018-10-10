@@ -34,6 +34,6 @@ TEST(body_system, write_range_read) {
     ASSERT_TRUE(fabs(range[1][i] - 0.50)<1.0e-15);  
   }
 
-  bs.write_bodies(fileprefix,0); 
+  bs.write_bodies(fileprefix,0,0); 
 
 }

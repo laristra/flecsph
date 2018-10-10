@@ -99,15 +99,6 @@ list(APPEND FleCSPH_LIBRARIES ${HDF5_LIBRARIES})
 include_directories(${HDF5_INCLUDE_DIR})
 
 #------------------------------------------------------------------------------#
-# HDF5 ScalingFramework
-#------------------------------------------------------------------------------#
-set(HSF_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/third-party-libraries/ScalingFramework/IOTests")
-message(STATUS ${HSF_INCLUDE_DIR})
-include_directories(${HSF_INCLUDE_DIR})
-
-
-
-#------------------------------------------------------------------------------#
 # Add mpisph tests
 #------------------------------------------------------------------------------#
 cinch_add_application_directory("mpisph/")

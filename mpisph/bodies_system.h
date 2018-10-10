@@ -169,9 +169,10 @@ public:
   write_bodies(
       const char * filename, 
       int iter,
+      double totaltime, 
       bool do_diff_files = false)
   {
-    io::outputDataHDF5(localbodies_,filename,iter,do_diff_files);
+    io::outputDataHDF5(localbodies_,filename,iter,totaltime,do_diff_files);
   }
 
 
@@ -276,9 +277,10 @@ public:
     }
     localnbodies_ = localbodies_.size();
 
-    // Number of branches in the tree 
-    clog(info) << "Branches in the tree: "<<tree_->nbranches();
-    clog(info) << " Entities in the tree: "<<tree_->nentities();
+#ifdef DEBUG
+    // Tree informations
+    clog(info) << *tree_ << std::endl; 
+#endif 
 
     // Check the total number of bodies 
     int64_t checknparticles = bodies_.size();
