@@ -345,9 +345,8 @@ int64_t generator_icosahedral_lattice(const int lattice_type,
 
 
   // compute K_rad: number of shells
-  const double diag = sqrt(SQ(xmax-xmin) + SQ(ymax-ymin) + SQ(zmax-zmin));
   const double M_shells = 1.0;
-  const double R_shells = diag/2.0;
+  const double R_shells = (xmax - xmin)/2.0;
   const int K_rad = (int)(R_shells/dr) + 1;
   const double rho0 = 3.0*M_shells/ (4*pi*CU(R_shells));
   const double m0 = M_shells / npart_icosahedral_sphere(K_rad);
@@ -484,7 +483,7 @@ int64_t generator_icosahedral_lattice(const int lattice_type,
     } // for i from 0 to 20
 
     // update radius
-    rk12 = rk12p*pow(1.0 + 3*m0*npart_icosahedral_shell(i+1)
+    rk12 = rk12p*pow(1.0 + 3*m0*npart_icosahedral_shell(NN+1)
                             /(4*pi*rho0*CU(rk12p)),1./3.);
     rk = 0.5*(rk12p + rk12);
     rk12p= rk12;
@@ -535,6 +534,19 @@ int64_t count_lattice_3d(const int lattice_type, const int domain_type,
          bbox_min,bbox_max,sph_sep,posid);
 }
 
+int64_t generate_icosahedral_lattice(const int lattice_type, const int domain_type,
+    const point_t& bbox_min, const point_t& bbox_max, const double sph_sep,
+    int64_t posid, double * x, double * y, double * z) {
+  return generator_icosahedral_lattice(lattice_type,domain_type,
+         bbox_min,bbox_max,sph_sep,posid, false, x,y,z);
+}
+int64_t count_icosahedral_lattice(const int lattice_type, const int domain_type,
+    const point_t& bbox_min, const point_t& bbox_max, const double sph_sep,
+    int64_t posid) {
+  return generator_icosahedral_lattice(lattice_type,domain_type,
+         bbox_min,bbox_max,sph_sep,posid);
+}
+
 
 // pointer types
 typedef int64_t (*lattice_generate_function_t)(const int, const int,
@@ -559,11 +571,26 @@ void select() {
     count = count_lattice_2d;
     break;
   case 3:
-    generate = generate_lattice_3d;
-    count = count_lattice_3d;
+    switch(param::lattice_type) {
+    case 0:
+    case 1:
+    case 2:
+      generate = generate_lattice_3d;
+      count = count_lattice_3d;
+      break;
+    case 3:
+      generate = generate_icosahedral_lattice;
+      count = count_icosahedral_lattice;
+      break;
+    default:
+      std::cerr << "ERROR: lattice_type not implemented" << std::endl;
+      assert (false);
+    }
+
     break;
   default:
     std::cerr << "you should not be here" << std::endl;
+    assert (false);
   }
 }
 
