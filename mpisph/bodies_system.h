@@ -276,6 +276,10 @@ public:
     }
     localnbodies_ = localbodies_.size();
 
+    // Number of branches in the tree 
+    clog(info) << "Branches in the tree: "<<tree_->nbranches();
+    clog(info) << " Entities in the tree: "<<tree_->nentities();
+
     // Check the total number of bodies 
     int64_t checknparticles = bodies_.size();
     MPI_Allreduce(MPI_IN_PLACE,&checknparticles,1,MPI_INT64_T,

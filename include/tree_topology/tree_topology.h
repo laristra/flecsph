@@ -213,6 +213,7 @@ public:
   {
     branch_map_.emplace(branch_id_t::root(), branch_id_t::root());
     root_ = branch_map_.find(branch_id_t::root()); 
+    aasert(root_ != branch_map_.end());
 
     max_depth_ = 0;
     max_scale_ = element_t(1);
@@ -265,8 +266,22 @@ public:
     // Use the hash table 
     branch_id_t bid = b->id(); 
     bid.push(ci);
-    return &branch_map_.find(bid)->second;
+    auto child = branch_map_.find(bid); 
+    assert(child != branch_map_.end());
+    return &child->second;
   }
+
+   size_t 
+   nbranches()
+   {
+    return branch_map_.size();
+   }
+
+   size_t 
+   nentities()
+   {
+    return entities_.size();
+   }
 
   /*!
     Return an index space containing all entities (including those removed).
@@ -1651,11 +1666,13 @@ public:
       return find_parent_(pid);
     }
 
-    void
+     void
     refine_(
       branch_t& b
     )
     {
+      // Not leaf anymore 
+      b.set_leaf(false); 
       branch_id_t pid = b.id();
       size_t depth = pid.depth() + 1;
 

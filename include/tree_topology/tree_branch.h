@@ -137,7 +137,14 @@ public:
   bool
   is_leaf() const
   {
-    return nchildren_!=0;
+    return leaf_;
+  }
+
+  void 
+  set_leaf(
+      bool leaf)
+  {
+    leaf_ = leaf; 
   }
 
   bool
@@ -303,8 +310,10 @@ protected:
   point_t bmin_; 
   point_t bmax_; 
 
-  uint64_t nchildren_; // Number of bodies attached
   uint64_t sub_entities_; // Subentities in the leaves the subtree
+
+  bool leaf_ = true; 
+
 };
 
 } // namespace topology

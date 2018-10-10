@@ -379,6 +379,17 @@ public:
         refine();
       }
     } // insert
+
+    // Copy constructor 
+    branch(const branch& b){
+      this->ents_ = b.ents_;
+      this->bmax_ = b.bmax_; 
+      this->bmin_ = b.bmin_; 
+    }
+
+    ~branch(){
+      ents_.clear();
+    }
     
     auto begin(){
       return ents_.begin();
