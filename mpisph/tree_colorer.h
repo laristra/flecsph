@@ -38,7 +38,7 @@
 using namespace mpi_utils;
 
 // Output the data regarding the distribution for debug
-//#define OUTPUT_TREE_INFO
+#define OUTPUT_TREE_INFO 1
 
 
 /**
@@ -180,6 +180,7 @@ public:
 
     // If one process, done 
     if(size==1){
+      clog(info)<<"Local particles: "<<totalnbodies<<std::endl;
       return;
     } // if
     

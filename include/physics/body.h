@@ -28,7 +28,7 @@
 
 #define OUTPUT
 
-#include "tree_topology.h" // CHANGE TO FLECSI ONE!!!
+#include "tree_topology/tree_topology.h" // CHANGE TO FLECSI ONE!!!
 #include "flecsi/geometry/point.h"
 #include "flecsi/geometry/space_vector.h"
 

@@ -29,7 +29,7 @@
 #include <vector>
 
 //#warning "CHANGE TO FLECSI ONE"
-#include "tree_topology.h"
+#include "tree_topology/tree_topology.h"
 #include "flecsi/geometry/point.h"
 #include "flecsi/geometry/space_vector.h"
 #include "utils.h"
@@ -368,6 +368,8 @@ public:
   double>{
   public:
     branch(){}
+
+    branch(const branch_id_t& id):tree_branch(id){}
 
     void insert(body_holder* ent){
       // Check if same id in the branch 
