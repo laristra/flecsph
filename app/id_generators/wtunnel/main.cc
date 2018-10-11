@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cassert>
 #include <math.h>
+#include <H5hut.h>
 
 #include "user.h"
 #include "sodtube.h"
