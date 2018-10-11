@@ -83,6 +83,9 @@ namespace kernels{
     sinc_sigma[1] = 4.*(si_b0[1] + si_b1[1]*si + si_b2[1]/si + si_b3[1]/s2);
     sinc_sigma[2] = 8.*(si_b0[2] + si_b1[2]*sq + si_b2[2]*si + si_b3[2]*sq*si);
   }
+ 
+  // Connection to the sph_eta parameter
+  static double kernel_width = 1.0;
 
 /*============================================================================*/
 /*   Cubic spline                                                             */
@@ -679,10 +682,12 @@ namespace kernels{
     if (boost::iequals(kstr,"cubic spline")) {
       kernel = cubic_spline;
       gradKernel = gradient_cubic_spline;
+      kernel_width = 2.0;
     }
     else if (boost::iequals(kstr, "quintic spline")) {
       kernel = quintic_spline;
       gradKernel = gradient_quintic_spline;
+      kernel_width = 3.0;
     }
     else if (boost::iequals(kstr, "wendland c2")) {
       if (gdimension == 1) {
@@ -692,6 +697,7 @@ namespace kernels{
         kernel = wendland_c2_23d;
         gradKernel = gradient_wendland_c2_23d;
       }
+      kernel_width = 2.0;
     }
     else if (boost::iequals(kstr, "wendland c4")) {
       if (gdimension == 1) {
@@ -701,6 +707,7 @@ namespace kernels{
         kernel = wendland_c4_23d;
         gradKernel = gradient_wendland_c4_23d;
       }
+      kernel_width = 2.0;
     }
     else if (boost::iequals(kstr, "wendland c6")) {
       if (gdimension == 1) {
@@ -710,19 +717,23 @@ namespace kernels{
         kernel = wendland_c6_23d;
         gradKernel = gradient_wendland_c6_23d;
       }
+      kernel_width = 2.0;
     }
     else if (boost::iequals(kstr, "gaussian")) {
       kernel = gaussian;
       gradKernel = gradient_gaussian;
+      kernel_width = 3.0;
     }
     else if (boost::iequals(kstr, "super gaussian")) {
       kernel = super_gaussian;
       gradKernel = gradient_super_gaussian;
+      kernel_width = 3.0;
     }
     else if (boost::iequals(kstr, "sinc")) {
       set_sinc_kernel_normalization(param::sph_sinc_index);
       kernel = sinc_ker;
       gradKernel = gradient_sinc_ker;
+      kernel_width = 2.0;
     }
     else {
       clog_one(fatal) << "Bad kernel parameter" << std::endl;

@@ -17,6 +17,6 @@ using namespace execution;
 
 TEST(sedov, working) {
   //MPI_Init(NULL,NULL);
-  mpi_init_task("sedov_sqn100.par");
+  mpi_init_task("sedov_nx20.par");
   //MPI_Finalize();
 }
