@@ -160,7 +160,7 @@ int main(int argc, char * argv[]){
   H5WriteFileAttribInt32(dataFile,"use_fixed_timestep",&use_fixed_timestep,1);
 
   H5SetStep(dataFile,0);
-  H5PartSetNumParticles(dataFile,nparticlesproc);
+  H5PartSetNumParticles(dataFile,nparticles);
   H5PartWriteDataFloat64(dataFile,"x",x);
   H5PartWriteDataFloat64(dataFile,"y",y);
   H5PartWriteDataFloat64(dataFile,"z",z);

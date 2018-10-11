@@ -266,6 +266,10 @@ public:
     // Generate the tree 
     tree_ = new tree_topology_t(range_[0],range_[1]);
 
+#ifdef OUTPUT_TREE_INFO
+    clog(trace) << "Construction of the tree"<<std::endl;
+#endif
+
     // Add my local bodies in my tree 
     // Clear the bodies_ vector 
     bodies_.clear();
@@ -277,7 +281,7 @@ public:
     }
     localnbodies_ = localbodies_.size();
 
-#ifdef DEBUG
+#ifdef OUTPUT_TREE_INFO
     // Tree informations
     clog(info) << *tree_ << std::endl; 
 #endif 

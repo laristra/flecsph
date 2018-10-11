@@ -13,7 +13,6 @@
 #include "user.h"
 #include "sodtube.h"
 #include "params.h"
-#include "hdf5ParticleIO.h"
 #include "lattice.h"
 
 /*
@@ -192,107 +191,20 @@ int main(int argc, char * argv[]){
   clog_one(info) << "Actual number of particles: " << tparticles << std::endl;
   // delete the output file if exists
   remove(initial_data_file.c_str());
-
-  // Header data
-  // the number of particles = nparticles
-  Flecsi_Sim_IO::HDF5ParticleIO testDataSet;
-  testDataSet.createDataset(initial_data_file,MPI_COMM_WORLD);
-
-  // add the global attributes
-  testDataSet.writeDatasetAttribute("nparticles","int64_t",tparticles);
-  testDataSet.writeDatasetAttribute("timestep","double",timestep);
-  testDataSet.writeDatasetAttribute("dimension","int32_t",gdimension);
-  testDataSet.writeDatasetAttribute("use_fixed_timestep","int32_t",1);
-
-  //testDataSet.writeDatasetAttributeArray("name","string",simName);
-  testDataSet.closeFile();
-
-  testDataSet.openFile(MPI_COMM_WORLD);
-  testDataSet.setTimeStep(0);
-
-  Flecsi_Sim_IO::Variable _d1,_d2,_d3;
-
-  _d1.createVariable("x",Flecsi_Sim_IO::point,"double",tparticles,x);
-  _d2.createVariable("y",Flecsi_Sim_IO::point,"double",tparticles,y);
-  _d3.createVariable("z",Flecsi_Sim_IO::point,"double",tparticles,z);
-
-  testDataSet.vars.push_back(_d1);
-  testDataSet.vars.push_back(_d2);
-  testDataSet.vars.push_back(_d3);
-
-  testDataSet.writeVariables();
-
-  _d1.createVariable("vx",Flecsi_Sim_IO::point,"double",tparticles,vx);
-  //_d2.createVariable("vy",Flecsi_Sim_IO::point,"double",nparticlesproc,vy);
-  //_d3.createVariable("vz",Flecsi_Sim_IO::point,"double",nparticlesproc,vz);
-
-  testDataSet.vars.push_back(_d1);
-  //testDataSet.vars.push_back(_d2);
-  //testDataSet.vars.push_back(_d3);
-
-  testDataSet.writeVariables();
-
-  //_d1.createVariable("ax",Flecsi_Sim_IO::point,"double",nparticlesproc,ax);
-  //_d2.createVariable("ay",Flecsi_Sim_IO::point,"double",nparticlesproc,ay);
-  //_d3.createVariable("az",Flecsi_Sim_IO::point,"double",nparticlesproc,az);
-
-  //testDataSet.vars.push_back(_d1);
-  //testDataSet.vars.push_back(_d2);
-  //testDataSet.vars.push_back(_d3);
-
-  //testDataSet.writeVariables();
-
-
-  _d1.createVariable("h",Flecsi_Sim_IO::point,"double",tparticles,h);
-  _d2.createVariable("rho",Flecsi_Sim_IO::point,"double",tparticles,rho);
-  _d3.createVariable("u",Flecsi_Sim_IO::point,"double",tparticles,u);
-
-  testDataSet.vars.push_back(_d1);
-  testDataSet.vars.push_back(_d2);
-  testDataSet.vars.push_back(_d3);
-
-  testDataSet.writeVariables();
-
-  _d1.createVariable("P",Flecsi_Sim_IO::point,"double",tparticles,P);
-  _d2.createVariable("m",Flecsi_Sim_IO::point,"double",tparticles,m);
-  _d3.createVariable("id",Flecsi_Sim_IO::point,"int64_t",tparticles,id);
-
-  testDataSet.vars.push_back(_d1);
-  testDataSet.vars.push_back(_d2);
-  testDataSet.vars.push_back(_d3);
-
-  testDataSet.writeVariables();
-
-  testDataSet.closeFile();
-
-  delete[] x;
-  delete[] y;
-  delete[] z;
-  delete[] vx;
-  delete[] vy;
-  delete[] vz;
-  delete[] ax;
-  delete[] ay;
-  delete[] az;
-  delete[] h;
-  delete[] rho;
-  delete[] u;
-  delete[] P;
-  delete[] m;
-  delete[] id;
-  delete[] dt;
     
-  h5_file_t * dataFile = H5OpenFile(filename,H5_O_WRONLY, MPI_COMM_WORLD);
+  h5_file_t * dataFile = H5OpenFile(initial_data_file.c_str(),
+      H5_O_WRONLY, MPI_COMM_WORLD);
 
   int use_fixed_timestep = 1;
   // add the global attributes
   H5WriteFileAttribInt64(dataFile,"nparticles",&nparticles,1);
   H5WriteFileAttribFloat64(dataFile,"timestep",&timestep,1);
-  H5WriteFileAttribInt32(dataFile,"dimension",&dimension,1);
+  int dim = gdimension;
+  H5WriteFileAttribInt32(dataFile,"dimension",&dim,1);
   H5WriteFileAttribInt32(dataFile,"use_fixed_timestep",&use_fixed_timestep,1);
 
   H5SetStep(dataFile,0);
-  H5PartSetNumParticles(dataFile,nparticlesproc);
+  H5PartSetNumParticles(dataFile,nparticles);
   H5PartWriteDataFloat64(dataFile,"x",x);
   H5PartWriteDataFloat64(dataFile,"y",y);
   H5PartWriteDataFloat64(dataFile,"z",z);
