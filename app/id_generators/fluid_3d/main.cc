@@ -154,13 +154,13 @@ int main(int argc, char * argv[]){
     
   int use_fixed_timestep = 1; 
   // add the global attributes
-  H5WriteFileAttribInt64(dataFile,"nparticles",&nparticles,1);
+  H5WriteFileAttribInt64(dataFile,"nparticles",&nparticlesproc,1);
   H5WriteFileAttribFloat64(dataFile,"timestep",&timestep,1);
   H5WriteFileAttribInt32(dataFile,"dimension",&dimension,1);
   H5WriteFileAttribInt32(dataFile,"use_fixed_timestep",&use_fixed_timestep,1);
 
   H5SetStep(dataFile,0);
-  H5PartSetNumParticles(dataFile,nparticles);
+  H5PartSetNumParticles(dataFile,nparticlesproc);
   H5PartWriteDataFloat64(dataFile,"x",x);
   H5PartWriteDataFloat64(dataFile,"y",y);
   H5PartWriteDataFloat64(dataFile,"z",z);

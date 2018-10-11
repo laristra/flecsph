@@ -281,11 +281,6 @@ public:
     }
     localnbodies_ = localbodies_.size();
 
-#ifdef OUTPUT_TREE_INFO
-    // Tree informations
-    clog(info) << *tree_ << std::endl; 
-#endif 
-
     // Check the total number of bodies 
     int64_t checknparticles = bodies_.size();
     MPI_Allreduce(MPI_IN_PLACE,&checknparticles,1,MPI_INT64_T,
@@ -293,6 +288,13 @@ public:
     assert(checknparticles==totalnbodies_);
 
     tree_->update_branches(smoothinglength_+smoothinglength_/100.); 
+    assert(tree_->root()->sub_entities() == localnbodies_);
+
+#ifdef OUTPUT_TREE_INFO
+    // Tree informations
+    clog(info) << *tree_ << std::endl; 
+#endif 
+
 
 #ifdef OUTPUT_TREE_INFO
     std::vector<int> nentities(size);
