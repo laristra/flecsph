@@ -1,0 +1,29 @@
+#
+# Sedov blast wave test
+#
+# initial data
+  initial_data_prefix = "sedov_nx20"
+  lattice_nx = 20          # particle lattice dimension
+  poly_gamma = 1.4         # polytropic index
+  rho_initial = 1.0
+  pressure_initial = 1.0e-7
+  sphere_radius = 1.0
+  sph_eta = 1.2
+  sedov_blast_energy = 1.0
+  sedov_blast_radius = 1.0 # in units of particle separation
+  lattice_type = 2         # 0:rectangular, 1:hcp, 2:fcc, 3:spherical
+                           # (in 2d both hcp and fcc are triangular)
+  domain_type = 1          # 0:box, 1:sphere
+  # box_length = 1.0
+  # box_width  = 1.3
+  # box_height = 0.8
+
+# evolution parameters:
+  sph_kernel = "quintic spline"
+  initial_dt = 2.e-3  # TODO: better use Courant factor X sph_separation
+  final_iteration = 50
+  out_screen_every = 1
+  out_scalar_every = 10
+  out_h5data_every = 10
+  output_h5data_prefix = "sedov_evolution"
+  # sph_update_uniform_h = yes

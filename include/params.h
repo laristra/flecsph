@@ -185,6 +185,12 @@ namespace param {
 // Geometric parameters
 //
 //- rectangular configuration parameters (e.g. sodtube in 2D/3D)
+
+// in various tests: sets the type of the domain (0:box, 1:sphere/circle)
+# ifndef domain_type
+  DECLARE_PARAM(int,domain_type,0)
+# endif
+
 #ifndef box_length
   DECLARE_PARAM(double,box_length,3.0)
 #endif
@@ -391,11 +397,6 @@ namespace param {
   DECLARE_PARAM(int,lattice_type,0)
 # endif
 
-// in Sedov test: set the lattice types
-# ifndef domain_type
-  DECLARE_PARAM(int,domain_type,0)
-# endif
-
 // in several tests: initial velocity of the flow
 # ifndef flow_velocity
   DECLARE_PARAM(double,flow_velocity,0.0)
@@ -535,6 +536,10 @@ void set_param(const std::string& param_name,
 # endif 
 
   // geometric configuration  -----------------------------------------------
+# ifndef domain_type
+  READ_NUMERIC_PARAM(domain_type)
+# endif
+
 # ifndef box_length
   READ_NUMERIC_PARAM(box_length)
 # endif
@@ -684,10 +689,6 @@ void set_param(const std::string& param_name,
 
 # ifndef lattice_type
   READ_NUMERIC_PARAM(lattice_type)
-# endif
-
-# ifndef domain_type
-  READ_NUMERIC_PARAM(domain_type)
 # endif
 
 # ifndef flow_velocity
