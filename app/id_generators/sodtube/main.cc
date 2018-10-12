@@ -14,15 +14,16 @@
 #include "params.h"
 #include "hdf5ParticleIO.h"
 #include "lattice.h"
+#include "kernels.h"
 
 //
 // help message
 //
 void print_usage() {
-  using namespace std;
-  cout << "Initial data generator for Sod shocktube test in" <<
-  gdimension << "D" << endl << "Usage: ./sodtube_generator <parameter-file.par>"
-  << endl;
+  clog(warn)
+      << "Initial data generator for Sod shocktube test in"
+      << gdimension << "D" << endl
+      << "Usage: ./sodtube_generator <parameter-file.par>"<< endl;
 }
 
 //
@@ -69,16 +70,6 @@ void set_derived_params() {
   }
   SET_PARAM(nparticles, npd);
 
-  // particle spacing and smoothing length
-  SET_PARAM(sph_separation, (box_length/(double)(lattice_nx - 1)));
-  if(gdimension==1){
-    SET_PARAM(sph_smoothing_length, (sph_separation*25.)); // TODO: use sph_eta instead
-  } else if(gdimension==2){
-    SET_PARAM(sph_smoothing_length, (sph_separation*4.)); // TODO: ???
-  } else if(gdimension==3){
-    SET_PARAM(sph_smoothing_length, (sph_separation*3.)); // TODO: ???
-  }
-
   // test selector
   switch (sodtest_num) {
     case (1):
@@ -116,6 +107,10 @@ void set_derived_params() {
       clog(error) << "ERROR: invalid test (" << sodtest_num << ")." << endl;
       MPI_Finalize();
       exit(-1);
+
+    // particle spacing
+    SET_PARAM(sph_separation, (box_length/(double)(lattice_nx - 1)));
+
   }
 
   // file to be generated
@@ -150,6 +145,9 @@ int main(int argc, char * argv[]){
   set_derived_params();
   particle_lattice::select();
 
+  // set kernel
+  kernels::select(sph_kernel);
+
   // screen output
   clog(info) << "Sod test #" << sodtest_num << " in " << gdimension
          << "D:" << endl << " - number of particles: " << nparticles
@@ -158,7 +156,7 @@ int main(int argc, char * argv[]){
 
   // allocate arrays
   int64_t tparticles = 0;
-  int64_t parts_mid= 0;
+  int64_t parts_mid = 0;
   int64_t parts_lr = 0;
   double mass = 0;
   bool equal_separation = !equal_mass;
@@ -287,7 +285,8 @@ int main(int argc, char * argv[]){
       u[part] = P[part]/(poly_gamma-1.)/rho[part];
 
       // particle smoothing length
-      h[part] = sph_smoothing_length;
+      h[part] = sph_eta * kernels::kernel_width
+                        * pow(m[part]/rho[part],1./gdimension);
 
 
     } // for part=0..nparticles
@@ -310,7 +309,8 @@ int main(int argc, char * argv[]){
 
       // particle masses and smoothing length
       m[part] = mass;
-      h[part] = sph_smoothing_length;
+      h[part] = sph_eta * kernels::kernel_width
+                        * pow(m[part]/rho[part],1./gdimension);
 
     } // for part=0..nparticles
   }
