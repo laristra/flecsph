@@ -22,8 +22,8 @@
 void print_usage() {
   clog(warn)
       << "Initial data generator for Sod shocktube test in"
-      << gdimension << "D" << endl
-      << "Usage: ./sodtube_generator <parameter-file.par>"<< endl;
+      << gdimension << "D" << std::endl
+      << "Usage: ./sodtube_generator <parameter-file.par>" << std::endl;
 }
 
 //
@@ -108,10 +108,10 @@ void set_derived_params() {
       MPI_Finalize();
       exit(-1);
 
-    // particle spacing
-    SET_PARAM(sph_separation, (box_length/(double)(lattice_nx - 1)));
-
   }
+
+  // particle spacing
+  SET_PARAM(sph_separation, (box_length/(double)(lattice_nx - 1)));
 
   // file to be generated
   std::ostringstream oss;
@@ -122,7 +122,6 @@ void set_derived_params() {
 
 //----------------------------------------------------------------------------//
 int main(int argc, char * argv[]){
-  using namespace std;
   using namespace param;
 
   // launch MPI
@@ -149,10 +148,10 @@ int main(int argc, char * argv[]){
   kernels::select(sph_kernel);
 
   // screen output
-  clog(info) << "Sod test #" << sodtest_num << " in " << gdimension
-         << "D:" << endl << " - number of particles: " << nparticles
-         << endl << " - particles per core:  " << nparticlesproc << endl
-         << " - generated initial data file: " << initial_data_file << endl;
+  std::cout << "Sod test #" << sodtest_num << " in " << gdimension
+       << "D:" << std::endl << " - number of particles: " << nparticles
+       << std::endl << " - particles per core:  " << nparticlesproc << std::endl
+       << " - generated initial data file: " << initial_data_file << std::endl;
 
   // allocate arrays
   int64_t tparticles = 0;
@@ -211,7 +210,6 @@ int main(int argc, char * argv[]){
                                           lr_sph_sep,tparticles-1);
   }
 
-
   // Initialize the arrays to be filled later
   // Position
   double* x = new double[tparticles]();
@@ -261,7 +259,7 @@ int main(int argc, char * argv[]){
   int64_t posid = 0;
 
   // max. value for the speed of sound
-  double cs = sqrt(poly_gamma*max(pressure_1/rho_1,pressure_2/rho_2));
+  double cs = sqrt(poly_gamma*std::max(pressure_1/rho_1,pressure_2/rho_2));
 
   // The value for constant timestep
   double timestep = 0.5*sph_separation/cs;

@@ -153,7 +153,7 @@ if(ENABLE_UNIT_TESTS)
 add_custom_target(
     noh_2d_generator_test 
     COMMAND mpirun -n 1 ../id_generators/noh_2d_generator ${PROJECT_SOURCE_DIR}/data/noh_sqn100.par
-    COMMAND mv noh_sqn100.h5part ../../test/drivers
+    COMMAND mv noh_nx100.h5part ../../test/drivers
     DEPENDS ../id_generators/noh_2d_generator
 )
 add_dependencies(noh_test noh_2d_generator_test)
