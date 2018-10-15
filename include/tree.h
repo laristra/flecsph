@@ -214,8 +214,69 @@ public:
 
   using branch_t = branch;
 
-  // Add the tree traversal specific for SPH 
-   
+
+  // Functions for the tree traversal 
+  static void update_COM(
+      branch_t * b,
+      element_t epsilon = element_t(0))
+  {
+    element_t mass = element_t(0); 
+    point_t bmax{}; 
+    point_t bmin{}; 
+    element_t radius; 
+    point_t coordinates = point_t{};
+    uint64_t nchildren = 0; 
+    for(size_t d = 0 ; d < dimension ; ++d){
+      bmax[d] = -DBL_MAX; 
+      bmin[d] = DBL_MAX; 
+    }
+    if(b->is_leaf()){
+      for(auto child: *b)
+      {
+        nchildren++; 
+        element_t childmass = child->mass();
+        for(size_t d = 0 ; d < dimension ; ++d)
+        {
+          bmax[d] = std::max(bmax[d],child->coordinates()[d]+epsilon);
+          bmin[d] = std::min(bmin[d],child->coordinates()[d]-epsilon);
+          coordinates[d]+= child->coordinates()[d]*childmass; 
+        }
+        mass += childmass;  
+      }
+      if(mass > element_t(0))
+      {
+        for(size_t d = 0 ; d < dimension ; ++d)
+        {
+          coordinates[d] /= mass; 
+        }
+      }
+    }else{
+      // For all children 
+      for(int i = 0; i < (1<<dimension);++i)
+      {
+        auto branch = child(b,i);
+        nchildren += branch->sub_entities(); 
+        mass += branch->mass();
+        if(branch->mass() > 0)
+        {
+          for(size_t d = 0; d< dimension; ++d)
+          {
+            bmax[d] = std::max(bmax[d],branch->bmax()[d]);
+            bmin[d] = std::min(bmin[d],branch->bmin()[d]);
+          }
+        }
+        for(size_t d = 0; d < dimension; ++d)
+        {
+          coordinates[d] /= mass; 
+        }
+      }
+    }
+    b->set_sub_entities(nchildren);
+    b->set_coordinates(coordinates);
+    b->set_mass(mass);
+    b->set_bmin(bmin);
+    b->set_bmax(bmax);
+  }
 
 }; // class tree_policy
 
@@ -227,6 +288,7 @@ using branch_id_t = tree_topology_t::branch_id_t;
 using space_vector_t = tree_topology_t::space_vector_t;
 using entity_key_t = tree_topology_t::key_t;
 using entity_id_t = flecsi::topology::entity_id_t;
+
 
 inline 
 bool

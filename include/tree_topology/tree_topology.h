@@ -233,18 +233,57 @@ public:
   {
     insert(ent, max_depth_);
   }
+
+  /**
+   * @brief Generic postorder traversal  
+   */
+  template<
+    typename F, 
+    typename... ARGS
+  >
+  void 
+  post_order_traversal(
+      branch_t * start,
+      F&& function,
+      ARGS&&... args)
+  {
+    std::stack<branch_t*> stk1; 
+    std::stack<branch_t*> stk2;
+    stk1.push(start);
+    while(!stk1.empty())
+    {
+      branch_t * cur = stk1.top(); 
+      stk1.pop();
+      stk2.push(cur);
+      // Push children to stk1 
+      for(int i = 0 ; i < (1<<dimension) ; ++i)
+      {
+        branch_t * next = child(cur,i);
+        stk1.push(next);
+      }
+    }
+    // Unstack stack 2 
+    while(!stk2.empty())
+    {
+      branch_t * cur = stk2.top(); 
+      stk2.pop(); 
+      function(cur,std::forward<ARGS>(args)...);
+    }
+  }
  
+
   /*!
    * Update the branch boundaries
    * Go through all the branches in a DFS order
    */
   void
   update_branches(
-      const element_t epsilon = element_t(0))
+      const element_t epsilon = element_t(0),
+      bool local_only = false)
   {
     // Recursive version 
     std::function<void(branch_t*)> traverse;
-    traverse = [&epsilon,&traverse,this](branch_t* b){
+    traverse = [&local_only,&epsilon,&traverse,this](branch_t* b){
       element_t mass = element_t(0); 
       point_t bmax{}; 
       point_t bmin{};
@@ -259,6 +298,9 @@ public:
       {
         for(auto child: *b)
         {
+          if(local_only && !child->is_local()){
+            continue; 
+          }
           nchildren++;
           element_t childmass = child->mass(); 
           
@@ -305,94 +347,6 @@ public:
         }
       }
       // Save in both cases
-      b->set_sub_entities(nchildren);
-      b->set_coordinates(coordinates);
-      b->set_mass(mass);
-      b->set_bmin(bmin);
-      b->set_bmax(bmax);  
-    };
-    traverse(root());
-  }
-
-
-  /**
-   * @brief Update the COM data regarding the local bodies. 
-   * Do not consider GHOSTS 
-   * This function is useful to prepare the tree for local search 
-   * It is currently used in the FMM method. 
-   * 
-   * @param epsilon The radius to add in the boundaries of COM
-   */
-  void
-  update_branches_local(
-      const element_t epsilon = element_t(0))
-  {
-    // Recursive version 
-    std::function<void(branch_t*)> traverse;
-    traverse = [&epsilon,&traverse,this](branch_t* b){
-      element_t mass = element_t(0); 
-      point_t bmax{}; 
-      point_t bmin{};
-      for(size_t d = 0; d < dimension; ++d)
-      {
-        bmax[d] = -DBL_MAX;
-        bmin[d] = DBL_MAX; 
-      }
-      point_t coordinates{};
-      uint64_t nchildren = 0; 
-      if(b->is_leaf())
-      {
-        for(auto child: *b)
-        {
-          if(child->is_local()){
-            nchildren++;
-            element_t childmass = child->mass(); 
-          
-            for(size_t d = 0; d < dimension; ++d)
-            {
-              bmax[d] = std::max(bmax[d],child->coordinates()[d]+epsilon);
-              bmin[d] = std::min(bmin[d],child->coordinates()[d]-epsilon);
-              coordinates[d] += child->coordinates()[d]*childmass; 
-            }
-            mass += childmass;
-          }
-        }
-        if(mass > element_t(0))
-        {
-          for(size_t d = 0; d < dimension; ++d)
-          {
-            coordinates[d] /= mass; 
-          }
-        }
-      }else{
-        for(int i=0 ; i<(1<<dimension);++i)
-        {
-          auto branch = child(b,i); 
-          traverse(branch);
-          nchildren += branch->sub_entities();
-          mass += branch->mass();
-
-          if(branch->sub_entities() > 0){
-            for(size_t d = 0; d < dimension; ++d){
-              bmax[d] = std::max(bmax[d],branch->bmax()[d]);
-              bmin[d] = std::min(bmin[d],branch->bmin()[d]);
-            }
-          }
-          for(size_t d = 0; d < dimension; ++d)
-          {
-            coordinates[d] += branch->coordinates()[d]*branch->mass(); 
-          }
-        }
-
-        if(mass > element_t(0))
-        {
-          for(size_t d = 0; d < dimension; ++d)
-          {
-            coordinates[d] /= mass; 
-          }
-        }
-      }
-      // Save in both cases leaf or not
       b->set_sub_entities(nchildren);
       b->set_coordinates(coordinates);
       b->set_mass(mass);
@@ -857,101 +811,6 @@ public:
       branch_t* b = find_start_(center, radius, depth, size);
 
       apply_(b, size, f, geometry_t::intersects, center, radius);
-    }
-
-    /*!
-      For all entities within the specified spheroid, apply the given callable
-      object ef with args. (Concurrent version.)
-     */
-    template<
-      typename EF,
-      typename... ARGS
-    >
-    void
-    apply_in_radius(
-      thread_pool& pool,
-      const point_t& center,
-      element_t radius,
-      EF&& ef,
-      ARGS&&... args)
-    {
-
-      size_t queue_depth = get_queue_depth(pool);
-      size_t m = branch_int_t(1) << queue_depth * P::dimension;
-
-      auto f = [&](entity_t* ent, const point_t& center, element_t radius)
-      {
-        if(geometry_t::within(ent->coordinates(), center, radius))
-        {
-          ef(ent, std::forward<ARGS>(args)...);
-        }
-      };
-
-      size_t depth;
-      element_t size;
-      branch_t* b = find_start_(center, radius, depth, size);
-      queue_depth += depth;
-
-      virtual_semaphore sem(1 - int(m));
-
-      apply_(pool, sem, queue_depth, depth, b, size,
-             f, geometry_t::intersects, center, radius);
-
-      sem.acquire();
-    }
-
-    /*!
-      For all entities within the specified box, apply the given callable
-      object ef with args.
-     */
-    template<
-      typename EF,
-      typename... ARGS
-    >
-    void
-    apply_in_box(
-      thread_pool& pool,
-      const point_t& min,
-      const point_t& max,
-      EF&& ef,
-      ARGS&&... args
-    )
-    {
-
-      size_t queue_depth = get_queue_depth(pool);
-      size_t m = branch_int_t(1) << queue_depth * P::dimension;
-
-      auto f = [&](entity_t* ent, const point_t& min, const point_t& max)
-      {
-        if(geometry_t::within_box(ent->coordinates(), min, max))
-        {
-          ef(ent, std::forward<ARGS>(args)...);
-        }
-      };
-
-      element_t radius = 0;
-      for(size_t d = 0; d < dimension; ++d)
-      {
-        radius = std::max(radius, max[d] - min[d]);
-      }
-
-      constexpr element_t c = std::sqrt(element_t(2))/element_t(2);
-      radius *= c;
-
-      point_t center = min;
-      center += radius;
-
-      size_t depth;
-      element_t size;
-      branch_t* b = find_start_(center, radius, depth, size);
-      queue_depth += depth;
-
-      virtual_semaphore sem(1 - int(m));
-
-      apply_(pool, sem, queue_depth, depth, b, size,
-             f, geometry_t::intersects_box, min, max);
-
-      sem.acquire();
     }
 
     /*!

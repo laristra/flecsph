@@ -283,6 +283,9 @@ public:
     MPI_Allreduce(MPI_IN_PLACE,&checknparticles,1,MPI_INT64_T,
     MPI_SUM,MPI_COMM_WORLD); 
     assert(checknparticles==totalnbodies_);
+  
+    tree_->post_order_traversal(tree_->root(),
+        tree_->update_COM,smoothinglength_);
 
     tree_->update_branches(smoothinglength_+smoothinglength_/100.); 
     assert(tree_->root()->sub_entities() == localnbodies_);
@@ -377,7 +380,7 @@ public:
     rank|| clog(trace)<<"FMM: mmass="<<maxmasscell_<<" angle="<<macangle_<<std::endl;
 
     // Just consider the local particles in the tree for FMM 
-    tree_->update_branches_local(smoothinglength_);
+    tree_->update_branches(smoothinglength_,true);
     assert((int64_t)tree_->root()->sub_entities() == localnbodies_);
 
     tfmm_.mpi_exchange_cells(*tree_,maxmasscell_);
