@@ -12,16 +12,18 @@
  * All rights reserved
  *~--------------------------------------------------------------------------~*/
 
-#ifndef flecsi_topology_tree_branch_h
-#define flecsi_topology_tree_branch_h
+#ifndef flecsi_topology_tree_entity_h
+#define flecsi_topology_tree_entity_h
 
 /*!
-  \file tree_branch.h
-  \authors jloiseau@lanl.gov
-  \date Initial file creation: Oct 9 2018
+  \file tree_entity.h
+  \authors nickm@lanl.gov
+  \date Initial file creation: Apr 5, 2016
  */
 
+
 #include <map>
+#include <unordered_map>
 #include <vector>
 #include <array>
 #include <map>
@@ -43,112 +45,85 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/topology/index_space.h"
 
+#include "tree_entity_id.h"
 #include "morton_id.h"
+#include "tree_branch.h"
+#include "tree_geometry.h"
 
 namespace flecsi {
 namespace topology {
 
-
-/*! When an entoty is added or removed from a branch, the user-level tree 
- * may trigger one of these actions. 
- */
-enum class action: uint8_t{
-  none=0b00, 
-  refine = 0b01, 
-  coarsen = 0b10
-};
-
-
+  
 /*!
-  Tree branch base class.
+  Tree entity base class.
  */
 template<
   typename T,
-  size_t D,
-  typename E
+  size_t D
 >
-class tree_branch
-{
+class tree_entity{
 public:
-  using branch_int_t = T;
-  static const size_t dimension = D;
+
+  using id_t = entity_id_t;
   using branch_id_t = morton_id<T, D>;
-  using id_t = branch_id_t;
-  static constexpr size_t num_children = 1 << dimension;
-  using point_t = point__<E,D>;
-  using element_t = E;
+  
+protected:
+  enum locality {LOCAL=0,NONLOCAL=1,SHARED=2,EXCL=3,GHOST=4}; 
+  
+public:
 
-  tree_branch()
-  : action_(action::none)
-  {}
-
-  tree_branch(const branch_id_t& id)
-  : action_(action::none),
-  id_(id)
+  tree_entity()
+  : branch_id_(branch_id_t::null()),
+  locality_(NONLOCAL)
   {}
 
   branch_id_t
+  get_branch_id() const
+  {
+    return branch_id_;
+  }
+
+  entity_id_t
   id() const
   {
     return id_;
   }
 
-  /*!
-    Called to trigger a refinement at this branch.
-   */
-  void refine()
+  entity_id_t
+  index_space_id() const
   {
-    action_ = action::refine;
+    return id_;
   }
 
   /*!
-    Called to trigger a coarsening at this branch.
+    Return whether the entity is current inserted in a tree.
    */
-  void coarsen()
-  {
-    action_ = action::coarsen;
-  }
-
-  /*!
-    Clear refine/coarsen actions.
-   */
-  void reset()
-  {
-    action_ = action::none;
-  }
-
-  bool
-  is_leaf() const
-  {
-    return leaf_;
-  }
-
-  void 
-  set_leaf(
-      bool leaf)
-  {
-    leaf_ = leaf; 
-  }
-
   bool
   is_valid() const
   {
-    return true;
+    return branch_id_ != branch_id_t::null();
   }
 
-  uint64_t 
-  sub_entities() const
+  /*!
+   * Return true if the entity is local in this process
+   */
+  bool
+  is_local() const 
   {
-    return sub_entities_;
+    return (locality_ == LOCAL || locality_ == EXCL || locality_ == SHARED); 
   }
 
   void 
-  set_sub_entities(
-      uint64_t sub_entities)
+  setLocality(locality loc)
   {
-    sub_entities_ = sub_entities;
+    locality_ = loc;
   }
-
+  
+  locality 
+  getLocality()
+  {
+    return locality_;
+  };
 
 protected:
   template<class P>
@@ -156,32 +131,30 @@ protected:
 
   void
   set_id_(
-    branch_id_t id
+    entity_id_t id
   )
   {
     id_ = id;
   }
 
-  action
-  requested_action_()
+  void
+  set_branch_id_(
+    branch_id_t bid
+  )
   {
-    return action_;
+    branch_id_ = bid;
   }
- 
-  action action_;
 
-  branch_id_t id_;
+  branch_id_t branch_id_;
+  entity_id_t id_;
 
-  uint64_t sub_entities_; // Subentities in the leaves the subtree
-
-  bool leaf_ = true; 
-
+  locality locality_;
 };
-
+ 
 } // namespace topology
 } // namespace flecsi
 
-#endif // flecsi_topology_tree_branch_h
+#endif // flecsi_topology_tree_entity_h
 
 /*~-------------------------------------------------------------------------~-*
  * Formatting options for vim.

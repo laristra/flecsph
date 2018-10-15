@@ -99,10 +99,9 @@ public:
 
     // Function used in the tree structure 
     const point_t& coordinates() const {return position_;}
-    const point_t& getPosition() const {return position_;}
     body* getBody(){return bodyptr_;};
     int getOwner(){return owner_;};
-    element_t getMass(){return mass_;};
+    element_t mass(){return mass_;};
     int64_t getId(){return id_;}; 
     
     void setBody(body * bodyptr){bodyptr_ = bodyptr;};
@@ -257,29 +256,6 @@ public:
         // For dimension 2, display base 4
         ostr << std::bitset<64>(id_);
       }
-      // Old display group of bits based on the dimension
-      //constexpr int_t mask = ((int_t(1) << dimension) - 1) << bits - dimension;
-      //size_t d = max_depth;
-      //int_t id = id_;
-      //
-      //while((id & mask) == int_t(0))
-      //{
-      //  --d;
-      //  id <<= dimension;
-      //}
-      //if(d == 0)
-      //{
-      //  ostr << "<root>";
-      //  return;
-      //}
-      //id <<= 1 + (bits - 1) % dimension;
-      //for(size_t i = 1; i <= d; ++i)
-      //{
-      //  int_t val = (id & mask) >> (bits - dimension);
-      //  ostr << std::oct << val << std::dec; 
-      //  //ostr << i << ":" << std::bitset<dimension>(val) << " ";
-      //  id <<= dimension;
-      //}
     }
 
     bool
@@ -424,19 +400,21 @@ public:
       return p;
     }
 
-    point_t getPosition(){return coordinates_;};
-    element_t getMass(){return mass_;};
-    //element_t getRadius(){return radius_;};
-    point_t getBMin(){return bmin_;};
-    point_t getBMax(){return bmax_;};
-    void setPosition(point_t position){coordinates_ = position;};
-    void setMass(element_t mass){mass_ = mass;};
-    //void setRadius(element_t radius){radius_ = radius;};
-    void setBMax(point_t bmax){bmax_ = bmax;};
-    void setBMin(point_t bmin){bmin_ = bmin;};
+    point_t coordinates(){return coordinates_;};
+    element_t mass(){return mass_;};
+    element_t radius(){return radius_;};
+    point_t bmin(){return bmin_;};
+    point_t bmax(){return bmax_;};
+    void set_coordinates(point_t& coordinates){coordinates_=coordinates;};
+    void set_mass(element_t mass){mass_ = mass;};
+    void set_radius(element_t radius){radius_ = radius;};
+    void set_bmax(point_t bmax){bmax_ = bmax;};
+    void set_bmin(point_t bmin){bmin_ = bmin;};
 
    private:
-    //std::vector<std::vector<body_holder*>> ents_;
+    point_t coordinates_; 
+    double mass_; 
+    double radius_;
     std::vector<body_holder*> ents_; 
     point_t bmax_;
     point_t bmin_;
@@ -447,6 +425,11 @@ public:
   }
 
   using branch_t = branch;
+
+
+
+  // Add the tree traversal specific for SPH 
+  
 
 }; // class tree_policy
 

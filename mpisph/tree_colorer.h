@@ -384,9 +384,9 @@ public:
             recv_search_branches[j][1]);
         for(auto ent: ents){
           tmpsendbuffer.push_back(body_holder_mpi_t{
-            ent->getPosition(),
+            ent->coordinates(),
             rank,
-            ent->getMass(),
+            ent->mass(),
             ent->getBody()->getId()});
         }
       }

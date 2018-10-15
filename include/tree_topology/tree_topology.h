@@ -55,96 +55,25 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/topology/index_space.h"
 
-#include "morton_branch_id.h"
+#include "morton_id.h"
 #include "tree_branch.h"
+#include "tree_entity.h"
 #include "tree_geometry.h"
-
-/*
-#define np(X)                                                            \
- std::cout << __FILE__ << ":" << __LINE__ << ": " << __PRETTY_FUNCTION__ \
-           << ": " << #X << " = " << (X) << std::endl
-
-#define hp(X)                                                            \
- std::cout << __FILE__ << ":" << __LINE__ << ": " << __PRETTY_FUNCTION__ \
-           << ": " << #X << " = " << std::hex << (X) << std::endl
-*/
 
 namespace flecsi {
 namespace topology {
 
-  /*!
-  All tree entities have an associated entity id of this type which is needed
-  to interface with the index space.
- */
-class entity_id_t{
-public:
-  entity_id_t()
-  {}
 
-  entity_id_t(
-    const entity_id_t& id
-  )
-  : id_(id.id_)
-  {}
-
-  entity_id_t(
-    size_t id
-  )
-  : id_(id)
-  {}
-
-  operator size_t() const
-  {
-    return id_;
-  }
-
-  entity_id_t&
-  operator=(
-    const entity_id_t& id
-  )
-  {
-    id_ = id.id_;
-    return *this;
-  }
-
-  size_t 
-  value_()
-  {
-    return id_;
-  }
-
-  size_t
-  index_space_index() const
-  {
-    return id_;
-  }
-
-private:
-  size_t id_;
-};
-
+// Hasher for the branch id used in the unordered_map data structure
 template<
   typename T,
-  size_t D
->
-std::ostream&
-operator<<(
-  std::ostream& ostr,
-  const branch_id<T,D>& id
-)
-{
-  id.output_(ostr);
-  return ostr;
-}
-
-template<
-  typename T,
-  size_t D
+  size_t D,
+  class IDTYPE=morton_id<T,D>
 >
 struct branch_id_hasher__{
   size_t
   operator()(
-    const branch_id<T, D>& k
+    const IDTYPE& k
   ) const
   {
     return std::hash<T>()(k.value_());
@@ -164,39 +93,25 @@ public:
   using Policy = P;
 
   static const size_t dimension = Policy::dimension;
-
   using element_t = typename Policy::element_t;
-
   using point_t = point__<element_t, dimension>;
-
   using range_t = std::pair<element_t, element_t>;
-
   using branch_int_t = typename Policy::branch_int_t;
-
-  using branch_id_t = branch_id<branch_int_t, dimension>;
-
+  using branch_id_t = morton_id<branch_int_t, dimension>;
   using branch_id_vector_t = std::vector<branch_id_t>;
 
 
   using branch_t = typename Policy::branch_t;
-
   using branch_vector_t = std::vector<branch_t*>;
 
 
   using entity_t = typename Policy::entity_t;
-
   using entity_vector_t = std::vector<entity_t*>;
-
   using apply_function = std::function<void(branch_t&)>;
-
   using entity_id_vector_t = std::vector<entity_id_t>;
-
   using geometry_t = tree_geometry<element_t, dimension>;
-
   using entity_space_t = index_space__<entity_t*, true, true, false>;
-
   using branch_space_t = index_space__<branch_t*, true, true, false>;
-
   using subentity_space_t = index_space__<entity_t*, false, true, false>;
 
   struct filter_valid{
@@ -337,7 +252,7 @@ public:
         for(auto child: *b)
         {
           nchildren++;
-          element_t childmass = child->getMass(); 
+          element_t childmass = child->mass(); 
           
           for(size_t d = 0; d < dimension; ++d)
           {
@@ -369,7 +284,7 @@ public:
           }
           for(size_t d = 0; d < dimension; ++d)
           {
-            coordinates[d] += branch->get_coordinates()[d]*branch->mass(); 
+            coordinates[d] += branch->coordinates()[d]*branch->mass(); 
           }
         }
 
@@ -423,7 +338,7 @@ public:
         {
           if(child->is_local()){
             nchildren++;
-            element_t childmass = child->getMass(); 
+            element_t childmass = child->mass(); 
           
             for(size_t d = 0; d < dimension; ++d)
             {
@@ -457,7 +372,7 @@ public:
           }
           for(size_t d = 0; d < dimension; ++d)
           {
-            coordinates[d] += branch->get_coordinates()[d]*branch->mass(); 
+            coordinates[d] += branch->coordinates()[d]*branch->mass(); 
           }
         }
 
@@ -662,7 +577,6 @@ public:
   {
     std::stack<branch_t*> stk; 
     stk.push(root());
-    //std::cout<<"sub_cells_inter: coord="<<b->get_coordinates()<<std::endl<<std::flush;
     while(!stk.empty()){
       branch_t* c = stk.top();
       stk.pop();
@@ -711,7 +625,7 @@ public:
       }else{
         for(int i=0; i<(1<<dimension); ++i){
           branch_t * next = child(c,i);
-          if(next->getMass() > 0.){
+          if(next->mass() > 0.){
             stk.push(next);
           }
         }
@@ -819,44 +733,6 @@ public:
     return ents;
   }
 
-  /*!
-    Return an index space containing all entities within the specified
-    spheroid. (Concurrent version.)
-   */
-  subentity_space_t
-  find_in_radius(
-    thread_pool& pool,
-    const point_t& center,
-    element_t radius
-  )
-  {
-
-    size_t queue_depth = get_queue_depth(pool);
-    size_t m = branch_int_t(1) << queue_depth * P::dimension;
-
-    auto ef =
-    [&](entity_t* ent, const point_t& center, element_t radius) -> bool{
-      return geometry_t::within(ent->coordinates(), center, radius);
-    };
-
-    virtual_semaphore sem(1 - int(m));
-    std::mutex mtx;
-
-    subentity_space_t ents;
-    ents.set_master(entities_);
-
-    size_t depth;
-    element_t size;
-    branch_t* b = find_start_(center, radius, depth, size);
-    queue_depth += depth;
-
-    find_(pool, sem, mtx, queue_depth, depth, b, size, ents, ef,
-          geometry_t::intersects, center, radius);
-
-    sem.acquire();
-
-    return ents;
-  }
 
 /*!
     Return an index space containing all entities within the specified
@@ -940,57 +816,6 @@ public:
       branch_t* b = find_start_(center, radius, depth, size);
 
       find_(b, size, ents, ef, geometry_t::intersects_box, min, max);
-
-      return ents;
-    }
-
-    /*!
-      Return an index space containing all entities within the specified
-      box. (Concurrent version.)
-     */
-    subentity_space_t
-    find_in_box(
-      thread_pool& pool,
-      const point_t& min,
-      const point_t& max
-    )
-    {
-      size_t queue_depth = get_queue_depth(pool);
-      size_t m = branch_int_t(1) << queue_depth * P::dimension;
-
-      auto ef =
-      [&](entity_t* ent, const point_t& min, const point_t& max) -> bool{
-        return geometry_t::within_box(ent->coordinates(), min, max);
-      };
-
-      element_t radius = 0;
-      for(size_t d = 0; d < dimension; ++d)
-      {
-        radius = std::max(radius, max[d] - min[d]);
-      }
-
-      constexpr element_t c = std::sqrt(element_t(2))/element_t(2);
-      radius *= c;
-
-      point_t center = min;
-      center += radius;
-
-      size_t depth;
-      element_t size;
-      branch_t* b = find_start_(center, radius, depth, size);
-
-      subentity_space_t ents;
-      ents.set_master(entities_);
-
-      queue_depth += depth;
-
-      virtual_semaphore sem(1 - int(m));
-      std::mutex mtx;
-
-      find_(pool, sem, mtx, queue_depth, depth, b, size, ents, ef,
-            geometry_t::intersects_box, min, max);
-
-      sem.acquire();
 
       return ents;
     }
@@ -1240,32 +1065,6 @@ public:
       visit_(b, 0, std::forward<F>(f), std::forward<ARGS>(args)...);
     }
 
-    /*!
-      Visit and apply callable object f and args on all sub-branches of branch b.
-      (Concurrent version.)
-     */
-    template<
-      typename F,
-      typename... ARGS
-    >
-    void
-    visit(
-      thread_pool& pool,
-      branch_t* b,
-      F&& f,
-      ARGS&&... args
-    )
-    {
-      size_t queue_depth = get_queue_depth(pool);
-      size_t m = branch_int_t(1) << queue_depth * P::dimension;
-
-      virtual_semaphore sem(1 - int(m));
-
-      visit_(pool, sem, b, 0, queue_depth,
-             std::forward<F>(f), std::forward<ARGS>(args)...);
-
-      sem.acquire();
-    }
 
     /*!
       Visit and apply callable object f and args on all sub-entities of branch b.
@@ -1297,133 +1096,8 @@ public:
       }
     }
 
-    /*!
-      Visit and apply callable object f and args on all sub-entities of branch b.
-      (Concurrent version.)
-     */
-    template<
-      typename F,
-      typename... ARGS
-    >
-    void
-    visit_children(
-      thread_pool& pool,
-      branch_t* b,
-      F&& f,
-      ARGS&&... args
-    )
-    {
-      size_t queue_depth = get_queue_depth(pool);
-      size_t m = branch_int_t(1) << queue_depth * P::dimension;
 
-      virtual_semaphore sem(1 - int(m));
-
-      visit_children_(pool, sem, 0, queue_depth, b,
-                      std::forward<F>(f), std::forward<ARGS>(args)...);
-
-      sem.acquire();
-    }
-#if 0 
-    /*!
-      Save (serialize) the tree to an archive.
-     */
-    template<
-      typename A
-    >
-    void
-    save(
-      A & archive
-    ) const
-    {
-      size_t size;
-      char* data = serialize_(size);
-      archive.saveBinary(&size, sizeof(size));
-
-      archive.saveBinary(data, size);
-         
-      delete [] data;
-    } // save
-
-    /*!
-      Load (de-serialize) the tree from an archive.
-     */
-    template<
-      typename A
-    >
-    void
-    load(
-      A & archive
-    )
-    {
-      size_t size;
-      archive.loadBinary(&size, sizeof(size));
-
-      char* data = new char [size];
-      archive.loadBinary(data, size);
-      unserialize_(data);
-      delete [] data;
-    } // load
-
-    char*
-    serialize_(
-      uint64_t& size
-    )
-    {
-      uint64_t num_entities = entities_.size();
-
-      const size_t alloc_size =
-        sizeof(num_entities) + num_entities * sizeof(branch_id_t);
-
-      size = alloc_size;
-
-      char* buf = new char [alloc_size];
-      uint64_t pos = 0;
-
-      memcpy(buf + pos, &num_entities, sizeof(num_entities));
-      pos += sizeof(num_entities);
-
-      for(size_t entity_id = 0; entity_id < num_entities; ++entity_id)
-      {
-        entity_t* ent = entities_[entity_id];
-        branch_int_t bid = ent->get_branch_id().value_();
-        memcpy(buf + pos, &bid, sizeof(bid));
-        pos += sizeof(bid);
-      }
-
-      return buf;
-    }
-
-    void
-    unserialize_(
-      char* buf
-    )
-    {
-      uint64_t pos = 0;
-
-      uint64_t num_entities;
-      memcpy(&num_entities, buf + pos, sizeof(num_entities));
-      pos += sizeof(num_entities);
-
-      for(size_t entity_id = 0; entity_id < num_entities; ++entity_id)
-      {
-        entity_t* ent = new entity_t;
-        ent->set_id_(entity_id);
-
-        entities_.push_back(ent);
-
-        branch_int_t bi;
-        memcpy(&bi, buf + pos, sizeof(bi));
-        pos += sizeof(bi);
-
-        branch_id_t bid;
-        bid.set_value_(bi);
-
-        insert(ent, bid);
-      }
-    }
- #endif
-
-   /**
+    /**
     * @brief Generic information for the tree topology 
     */
    friend std::ostream& operator<<(std::ostream& os,tree_topology& t )
@@ -1697,90 +1371,6 @@ public:
       }
     }
 
-
-    template<
-      typename EF,
-      typename BF,
-      typename... ARGS
-    >
-    void
-    apply_(
-      thread_pool& pool,
-      virtual_semaphore& sem,
-      size_t queue_depth,
-      size_t depth,
-      branch_t* b,
-      element_t size,
-      EF&& ef,
-      BF&& bf,
-      ARGS&&... args
-    )
-    {
-
-      if(b->is_leaf())
-      {
-        for(auto ent : *b)
-        {
-          ef(ent, std::forward<ARGS>(args)...);
-        }
-
-        size_t m = branch_int_t(1) << (queue_depth - depth) * P::dimension;
-
-        for(size_t i = 0; i < m; ++i)
-        {
-          sem.release();
-        }
-
-        return;
-      }
-
-      size /= 2;
-      ++depth;
-
-      for(size_t i = 0; i < branch_t::num_children; ++i)
-      {
-        branch_t* ci = b->template child_<branch_t>(i);
-
-        if(bf(ci->coordinates(range_),
-              size, scale_, std::forward<ARGS>(args)...))
-        {
-          if(depth == queue_depth)
-          {
-
-            auto f = [&, size, ci]()
-            {
-              apply_(ci, size,
-                std::forward<EF>(ef), std::forward<BF>(bf),
-                std::forward<ARGS>(args)...);
-
-              sem.release();
-            };
-
-            pool.queue(f);
-          }
-          else{
-            apply_(pool, sem, queue_depth, depth, ci, size,
-                   std::forward<EF>(ef), std::forward<BF>(bf),
-                   std::forward<ARGS>(args)...);
-          }
-        }
-        else{
-          if(depth > queue_depth)
-          {
-            continue;
-          }
-
-          size_t m =
-            branch_int_t(1) << (queue_depth - depth) * P::dimension;
-
-          for(size_t i = 0; i < m; ++i)
-          {
-            sem.release();
-          }
-        }
-      }
-    }
-
     template<
       typename EF,
       typename BF,
@@ -1825,103 +1415,6 @@ public:
       }
     }
 
-
-    template<
-      typename EF,
-      typename BF,
-      typename... ARGS
-    >
-    void
-    find_(
-      thread_pool& pool,
-      virtual_semaphore& sem,
-      std::mutex& mtx,
-      size_t queue_depth,
-      size_t depth,
-      branch_t* b,
-      element_t size,
-      subentity_space_t& ents,
-      EF&& ef,
-      BF&& bf,
-      ARGS&&... args
-    )
-    {
-
-      if(b->is_leaf())
-      {
-        mtx.lock();
-        for(auto ent : *b)
-        {
-          if(ef(ent, std::forward<ARGS>(args)...))
-          {
-            ents.push_back(ent);
-          }
-        }
-        mtx.unlock();
-
-        size_t m = branch_int_t(1) << (queue_depth - depth) * P::dimension;
-
-        for(size_t i = 0; i < m; ++i)
-        {
-          sem.release();
-        }
-
-        return;
-      }
-
-      size /= 2;
-      ++depth;
-
-      for(size_t i = 0; i < branch_t::num_children; ++i)
-      {
-        branch_t* ci = b->template child_<branch_t>(i);
-
-        if(bf(ci->coordinates(range_),
-              size, scale_, std::forward<ARGS>(args)...))
-        {
-          if(depth == queue_depth)
-          {
-
-            auto f = [&, size, ci]()
-            {
-              subentity_space_t branch_ents;
-
-              find_(ci, size, branch_ents,
-                std::forward<EF>(ef), std::forward<BF>(bf),
-                std::forward<ARGS>(args)...);
-
-              mtx.lock();
-              ents.append(branch_ents);
-              mtx.unlock();
-
-              sem.release();
-            };
-
-            pool.queue(f);
-          }
-          else{
-            find_(pool, sem, mtx, queue_depth, depth, ci, size, ents,
-                  std::forward<EF>(ef), std::forward<BF>(bf),
-                  std::forward<ARGS>(args)...);
-          }
-        }
-        else{
-          if(depth > queue_depth)
-          {
-            continue;
-          }
-
-          size_t m =
-            branch_int_t(1) << (queue_depth - depth) * P::dimension;
-
-          for(size_t i = 0; i < m; ++i)
-          {
-            sem.release();
-          }
-        }
-      }
-    }
-
     template<
       typename F,
       typename... ARGS
@@ -1949,121 +1442,6 @@ public:
         visit_(bi, depth + 1, std::forward<F>(f), std::forward<ARGS>(args)...);
       }
     }
-
-    template<
-      typename F,
-      typename... ARGS
-    >
-    void
-    visit_(
-      thread_pool& pool,
-      virtual_semaphore& sem,
-      branch_t* b,
-      size_t depth,
-      size_t queue_depth,
-      F&& f,
-      ARGS&&... args
-    )
-    {
-
-      if(depth == queue_depth)
-      {
-        auto vf = [&, depth, b]()
-        {
-          visit_(b, depth, std::forward<F>(f), std::forward<ARGS>(args)...);
-          sem.release();
-        };
-
-        pool.queue(vf);
-        return;
-      }
-
-      if(f(b, depth, std::forward<ARGS>(args)...))
-      {
-        size_t m = branch_int_t(1) << (queue_depth - depth) * P::dimension;
-
-        for(size_t i = 0; i < m; ++i)
-        {
-          sem.release();
-        }
-
-        return;
-      }
-
-      if(b->is_leaf())
-      {
-        size_t m = branch_int_t(1) << (queue_depth - depth) * P::dimension;
-
-        for(size_t i = 0; i < m; ++i)
-        {
-          sem.release();
-        }
-
-        return;
-      }
-
-      for(size_t i = 0; i < branch_t::num_children; ++i)
-      {
-        branch_t* bi = b->template child_<branch_t>(i);
-
-        visit_(pool, sem, bi, depth + 1, queue_depth,
-               std::forward<F>(f), std::forward<ARGS>(args)...);
-      }
-    }
-
-    template<
-      typename F,
-      typename... ARGS
-    >
-    void
-    visit_children_(
-      thread_pool& pool,
-      virtual_semaphore& sem,
-      size_t depth,
-      size_t queue_depth,
-      branch_t* b,
-      F&& f,
-      ARGS&&... args
-    )
-    {
-
-      if(depth == queue_depth)
-      {
-        auto vf = [&, b]()
-        {
-          visit_children(b, std::forward<F>(f), std::forward<ARGS>(args)...);
-          sem.release();
-        };
-
-        pool.queue(vf);
-        return;
-      }
-
-      if(b->is_leaf())
-      {
-        for(auto ent : *b)
-        {
-          f(ent, std::forward<ARGS>(args)...);
-        }
-
-        size_t m = branch_int_t(1) << (queue_depth - depth) * P::dimension;
-
-        for(size_t i = 0; i < m; ++i)
-        {
-          sem.release();
-        }
-
-        return;
-      }
-
-      for(size_t i = 0; i < branch_t::num_children; ++i)
-      {
-        branch_t* bi = b->template child_<branch_t>(i);
-        visit_children_(pool, sem, depth + 1, queue_depth,
-                        bi, std::forward<F>(f), std::forward<ARGS>(args)...);
-      }
-    }
- 
     
   // Declared before, here for readability 
   //using branch_map_t = std::unordered_map<branch_id_t, branch_t,
@@ -2078,105 +1456,7 @@ public:
   point__<element_t, dimension> scale_;
   element_t max_scale_;
 };
-  
-/*!
-  Tree entity base class.
- */
-template<
-  typename T,
-  size_t D
->
-class tree_entity{
-public:
 
-  using id_t = entity_id_t;
-
-  using branch_id_t = branch_id<T, D>;
-  
-protected:
-  enum locality {LOCAL=0,NONLOCAL=1,SHARED=2,EXCL=3,GHOST=4}; 
-  
-public:
-
-  tree_entity()
-  : branch_id_(branch_id_t::null()),
-  locality_(NONLOCAL)
-  {}
-
-  branch_id_t
-  get_branch_id() const
-  {
-    return branch_id_;
-  }
-
-  entity_id_t
-  id() const
-  {
-    return id_;
-  }
-
-  entity_id_t
-  index_space_id() const
-  {
-    return id_;
-  }
-
-  /*!
-    Return whether the entity is current inserted in a tree.
-   */
-  bool
-  is_valid() const
-  {
-    return branch_id_ != branch_id_t::null();
-  }
-
-  /*!
-   * Return true if the entity is local in this process
-   */
-  bool
-  is_local() const 
-  {
-    return (locality_ == LOCAL || locality_ == EXCL || locality_ == SHARED); 
-  }
-
-  void 
-  setLocality(locality loc)
-  {
-    locality_ = loc;
-  }
-  
-  locality 
-  getLocality()
-  {
-    return locality_;
-  };
-
-protected:
-  template<class P>
-  friend class tree_topology;
-
-  void
-  set_id_(
-    entity_id_t id
-  )
-  {
-    id_ = id;
-  }
-
-  void
-  set_branch_id_(
-    branch_id_t bid
-  )
-  {
-    branch_id_ = bid;
-  }
-
-  branch_id_t branch_id_;
-  entity_id_t id_;
-
-  locality locality_;
-};
- 
 } // namespace topology
 } // namespace flecsi
 

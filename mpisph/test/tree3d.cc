@@ -51,7 +51,7 @@ TEST(tree_topology, neighbors_sphere) {
 
   t.update_branches(0.1);
 
-  ASSERT_TRUE(t.root()->getMass() == n*mass);
+  ASSERT_TRUE(t.root()->mass() == n*mass);
 
   for(size_t i = 0; i < n; ++i){
     auto ent = ents[i];
@@ -97,7 +97,7 @@ TEST(tree_topology, neighbors_box) {
 
   t.update_branches(0.1);
   
-  ASSERT_TRUE(t.root()->getMass() == n*mass);
+  ASSERT_TRUE(t.root()->mass() == n*mass);
 
   for(size_t i = 0; i < n; ++i){
     auto ent = ents[i];
@@ -178,8 +178,7 @@ TEST(tree_topology,smoothing){
   }
 
   t.update_branches(2*h);
-  //std::cout<<t.root()->getMass()<<" == "<<nparticles*mass<<std::endl; 
-  ASSERT_TRUE(t.root()->getMass() == nparticles*mass); 
+  ASSERT_TRUE(t.root()->mass() == nparticles*mass); 
 
 
   for(size_t iter=0;iter < niter ; ++iter){

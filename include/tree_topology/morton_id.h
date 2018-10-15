@@ -12,13 +12,13 @@
  * All rights reserved
  *~--------------------------------------------------------------------------~*/
 
-#ifndef flecsi_topology_morton_branch_id_h
-#define flecsi_topology_morton_branch_id_h
+#ifndef flecsi_topology_morton_id_h
+#define flecsi_topology_morton_id_h
 
 /*!
-  \file tree_topology.h
-  \authors nickm@lanl.gov
-  \date Initial file creation: Apr 5, 2016
+  \file morton_id.h
+  \authors jloiseau@lanl.gov
+  \date October 9, 2018
  */
 
 #include <map>
@@ -33,8 +33,6 @@
 #include <iostream>
 #include <set>
 #include <functional>
-#include <mutex>
-#include <stack>
 #include <math.h>
 #include <float.h>
 
@@ -49,37 +47,36 @@ namespace flecsi{
 namespace topology{
 
 /*!
-  This class implements a hashed/Morton-style branch id that can be
+  This class implements a hashed/Morton-style id that can be
   parameterized on arbitrary dimension D and integer type T.
  */
 template<
   typename T,
   size_t D
 >
-class branch_id
+class morton_id
 {
 public:
+
   using int_t = T;
-
+  
   static const size_t dimension = D;
-
   static constexpr size_t bits = sizeof(int_t) * 8;
-
   static constexpr size_t max_depth = (bits - 1)/dimension;
 
-  branch_id()
+  morton_id()
   : id_(0)
   {}
 
   /*!
-    Construct a branch id from an array of dimensions and range for each
+    Construct the id from an array of dimensions and range for each
     dimension. The specified depth may be less than the max allowed depth for
-    the branch id.
+    the id.
    */
   template<
     typename S
   >
-  branch_id(
+  morton_id(
     const std::array<point__<S, dimension>, 2>& range,
     const point__<S, dimension>& p,
     size_t depth)
@@ -106,34 +103,34 @@ public:
     }
   }
 
-  constexpr branch_id(const branch_id& bid)
+  constexpr morton_id(const morton_id& bid)
   : id_(bid.id_)
   {}
 
   /*!
-    Get the root branch id (depth 0).
+    Get the root id (depth 0).
    */
   static
   constexpr
-  branch_id
+  morton_id
   root()
   {
-    return branch_id(int_t(1) << (bits - 1) % dimension);
+    return morton_id(int_t(1) << (bits - 1) % dimension);
   }
 
   /*!
-    Get the null branch id.
+    Get the null id.
    */
   static
   constexpr
-  branch_id
+  morton_id
   null()
   {
-    return branch_id(0);
+    return morton_id(0);
   }
 
   /*!
-    Check if branch id is null.
+    Check if id is null.
    */
   constexpr
   bool
@@ -143,7 +140,7 @@ public:
   }
 
   /*!
-    Find the depth of this branch id.
+    Find the depth of this id.
    */
   size_t
   depth() const
@@ -159,9 +156,9 @@ public:
     return d;
   }
 
-  branch_id&
+  morton_id&
   operator=(
-    const branch_id& bid
+    const morton_id& bid
   )
   {
     id_ = bid.id_;
@@ -171,7 +168,7 @@ public:
   constexpr
   bool
   operator==(
-    const branch_id& bid
+    const morton_id& bid
   ) const
   {
     return id_ == bid.id_;
@@ -180,14 +177,14 @@ public:
   constexpr
   bool
   operator!=(
-    const branch_id& bid
+    const morton_id& bid
   ) const
   {
     return id_ != bid.id_;
   }
 
   /*!
-    Push bits onto the end of this branch id.
+    Push bits onto the end of this id.
    */
   void push(int_t bits)
   {
@@ -198,7 +195,7 @@ public:
   }
 
   /*!
-    Pop the bits of greatest depth off this branch id.
+    Pop the bits of greatest depth off this id.
    */
   void pop()
   {
@@ -207,7 +204,7 @@ public:
   }
 
   /*!
-    Pop the depth d bits from the end of this this branch id.
+    Pop the depth d bits from the end of this this id.
    */
   void pop(
     size_t d
@@ -218,17 +215,17 @@ public:
   }
 
   /*!
-    Return the parent of this branch id (depth - 1)
+    Return the parent of this id (depth - 1)
    */
   constexpr
-  branch_id
+  morton_id
   parent() const
   {
-    return branch_id(id_ >> dimension);
+    return morton_id(id_ >> dimension);
   }
 
   /*!
-    Truncate (repeatedly pop) this branch id until it of depth to_depth.
+    Truncate (repeatedly pop) this id until it of depth to_depth.
    */
   void
   truncate(
@@ -295,14 +292,14 @@ public:
 
   bool
   operator<(
-    const branch_id& bid
+    const morton_id& bid
   ) const
   {
     return id_ < bid.id_;
   }
 
   /*!
-    Convert this branch id to coordinates in range.
+    Convert this id to coordinates in range.
    */
   template<
     typename S
@@ -345,14 +342,27 @@ private:
   int_t id_;
 
   constexpr
-  branch_id(
+  morton_id(
     int_t id
   )
   : id_(id)
   {}
 };
 
+// output for morton id 
+template<
+  typename T, 
+  size_t D> 
+std::ostream&
+operator<<(
+  std::ostream& ostr,
+  const morton_id<T,D>& k)
+{
+  k.output_(ostr);
+  return ostr;
+}
+
 } // namespace topology 
 } // namespace flecsi
 
-#endif // flecsi_topology_morton_branch_id_h
+#endif // flecsi_topology_morton_id_h

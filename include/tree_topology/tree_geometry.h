@@ -44,7 +44,6 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/topology/index_space.h"
 
-#include "morton_branch_id.h"
 
 /*
 #define np(X)                                                            \
