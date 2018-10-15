@@ -103,6 +103,7 @@ include_directories(${HDF5_INCLUDE_DIR})
 #------------------------------------------------------------------------------#
 cinch_add_application_directory("mpisph/")
 cinch_add_application_directory("include/physics/test")
+cinch_add_application_directory("include/tree_topology/test")
 
 #------------------------------------------------------------------------------#
 # Add application targets

@@ -71,8 +71,6 @@ TEST(tree_topology, neighbors_sphere) {
       }
     }
 
-    //std::cout<<s1.size()<<" && " << s2.size()<<std::endl;
-
     ASSERT_TRUE(s1 == s2);
   }
 }

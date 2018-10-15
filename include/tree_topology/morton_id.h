@@ -356,25 +356,46 @@ public:
       const std::array<point__<S,dimension>, 2>& range)
   { 
     // The result range 
-    std::array<point__<S,dimension>, 2> result = range; 
+    std::array<point__<S,dimension>, 2> result;
+    result[0] = range[0]; 
+    result[1] = range[1]; 
     // Copy the key 
-    morton_id tmp = *this; 
-    morton_id root = root(); 
-    // Pop while not empty 
-    while(tmp != root)
+    int_t tmp = id_; 
+    int_t root = morton_id::root().id_; 
+    
+    // Extract x,y and z 
+    std::array<int_t, dimension> coords;
+    coords.fill(int_t(0));
+
+    int_t id = id_;
+    size_t d = 0;
+
+    while(id != root)
     {
-      // Read last values 
-      int_t cur = tmp & ((1<<dimension)-1); 
-      for(size_t d = 0 ; d < dimension; ++d)
+      for(size_t j = 0; j < dimension; ++j)
       {
-        point__<S,dimension> nu = (range[d][0]+range[d][1])/2.;
-        if(cur & (1<<d)){
-          result[d][1] = nu; 
+        coords[j] |= (((int_t(1) << j) & id) >> j) << d;
+      }
+
+      id >>= dimension;
+      ++d;
+    }
+
+    std::cout<<"depth="<<d<<std::endl;
+   
+    for(size_t i = 0 ; i < dimension ; ++i)
+    {
+      // apply the reduction 
+      for(size_t j = d ; j > 0; --j)
+      {
+        double nu = (result[0][i]+result[1][i])/2.;
+        if(coords[i] & (int_t(1)<<j-1))
+        {
+          result[0][i] = nu; 
         }else{
-          result[d][0] = nu; 
+          result[1][i] = nu;
         }
       }
-      tmp.pop(); 
     }
     return result; 
   }
