@@ -103,6 +103,20 @@ public:
     }
   }
 
+  /*!
+    Construct the id from an array of dimensions and range for each
+    dimension. Construct with the max depth available.
+   */
+  template<
+    typename S
+  >
+  morton_id(
+    const std::array<point__<S, dimension>, 2>& range,
+    const point__<S, dimension>& p)
+  : morton_id(range,p,max_depth)
+  {}
+
+
   constexpr morton_id(const morton_id& bid)
   : id_(bid.id_)
   {}
@@ -282,14 +296,6 @@ public:
     return id_;
   }
 
-  void
-  set_value_(
-    int_t value
-  )
-  {
-    id_ = value;
-  }
-
   bool
   operator<(
     const morton_id& bid
@@ -336,6 +342,41 @@ public:
       coords[j] <<= max_depth - d;
       p[j] = min + scale * S(coords[j])/m;
     }
+  }
+
+  /**
+   * @brief Compute the range of a branch from its key 
+   * The space is recursively decomposed regarding the dimension 
+   */
+  template<
+    typename S
+  >
+  std::array<point__<S,dimension>, 2>
+  range(
+      const std::array<point__<S,dimension>, 2>& range)
+  { 
+    // The result range 
+    std::array<point__<S,dimension>, 2> result = range; 
+    // Copy the key 
+    morton_id tmp = *this; 
+    morton_id root = root(); 
+    // Pop while not empty 
+    while(tmp != root)
+    {
+      // Read last values 
+      int_t cur = tmp & ((1<<dimension)-1); 
+      for(size_t d = 0 ; d < dimension; ++d)
+      {
+        point__<S,dimension> nu = (range[d][0]+range[d][1])/2.;
+        if(cur & (1<<d)){
+          result[d][1] = nu; 
+        }else{
+          result[d][0] = nu; 
+        }
+      }
+      tmp.pop(); 
+    }
+    return result; 
   }
 
 private:

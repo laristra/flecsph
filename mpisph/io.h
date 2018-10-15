@@ -330,7 +330,6 @@ void inputDataHDF5(
     bodies[i].second.setType(dataInt32[i]);
   }
 
-
   delete[] dataX;
   delete[] dataY;
   delete[] dataZ;

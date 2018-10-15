@@ -251,20 +251,17 @@ public:
 
     // Then compute the range of the system 
     tcolorer_.mpi_compute_range(localbodies_,range_,smoothinglength_);
-
+    // Generate the tree based on the range
+    tree_ = new tree_topology_t(range_[0],range_[1]);
 
     // Setup the keys range 
-    entity_key_t::set_range(range_); 
+    //entity_key_t::set_range(range_); 
     // Compute the keys 
     for(auto& bi:  localbodies_){
-      bi.first = entity_key_t(/*range_,*/bi.second.coordinates());
+      bi.first = entity_key_t(tree_->range(),bi.second.coordinates());
     }
 
-
     tcolorer_.mpi_qsort(localbodies_,totalnbodies_);
-
-    // Generate the tree 
-    tree_ = new tree_topology_t(range_[0],range_[1]);
 
 #ifdef OUTPUT_TREE_INFO
     clog(trace) << "Construction of the tree"<<std::endl;

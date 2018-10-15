@@ -68,7 +68,7 @@ public:
   using branch_id_t = morton_id<T, D>;
   
 protected:
-  enum locality {LOCAL=0,NONLOCAL=1,SHARED=2,EXCL=3,GHOST=4}; 
+  enum e_locality_ {LOCAL=0,NONLOCAL=1,SHARED=2,EXCL=3,GHOST=4}; 
   
 public:
 
@@ -114,16 +114,28 @@ public:
   }
 
   void 
-  setLocality(locality loc)
+  set_locality(e_locality_ loc)
   {
     locality_ = loc;
   }
   
-  locality 
-  getLocality()
+  e_locality_ 
+  locality()
   {
     return locality_;
-  };
+  }
+
+  void 
+  set_owner(int64_t owner)
+  {
+    owner_ = owner;
+  }
+
+  int64_t 
+  owner()
+  {
+    return owner_; 
+  }
 
 protected:
   template<class P>
@@ -148,7 +160,8 @@ protected:
   branch_id_t branch_id_;
   entity_id_t id_;
 
-  locality locality_;
+  e_locality_ locality_;
+  int64_t owner_;
 };
  
 } // namespace topology

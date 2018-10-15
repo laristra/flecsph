@@ -136,6 +136,7 @@ namespace mpi_utils{
     MPI_Allreduce(MPI_IN_PLACE,&value[0],gdimension,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
   }
 
+#if 0 
 
   /**
    * @brief      Export to a file the current tree in memory 
@@ -203,7 +204,7 @@ namespace mpi_utils{
         }    
         for(auto ent: *cur)
         {
-          entity_key_t key(ent->coordinates());
+          entity_key_t key(tree.range(),ent->coordinates());
           int64_t key_int = key.truncate_value(tree.max_depth()+2);
           if(gdimension == 3){
             output<<std::oct<<cur->id().value_()<<
@@ -241,6 +242,8 @@ namespace mpi_utils{
     output<<"}"<<std::endl;
     output.close();
   }
+
+#endif 
 
   /**
  * @brief      Compute the local range of particles

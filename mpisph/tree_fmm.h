@@ -710,7 +710,7 @@ private:
                 particles_count[owner]++;
                 particles.push_back(
                   body_holder_fmm_t{
-                    bi->coordinates(),owner,bi->mass(),bi->getId(),sink_id
+                    bi->coordinates(),owner,bi->mass(),bi->id(),sink_id
                   }
                 );
               }

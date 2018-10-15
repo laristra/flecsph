@@ -97,7 +97,7 @@ public:
   using point_t = point__<element_t, dimension>;
   using range_t = std::pair<element_t, element_t>;
   using branch_int_t = typename Policy::branch_int_t;
-  using branch_id_t = morton_id<branch_int_t, dimension>;
+  using branch_id_t = typename Policy::key_t; 
   using branch_id_vector_t = std::vector<branch_id_t>;
 
 
@@ -174,6 +174,14 @@ public:
     branch_map_.clear();
     entities_.clear(); 
   } 
+
+  /** 
+   * @brief Get the range of the current 
+   */
+  const std::array<point__<element_t,dimension>,2>& range()
+  {
+    return range_; 
+  }
 
   /**
    * @brief Get the ci-th child of the given branch.

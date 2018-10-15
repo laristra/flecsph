@@ -86,8 +86,6 @@ public:
   double getElectronfraction() const{return electronfraction_;}
   double getDensity() const{return density_;}
   point_t getVelocity() const{return velocity_;}
-  //point_t getHydroForce() const{return hydroforce_;}
-  //point_t getGravForce() const{return gravforce_;}
   point_t getVelocityhalf() const{return velocityhalf_;}
   point_t getAcceleration() const{return acceleration_;}
 
@@ -98,8 +96,8 @@ public:
     }
     return res;
   };
-  //double getDudt(){return dudt_;};
   int64_t getId(){return id_;};
+  flecsi::topology::entity_id_t id(){return id_;};
   double getDt(){return dt_;};
   int getType(){return type_;}; 
 
@@ -203,12 +201,8 @@ private:
   point_t velocityNM1_;
   double maxVisc_; 
   #endif 
-  //point_t lin_momentum_; //TODO : Need to check
-  //double dudt_;
-  //point_t gravforce_;
-  //point_t hydroforce_;
   double dt_;
-  int64_t id_;
+  flecsi::topology::entity_id_t id_;
   int type_; 
 }; // class body 
   

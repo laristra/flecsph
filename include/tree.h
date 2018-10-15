@@ -30,6 +30,7 @@
 
 //#warning "CHANGE TO FLECSI ONE"
 #include "tree_topology/tree_topology.h"
+#include "tree_topology/tree_entity_id.h"
 #include "flecsi/geometry/point.h"
 #include "flecsi/geometry/space_vector.h"
 #include "utils.h"
@@ -65,31 +66,35 @@ public:
   using point_t = flecsi::point__<element_t, dimension>;
   using space_vector_t = flecsi::space_vector<element_t,dimension>;
   using geometry_t = flecsi::topology::tree_geometry<element_t, gdimension>;
+  using id_t = flecsi::topology::entity_id_t;
+  using key_t = flecsi::topology::morton_id<branch_int_t,dimension>;
 
   class body_holder : 
     public flecsi::topology::tree_entity<branch_int_t,dimension>{
   
   public: 
 
-    body_holder(point_t position,
+    body_holder(point_t coordinates,
         body * bodyptr,
-        int owner,
+        size_t owner,
         element_t mass,
-	      int64_t id
+	      id_t id
         )
-      :position_(position),bodyptr_(bodyptr),owner_(owner),mass_(mass),id_(id)
+      : coordinates_(coordinates),bodyptr_(bodyptr),mass_(mass)
     {
       locality_ = bodyptr_==nullptr?NONLOCAL:EXCL;
+      id_ = id; 
+      owner_ = owner; 
     };
 
     body_holder()
-      :position_(point_t{0,0,0}),
+      :coordinates_(point_t{0,0,0}),
        bodyptr_(nullptr),
-       owner_(-1),
-       mass_(0.0),
-       id_(int64_t(0))
+       mass_(0.0)
     {
       locality_ = NONLOCAL;
+      owner_ = -1; 
+      id_ = {};
     };
 
     ~body_holder()
@@ -98,19 +103,18 @@ public:
     }
 
     // Function used in the tree structure 
-    const point_t& coordinates() const {return position_;}
+    const point_t& coordinates() const {return coordinates_;}
     body* getBody(){return bodyptr_;};
-    int getOwner(){return owner_;};
     element_t mass(){return mass_;};
-    int64_t getId(){return id_;}; 
+    id_t id(){return id_;}; 
     
     void setBody(body * bodyptr){bodyptr_ = bodyptr;};
-    void setPosition(point_t position){position_ = position;};
-    void setId(int64_t id){id_ = id;}; 
+    void set_id(id_t& id){id_ = id;}; 
+    void set_coordinates(point_t& coordinates){coordinates_=coordinates;};
 
     friend std::ostream& operator<<(std::ostream& os, const body_holder& b){
       os << std::setprecision(10);
-      os << "Holder. Pos: " <<b.position_ << " Mass: "<< b.mass_ << " "; 
+      os << "Holder. Pos: " <<b.coordinates_ << " Mass: "<< b.mass_ << " "; 
       if(b.locality_ == LOCAL || b.locality_ == EXCL || b.locality_ == SHARED)
       {
         os<< "LOCAL";
@@ -123,228 +127,13 @@ public:
     }  
 
   private:
-    // Should be replace by the key corresponding to the entity 
-    point_t position_;
-    body * bodyptr_; 
-    int owner_;
-
-    // Add this for COM in the current version
+    point_t coordinates_;
     element_t mass_;
-    // Id of the particle behind
-    int64_t id_;
+    body * bodyptr_; 
   };
     
   using entity_t = body_holder;
-    /**
-   * Class entity_key_t used to represent the key of a body. 
-   * The right way should be to add this informations directly inside 
-   * the body_holder. 
-   * With this information we should avoid the positions of the holder.
-   * This is exactly the same representation as a branch but here 
-   * the max depth is always used. 
-   */
-  class entity_key_t
-  {
-    public:
-      using int_t = uint64_t;
-      static const size_t dimension = gdimension;
-      static constexpr size_t bits = sizeof(int_t) * 8;
-      static constexpr size_t max_depth = (bits - 1)/dimension;
-      using element_t = type_t; 
-
-      entity_key_t()
-      : id_(0)
-      {}
-
-      entity_key_t(
-        //const std::array<point_t, 2>& range_,
-        const point_t& p)
-      : id_(int_t(1) << ((max_depth * dimension) + ((bits - 1) % dimension)))
-      {
-        std::array<int_t, dimension> coords;
-        for(size_t i = 0; i < dimension; ++i)
-        {
-          element_t min = range_[0][i];
-          element_t scale = range_[1][i] - min;
-          coords[i] = (p[i] - min)/scale * (int_t(1) << (bits - 1)/dimension);
-        }
-        size_t k = 0;
-        for(size_t i = 0; i < max_depth; ++i)
-        {
-          for(size_t j = 0; j < dimension; ++j)
-          {
-            int_t bit = (coords[j] & int_t(1) << i) >> i;
-            id_ |= bit << (k * dimension + j);
-          }
-          ++k;
-        }
-      }
-      
-      //static 
-      //std::array<point_t,2> range_;
-
-      static
-      void  
-      set_range(std::array<point_t,2>& range){
-        range_ = range; 
-      } 
-
-      constexpr entity_key_t(const entity_key_t& bid)
-      : id_(bid.id_)
-      {}
-
-      static 
-      constexpr
-      entity_key_t
-      null()
-      {
-        return entity_key_t(0);
-      }
-
-      int_t 
-      truncate_value(int depth)
-      {
-        int dec = ((sizeof(int_t)*8)/dimension)*dimension;
-        return id_ >> (dec-dimension*(depth+1));
-      }
-
-      constexpr
-      bool 
-      is_null() const
-      {
-        return id_ == int_t(0);
-      }
-
-      entity_key_t&
-      operator=(
-        const entity_key_t& ek) 
-      {
-        id_ = ek.id_; 
-        return *this;
-      }
-
-      constexpr
-      bool 
-      operator==(
-        const entity_key_t& ek
-      ) const 
-    {
-      return id_ == ek.id_; 
-    }
-
-    constexpr 
-    bool 
-    operator!=(
-      const entity_key_t& ek
-    ) const
-    {
-      return id_ != ek.id_; 
-    }
-
-    // Switch representation base on dimension 
-    void
-    output_(
-      std::ostream& ostr
-    ) const
-    {
-      // TODO change for others dimensions
-      if(dimension == 3){
-        ostr << std::oct << id_ << std::dec;
-      }else if(dimension == 1){
-        ostr << std::bitset<64>(id_);
-      }else{
-        // For dimension 2, display base 4
-        ostr << std::bitset<64>(id_);
-      }
-    }
-
-    bool
-    operator<(
-      const entity_key_t& bid
-    ) const
-    {
-      return id_ < bid.id_;
-    }
-  
-    bool
-    operator>(
-      const entity_key_t& bid
-    ) const
-    {
-      return id_ > bid.id_;
-    }
-  
-    bool
-    operator<=(
-      const entity_key_t& bid
-    ) const
-    {
-      return id_ <= bid.id_;
-    }
     
-    bool
-    operator>=(
-      const entity_key_t& bid
-    ) const
-    {
-      return id_ >= bid.id_;
-    }
-
-    entity_key_t 
-    operator/(const int div){
-      return entity_key_t(id_/div);
-    }
-
-    entity_key_t
-    operator+(const entity_key_t& oth )
-    {
-      return entity_key_t(id_+oth.id_);
-    }
-
-    entity_key_t 
-    operator-(const entity_key_t& oth)
-    {
-      return entity_key_t(id_-oth.id_);
-    }
-
-    // The first possible key 10000....
-    static 
-    constexpr
-    entity_key_t
-    first_key()
-    {
-      return entity_key_t(int_t(1) << 
-          ((max_depth*dimension)+((bits-1)%dimension)));
-    }
-
-    // The last key 1777..., should be modified using not bit operation
-    static
-    constexpr
-    entity_key_t
-    last_key()
-    {
-      return entity_key_t(~int_t(0) >> (bits-(1+max_depth)*dimension
-            +(gdimension-1)));      
-    }
-  
-    int_t 
-    value()
-    {
-      return id_;
-    }
-  
-  private:
-    int_t id_;
-    static std::array<point_t,2> range_;
-
-    constexpr
-    entity_key_t(
-      int_t id
-    )
-    :id_(id)
-    {}
-  };
-
   class branch : public flecsi::topology::tree_branch<branch_int_t,dimension,
   double>{
   public:
@@ -380,7 +169,6 @@ public:
 
     auto clear(){
       ents_.clear(); 
-      //ents_.clear();
     }
 
     void remove(body_holder* ent){
@@ -426,10 +214,8 @@ public:
 
   using branch_t = branch;
 
-
-
   // Add the tree traversal specific for SPH 
-  
+   
 
 }; // class tree_policy
 
@@ -439,21 +225,8 @@ using point_t = tree_topology_t::point_t;
 using branch_t = tree_topology_t::branch_t;
 using branch_id_t = tree_topology_t::branch_id_t;
 using space_vector_t = tree_topology_t::space_vector_t;
-using entity_key_t = tree_topology_t::entity_key_t;
+using entity_key_t = tree_topology_t::key_t;
 using entity_id_t = flecsi::topology::entity_id_t;
-
-std::array<point_t,2> entity_key_t::range_ = {point_t{},point_t{}};
-
-
-std::ostream&
-operator<<(
-  std::ostream& ostr,
-  const entity_key_t& id
-)
-{
-  id.output_(ostr);
-  return ostr;
-}
 
 inline 
 bool
