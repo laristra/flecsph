@@ -447,7 +447,7 @@ public:
         }
       } 
     }
-    #pragma omp taskwait
+    //#pragma omp taskwait
   }
 
   void
@@ -500,7 +500,8 @@ public:
       if(c->is_leaf()){
         for(auto child: *c){
           if(child->is_local()){
-            apply_sub_entity(child,inter_list,radius,ef,std::forward<ARGS>(args)...);
+            apply_sub_entity(child,inter_list,radius,ef,
+                std::forward<ARGS>(args)...);
           }
         }
       }else{
