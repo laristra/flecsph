@@ -264,7 +264,7 @@ public:
     tcolorer_.mpi_qsort(localbodies_,totalnbodies_);
 
 #ifdef OUTPUT_TREE_INFO
-    clog(trace) << "Construction of the tree"<<std::endl;
+    rank || clog(trace) << "Construction of the tree"<<std::endl;
 #endif
 
     // Add my local bodies in my tree 
@@ -283,16 +283,19 @@ public:
     MPI_Allreduce(MPI_IN_PLACE,&checknparticles,1,MPI_INT64_T,
     MPI_SUM,MPI_COMM_WORLD); 
     assert(checknparticles==totalnbodies_);
-  
-    tree_->post_order_traversal(tree_->root(),
-        tree_->update_COM,smoothinglength_);
+ 
+#ifdef OUTPUT_TREE_INFO
+    rank || clog(trace) << "Computing branches"<<std::endl;
+#endif
 
-    tree_->update_branches(smoothinglength_+smoothinglength_/100.); 
+    tree_->post_order_traversal(tree_->root(),
+        traversal_t::update_COM,smoothinglength_+smoothinglength_/100.,false);
     assert(tree_->root()->sub_entities() == localnbodies_);
 
 #ifdef OUTPUT_TREE_INFO
     // Tree informations
-    clog(info) << *tree_ << std::endl; 
+    rank || clog(info) << *tree_ << "root range = "<< tree_->root()->bmin() 
+     <<";"<<tree_->root()->bmax()<< std::endl; 
 #endif 
 
 
@@ -325,9 +328,10 @@ public:
     // Exchnage usefull body_holder from my tree to other processes
     tcolorer_.mpi_branches_exchange(*tree_,localbodies_,rangeposproc_,
         range_,smoothinglength_);
-
-    // Update the tree 
-    tree_->update_branches(smoothinglength_+smoothinglength_/100.);
+    
+    // update the tree
+    tree_->post_order_traversal(tree_->root(),
+        traversal_t::update_COM,smoothinglength_+smoothinglength_/100.,false);
 
 #ifdef OUTPUT_TREE_INFO
     lentities = tree_->root()->sub_entities();
@@ -380,15 +384,22 @@ public:
     rank|| clog(trace)<<"FMM: mmass="<<maxmasscell_<<" angle="<<macangle_<<std::endl;
 
     // Just consider the local particles in the tree for FMM 
-    tree_->update_branches(smoothinglength_,true);
+    tree_->post_order_traversal(tree_->root(),
+        traversal_t::update_COM,smoothinglength_+smoothinglength_/100.,true);
+
+
+    //tree_->update_branches(smoothinglength_,true);
     assert((int64_t)tree_->root()->sub_entities() == localnbodies_);
 
     tfmm_.mpi_exchange_cells(*tree_,maxmasscell_);
     tfmm_.mpi_compute_fmm(*tree_,macangle_,0);
     tfmm_.mpi_gather_cells(*tree_,macangle_,totalnbodies_);
     
+    
+    tree_->post_order_traversal(tree_->root(),
+        traversal_t::update_COM,smoothinglength_+smoothinglength_/100.,false);
     // Reset the tree to normal before leaving
-    tree_->update_branches(smoothinglength_);
+    //tree_->update_branches(smoothinglength_);
   }
 
   /**

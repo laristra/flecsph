@@ -49,7 +49,10 @@ TEST(tree_topology, neighbors_sphere) {
     ents.push_back(e);
   }
 
-  t.update_branches(0.1);
+
+  t.post_order_traversal(t.root(),traversal_t::update_COM,
+      0.1,false);
+ // t.update_branches(0.1);
 
   ASSERT_TRUE(t.root()->mass() == n*mass);
 
@@ -92,8 +95,9 @@ TEST(tree_topology, neighbors_box) {
     t.insert(e);
     ents.push_back(e);
   }
-
-  t.update_branches(0.1);
+  
+  t.post_order_traversal(t.root(),traversal_t::update_COM,
+      0.1,false);
   
   ASSERT_TRUE(t.root()->mass() == n*mass);
 
@@ -174,8 +178,10 @@ TEST(tree_topology,smoothing){
     }
     line += distance; 
   }
-
-  t.update_branches(2*h);
+  
+  t.post_order_traversal(t.root(),traversal_t::update_COM,
+      2*h,false);
+  
   ASSERT_TRUE(t.root()->mass() == nparticles*mass); 
 
 

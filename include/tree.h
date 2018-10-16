@@ -69,6 +69,10 @@ public:
   using id_t = flecsi::topology::entity_id_t;
   using key_t = flecsi::topology::morton_id<branch_int_t,dimension>;
 
+
+  /** 
+   * @brief BODY_HOLDER, entity in the tree. Light representation of a body
+   */ 
   class body_holder : 
     public flecsi::topology::tree_entity<branch_int_t,dimension>{
   
@@ -102,7 +106,6 @@ public:
       bodyptr_ = nullptr; 
     }
 
-    // Function used in the tree structure 
     const point_t& coordinates() const {return coordinates_;}
     body* getBody(){return bodyptr_;};
     element_t mass(){return mass_;};
@@ -133,7 +136,10 @@ public:
   };
     
   using entity_t = body_holder;
-    
+   
+  /**
+   *  @brief BRANCH structure, a Center of Mass in our case.
+   */ 
   class branch : public flecsi::topology::tree_branch<branch_int_t,dimension,
   double>{
   public:
@@ -212,13 +218,36 @@ public:
     return true;
   }
 
-  using branch_t = branch;
+  using branch_t = branch; 
+
+}; // class tree_policy
+
+using tree_topology_t = flecsi::topology::tree_topology<tree_policy>;
+using body_holder = tree_topology_t::body_holder;
+using point_t = tree_topology_t::point_t;
+using branch_t = tree_topology_t::branch_t;
+using branch_id_t = tree_topology_t::branch_id_t;
+using space_vector_t = tree_topology_t::space_vector_t;
+using entity_key_t = tree_topology_t::key_t;
+using entity_id_t = flecsi::topology::entity_id_t;
 
 
-  // Functions for the tree traversal 
+template <
+  typename T,
+  size_t D
+>
+struct traversal
+{
+  using element_t = T; 
+  const static size_t dimension = D;
+
+
+ // Functions for the tree traversal 
   static void update_COM(
+      tree_topology_t* tree,
       branch_t * b,
-      element_t epsilon = element_t(0))
+      element_t epsilon = element_t(0),
+      bool local_only = false)
   {
     element_t mass = element_t(0); 
     point_t bmax{}; 
@@ -233,43 +262,39 @@ public:
     if(b->is_leaf()){
       for(auto child: *b)
       {
+        if(local_only && !child->is_local()){
+          continue; 
+        }
         nchildren++; 
         element_t childmass = child->mass();
         for(size_t d = 0 ; d < dimension ; ++d)
         {
           bmax[d] = std::max(bmax[d],child->coordinates()[d]+epsilon);
           bmin[d] = std::min(bmin[d],child->coordinates()[d]-epsilon);
-          coordinates[d]+= child->coordinates()[d]*childmass; 
         }
+        coordinates += childmass * child->coordinates(); 
         mass += childmass;  
       }
       if(mass > element_t(0))
-      {
-        for(size_t d = 0 ; d < dimension ; ++d)
-        {
-          coordinates[d] /= mass; 
-        }
-      }
+        coordinates /= mass; 
     }else{
-      // For all children 
-      for(int i = 0; i < (1<<dimension);++i)
+      for(int i = 0 ; i < (1<<dimension); ++i)
       {
-        auto branch = child(b,i);
-        nchildren += branch->sub_entities(); 
-        mass += branch->mass();
+        auto branch = tree->child(b,i);
+        nchildren+=branch->sub_entities();
+        mass += branch->mass(); 
         if(branch->mass() > 0)
         {
-          for(size_t d = 0; d< dimension; ++d)
+          for(size_t d = 0 ; d < dimension ; ++d)
           {
             bmax[d] = std::max(bmax[d],branch->bmax()[d]);
             bmin[d] = std::min(bmin[d],branch->bmin()[d]);
           }
         }
-        for(size_t d = 0; d < dimension; ++d)
-        {
-          coordinates[d] /= mass; 
-        }
+        coordinates += branch->mass()*branch->coordinates();
       }
+      if(mass > element_t(0))
+        coordinates /= mass; 
     }
     b->set_sub_entities(nchildren);
     b->set_coordinates(coordinates);
@@ -278,17 +303,10 @@ public:
     b->set_bmax(bmax);
   }
 
-}; // class tree_policy
 
-using tree_topology_t = flecsi::topology::tree_topology<tree_policy>;
-using body_holder = tree_topology_t::body_holder;
-using point_t = tree_topology_t::point_t;
-using branch_t = tree_topology_t::branch_t;
-using branch_id_t = tree_topology_t::branch_id_t;
-using space_vector_t = tree_topology_t::space_vector_t;
-using entity_key_t = tree_topology_t::key_t;
-using entity_id_t = flecsi::topology::entity_id_t;
+};
 
+using traversal_t = traversal<double,gdimension>;
 
 inline 
 bool

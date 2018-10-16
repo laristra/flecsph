@@ -236,6 +236,7 @@ public:
 
   /**
    * @brief Generic postorder traversal  
+   * First version using two stacks. 
    */
   template<
     typename F, 
@@ -256,106 +257,23 @@ public:
       stk1.pop();
       stk2.push(cur);
       // Push children to stk1 
-      for(int i = 0 ; i < (1<<dimension) ; ++i)
-      {
-        branch_t * next = child(cur,i);
-        stk1.push(next);
+      if(!cur->is_leaf()){
+        for(int i = 0 ; i < (1<<dimension) ; ++i)
+        {
+          branch_t * next = child(cur,i);
+          stk1.push(next);
+        }
       }
     }
     // Unstack stack 2 
     while(!stk2.empty())
     {
       branch_t * cur = stk2.top(); 
-      stk2.pop(); 
-      function(cur,std::forward<ARGS>(args)...);
+      stk2.pop();
+      function(this,cur,std::forward<ARGS>(args)...);
     }
   }
  
-
-  /*!
-   * Update the branch boundaries
-   * Go through all the branches in a DFS order
-   */
-  void
-  update_branches(
-      const element_t epsilon = element_t(0),
-      bool local_only = false)
-  {
-    // Recursive version 
-    std::function<void(branch_t*)> traverse;
-    traverse = [&local_only,&epsilon,&traverse,this](branch_t* b){
-      element_t mass = element_t(0); 
-      point_t bmax{}; 
-      point_t bmin{};
-      for(size_t d = 0; d < dimension; ++d)
-      {
-        bmax[d] = -DBL_MAX;
-        bmin[d] = DBL_MAX; 
-      }
-      point_t coordinates = point_t{};
-      uint64_t nchildren = 0; 
-      if(b->is_leaf())
-      {
-        for(auto child: *b)
-        {
-          if(local_only && !child->is_local()){
-            continue; 
-          }
-          nchildren++;
-          element_t childmass = child->mass(); 
-          
-          for(size_t d = 0; d < dimension; ++d)
-          {
-            bmax[d] = std::max(bmax[d],child->coordinates()[d]+epsilon);
-            bmin[d] = std::min(bmin[d],child->coordinates()[d]-epsilon);
-            coordinates[d] += child->coordinates()[d]*childmass; 
-          }
-          mass += childmass;
-        }
-        if(mass > element_t(0))
-        {
-          for(size_t d = 0; d < dimension; ++d)
-          {
-            coordinates[d] /= mass; 
-          }
-        }
-      }else{
-        for(int i=0 ; i<(1<<dimension);++i)
-        {
-          auto branch = child(b,i); 
-          traverse(branch);
-          nchildren += branch->sub_entities();
-          mass += branch->mass();
-          if(branch->mass() > 0){
-            for(size_t d = 0; d < dimension; ++d){
-              bmax[d] = std::max(bmax[d],branch->bmax()[d]);
-              bmin[d] = std::min(bmin[d],branch->bmin()[d]);
-            }
-          }
-          for(size_t d = 0; d < dimension; ++d)
-          {
-            coordinates[d] += branch->coordinates()[d]*branch->mass(); 
-          }
-        }
-
-        if(mass > element_t(0))
-        {
-          for(size_t d = 0; d < dimension; ++d)
-          {
-            coordinates[d] /= mass; 
-          }
-        }
-      }
-      // Save in both cases
-      b->set_sub_entities(nchildren);
-      b->set_coordinates(coordinates);
-      b->set_mass(mass);
-      b->set_bmin(bmin);
-      b->set_bmax(bmax);  
-    };
-    traverse(root());
-  }
-
   void
   get_all_branches(
     branch_t * start,

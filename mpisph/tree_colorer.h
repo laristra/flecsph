@@ -38,7 +38,7 @@
 using namespace mpi_utils;
 
 // Output the data regarding the distribution for debug
-//#define OUTPUT_TREE_INFO 1
+#define OUTPUT_TREE_INFO 1
 
 
 /**
