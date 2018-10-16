@@ -2,8 +2,8 @@
 # Noh collapse, rebounce & standing shock test
 #
 # initial data
-  initial_data_prefix = "noh_nx100"
-  lattice_nx = 100            # particle lattice dimension
+  initial_data_prefix = "noh_nx20"
+  lattice_nx = 20             # particle lattice dimension
   poly_gamma = 1.6666667      # polytropic index
   rho_initial = 1.0
   pressure_initial = 1.0e-6

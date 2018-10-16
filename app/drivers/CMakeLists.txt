@@ -141,7 +141,7 @@ cinch_add_unit(noh_test
     hydro/main_driver.cc
     ${FleCSI_RUNTIME}/runtime_driver.cc 
   INPUTS
-    ${PROJECT_SOURCE_DIR}/data/noh_sqn100.par 
+    ${PROJECT_SOURCE_DIR}/data/noh_nx20.par 
   LIBRARIES 
     ${FleCSPH_LIBRARIES}
   DEFINES
@@ -152,9 +152,37 @@ cinch_add_unit(noh_test
 if(ENABLE_UNIT_TESTS)
 add_custom_target(
     noh_2d_generator_test 
-    COMMAND mpirun -n 1 ../id_generators/noh_2d_generator ${PROJECT_SOURCE_DIR}/data/noh_sqn100.par
-    COMMAND mv noh_nx100.h5part ../../test/drivers
+    COMMAND mpirun -n 1 ../id_generators/noh_2d_generator ${PROJECT_SOURCE_DIR}/data/noh_nx20.par
+    COMMAND mv noh_nx20.h5part ../../test/drivers
     DEPENDS ../id_generators/noh_2d_generator
 )
 add_dependencies(noh_test noh_2d_generator_test)
+endif()
+
+#------------------------------------------------------------------------------#
+# implosion test
+#------------------------------------------------------------------------------#
+
+cinch_add_unit(implosion_test
+  SOURCES
+    test/implosion.cc
+    hydro/main_driver.cc
+    ${FleCSI_RUNTIME}/runtime_driver.cc 
+  INPUTS
+    ${PROJECT_SOURCE_DIR}/data/implosion_nx20.par 
+  LIBRARIES 
+    ${FleCSPH_LIBRARIES}
+  DEFINES
+    -DEXT_GDIMENSION=2
+  POLICY MPI
+)
+
+if(ENABLE_UNIT_TESTS)
+add_custom_target(
+    implosion_2d_generator_test 
+    COMMAND mpirun -n 1 ../id_generators/implosion_2d_generator ${PROJECT_SOURCE_DIR}/data/implosion_nx20.par
+    COMMAND mv implosion_nx20.h5part ../../test/drivers
+    DEPENDS ../id_generators/implosion_2d_generator
+)
+add_dependencies(implosion_test implosion_2d_generator_test)
 endif()

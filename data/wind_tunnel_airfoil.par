@@ -3,7 +3,7 @@
 #
 # initial data
   initial_data_prefix = "wind_tunnel_airfoil"
-  lattice_nx = 50         # particle lattice dimension
+  lattice_nx = 50          # particle lattice dimension
   poly_gamma = 1.4         # polytropic index
   rho_initial = 1.0
   pressure_initial = 0.1
@@ -11,7 +11,6 @@
   sph_separation = 0.001   # TODO: use sph_eta instead
   #sph_eta = 1.5
   lattice_type = 1         # 0:rectangular, 1:hcp, 2:fcc
-  domain_type = 1          # 0:cube, 1:sphere, 2:full box
   box_length = 2.0
   box_width = 1.0
   box_height = 0.3
