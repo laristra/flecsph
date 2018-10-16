@@ -321,14 +321,16 @@ int64_t generator_icosahedral_lattice(const int lattice_type,
   // some numeric constants
   const double pi = M_PI;
   const double p5 = pi/5.0;
+  const double sq3 = sqrt(3.0);
   const double sinb = sqrt(4.0*SQ(sin(p5)) - 1.0)/(2.0*SQ(sin(p5)));
   const double cosb = sqrt(1.0 - SQ(sinb)),
                side_a = sqrt(9.0*SQ(tan(p5)) - 3.0);
   const double a2= SQ(side_a),
-               eta= sqrt(5*sqrt(3.0)/(4.0*pi))*side_a;
+               eta= sqrt(5*sq3/(4.0*pi))*side_a;
     
-  int i,k,m,n,v1,v2,v3,NN;
-  double x1,x2,y1,y2,z1,z2,x_p,y_p,z_p,r,f,f1,f2,f3;
+  int i,k,m,n,v1,v2,v3,NN,mm,m1,m2;
+  double x1,x2,y1,y2,z1,z2,x_p,y_p,z_p,r,f,f1,f2,f3,ff[3],tan3;
+  double xt,yt,x1t,y1t;
   double ico_vtx[12][3];
   const int ico_edg[30][2] = {
       {1,2}  ,  {1,3}  ,  {1,4}  ,  {1,5}  ,  {1,6},
@@ -423,10 +425,15 @@ int64_t generator_icosahedral_lattice(const int lattice_type,
       z2= ico_vtx[v2][2];
 
       for (k=0; k<NN-1; ++k) {
-        // Tegmark correction (see Tegmark'96):
-        // f= dble(k)/dble(NN-1) - 0.5
-        // f1= 0.5 + eta*f*sqrt((1+a2/12)/(1 - a2*f*f + a2/3))
-        f1= (double)(k+1)/(double)NN;
+        //f1= (double)(k+1)/(double)NN;
+        
+        // Tegmark correction (see Tegmark'96, eq.5):
+        xt= ((double)(k+1)/(double)NN - 0.5)*side_a;
+        yt= side_a/sqrt(12.0);
+
+        x1t= xt*sqrt((1 + SQ(yt))/(1 - SQ(xt) + 4.0*SQ(yt)));
+        f1= x1t/side_a + 0.5;
+
         f2= 1.0 - f1;
         x_p= f1*x1 + f2*x2;
         y_p= f1*y1 + f2*y2;
@@ -456,14 +463,41 @@ int64_t generator_icosahedral_lattice(const int lattice_type,
       v3= ico_fac[i][2] - 1;
       
       for (m=1; m<=NN-1; ++m) {
-        f1= (double)m/(double)NN;
         for (n=1; n<=NN-1-m; ++n) {
-          f2= (double)n/(double)NN;
-          f3= 1.0 - f1 - f2;
+          ff[1]= (double)m/(double)NN;
+          ff[2]= (double)n/(double)NN;
+          ff[0]= 1.0 - ff[1] - ff[2];
 
-          x_p= f1*ico_vtx[v1][0] + f2*ico_vtx[v2][0] + f3*ico_vtx[v3][0];
-          y_p= f1*ico_vtx[v1][1] + f2*ico_vtx[v2][1] + f3*ico_vtx[v3][1];
-          z_p= f1*ico_vtx[v1][2] + f2*ico_vtx[v2][2] + f3*ico_vtx[v3][2];
+          // Tegmark correction (see Tegmark'96, eq.5):
+          if (ff[1] <= ff[2] and ff[1] <= ff[0]) {
+            mm= 1;
+          }
+          else if (ff[2] <= ff[1] and ff[2] <= ff[0]) {
+            mm= 2;
+          }
+          else {
+            mm= 0;
+          }
+          m1= (mm + 1) % 3;
+          m2= (mm + 2) % 3;
+
+          xt= side_a/2.0 * (ff[m1] - ff[m2]);
+          yt= side_a/sqrt(12.0) * (1.0 - 3.0*ff[mm]);
+
+          tan3= tan(sq3/2.0*SQ(yt/eta));
+          y1t= 0.5*sqrt(3*SQ((1 + sq3*tan3)/(sq3 - tan3)) - 1);
+          if (y1t < 1e-8)
+            x1t= 0.0;
+          else
+            x1t= xt*y1t*sqrt((1 + SQ(y1t))/(SQ(yt)*(1 + 4*SQ(y1t)) - SQ(xt*y1t)));
+
+          ff[mm]= (1.0 - y1t*sqrt(12.0)/side_a)/3.0;
+          ff[m1]= (1.0 - ff[mm])/2.0 + x1t/side_a;
+          ff[m2]= (1.0 - ff[mm])/2.0 - x1t/side_a;
+
+          x_p= ff[1]*ico_vtx[v1][0] + ff[2]*ico_vtx[v2][0] + ff[0]*ico_vtx[v3][0];
+          y_p= ff[1]*ico_vtx[v1][1] + ff[2]*ico_vtx[v2][1] + ff[0]*ico_vtx[v3][1];
+          z_p= ff[1]*ico_vtx[v1][2] + ff[2]*ico_vtx[v2][2] + ff[0]*ico_vtx[v3][2];
 
           r= sqrt(SQ(x_p) + SQ(y_p) + SQ(z_p))/rk;
           x_p= x_c + x_p/r;
