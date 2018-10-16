@@ -26,7 +26,7 @@
  *  - flow_velocity:          initial velocity;
  *  - rho_initial, pressure_initial
  * Different obstacles (e.g. airfoil) can be placed in the tunnel to study their
- * aerodynamical properties.
+ * aerodynamic properties.
  *
  */
 //
@@ -122,16 +122,8 @@ int main(int argc, char * argv[]){
 
   // allocate arrays
   int64_t tparticles = 0;
-  int64_t parts_mid= 0;
-  int64_t parts_lr = 0;
-  double mass = 0;
-  bool equal_separation = !equal_mass;
-  tparticles =  particle_lattice::count(lattice_type,2,cbox_min,cbox_max,
+  tparticles =  particle_lattice::count(lattice_type,0,cbox_min,cbox_max,
                                         sph_separation,0);
-
-  double lr_sph_sep = 0.;
-  double temp_part = 0;
-  double temp_part_new = 0;
 
   // Initialize the arrays to be filled later
   // Position
@@ -161,7 +153,7 @@ int main(int argc, char * argv[]){
   // Timestep
   double* dt = new double[tparticles]();
 
-  tparticles =  particle_lattice::generate(lattice_type,2,cbox_min,cbox_max,
+  tparticles =  particle_lattice::generate(lattice_type,0,cbox_min,cbox_max,
                                            sph_separation,0,x,y,z);
 
   // particle id number

@@ -7,12 +7,12 @@
 /*
  * Noh Collapse test
  * -----------------
- * The test is initialized as a disk / sphere of particles with homogeneous 
- * density, vanishingly small pressure, and inward velocity v_r. As particles 
- * move inwards, they pile up at the center at forming a region with constant 
+ * The test is initialized as a disk / sphere of particles with homogeneous
+ * density, vanishingly small pressure, and inward velocity v_r. As particles
+ * move inwards, they pile up at the center at forming a region with constant
  * density that is dependent on gamma and the dimensionality of the problem.
  * A standing shock front forms that moves outwards as more particles are piling
- * up. Its radial distance grows as 
+ * up. Its radial distance grows as
  *
  * r_shock (t) = 0.5 (gamma - 1) v_r t
  *
@@ -40,28 +40,75 @@
 #include "user.h"
 #include "noh.h"
 #include "params.h"
+#include "lattice.h"
+#include "kernels.h"
+
+#define SQ(x) ((x)*(x))
+#define CU(x) ((x)*(x)*(x))
+
 
 //
 // help message
 //
 void print_usage() {
   clog(warn)
-      << "Initial data generator for the Noh collapse test" << std::endl
-      << "Usage: ./noh_generator <parameter-file.par>"      << std::endl;
+      << "Initial data generator for the " << gdimension << "D Noh collapse test"
+      << std::endl << "Usage: ./noh_generator <parameter-file.par>" << std::endl;
 }
-
 
 //
 // derived parameters
 //
+static double timestep = 1.0;         // Recommended timestep
+static double total_mass = 1.;        // total mass of the fluid
+static double mass_particle = 1.;     // mass of an individual particle
+static point_t bbox_max, bbox_min;    // bounding box of the domain
 static std::string initial_data_file; // = initial_data_prefix + ".h5part"
 
 void set_derived_params() {
   using namespace param;
+  particle_lattice::select();
 
-  // total number of particles
-  SET_PARAM(nparticles, lattice_nx*lattice_nx);
-  SET_PARAM(sph_smoothing_length, (2.0*sph_separation));
+  // The value for constant timestep
+  timestep = initial_dt;
+
+  // Bounding box of the domain
+  bbox_min = -sphere_radius;
+  bbox_max =  sphere_radius;
+
+  // particle separation
+  SET_PARAM(sph_separation, (2.*sphere_radius/(lattice_nx-1)));
+
+  // Count number of particles
+  int64_t tparticles =
+      particle_lattice::count(lattice_type,domain_type,
+      bbox_min,bbox_max,sph_separation,0);
+  SET_PARAM(nparticles, tparticles);
+
+  // total mass
+  if (gdimension == 2) {
+    total_mass = rho_initial * M_PI*SQ(sphere_radius);
+  }
+  else if (gdimension == 3) {
+    total_mass = rho_initial * 4./3.*M_PI*CU(sphere_radius);
+  }
+  else
+    assert (false);
+
+  // single particle mass
+  assert (equal_mass);
+  mass_particle = total_mass / nparticles;
+
+  // set kernel
+  kernels::select(sph_kernel);
+
+  // smoothing length
+  const double sph_h = sph_eta * kernels::kernel_width
+                               * pow(mass_particle/rho_initial,1./gdimension);
+  SET_PARAM(sph_smoothing_length, sph_h);
+
+  // intial internal energy
+  SET_PARAM(uint_initial, (pressure_initial/(rho_initial*(poly_gamma-1.0))));
 
   // file to be generated
   std::ostringstream oss;
@@ -70,29 +117,19 @@ void set_derived_params() {
 
 }
 
-
-// Is particle with x,y coordinates within a disk (center located at x0,y0) with radius r?
-bool in_radius(
-    double x,
-    double y,
-    double x0,
-    double y0,
-    double r) {
-    return (x-x0)*(x-x0)+(y-y0)*(y-y0) < r*r;
-}
-
-
 int main(int argc, char * argv[]){
   using namespace param;
 
-  int rank, size, provided;
+  // launch MPI
+  int rank, size;
+  int provided;
   MPI_Init_thread(&argc,&argv,MPI_THREAD_MULTIPLE,&provided);
   assert(provided>=MPI_THREAD_MULTIPLE);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   clog_set_output_rank(0);
 
-  // check options list: exactly one command-line argument is accepted
+  // check options list: exactly one option is allowed
   if (argc != 2) {
     clog(error) << "ERROR: parameter file not specified!" << std::endl;
     print_usage();
@@ -104,162 +141,72 @@ int main(int argc, char * argv[]){
   param::mpi_read_params(argv[1]);
   set_derived_params();
 
-  // Radius of the disk given the number of particles
-  double radius = (sph_separation*(lattice_nx - 1))/2.0;
+  clog(info) << "Sphere: r=" << sphere_radius << std::endl
+                 << "origin: pos=["<<0<<";"<<0<<"]" << std::endl
+                 << "Generating "  << nparticles << " particles in "
+                 << gdimension << "D" << std::endl;
 
-  // Center of disk
-  double x_c = (lattice_nx - 1)*sph_separation/2.0;
-  double y_c = x_c;
-
-
-  clog(info) << "Sphere: r=" << radius << std::endl
-                 << "origin: pos=["<<x_c<<";"<<y_c<<"]" << std::endl
-                 << "Generating "  << nparticles
-                 << " particles (="<< lattice_nx<<"^2) " << std::endl;
-
-
-  // Start on  0 0
-  double x_topproc = x_c - radius;
-  double y_topproc = y_c - radius;
-
-  double maxxposition = x_c + radius;
-  double maxyposition = y_c + radius;
-
-  // Particle positions
+  // Initialize the arrays to be filled later
+  // Position
   double* x = new double[nparticles]();
   double* y = new double[nparticles]();
   double* z = new double[nparticles]();
-
-  // Particle velocities
+  // Velocity
   double* vx = new double[nparticles]();
   double* vy = new double[nparticles]();
   double* vz = new double[nparticles]();
-
-  // Particle accelerations
+  // Acceleration
   double* ax = new double[nparticles]();
   double* ay = new double[nparticles]();
   double* az = new double[nparticles]();
-
-
   // Smoothing length
   double* h = new double[nparticles]();
-
   // Density
   double* rho = new double[nparticles]();
-
   // Internal Energy
   double* u = new double[nparticles]();
-
   // Pressure
   double* P = new double[nparticles]();
-
   // Mass
   double* m = new double[nparticles]();
-
-  // ID
+  // Id
   int64_t* id = new int64_t[nparticles]();
-
   // Timestep
   double* dt = new double[nparticles]();
 
-  // ID of first particle
+  // Generate the lattice
+  assert(nparticles ==
+     particle_lattice::generate(lattice_type,domain_type,
+     bbox_min,bbox_max,sph_separation,0, x, y, z));
+
+  // Particle id number
   int64_t posid = 0;
 
-
-  // Header data
-  // the number of particles = nparticles
-  // The value for constant timestep
-  double timestep = initial_dt;  // TODO: replace with parameter initial_dt
-  int dimension = 2;             // TODO: use global dimension parameter
-
-  clog(info) << "top_X=" << x_topproc << " top_Y="  << y_topproc    << std::endl
-                 << "maxX=" << maxxposition << " maxY=" << maxyposition << std::endl;
-
-  double xposition = x_topproc;
-  double yposition = y_topproc;
-  int64_t tparticles = 0;
-  double max_radius = 0;
-
-  // Loop over all particles and assign position, velocity etc.
-  for (int64_t part = 0; part < nparticles; ++part) {
-
-    // Checks if particle is in the disk and creates position coordinates
-    while (!in_radius(xposition, yposition, x_c, y_c, radius)) {
-      xposition += sph_separation;
-      if (xposition > maxxposition) {
-        if (yposition > maxyposition) {break;}
-        xposition  = x_topproc;
-        yposition += sph_separation;
-      }
-    }
-    if (xposition > maxxposition) {
-      if (yposition > maxyposition) {break;}
-    }
-
-    tparticles++;
-
-    // Assign particle position
-    x[part] = xposition;
-    y[part] = yposition;
-
-    // Determine the maximum radial distance for a particle for 
-    // later mass/density determination 
-    if (sqrt((x[part]-x_c)*(x[part]-x_c) + (y[part]-y_c)*(y[part]-y_c)) 
-    > max_radius) {
-        max_radius = sqrt((x[part]-x_c)*(x[part]-x_c) 
-                        + (y[part]-y_c)*(y[part]-y_c));
-    }
-
-    xposition += sph_separation;
-    if (xposition > maxxposition) {
-      if (yposition > maxyposition) {break;}
-      xposition  = x_topproc;
-      yposition += sph_separation;
-    }
-
-    // Assign particle pressure
+  // Assign density, pressure and specific internal energy to particles, etc.
+  for(int64_t part=0; part<nparticles; ++part){
+    m[part] = mass_particle;
     P[part] = pressure_initial;
-
-    // Assign particle density
     rho[part] = rho_initial;
-
-    // Assign particle accelerations
     ax[part] = 0.0;
     ay[part] = 0.0;
     az[part] = 0.0;
-
-    // Assign particle mass
-    //m[part] = m_in;
-
-    // Assign particle internal energy
-    u[part] = P[part]/(poly_gamma-1.)/rho[part];
-
-    // Assign particle smoothing length
+    u[part] = uint_initial;
     h[part] = sph_smoothing_length;
-
-    // Assign particle ID
     id[part] = posid++;
 
     // Assign particle inward pointing velocity with absolute value 0.1
-    double A = sqrt((x[part]-x_c)*(x[part]-x_c) + (y[part]-y_c)*(y[part]-y_c));
+    double A = sqrt(SQ(x[part]) + SQ(y[part]) + SQ(z[part]));
     if (A <= 0.0) {
       vx[part] = 0.0;
       vy[part] = 0.0;
+      if(gdimension > 2) vz[part] = 0.0;
     }
     else {
-      vx[part] = -(x[part]-x_c) * 0.1 / A;
-      vy[part] = -(y[part]-y_c) * 0.1 / A;
+      vx[part] = -(x[part]) * 0.1 / A;
+      vy[part] = -(y[part]) * 0.1 / A;
+      if(gdimension > 2) vz[part] = -(z[part]) * 0.1 / A;
     }
   }
-
-  clog(info) << "Actual number of particles inside the sphere: "
-                 << tparticles << std::endl;
-
-  // Particle mass given the density, number of particles, and disk radius
-  double m_in = rho_initial * max_radius * max_radius * M_PI / tparticles;
-
-  for (int64_t part = 0; part < nparticles; ++part) m[part] = m_in;
-
 
   // remove the previous file
   remove(initial_data_file.c_str());
@@ -269,6 +216,7 @@ int main(int argc, char * argv[]){
     
   int use_fixed_timestep = 1; 
   // add the global attributes
+  
   H5WriteFileAttribInt64(dataFile,"nparticles",&tparticles,1);
   H5WriteFileAttribFloat64(dataFile,"timestep",&timestep,1);
   int dim = gdimension;
