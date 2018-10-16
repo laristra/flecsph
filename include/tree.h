@@ -54,7 +54,8 @@ struct body_holder_mpi_t{
   point_t position; 
   int owner; 
   double mass;
-  int64_t id; 
+  flecsi::topology::entity_id_t id;
+  double h; 
 };
 
 class tree_policy{
@@ -78,42 +79,46 @@ public:
   
   public: 
 
-    body_holder(point_t coordinates,
+    body_holder(
+        point_t coordinates,
         body * bodyptr,
         size_t owner,
         element_t mass,
-	      id_t id
+	      id_t id,
+        element_t h
         )
-      : coordinates_(coordinates),bodyptr_(bodyptr),mass_(mass)
+      : coordinates_(coordinates),bodyptr_(bodyptr),mass_(mass),h_(h)
     {
       locality_ = bodyptr_==nullptr?NONLOCAL:EXCL;
-      id_ = id; 
-      owner_ = owner; 
+      global_id_ = id; 
+      owner_ = owner;
     };
 
     body_holder()
       :coordinates_(point_t{0,0,0}),
        bodyptr_(nullptr),
-       mass_(0.0)
+       mass_(0.0),
+       h_(0.0)
     {
       locality_ = NONLOCAL;
       owner_ = -1; 
-      id_ = {};
+      global_id_ = {};
     };
 
     ~body_holder()
     {
       bodyptr_ = nullptr; 
     }
-
-    const point_t& coordinates() const {return coordinates_;}
+    
+    point_t coordinates() const {return coordinates_;}
     body* getBody(){return bodyptr_;};
     element_t mass(){return mass_;};
-    id_t id(){return id_;}; 
+    element_t h(){return h_;};
     
     void setBody(body * bodyptr){bodyptr_ = bodyptr;};
     void set_id(id_t& id){id_ = id;}; 
     void set_coordinates(point_t& coordinates){coordinates_=coordinates;};
+    void set_h(element_t h){h_=h;};
 
     friend std::ostream& operator<<(std::ostream& os, const body_holder& b){
       os << std::setprecision(10);
@@ -132,6 +137,7 @@ public:
   private:
     point_t coordinates_;
     element_t mass_;
+    element_t h_; 
     body * bodyptr_; 
   };
     
@@ -158,7 +164,13 @@ public:
     branch(const branch& b){
       this->ents_ = b.ents_;
       this->bmax_ = b.bmax_; 
-      this->bmin_ = b.bmin_; 
+      this->bmin_ = b.bmin_;
+      this->mass_ = b.mass_; 
+      this->radius_ = b.radius_;
+      this->coordinates_ = b.coordinates_; 
+      this->id_ = b.id_; 
+      this->sub_entities_ = b.sub_entities_; 
+      this->leaf_ = b.leaf_;  
     }
 
     ~branch(){
@@ -269,8 +281,10 @@ struct traversal
         element_t childmass = child->mass();
         for(size_t d = 0 ; d < dimension ; ++d)
         {
-          bmax[d] = std::max(bmax[d],child->coordinates()[d]+epsilon);
-          bmin[d] = std::min(bmin[d],child->coordinates()[d]-epsilon);
+          bmax[d] = std::max(bmax[d],child->coordinates()[d]+epsilon+
+              child->h());
+          bmin[d] = std::min(bmin[d],child->coordinates()[d]-epsilon-
+              child->h());
         }
         coordinates += childmass * child->coordinates(); 
         mass += childmass;  

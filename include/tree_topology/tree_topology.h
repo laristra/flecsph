@@ -236,7 +236,8 @@ public:
 
   /**
    * @brief Generic postorder traversal  
-   * First version using two stacks. 
+   * First version using two stacks.
+   * \TODO switch to one stack  
    */
   template<
     typename F, 
@@ -616,7 +617,7 @@ public:
 
 /*!
     Return an index space containing all entities within the specified
-    spheroid.
+    Box
    */
   subentity_space_t
   find_in_box_b(
@@ -633,31 +634,27 @@ public:
 
     while(!stk.empty()){
       branch_t* b = stk.top();
-        stk.pop();
-        if(b->is_leaf()){
-          for(auto child: *b){
-              // Check if in box 
-              if(geometry_t::within_box(child->coordinates(),min,max)){
-                ents.push_back(child);
-              }
+      stk.pop();
+      if(b->is_leaf()){
+        for(auto child: *b){
+          // Check if in box 
+          if(geometry_t::within_box(child->coordinates(),min,max)){
+            ents.push_back(child);
           }
-        }else{
-          for(int i=0 ; i<(1<<dimension);++i){
-            auto branch = child(b,i);
-            if(geometry_t::intersects_box_box(
-                  min,
-                  max,
-                  branch->bmin(),
-                  branch->bmax()
-                  ))
-            {
-              stk.push(branch);
-            }
+        }
+      }else{
+        for(int i=0 ; i<(1<<dimension);++i){
+          auto branch = child(b,i);
+          if(geometry_t::intersects_box_box(min,max,branch->bmin(),
+                branch->bmax()))
+          {
+            stk.push(branch);
           }
         }
       }
-      return ents;
     }
+    return ents;
+  }
 
 
 

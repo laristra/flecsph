@@ -169,11 +169,8 @@ protected:
   }
  
   action action_;
-
   branch_id_t id_;
-
-  uint64_t sub_entities_; // Subentities in the leaves the subtree
-
+  uint64_t sub_entities_ = 0; // Subentities in this subtree
   bool leaf_ = true; 
 
 };

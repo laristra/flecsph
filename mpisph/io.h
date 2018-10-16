@@ -377,7 +377,6 @@ void outputDataHDF5(
     remove(filename);
   }
 
-
   h5_file_t* dataFile = H5OpenFile(filename,H5_O_RDWR | H5_VFD_MPIIO_IND,
       MPI_COMM_WORLD);
   
@@ -499,6 +498,10 @@ void outputDataHDF5(
   H5PartWriteDataFloat64(dataFile,"dt",b3);
   H5PartWriteDataInt64(dataFile,"id",bi);
   H5PartWriteDataInt32(dataFile,"type",bint);
+
+  // Output the rank for analysis 
+  std::fill(bi,bi+nparticlesproc,rank);
+  H5PartWriteDataInt64(dataFile,"rank",bi);
 
   H5CloseFile(dataFile);
 

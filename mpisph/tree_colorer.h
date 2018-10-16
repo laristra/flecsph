@@ -383,11 +383,13 @@ public:
             recv_search_branches[j][0],
             recv_search_branches[j][1]);
         for(auto ent: ents){
+          assert(ent != nullptr);
           tmpsendbuffer.push_back(body_holder_mpi_t{
             ent->coordinates(),
             rank,
             ent->mass(),
-            ent->getBody()->getId()});
+            ent->getBody()->getId(),
+            ent->getBody()->getSmoothinglength()});
         }
       }
 
@@ -417,8 +419,10 @@ public:
     {
       assert(bi.owner!=rank);
       assert(bi.mass!=0.);
-      auto nbi = tree.make_entity(bi.position,nullptr,bi.owner,bi.mass,bi.id);
+      auto nbi = tree.make_entity(bi.position,nullptr,bi.owner,bi.mass,bi.id,
+          bi.h);
       tree.insert(nbi);
+      assert(nbi->global_id() == bi.id);
     }
 
 #ifdef OUTPUT_TREE_INFO
@@ -474,7 +478,7 @@ void mpi_refresh_ghosts(
       {
         for(auto& nl: ghosts_data.rbodies)
         {
-          if(bi->id() == nl.id())
+          if(bi->global_id() == nl.id())
           {
             totalfound++;
             bi->setBody(&(nl));

@@ -89,6 +89,18 @@ public:
     return id_;
   }
 
+  entity_id_t 
+  global_id() const 
+  {
+    return global_id_;
+  }
+
+  void 
+  set_global_id(entity_id_t id)
+  {
+    global_id_ = id;
+  }
+
   entity_id_t
   index_space_id() const
   {
@@ -150,6 +162,14 @@ protected:
   }
 
   void
+  set_global_id_(
+    entity_id_t id
+  )
+  {
+    global_id_ = id;
+  }
+
+  void
   set_branch_id_(
     branch_id_t bid
   )
@@ -159,7 +179,7 @@ protected:
 
   branch_id_t branch_id_;
   entity_id_t id_;
-
+  entity_id_t global_id_;
   e_locality_ locality_;
   int64_t owner_;
 };

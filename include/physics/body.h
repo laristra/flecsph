@@ -75,7 +75,7 @@ public:
 
    body()
    {};
-      
+
   const point_t& coordinates() const{return position_;}   
   const point_t& getPosition() const{return position_;}
   double getMass() const{return mass_;}
@@ -96,7 +96,7 @@ public:
     }
     return res;
   };
-  int64_t getId(){return id_;};
+  flecsi::topology::entity_id_t getId(){return id_;};
   flecsi::topology::entity_id_t id(){return id_;};
   double getDt(){return dt_;};
   int getType(){return type_;}; 
@@ -107,20 +107,16 @@ public:
   void setAcceleration(point_t acceleration){acceleration_ = acceleration;}
   void setVelocity(point_t velocity){velocity_ = velocity;}
   void setVelocityhalf(point_t velocityhalf){velocityhalf_ = velocityhalf;}
-  //void setGravForce(point_t gravforce){gravforce_ = gravforce;}
-  //void setHydroForce(point_t hydroforce){hydroforce_ = hydroforce;}
   void setSoundspeed(double soundspeed){soundspeed_ = soundspeed;}
   void setPressure(double pressure){pressure_ = pressure;}
   void setEntropy(double entropy){entropy_ = entropy;}
   void setElectronfraction(double electronfraction){electronfraction_ = electronfraction;}
   void setDensity(double density){density_ = density;}
   void setMass(double mass){mass_ = mass;};
-  //void setLinMomentum(point_t lin_momentum){lin_momentum_ = lin_momentum;}
   void setSmoothinglength(double smoothinglength)
     {smoothinglength_=smoothinglength;};
- // void setDudt(double dudt){dudt_ = dudt;};
   void setDt(double dt){dt_ = dt;};
-  void setId(int64_t id){id_ = id;};
+  void setId(flecsi::topology::entity_id_t id){id_ = id;};
   void setType(int type){type_ = type;}; 
 
   // Dependent of the problem 
@@ -137,22 +133,6 @@ public:
     void setAdiabatic(double adiabatic){adiabatic_ = adiabatic;};
     double getDadt() const{return dadt_;};
     void setDadt(double dadt){dadt_ = dadt;};
-  #ifdef VERLET
-    double getDensityNM1(){return densityNM1_;};
-    point_t getVelocityCor(){return velocityCor_;};
-    double getDensityDt(){return densityDt_;};
-    void setDensityNM1(double densityNM1){densityNM1_ = densityNM1;};
-    void setVelocityCor(point_t velocityCor){velocityCor_ = velocityCor;};
-    void setDensityDt(double densityDt){densityDt_ = densityDt;};
-    point_t getVelocityTmp(){return velocityTmp_;};
-    double getDensityTmp(){return densityTmp_;};
-    point_t getVelocityNM1(){return velocityNM1_;};
-    void setVelocityTmp(point_t velocityTmp){velocityTmp_ = velocityTmp;};
-    void setDensityTmp(double densityTmp){densityTmp_ = densityTmp;};
-    void setVelocityNM1(point_t velocityNM1){velocityNM1_=velocityNM1;};
-    double getMaxVisc(){return maxVisc_;};
-    void setMaxVisc(double maxVisc){maxVisc_ = maxVisc;};
-  #endif
 
 
   friend std::ostream& operator<<(std::ostream& os, const body& b){
@@ -192,15 +172,6 @@ private:
   double dedt_;
   double adiabatic_; 
   double dadt_;
-  #ifdef VERLET
-  double densityNM1_;
-  point_t velocityCor_;
-  double densityDt_;
-  point_t velocityTmp_;
-  double densityTmp_;
-  point_t velocityNM1_;
-  double maxVisc_; 
-  #endif 
   double dt_;
   flecsi::topology::entity_id_t id_;
   int type_; 

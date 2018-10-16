@@ -272,29 +272,35 @@ public:
     bodies_.clear();
     for(auto& bi:  localbodies_){
       auto nbi = tree_->make_entity(bi.second.getPosition(),&(bi.second),rank,
-          bi.second.getMass(),bi.second.getId());
+          bi.second.getMass(),bi.second.getId(),bi.second.getSmoothinglength());
       tree_->insert(nbi); 
       bodies_.push_back(nbi);
+      //rank || std::cout<<nbi->id()<<" == "<<bi.second.id()<<std::endl<<std::flush;
+      assert(nbi->global_id() == bi.second.id());
+      assert(nbi->getBody() != nullptr);
+      assert(nbi->is_local());
     }
     localnbodies_ = localbodies_.size();
 
+#ifdef DEBUG 
     // Check the total number of bodies 
     int64_t checknparticles = bodies_.size();
     MPI_Allreduce(MPI_IN_PLACE,&checknparticles,1,MPI_INT64_T,
     MPI_SUM,MPI_COMM_WORLD); 
     assert(checknparticles==totalnbodies_);
- 
+#endif 
+
 #ifdef OUTPUT_TREE_INFO
     rank || clog(trace) << "Computing branches"<<std::endl;
 #endif
 
     tree_->post_order_traversal(tree_->root(),
-        traversal_t::update_COM,smoothinglength_+smoothinglength_/100.,false);
+        traversal_t::update_COM,smoothinglength_/100.,false);
     assert(tree_->root()->sub_entities() == localnbodies_);
 
 #ifdef OUTPUT_TREE_INFO
     // Tree informations
-    rank || clog(info) << *tree_ << "root range = "<< tree_->root()->bmin() 
+    rank || clog(info) << *tree_ << " root range = "<< tree_->root()->bmin() 
      <<";"<<tree_->root()->bmax()<< std::endl; 
 #endif 
 
@@ -331,7 +337,7 @@ public:
     
     // update the tree
     tree_->post_order_traversal(tree_->root(),
-        traversal_t::update_COM,smoothinglength_+smoothinglength_/100.,false);
+        traversal_t::update_COM,smoothinglength_/100.,false);
 
 #ifdef OUTPUT_TREE_INFO
     lentities = tree_->root()->sub_entities();
@@ -385,7 +391,7 @@ public:
 
     // Just consider the local particles in the tree for FMM 
     tree_->post_order_traversal(tree_->root(),
-        traversal_t::update_COM,smoothinglength_+smoothinglength_/100.,true);
+        traversal_t::update_COM,smoothinglength_/100.,true);
 
 
     //tree_->update_branches(smoothinglength_,true);
@@ -397,7 +403,7 @@ public:
     
     
     tree_->post_order_traversal(tree_->root(),
-        traversal_t::update_COM,smoothinglength_+smoothinglength_/100.,false);
+        traversal_t::update_COM,smoothinglength_/100.,false);
     // Reset the tree to normal before leaving
     //tree_->update_branches(smoothinglength_);
   }
