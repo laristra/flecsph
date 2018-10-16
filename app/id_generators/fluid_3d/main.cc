@@ -7,11 +7,13 @@
 #include <algorithm>
 #include <cmath>
 #include <cassert>
+#include <H5hut.h>
+
 
 #include "user.h"
 #include "fluid.h"
-#include "hdf5ParticleIO.h"
 #include "kernels.h"
+
 
 const double ldistance = 0.05;  // Distance between the particles 
 const double m_ = 1.0e-5;
@@ -148,96 +150,36 @@ int main(int argc, char * argv[]){
   sprintf(filename,"%s.h5part",fileprefix);
   remove(filename);
 
-  Flecsi_Sim_IO::HDF5ParticleIO testDataSet; 
-  testDataSet.createDataset(filename,MPI_COMM_WORLD);
+  h5_file_t * dataFile = H5OpenFile(filename,H5_O_WRONLY, MPI_COMM_WORLD);
     
+  int use_fixed_timestep = 1; 
   // add the global attributes
-  testDataSet.writeDatasetAttribute("nparticles","int64_t",nparticles);
-  testDataSet.writeDatasetAttribute("timestep","double",timestep);
-  testDataSet.writeDatasetAttribute("dimension","int32_t",dimension);
-  testDataSet.writeDatasetAttribute("use_fixed_timestep","int32_t",1);
+  H5WriteFileAttribInt64(dataFile,"nparticles",&nparticlesproc,1);
+  H5WriteFileAttribFloat64(dataFile,"timestep",&timestep,1);
+  H5WriteFileAttribInt32(dataFile,"dimension",&dimension,1);
+  H5WriteFileAttribInt32(dataFile,"use_fixed_timestep",&use_fixed_timestep,1);
 
-  //char * simName = "fluid_2D";
-  //testDataSet.writeDatasetAttributeArray("name","string",simName);
-  testDataSet.closeFile();
+  H5SetStep(dataFile,0);
+  H5PartSetNumParticles(dataFile,nparticlesproc);
+  H5PartWriteDataFloat64(dataFile,"x",x);
+  H5PartWriteDataFloat64(dataFile,"y",y);
+  H5PartWriteDataFloat64(dataFile,"z",z);
+  H5PartWriteDataFloat64(dataFile,"vx",vx);
+  H5PartWriteDataFloat64(dataFile,"vy",vy);
+  H5PartWriteDataFloat64(dataFile,"vz",vz);
+  H5PartWriteDataFloat64(dataFile,"ax",ax);
+  H5PartWriteDataFloat64(dataFile,"ay",ay);
+  H5PartWriteDataFloat64(dataFile,"az",az);
+  H5PartWriteDataFloat64(dataFile,"h",h);
+  H5PartWriteDataFloat64(dataFile,"rho",rho);
+  H5PartWriteDataFloat64(dataFile,"u",u);
+  H5PartWriteDataFloat64(dataFile,"P",P);
+  H5PartWriteDataFloat64(dataFile,"m",m);
+  H5PartWriteDataInt64(dataFile,"id",id);
+ 
+  H5CloseFile(dataFile);
 
-  testDataSet.openFile(MPI_COMM_WORLD);
-  testDataSet.setTimeStep(0);
-
-  Flecsi_Sim_IO::Variable _d1,_d2,_d3;
-
-  _d1.createVariable("x",Flecsi_Sim_IO::point,"double",nparticlesproc,x);
-  _d2.createVariable("y",Flecsi_Sim_IO::point,"double",nparticlesproc,y);
-  _d3.createVariable("z",Flecsi_Sim_IO::point,"double",nparticlesproc,z);
-
-  testDataSet.vars.push_back(_d1);
-  testDataSet.vars.push_back(_d2);
-  testDataSet.vars.push_back(_d3);
-
-  testDataSet.writeVariables();
-
-  _d1.createVariable("vx",Flecsi_Sim_IO::point,"double",nparticlesproc,vx);
-  _d2.createVariable("vy",Flecsi_Sim_IO::point,"double",nparticlesproc,vy);
-  _d3.createVariable("vz",Flecsi_Sim_IO::point,"double",nparticlesproc,vz);
-
-  testDataSet.vars.push_back(_d1);
-  testDataSet.vars.push_back(_d2);
-  testDataSet.vars.push_back(_d3);
-
-  testDataSet.writeVariables();
-
-  _d1.createVariable("ax",Flecsi_Sim_IO::point,"double",nparticlesproc,ax);
-  _d2.createVariable("ay",Flecsi_Sim_IO::point,"double",nparticlesproc,ay);
-  _d3.createVariable("az",Flecsi_Sim_IO::point,"double",nparticlesproc,az);
-
-  testDataSet.vars.push_back(_d1);
-  testDataSet.vars.push_back(_d2);
-  testDataSet.vars.push_back(_d3);
-
-  testDataSet.writeVariables();
-
-
-  _d1.createVariable("h",Flecsi_Sim_IO::point,"double",nparticlesproc,h);
-  _d2.createVariable("rho",Flecsi_Sim_IO::point,"double",nparticlesproc,rho);
-  _d3.createVariable("u",Flecsi_Sim_IO::point,"double",nparticlesproc,u);
-  
-  testDataSet.vars.push_back(_d1);
-  testDataSet.vars.push_back(_d2);
-  testDataSet.vars.push_back(_d3);
-
-  testDataSet.writeVariables();
-
-  _d1.createVariable("P",Flecsi_Sim_IO::point,"double",nparticlesproc,P);
-  _d2.createVariable("m",Flecsi_Sim_IO::point,"double",nparticlesproc,m);
-  _d3.createVariable("id",Flecsi_Sim_IO::point,"int64_t",nparticlesproc,id);
-  
-  testDataSet.vars.push_back(_d1);
-  testDataSet.vars.push_back(_d2);
-  testDataSet.vars.push_back(_d3);
-
-  testDataSet.writeVariables();
-
-  testDataSet.closeFile(); 
-  
-  delete[] x;
-  delete[] y;
-  delete[] z;
-  delete[] vx;
-  delete[] vy;
-  delete[] vz;
-  delete[] ax;
-  delete[] ay;
-  delete[] az;
-  delete[] h;
-  delete[] rho;
-  delete[] u;
-  delete[] P;
-  delete[] m;
-  delete[] id;
-  delete[] dt;
-
-  // Generate wall particles 
-
+  delete[] x, y, z, vx, vy, vz, ax, ay, az, h, rho, u, P, m, id, dt; 
 
   MPI_Finalize();
   return 0;

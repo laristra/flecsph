@@ -29,7 +29,8 @@
 #include <vector>
 
 //#warning "CHANGE TO FLECSI ONE"
-#include "tree_topology.h"
+#include "tree_topology/tree_topology.h"
+#include "tree_topology/tree_entity_id.h"
 #include "flecsi/geometry/point.h"
 #include "flecsi/geometry/space_vector.h"
 #include "utils.h"
@@ -53,7 +54,8 @@ struct body_holder_mpi_t{
   point_t position; 
   int owner; 
   double mass;
-  int64_t id; 
+  flecsi::topology::entity_id_t id;
+  double h; 
 };
 
 class tree_policy{
@@ -65,48 +67,62 @@ public:
   using point_t = flecsi::point__<element_t, dimension>;
   using space_vector_t = flecsi::space_vector<element_t,dimension>;
   using geometry_t = flecsi::topology::tree_geometry<element_t, gdimension>;
+  using id_t = flecsi::topology::entity_id_t;
+  using key_t = flecsi::topology::morton_id<branch_int_t,dimension>;
 
+
+  /** 
+   * @brief BODY_HOLDER, entity in the tree. Light representation of a body
+   */ 
   class body_holder : 
     public flecsi::topology::tree_entity<branch_int_t,dimension>{
   
   public: 
 
-    body_holder(point_t position,
+    body_holder(
+        point_t coordinates,
         body * bodyptr,
-        int owner,
+        size_t owner,
         element_t mass,
-	      int64_t id
+	      id_t id,
+        element_t h
         )
-      :position_(position),bodyptr_(bodyptr),owner_(owner),mass_(mass),id_(id)
+      : coordinates_(coordinates),bodyptr_(bodyptr),mass_(mass),h_(h)
     {
       locality_ = bodyptr_==nullptr?NONLOCAL:EXCL;
+      global_id_ = id; 
+      owner_ = owner;
     };
 
     body_holder()
-      :position_(point_t{0,0,0}),
+      :coordinates_(point_t{0,0,0}),
        bodyptr_(nullptr),
-       owner_(-1),
        mass_(0.0),
-       id_(int64_t(0))
+       h_(0.0)
     {
       locality_ = NONLOCAL;
+      owner_ = -1; 
+      global_id_ = {};
     };
 
-    // Function used in the tree structure 
-    const point_t& coordinates() const {return position_;}
-    const point_t& getPosition() const {return position_;}
+    ~body_holder()
+    {
+      bodyptr_ = nullptr; 
+    }
+    
+    point_t coordinates() const {return coordinates_;}
     body* getBody(){return bodyptr_;};
-    int getOwner(){return owner_;};
-    element_t getMass(){return mass_;};
-    int64_t getId(){return id_;}; 
+    element_t mass(){return mass_;};
+    element_t h(){return h_;};
     
     void setBody(body * bodyptr){bodyptr_ = bodyptr;};
-    void setPosition(point_t position){position_ = position;};
-    void setId(int64_t id){id_ = id;}; 
+    void set_id(id_t& id){id_ = id;}; 
+    void set_coordinates(point_t& coordinates){coordinates_=coordinates;};
+    void set_h(element_t h){h_=h;};
 
     friend std::ostream& operator<<(std::ostream& os, const body_holder& b){
       os << std::setprecision(10);
-      os << "Holder. Pos: " <<b.position_ << " Mass: "<< b.mass_ << " "; 
+      os << "Holder. Pos: " <<b.coordinates_ << " Mass: "<< b.mass_ << " "; 
       if(b.locality_ == LOCAL || b.locality_ == EXCL || b.locality_ == SHARED)
       {
         os<< "LOCAL";
@@ -119,264 +135,47 @@ public:
     }  
 
   private:
-    // Should be replace by the key corresponding to the entity 
-    point_t position_;
-    body * bodyptr_; 
-    int owner_;
-
-    // Add this for COM in the current version
+    point_t coordinates_;
     element_t mass_;
-    // Id of the particle behind
-    int64_t id_;
+    element_t h_; 
+    body * bodyptr_; 
   };
     
   using entity_t = body_holder;
-    /**
-   * Class entity_key_t used to represent the key of a body. 
-   * The right way should be to add this informations directly inside 
-   * the body_holder. 
-   * With this information we should avoid the positions of the holder.
-   * This is exactly the same representation as a branch but here 
-   * the max depth is always used. 
-   */
-  class entity_key_t
-  {
-    public:
-      using int_t = uint64_t;
-      static const size_t dimension = gdimension;
-      static constexpr size_t bits = sizeof(int_t) * 8;
-      static constexpr size_t max_depth = (bits - 1)/dimension;
-      using element_t = type_t; 
-
-      entity_key_t()
-      : id_(0)
-      {}
-
-      entity_key_t(
-        //const std::array<point_t, 2>& range_,
-        const point_t& p)
-      : id_(int_t(1) << ((max_depth * dimension) + ((bits - 1) % dimension)))
-      {
-        std::array<int_t, dimension> coords;
-        for(size_t i = 0; i < dimension; ++i)
-        {
-          element_t min = range_[0][i];
-          element_t scale = range_[1][i] - min;
-          coords[i] = (p[i] - min)/scale * (int_t(1) << (bits - 1)/dimension);
-        }
-        size_t k = 0;
-        for(size_t i = 0; i < max_depth; ++i)
-        {
-          for(size_t j = 0; j < dimension; ++j)
-          {
-            int_t bit = (coords[j] & int_t(1) << i) >> i;
-            id_ |= bit << (k * dimension + j);
-          }
-          ++k;
-        }
-      }
-      
-      //static 
-      //std::array<point_t,2> range_;
-
-      static
-      void  
-      set_range(std::array<point_t,2>& range){
-        range_ = range; 
-      } 
-
-      constexpr entity_key_t(const entity_key_t& bid)
-      : id_(bid.id_)
-      {}
-
-      static 
-      constexpr
-      entity_key_t
-      null()
-      {
-        return entity_key_t(0);
-      }
-
-      int_t 
-      truncate_value(int depth)
-      {
-        int dec = ((sizeof(int_t)*8)/dimension)*dimension;
-        return id_ >> (dec-dimension*(depth+1));
-      }
-
-      constexpr
-      bool 
-      is_null() const
-      {
-        return id_ == int_t(0);
-      }
-
-      entity_key_t&
-      operator=(
-        const entity_key_t& ek) 
-      {
-        id_ = ek.id_; 
-        return *this;
-      }
-
-      constexpr
-      bool 
-      operator==(
-        const entity_key_t& ek
-      ) const 
-    {
-      return id_ == ek.id_; 
-    }
-
-    constexpr 
-    bool 
-    operator!=(
-      const entity_key_t& ek
-    ) const
-    {
-      return id_ != ek.id_; 
-    }
-
-    // Switch representation base on dimension 
-    void
-    output_(
-      std::ostream& ostr
-    ) const
-    {
-      // TODO change for others dimensions
-      if(dimension == 3){
-        ostr << std::oct << id_ << std::dec;
-      }else if(dimension == 1){
-        ostr << std::bitset<64>(id_);
-      }else{
-        // For dimension 2, display base 4
-        ostr << std::bitset<64>(id_);
-      }
-      // Old display group of bits based on the dimension
-      //constexpr int_t mask = ((int_t(1) << dimension) - 1) << bits - dimension;
-      //size_t d = max_depth;
-      //int_t id = id_;
-      //
-      //while((id & mask) == int_t(0))
-      //{
-      //  --d;
-      //  id <<= dimension;
-      //}
-      //if(d == 0)
-      //{
-      //  ostr << "<root>";
-      //  return;
-      //}
-      //id <<= 1 + (bits - 1) % dimension;
-      //for(size_t i = 1; i <= d; ++i)
-      //{
-      //  int_t val = (id & mask) >> (bits - dimension);
-      //  ostr << std::oct << val << std::dec; 
-      //  //ostr << i << ":" << std::bitset<dimension>(val) << " ";
-      //  id <<= dimension;
-      //}
-    }
-
-    bool
-    operator<(
-      const entity_key_t& bid
-    ) const
-    {
-      return id_ < bid.id_;
-    }
-  
-    bool
-    operator>(
-      const entity_key_t& bid
-    ) const
-    {
-      return id_ > bid.id_;
-    }
-  
-    bool
-    operator<=(
-      const entity_key_t& bid
-    ) const
-    {
-      return id_ <= bid.id_;
-    }
-    
-    bool
-    operator>=(
-      const entity_key_t& bid
-    ) const
-    {
-      return id_ >= bid.id_;
-    }
-
-    entity_key_t 
-    operator/(const int div){
-      return entity_key_t(id_/div);
-    }
-
-    entity_key_t
-    operator+(const entity_key_t& oth )
-    {
-      return entity_key_t(id_+oth.id_);
-    }
-
-    entity_key_t 
-    operator-(const entity_key_t& oth)
-    {
-      return entity_key_t(id_-oth.id_);
-    }
-
-    // The first possible key 10000....
-    static 
-    constexpr
-    entity_key_t
-    first_key()
-    {
-      return entity_key_t(int_t(1) << 
-          ((max_depth*dimension)+((bits-1)%dimension)));
-    }
-
-    // The last key 1777..., should be modified using not bit operation
-    static
-    constexpr
-    entity_key_t
-    last_key()
-    {
-      return entity_key_t(~int_t(0) >> (bits-(1+max_depth)*dimension
-            +(gdimension-1)));      
-    }
-  
-    int_t 
-    value()
-    {
-      return id_;
-    }
-  
-  private:
-    int_t id_;
-    static std::array<point_t,2> range_;
-
-    constexpr
-    entity_key_t(
-      int_t id
-    )
-    :id_(id)
-    {}
-  };
-
+   
+  /**
+   *  @brief BRANCH structure, a Center of Mass in our case.
+   */ 
   class branch : public flecsi::topology::tree_branch<branch_int_t,dimension,
   double>{
   public:
     branch(){}
 
+    branch(const branch_id_t& id):tree_branch(id){}
+
     void insert(body_holder* ent){
-      // Check if same id in the branch 
-      // entity_key_t nkey = entity_key_t(ent->coordinates());  // unused
       ents_.push_back(ent); 
-      if(ents_.size() > (1<<dimension)){
+      if(ents_.size() > num_children){
         refine();
       }
     } // insert
+
+    // Copy constructor 
+    branch(const branch& b){
+      this->ents_ = b.ents_;
+      this->bmax_ = b.bmax_; 
+      this->bmin_ = b.bmin_;
+      this->mass_ = b.mass_; 
+      this->radius_ = b.radius_;
+      this->coordinates_ = b.coordinates_; 
+      this->id_ = b.id_; 
+      this->sub_entities_ = b.sub_entities_; 
+      this->leaf_ = b.leaf_;  
+    }
+
+    ~branch(){
+      ents_.clear();
+    }
     
     auto begin(){
       return ents_.begin();
@@ -388,7 +187,6 @@ public:
 
     auto clear(){
       ents_.clear(); 
-      //ents_.clear();
     }
 
     void remove(body_holder* ent){
@@ -408,19 +206,21 @@ public:
       return p;
     }
 
-    point_t getPosition(){return coordinates_;};
-    element_t getMass(){return mass_;};
-    //element_t getRadius(){return radius_;};
-    point_t getBMin(){return bmin_;};
-    point_t getBMax(){return bmax_;};
-    void setPosition(point_t position){coordinates_ = position;};
-    void setMass(element_t mass){mass_ = mass;};
-    //void setRadius(element_t radius){radius_ = radius;};
-    void setBMax(point_t bmax){bmax_ = bmax;};
-    void setBMin(point_t bmin){bmin_ = bmin;};
+    point_t coordinates(){return coordinates_;};
+    element_t mass(){return mass_;};
+    element_t radius(){return radius_;};
+    point_t bmin(){return bmin_;};
+    point_t bmax(){return bmax_;};
+    void set_coordinates(point_t& coordinates){coordinates_=coordinates;};
+    void set_mass(element_t mass){mass_ = mass;};
+    void set_radius(element_t radius){radius_ = radius;};
+    void set_bmax(point_t bmax){bmax_ = bmax;};
+    void set_bmin(point_t bmin){bmin_ = bmin;};
 
    private:
-    //std::vector<std::vector<body_holder*>> ents_;
+    point_t coordinates_; 
+    double mass_; 
+    double radius_;
     std::vector<body_holder*> ents_; 
     point_t bmax_;
     point_t bmin_;
@@ -430,7 +230,7 @@ public:
     return true;
   }
 
-  using branch_t = branch;
+  using branch_t = branch; 
 
 }; // class tree_policy
 
@@ -440,21 +240,87 @@ using point_t = tree_topology_t::point_t;
 using branch_t = tree_topology_t::branch_t;
 using branch_id_t = tree_topology_t::branch_id_t;
 using space_vector_t = tree_topology_t::space_vector_t;
-using entity_key_t = tree_topology_t::entity_key_t;
+using entity_key_t = tree_topology_t::key_t;
 using entity_id_t = flecsi::topology::entity_id_t;
 
-std::array<point_t,2> entity_key_t::range_ = {point_t{},point_t{}};
 
-
-std::ostream&
-operator<<(
-  std::ostream& ostr,
-  const entity_key_t& id
-)
+template <
+  typename T,
+  size_t D
+>
+struct traversal
 {
-  id.output_(ostr);
-  return ostr;
-}
+  using element_t = T; 
+  const static size_t dimension = D;
+
+
+ // Functions for the tree traversal 
+  static void update_COM(
+      tree_topology_t* tree,
+      branch_t * b,
+      element_t epsilon = element_t(0),
+      bool local_only = false)
+  {
+    element_t mass = element_t(0); 
+    point_t bmax{}; 
+    point_t bmin{}; 
+    element_t radius; 
+    point_t coordinates = point_t{};
+    uint64_t nchildren = 0; 
+    for(size_t d = 0 ; d < dimension ; ++d){
+      bmax[d] = -DBL_MAX; 
+      bmin[d] = DBL_MAX; 
+    }
+    if(b->is_leaf()){
+      for(auto child: *b)
+      {
+        if(local_only && !child->is_local()){
+          continue; 
+        }
+        nchildren++; 
+        element_t childmass = child->mass();
+        for(size_t d = 0 ; d < dimension ; ++d)
+        {
+          bmax[d] = std::max(bmax[d],child->coordinates()[d]+epsilon+
+              child->h());
+          bmin[d] = std::min(bmin[d],child->coordinates()[d]-epsilon-
+              child->h());
+        }
+        coordinates += childmass * child->coordinates(); 
+        mass += childmass;  
+      }
+      if(mass > element_t(0))
+        coordinates /= mass; 
+    }else{
+      for(int i = 0 ; i < (1<<dimension); ++i)
+      {
+        auto branch = tree->child(b,i);
+        nchildren+=branch->sub_entities();
+        mass += branch->mass(); 
+        if(branch->mass() > 0)
+        {
+          for(size_t d = 0 ; d < dimension ; ++d)
+          {
+            bmax[d] = std::max(bmax[d],branch->bmax()[d]);
+            bmin[d] = std::min(bmin[d],branch->bmin()[d]);
+          }
+        }
+        coordinates += branch->mass()*branch->coordinates();
+      }
+      if(mass > element_t(0))
+        coordinates /= mass; 
+    }
+    b->set_sub_entities(nchildren);
+    b->set_coordinates(coordinates);
+    b->set_mass(mass);
+    b->set_bmin(bmin);
+    b->set_bmax(bmax);
+  }
+
+
+};
+
+using traversal_t = traversal<double,gdimension>;
 
 inline 
 bool
