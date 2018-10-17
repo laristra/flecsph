@@ -193,10 +193,10 @@ public:
       #pragma omp for 
       for(auto cell=recvCOM_.begin(); cell < recvCOM_.end() ; ++cell){
         branch_t sink;
-        sink.setPosition(cell->position);
+        sink.set_coordinates(cell->position);
         sink.set_bmax(cell->bmax);
         sink.set_bmin(cell->bmin);
-        sink.setMass(cell->mass);
+        sink.set_mass(cell->mass);
         // Do the tree traversal, compute the cells data
         tree_traversal_c2c(tree,&sink,tree.root(),
             cell->fc,cell->dfcdr,cell->dfcdrdr,
@@ -248,10 +248,10 @@ public:
     const point_t& pos_nb,
     const double& mass_nb)
   {
-    double dist = flecsi::distance(bi->getPosition(),pos_nb);
+    double dist = flecsi::distance(bi->coordinates(),pos_nb);
     if(dist > 0){
       bi->setAcceleration(bi->getAcceleration()-
-        mass_nb/(dist*dist*dist)*(bi->getPosition()-pos_nb));
+        mass_nb/(dist*dist*dist)*(bi->coordinates()-pos_nb));
     }
   }
   /**
@@ -359,8 +359,8 @@ public:
     for(size_t i = 0; i < vbranches.size(); ++i){
       assert(vbranches[i]->sub_entities()>0);
       vcells[i] = mpi_cell_t(
-        vbranches[i]->get_coordinates(),
-        vbranches[i]->getMass(),
+        vbranches[i]->coordinates(),
+        vbranches[i]->mass(),
         vbranches[i]->bmin(),
         vbranches[i]->bmax(), 
         vbranches[i]->id(),
@@ -485,7 +485,7 @@ public:
       branch_t * sink =  tree.get(recvcells[i].id);
       
       assert(sink!=nullptr);
-      point_t pos = sink->getPosition();
+      point_t pos = sink->coordinates();
 
       sink_traversal_c2p(tree,sink,pos,
           recvcells[i].fc,recvcells[i].dfcdr,recvcells[i].dfcdrdr,subparts);
@@ -557,8 +557,8 @@ private:
       stk.pop();
   
       if(geometry_t::box_MAC(
-        cur->getPosition(),
-        sink->getPosition(),
+        cur->coordinates(),
+        sink->coordinates(),
         cur->bmin(),
         cur->bmax(),
         macangle)){
@@ -572,8 +572,8 @@ private:
               for(auto b: subparts){
                 computeAcceleration_direct(
                   b,
-                  bi->getPosition(),
-                  bi->getMass());
+                  bi->coordinates(),
+                  bi->mass());
               } // for
             } // if
           } // for
@@ -673,8 +673,8 @@ private:
 
 
       if(geometry_t::box_MAC(
-        cur->getPosition(),
-        sink->getPosition(),
+        cur->coordinates(),
+        sink->coordinates(),
         cur->bmin(),
         cur->bmax(),
         macangle))
@@ -692,13 +692,13 @@ private:
           //  particles_count[owner]++;
           //  particles.push_back(
           //    body_holder_fmm_t{
-          //      bi->getPosition(),owner,bi->getMass(),bi->getId(),sink_id
+          //      bi->coordinates(),owner,bi->mass(),bi->getId(),sink_id
           //    }
           //  ); 
          // }
         //}else{
-          computeAcceleration(sink->getPosition(),cur->getPosition(),
-            cur->getMass(),fc,jacobi,hessian);
+          computeAcceleration(sink->coordinates(),cur->coordinates(),
+            cur->mass(),fc,jacobi,hessian);
           ninter+=cur->sub_entities();
         //}
       }else{
@@ -710,7 +710,7 @@ private:
                 particles_count[owner]++;
                 particles.push_back(
                   body_holder_fmm_t{
-                    bi->getPosition(),owner,bi->getMass(),bi->getId(),sink_id
+                    bi->coordinates(),owner,bi->mass(),bi->id(),sink_id
                   }
                 );
               }
@@ -750,7 +750,7 @@ private:
           if(!bi->is_local()){
             continue;
           } // if
-          point_t diffPos = bi->getPosition() - sinkPosition;
+          point_t diffPos = bi->coordinates() - sinkPosition;
           point_t grav = fc;
           // The Jacobi 
           for(size_t i=0;i<dimension;++i){

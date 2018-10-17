@@ -38,7 +38,7 @@
 using namespace mpi_utils;
 
 // Output the data regarding the distribution for debug
-//#define OUTPUT_TREE_INFO
+// #define OUTPUT_TREE_INFO 1
 
 
 /**
@@ -180,6 +180,7 @@ public:
 
     // If one process, done 
     if(size==1){
+      clog(info)<<"Local particles: "<<totalnbodies<<std::endl;
       return;
     } // if
     
@@ -382,11 +383,13 @@ public:
             recv_search_branches[j][0],
             recv_search_branches[j][1]);
         for(auto ent: ents){
+          assert(ent != nullptr);
           tmpsendbuffer.push_back(body_holder_mpi_t{
-            ent->getPosition(),
+            ent->coordinates(),
             rank,
-            ent->getMass(),
-            ent->getBody()->getId()});
+            ent->mass(),
+            ent->getBody()->getId(),
+            ent->getBody()->getSmoothinglength()});
         }
       }
 
@@ -416,8 +419,10 @@ public:
     {
       assert(bi.owner!=rank);
       assert(bi.mass!=0.);
-      auto nbi = tree.make_entity(bi.position,nullptr,bi.owner,bi.mass,bi.id);
+      auto nbi = tree.make_entity(bi.position,nullptr,bi.owner,bi.mass,bi.id,
+          bi.h);
       tree.insert(nbi);
+      assert(nbi->global_id() == bi.id);
     }
 
 #ifdef OUTPUT_TREE_INFO
@@ -473,7 +478,7 @@ void mpi_refresh_ghosts(
       {
         for(auto& nl: ghosts_data.rbodies)
         {
-          if(bi->getId() == nl.getId())
+          if(bi->global_id() == nl.id())
           {
             totalfound++;
             bi->setBody(&(nl));
@@ -558,12 +563,12 @@ void mpi_refresh_ghosts(
         );
       for(auto nb: nbs)
       {
-        if(!nb->is_local() && !proc[nb->getOwner()])
+        if(!nb->is_local() && !proc[nb->owner()])
         {
           // Mark this particle as sent for this process
-          proc[nb->getOwner()] = true; 
+          proc[nb->owner()] = true; 
 #pragma omp atomic update
-          ghosts_data.nsbodies[nb->getOwner()]++; 
+          ghosts_data.nsbodies[nb->owner()]++; 
         } // if
       } // for
     } // for 
@@ -601,16 +606,16 @@ void mpi_refresh_ghosts(
       );
       for(auto nb: nbs)
       {
-        if(!nb->is_local() && !proc[nb->getOwner()])
+        if(!nb->is_local() && !proc[nb->owner()])
         {
-          proc[nb->getOwner()] = true; 
+          proc[nb->owner()] = true; 
           int pos = 0;
 
 #pragma omp atomic capture
-          pos = spbodies[nb->getOwner()]++;
+          pos = spbodies[nb->owner()]++;
 
           // Write
-          pos += offset[nb->getOwner()];
+          pos += offset[nb->owner()];
           assert(pos<totalsbodies);
           ghosts_data.sholders[pos] = bi;
           ghosts_data.sbodies[pos] = *(bi->getBody());

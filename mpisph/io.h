@@ -30,9 +30,9 @@
 #include <iostream>
 #include <vector>
 #include "params.h"
+#include "default_physics.h"
 
 #include <H5hut.h>
-#include <hdf5ParticleIO.h>
 
 //#include "tree.h"
 //#include "physics.h"
@@ -330,7 +330,6 @@ void inputDataHDF5(
     bodies[i].second.setType(dataInt32[i]);
   }
 
-
   delete[] dataX;
   delete[] dataY;
   delete[] dataZ;
@@ -360,7 +359,6 @@ void outputDataHDF5(
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
   MPI_Barrier(MPI_COMM_WORLD);
-
   rank|| clog(trace)<<"Output particles"<<std::flush;
 
   int64_t nparticlesproc = bodies.size();
@@ -372,34 +370,33 @@ void outputDataHDF5(
   else {
     sprintf(filename,"%s.h5part",fileprefix);
   }
-  Flecsi_Sim_IO::HDF5ParticleIO simio;
-  simio.createDataset(filename,MPI_COMM_WORLD);
+
+  // Remove previous data file if iteration 0 
+  if(step == 0 && rank == 0)
+  {
+    remove(filename);
+  }
+
+  h5_file_t* dataFile = H5OpenFile(filename,H5_O_RDWR | H5_VFD_MPIIO_IND,
+      MPI_COMM_WORLD);
   
   //-------------------GLOBAL HEADER-------------------------------------------
   // Only for the first output
-  if(do_diff_files) {
-     simio.writeDatasetAttribute("ndim","int32_t",gdimension);
-     // ... TODO
-  }
-  else{
-    if(step == 0){
-      // output dimension 
-      simio.writeDatasetAttribute("ndim","int32_t",gdimension);
-    }
+  if(step == 0){
+    int gdimension32 = gdimension;  
+    H5WriteFileAttribInt32(dataFile,"ndim",&gdimension32,1);
   }
 
   //------------------STEP HEADER----------------------------------------------
   // Put the step header
-  simio.setTimeStep(step);
-  
-  Flecsi_Sim_IO::Attribute timeValue("time",Flecsi_Sim_IO::timestep,"double",
-      totaltime);
-  simio.addTimeStepAttribute(timeValue);
-
-
-  simio.writeTimestepAttributes();
-
+  //simio.setTimeStep(step); 
+  H5SetStep(dataFile,step);
+  H5WriteStepAttribFloat64(dataFile,"time",&physics::totaltime,1); 
+  //int iteration = step*param::out_h5data_every;
+  H5WriteStepAttribInt64(dataFile,"iteration",&physics::iteration,1);  
   //------------------STEP DATA------------------------------------------------
+
+  H5PartSetNumParticles(dataFile,nparticlesproc);
 
   // 4 buffers, 3 double and 1 int64
   double* b1 = new double[nparticlesproc];
@@ -425,16 +422,9 @@ void outputDataHDF5(
       b3[pos++] = 0.;
     }
   }
-
-  // Add variable  
-  simio.addVariable( Flecsi_Sim_IO::Variable("x",Flecsi_Sim_IO::point, 
-        "double", nparticlesproc,b1));
-  simio.addVariable( Flecsi_Sim_IO::Variable("y",Flecsi_Sim_IO::point, 
-        "double", nparticlesproc,b2));
-  simio.addVariable( Flecsi_Sim_IO::Variable("z",Flecsi_Sim_IO::point, 
-        "double", nparticlesproc,b3));
-  // Push to file 
-  simio.writeVariables();
+  H5PartWriteDataFloat64(dataFile,"x",b1); 
+  H5PartWriteDataFloat64(dataFile,"y",b2);
+  H5PartWriteDataFloat64(dataFile,"z",b3);
 
   // Velocity
   pos = 0L;
@@ -452,15 +442,9 @@ void outputDataHDF5(
       b3[pos++] = 0.;
     }
   }
-
-  simio.addVariable( Flecsi_Sim_IO::Variable("vx",Flecsi_Sim_IO::point, 
-        "double", nparticlesproc,b1));
-  simio.addVariable( Flecsi_Sim_IO::Variable("vy",Flecsi_Sim_IO::point, 
-        "double", nparticlesproc,b2));
-  simio.addVariable( Flecsi_Sim_IO::Variable("vz",Flecsi_Sim_IO::point, 
-        "double", nparticlesproc,b3));
-
-  simio.writeVariables();
+  H5PartWriteDataFloat64(dataFile,"vx",b1);
+  H5PartWriteDataFloat64(dataFile,"vy",b2);
+  H5PartWriteDataFloat64(dataFile,"vz",b3);
 
   // Acceleration 
   pos = 0L;
@@ -478,15 +462,9 @@ void outputDataHDF5(
       b3[pos++] = 0.;
     }
   }
-
-  simio.addVariable( Flecsi_Sim_IO::Variable("ax",Flecsi_Sim_IO::point, 
-        "double", nparticlesproc,b1));
-  simio.addVariable( Flecsi_Sim_IO::Variable("ay",Flecsi_Sim_IO::point, 
-        "double", nparticlesproc,b2));
-  simio.addVariable( Flecsi_Sim_IO::Variable("az",Flecsi_Sim_IO::point, 
-        "double", nparticlesproc,b3));
-
-  simio.writeVariables();
+  H5PartWriteDataFloat64(dataFile,"ax",b1);
+  H5PartWriteDataFloat64(dataFile,"ay",b2);
+  H5PartWriteDataFloat64(dataFile,"az",b3);
 
   // Smoothing length, Density, Internal Energy 
   pos = 0L;
@@ -499,17 +477,11 @@ void outputDataHDF5(
     #endif
     pos++;
   }
-
-  simio.addVariable( Flecsi_Sim_IO::Variable("h",Flecsi_Sim_IO::point, 
-        "double", nparticlesproc,b1));
-  simio.addVariable( Flecsi_Sim_IO::Variable("rho",Flecsi_Sim_IO::point, 
-        "double", nparticlesproc,b2));
-  #ifdef INTERNAL_ENERGY
-  simio.addVariable( Flecsi_Sim_IO::Variable("u",Flecsi_Sim_IO::point, 
-        "double", nparticlesproc,b3));
-  #endif
-
-  simio.writeVariables();
+  H5PartWriteDataFloat64(dataFile,"h",b1);
+  H5PartWriteDataFloat64(dataFile,"rho",b2);
+#ifdef INTERNAL_ENERGY
+  H5PartWriteDataFloat64(dataFile,"u",b3);
+#endif 
 
  // Pressure, Mass, Id, timestep
   pos = 0L;
@@ -521,21 +493,17 @@ void outputDataHDF5(
     bi[pos] = bid.second.getId();
     bint[pos++] = bid.second.getType(); 
   }
-  
-  simio.addVariable( Flecsi_Sim_IO::Variable("P",Flecsi_Sim_IO::point, 
-        "double", nparticlesproc,b1));
-  simio.addVariable( Flecsi_Sim_IO::Variable("m",Flecsi_Sim_IO::point, 
-        "double", nparticlesproc,b2));
-  simio.addVariable( Flecsi_Sim_IO::Variable("dt",Flecsi_Sim_IO::point, 
-        "double", nparticlesproc,b3));
-  simio.addVariable( Flecsi_Sim_IO::Variable("id",Flecsi_Sim_IO::point, 
-        "int64_t", nparticlesproc,bi));
-  simio.addVariable( Flecsi_Sim_IO::Variable("type",Flecsi_Sim_IO::point, 
-        "int32_t", nparticlesproc,bint));
+  H5PartWriteDataFloat64(dataFile,"P",b1);
+  H5PartWriteDataFloat64(dataFile,"m",b2);
+  H5PartWriteDataFloat64(dataFile,"dt",b3);
+  H5PartWriteDataInt64(dataFile,"id",bi);
+  H5PartWriteDataInt32(dataFile,"type",bint);
 
+  // Output the rank for analysis 
+  std::fill(bi,bi+nparticlesproc,rank);
+  H5PartWriteDataInt64(dataFile,"rank",bi);
 
-  simio.writeVariables();
-  simio.closeFile();
+  H5CloseFile(dataFile);
 
   delete[] b1;
   delete[] b2;

@@ -52,7 +52,6 @@ TEST(tree_colorer, mpi_qsort){
   std::array<point_t,2> range;
   range[0] = point_t{};
   range[1] = point_t{maxbound,maxbound,maxbound};
-  entity_key_t::set_range(range); 
   std::vector<std::pair<entity_key_t,body>> bodies(nparticlesperproc);
   // Create the bodies and keys 
   for(size_t i=0;i<nparticlesperproc;++i){
@@ -64,7 +63,7 @@ TEST(tree_colorer, mpi_qsort){
     );
  
     // Compute the key 
-    bodies[i].first = entity_key_t(/*range,*/bodies[i].second.getPosition());
+    bodies[i].first = entity_key_t(range,bodies[i].second.getPosition());
   }
 
   // Gather all the particles everywhere and sort locally 

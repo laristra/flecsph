@@ -8,21 +8,22 @@
 #include <algorithm>
 #include <cassert>
 #include <math.h>
+#include <H5hut.h>
 
 #include "user.h"
 #include "sodtube.h"
 #include "params.h"
-#include "hdf5ParticleIO.h"
 #include "lattice.h"
+#include "kernels.h"
 
 //
 // help message
 //
 void print_usage() {
-  using namespace std;
-  cout << "Initial data generator for Sod shocktube test in" <<
-  gdimension << "D" << endl << "Usage: ./sodtube_generator <parameter-file.par>"
-  << endl;
+  clog(warn)
+      << "Initial data generator for Sod shocktube test in"
+      << gdimension << "D" << std::endl
+      << "Usage: ./sodtube_generator <parameter-file.par>" << std::endl;
 }
 
 //
@@ -69,16 +70,6 @@ void set_derived_params() {
   }
   SET_PARAM(nparticles, npd);
 
-  // particle spacing and smoothing length
-  SET_PARAM(sph_separation, (box_length/(double)(lattice_nx - 1)));
-  if(gdimension==1){
-    SET_PARAM(sph_smoothing_length, (sph_separation*25.)); // TODO: use sph_eta instead
-  } else if(gdimension==2){
-    SET_PARAM(sph_smoothing_length, (sph_separation*4.)); // TODO: ???
-  } else if(gdimension==3){
-    SET_PARAM(sph_smoothing_length, (sph_separation*3.)); // TODO: ???
-  }
-
   // test selector
   switch (sodtest_num) {
     case (1):
@@ -116,7 +107,11 @@ void set_derived_params() {
       clog(error) << "ERROR: invalid test (" << sodtest_num << ")." << endl;
       MPI_Finalize();
       exit(-1);
+
   }
+
+  // particle spacing
+  SET_PARAM(sph_separation, (box_length/(double)(lattice_nx - 1)));
 
   // file to be generated
   std::ostringstream oss;
@@ -127,7 +122,6 @@ void set_derived_params() {
 
 //----------------------------------------------------------------------------//
 int main(int argc, char * argv[]){
-  using namespace std;
   using namespace param;
 
   // launch MPI
@@ -150,15 +144,18 @@ int main(int argc, char * argv[]){
   set_derived_params();
   particle_lattice::select();
 
+  // set kernel
+  kernels::select(sph_kernel);
+
   // screen output
-  clog(info) << "Sod test #" << sodtest_num << " in " << gdimension
-         << "D:" << endl << " - number of particles: " << nparticles
-         << endl << " - particles per core:  " << nparticlesproc << endl
-         << " - generated initial data file: " << initial_data_file << endl;
+  std::cout << "Sod test #" << sodtest_num << " in " << gdimension
+       << "D:" << std::endl << " - number of particles: " << nparticles
+       << std::endl << " - particles per core:  " << nparticlesproc << std::endl
+       << " - generated initial data file: " << initial_data_file << std::endl;
 
   // allocate arrays
   int64_t tparticles = 0;
-  int64_t parts_mid= 0;
+  int64_t parts_mid = 0;
   int64_t parts_lr = 0;
   double mass = 0;
   bool equal_separation = !equal_mass;
@@ -213,7 +210,6 @@ int main(int argc, char * argv[]){
                                           lr_sph_sep,tparticles-1);
   }
 
-
   // Initialize the arrays to be filled later
   // Position
   double* x = new double[tparticles]();
@@ -263,7 +259,7 @@ int main(int argc, char * argv[]){
   int64_t posid = 0;
 
   // max. value for the speed of sound
-  double cs = sqrt(poly_gamma*max(pressure_1/rho_1,pressure_2/rho_2));
+  double cs = sqrt(poly_gamma*std::max(pressure_1/rho_1,pressure_2/rho_2));
 
   // The value for constant timestep
   double timestep = 0.5*sph_separation/cs;
@@ -287,7 +283,8 @@ int main(int argc, char * argv[]){
       u[part] = P[part]/(poly_gamma-1.)/rho[part];
 
       // particle smoothing length
-      h[part] = sph_smoothing_length;
+      h[part] = sph_eta * kernels::kernel_width
+                        * pow(m[part]/rho[part],1./gdimension);
 
 
     } // for part=0..nparticles
@@ -310,102 +307,43 @@ int main(int argc, char * argv[]){
 
       // particle masses and smoothing length
       m[part] = mass;
-      h[part] = sph_smoothing_length;
+      h[part] = sph_eta * kernels::kernel_width
+                        * pow(m[part]/rho[part],1./gdimension);
 
     } // for part=0..nparticles
   }
-  clog_one(info) << "Actual number of particles: " << tparticles << std::endl;
+  clog_one(info) << "Actual number of particles: " << tparticles << std::endl
+    << std::flush;
   // delete the output file if exists
   remove(initial_data_file.c_str());
 
-  // Header data
-  // the number of particles = nparticles
-  Flecsi_Sim_IO::HDF5ParticleIO testDataSet;
-  testDataSet.createDataset(initial_data_file,MPI_COMM_WORLD);
-
+  h5_file_t * dataFile = H5OpenFile(initial_data_file.c_str(),
+      H5_O_WRONLY | H5_VFD_MPIIO_IND, MPI_COMM_WORLD);
+    
+  int use_fixed_timestep = 1; 
   // add the global attributes
-  testDataSet.writeDatasetAttribute("nparticles","int64_t",tparticles);
-  testDataSet.writeDatasetAttribute("timestep","double",timestep);
-  testDataSet.writeDatasetAttribute("dimension","int32_t",gdimension);
-  testDataSet.writeDatasetAttribute("use_fixed_timestep","int32_t",1);
+  H5WriteFileAttribInt64(dataFile,"nparticles",&tparticles,1);
+  H5WriteFileAttribFloat64(dataFile,"timestep",&timestep,1);
+  int dim = gdimension; 
+  H5WriteFileAttribInt32(dataFile,"dimension",&dim,1);
+  H5WriteFileAttribInt32(dataFile,"use_fixed_timestep",&use_fixed_timestep,1);
 
-  //testDataSet.writeDatasetAttributeArray("name","string",simName);
-  testDataSet.closeFile();
+  H5SetStep(dataFile,0);
+  H5PartSetNumParticles(dataFile,tparticles);
+  H5PartWriteDataFloat64(dataFile,"x",x);
+  H5PartWriteDataFloat64(dataFile,"y",y);
+  H5PartWriteDataFloat64(dataFile,"z",z);
+  H5PartWriteDataFloat64(dataFile,"vx",vx);
+  H5PartWriteDataFloat64(dataFile,"h",h);
+  H5PartWriteDataFloat64(dataFile,"rho",rho);
+  H5PartWriteDataFloat64(dataFile,"u",u);
+  H5PartWriteDataFloat64(dataFile,"P",P);
+  H5PartWriteDataFloat64(dataFile,"m",m);
+  H5PartWriteDataInt64(dataFile,"id",id);
+ 
+  H5CloseFile(dataFile);
 
-  testDataSet.openFile(MPI_COMM_WORLD);
-  testDataSet.setTimeStep(0);
-
-  Flecsi_Sim_IO::Variable _d1,_d2,_d3;
-
-  _d1.createVariable("x",Flecsi_Sim_IO::point,"double",tparticles,x);
-  _d2.createVariable("y",Flecsi_Sim_IO::point,"double",tparticles,y);
-  _d3.createVariable("z",Flecsi_Sim_IO::point,"double",tparticles,z);
-
-  testDataSet.vars.push_back(_d1);
-  testDataSet.vars.push_back(_d2);
-  testDataSet.vars.push_back(_d3);
-
-  testDataSet.writeVariables();
-
-  _d1.createVariable("vx",Flecsi_Sim_IO::point,"double",tparticles,vx);
-  //_d2.createVariable("vy",Flecsi_Sim_IO::point,"double",nparticlesproc,vy);
-  //_d3.createVariable("vz",Flecsi_Sim_IO::point,"double",nparticlesproc,vz);
-
-  testDataSet.vars.push_back(_d1);
-  //testDataSet.vars.push_back(_d2);
-  //testDataSet.vars.push_back(_d3);
-
-  testDataSet.writeVariables();
-
-  //_d1.createVariable("ax",Flecsi_Sim_IO::point,"double",nparticlesproc,ax);
-  //_d2.createVariable("ay",Flecsi_Sim_IO::point,"double",nparticlesproc,ay);
-  //_d3.createVariable("az",Flecsi_Sim_IO::point,"double",nparticlesproc,az);
-
-  //testDataSet.vars.push_back(_d1);
-  //testDataSet.vars.push_back(_d2);
-  //testDataSet.vars.push_back(_d3);
-
-  //testDataSet.writeVariables();
-
-
-  _d1.createVariable("h",Flecsi_Sim_IO::point,"double",tparticles,h);
-  _d2.createVariable("rho",Flecsi_Sim_IO::point,"double",tparticles,rho);
-  _d3.createVariable("u",Flecsi_Sim_IO::point,"double",tparticles,u);
-
-  testDataSet.vars.push_back(_d1);
-  testDataSet.vars.push_back(_d2);
-  testDataSet.vars.push_back(_d3);
-
-  testDataSet.writeVariables();
-
-  _d1.createVariable("P",Flecsi_Sim_IO::point,"double",tparticles,P);
-  _d2.createVariable("m",Flecsi_Sim_IO::point,"double",tparticles,m);
-  _d3.createVariable("id",Flecsi_Sim_IO::point,"int64_t",tparticles,id);
-
-  testDataSet.vars.push_back(_d1);
-  testDataSet.vars.push_back(_d2);
-  testDataSet.vars.push_back(_d3);
-
-  testDataSet.writeVariables();
-
-  testDataSet.closeFile();
-
-  delete[] x;
-  delete[] y;
-  delete[] z;
-  delete[] vx;
-  delete[] vy;
-  delete[] vz;
-  delete[] ax;
-  delete[] ay;
-  delete[] az;
-  delete[] h;
-  delete[] rho;
-  delete[] u;
-  delete[] P;
-  delete[] m;
-  delete[] id;
-  delete[] dt;
+  delete[] x, y, z, vx, vy, vz, ax, ay, az, h, rho, u, P, m, id, dt; 
 
   MPI_Finalize();
   return 0;
