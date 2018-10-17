@@ -15,6 +15,8 @@ namespace execution{
 using namespace flecsi;
 using namespace execution;
 
-TEST(noh, working) {
-  mpi_init_task("noh_nx20.par");
+TEST(implosion, working) {
+  //MPI_Init(NULL,NULL);
+  mpi_init_task("implosion_nx20.par");
+  //MPI_Finalize();
 }

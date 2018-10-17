@@ -2,17 +2,15 @@
 # 2-zone implosion test
 #
 # initial data
-  initial_data_prefix = "implosion_sqn100"
-  lattice_nx = 100         # particle lattice dimension
+  initial_data_prefix = "implosion_nx20"
+  lattice_nx = 20          # particle lattice dimension
   poly_gamma = 1.4         # polytropic index
   rho_initial = 1.0
   pressure_initial = 1.0e-7
-  sph_separation = 0.001   # TODO: use sph_eta instead
-  #sph_eta = 1.5
-  sedov_blast_energy = 1.0
-  sedov_blast_radius = 1.0 # in units of particle separation
+  sphere_radius = 1.0
+  sph_eta = 1.2
   lattice_type = 1         # 0:rectangular, 1:hcp, 2:fcc  **in 2d both hcp and fcc are triangular**
-  domain_type = 1          # 0:cube, 1:sphere, 2:full box
+  domain_type = 1          # 0:box, 1:sphere
 
 # evolution parameters:
   sph_kernel = "Quintic Spline"
