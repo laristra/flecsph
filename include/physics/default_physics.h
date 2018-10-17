@@ -69,6 +69,7 @@ namespace physics{
     mpi_assert(nbsh.size()>0);
     for(auto nbh : nbsh){
       body* nb = nbh->getBody();
+      mpi_assert(nb != nullptr);
       double dist = flecsi::distance(source->getPosition(),nb->getPosition());
       mpi_assert(dist>=0.0);
       double kernelresult = kernels::kernel(dist,
