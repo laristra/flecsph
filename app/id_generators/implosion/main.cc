@@ -194,12 +194,13 @@ int main(int argc, char * argv[]){
   double particle_radius = 0.;
   // Count the number of particles and mass in the blast zone
   // The blast is centered at the origin ({0,0} or {0,0,0})
-  for(int64_t part=0; part<nparticles; ++part)
+  for(int64_t part=0; part<nparticles; ++part) {
     particle_radius = sqrt(SQ(x[part]) + SQ(y[part]) + SQ(z[part]));
-    if (particle_radius >= inner_radius) {
+    if(particle_radius >= inner_radius) {
        particles_blast++;
        mass_blast += mass_particle;
     }
+  }
 
   // Assign density, pressure, etc. to particles
   for(int64_t part=0; part<nparticles; ++part){

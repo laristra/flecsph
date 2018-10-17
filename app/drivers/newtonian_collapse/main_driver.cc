@@ -114,14 +114,13 @@ mpi_init_task(const char * parameter_file){
  */
   MPI_Barrier(MPI_COMM_WORLD);
   bs.update_iteration();
-
   if(thermokinetic_formulation) {
     // compute total energy for every particle
     bs.apply_all(physics::set_total_energy);
   }
 
   bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
-
+    
   if(out_scalar_every > 0 && physics::iteration % out_scalar_every == 0){
     // Compute conserved quantities
     bs.get_all(analysis::compute_lin_momentum);
@@ -131,7 +130,7 @@ mpi_init_task(const char * parameter_file){
     analysis::scalar_output("scalar_reductions.dat");
   }
 
-  bs.write_bodies(output_h5data_prefix,physics::iteration);
+  bs.write_bodies(output_h5data_prefix,physics::iteration,physics::totaltime);
 
   ++physics::iteration;
   do {
@@ -232,12 +231,11 @@ mpi_init_task(const char * parameter_file){
     }
 
 
-#ifdef OUTPUT
     if(out_h5data_every > 0 && physics::iteration % out_h5data_every == 0){
-      bs.write_bodies(output_h5data_prefix,physics::iteration/out_h5data_every);
+      bs.write_bodies(output_h5data_prefix,physics::iteration/out_h5data_every,
+          physics::totaltime);
     }
     MPI_Barrier(MPI_COMM_WORLD);
-#endif
     ++physics::iteration;
     physics::totaltime += physics::dt;
 
@@ -249,7 +247,7 @@ flecsi_register_mpi_task(mpi_init_task, flecsi::execution);
 
 void 
 usage(int rank) {
-  rank|| clog(warn) << "Usage: ./newtonian_collapse_" << gdimension << "d " 
+  rank|| clog(warn) << "Usage: ./hydro_" << gdimension << "d " 
                     << "<parameter-file.par>" << std::endl << std::flush;
 }
 
