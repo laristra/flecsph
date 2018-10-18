@@ -285,8 +285,6 @@ int main(int argc, char * argv[]){
       // particle smoothing length
       h[part] = sph_eta * kernels::kernel_width
                         * pow(m[part]/rho[part],1./gdimension);
-
-
     } // for part=0..nparticles
   }
   if(equal_mass){

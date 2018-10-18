@@ -35,10 +35,13 @@
 #include "tree.h"
 #include "utils.h"
 
+#include "params.h" // For the variable smoothing length 
+
+
 using namespace mpi_utils;
 
 // Output the data regarding the distribution for debug
-// #define OUTPUT_TREE_INFO 1
+//#define OUTPUT_TREE_INFO 1
 
 
 /**
@@ -273,15 +276,13 @@ public:
    * @param      rbodies          The rbodies, local bodies of this process
    * @param      ranges           The ranges, the key range of all the processes
    * @param      range_total      The range total of all the particles 
-   * @param[in]  smoothinglength  The smoothinglength, the max value of everyone
    */
   void
   mpi_branches_exchange(
     tree_topology_t& tree,
     std::vector<std::pair<entity_key_t,body>>& rbodies,
     std::vector<std::array<point_t,2>>& ranges,
-    std::array<point_t,2>& range_total,
-    double smoothinglength
+    std::array<point_t,2>& range_total
   )
   {
     int rank,size;
@@ -378,10 +379,19 @@ public:
       }
       std::vector<body_holder_mpi_t> tmpsendbuffer; 
       for(int j = cur; j < cur+count_search_branches[i]; ++j ){
-        // Then for each branches 
-        auto ents = tree.find_in_box_b(
+        // Then for each branches
+        tree_topology_t::subentity_space_t ents; 
+        if(param::sph_variable_h){
+          ents = tree.find_in_box(
             recv_search_branches[j][0],
-            recv_search_branches[j][1]);
+            recv_search_branches[j][1],
+            tree_geometry_t::intersects_sphere_box);
+        }else{
+          ents = tree.find_in_box(
+            recv_search_branches[j][0],
+            recv_search_branches[j][1],
+            tree_geometry_t::within_box);
+        } 
         for(auto ent: ents){
           assert(ent != nullptr);
           tmpsendbuffer.push_back(body_holder_mpi_t{
@@ -510,14 +520,12 @@ void mpi_refresh_ghosts(
    * the buffer are set and can bne use in mpi_refresh_ghosts. 
    *
    * @param      tree             The tree
-   * @param[in]  smoothinglength  The smoothinglength
    * @param      range            The range
    */
   void 
   mpi_compute_ghosts(
     tree_topology_t& tree,
-    std::vector<body_holder*>& lbodies,
-    double smoothinglength
+    std::vector<body_holder*>& lbodies
   )
   {    
     int rank,size;
@@ -556,11 +564,21 @@ void mpi_refresh_ghosts(
       std::vector<bool> proc(size,false);
       proc[rank] = true; 
       body_holder * bi = lbodies[i];
-      assert(bi->is_local());  
-      auto nbs = tree.find_in_radius_b(
+      assert(bi->is_local());
+      tree_topology_t::subentity_space_t nbs; 
+      if(param::sph_variable_h){
+        nbs = tree.find_in_radius(
             bi->coordinates(), 
-            bi->getBody()->getSmoothinglength()
+            bi->getBody()->getSmoothinglength(),
+            tree_geometry_t::within_square
         );
+      }else{
+        nbs = tree.find_in_radius(
+            bi->coordinates(), 
+            bi->getBody()->getSmoothinglength(),
+            tree_geometry_t::within
+        ); 
+      }
       for(auto nb: nbs)
       {
         if(!nb->is_local() && !proc[nb->owner()])
@@ -600,10 +618,20 @@ void mpi_refresh_ghosts(
       proc[rank] = true;
       body_holder* bi = lbodies[i];
       assert(bi->is_local());
-      auto nbs = tree.find_in_radius_b(
-          bi->coordinates(),
-          bi->getBody()->getSmoothinglength()
-      );
+      tree_topology_t::subentity_space_t nbs; 
+      if(param::sph_variable_h){
+        nbs = tree.find_in_radius(
+            bi->coordinates(), 
+            bi->getBody()->getSmoothinglength(),
+            tree_geometry_t::within_square
+        );
+      }else{
+        nbs = tree.find_in_radius(
+            bi->coordinates(), 
+            bi->getBody()->getSmoothinglength(),
+            tree_geometry_t::within
+        ); 
+      }
       for(auto nb: nbs)
       {
         if(!nb->is_local() && !proc[nb->owner()])
@@ -672,21 +700,36 @@ void mpi_refresh_ghosts(
    *
    * @param      bodies           The bodies, local of this process
    * @param      range            The range computed in that function  
-   * @param[in]  smoothinglength  The smoothinglength, the biggest of the system
    */
   void 
   mpi_compute_range(
     std::vector<std::pair<entity_key_t,body>>& bodies,
-    std::array<point_t,2>& range,
-    double smoothinglength)
+    std::array<point_t,2>& range)
   {
     int rank, size; 
     MPI_Comm_size(MPI_COMM_WORLD,&size);
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
     // Compute the local range 
-    std::array<point_t,2> lrange; 
-    local_range(bodies,lrange);
+    std::array<point_t,2> lrange;
+
+    lrange[1] = bodies.back().second.coordinates();
+    lrange[0] = bodies.back().second.coordinates();
+          
+    for(auto bi: bodies){
+      for(size_t i=0;i<gdimension;++i){
+        if(bi.second.coordinates()[i]+bi.second.getSmoothinglength()>
+            lrange[1][i])
+          lrange[1][i] = bi.second.coordinates()[i]+
+                        bi.second.getSmoothinglength();
+        if(bi.second.coordinates()[i]-bi.second.getSmoothinglength()<
+            lrange[0][i])
+          lrange[0][i] = bi.second.coordinates()[i]-
+                        bi.second.getSmoothinglength();
+      }
+    }
+    
+
     double max[gdimension]; 
     double min[gdimension]; 
     for(size_t i=0; i<gdimension; ++i){
@@ -699,21 +742,16 @@ void mpi_refresh_ghosts(
         MPI_COMM_WORLD); 
     MPI_Allreduce(MPI_IN_PLACE,min,dimension,MPI_DOUBLE,MPI_MIN,
         MPI_COMM_WORLD); 
- 
-    point_t minposition; 
-    point_t maxposition; 
-
-    for(size_t i=0;i<dimension;++i){
-      minposition[i] = min[i]-smoothinglength;
-      maxposition[i] = max[i]+smoothinglength;
-    }
 
 #ifdef OUTPUT_TREE_INFO
-    rank|| clog(trace)<<"boundaries: "<< minposition << maxposition << std::endl;
+    rank|| clog(trace)<<"boundaries: "<< minposition << maxposition << 
+      std::endl;
 #endif 
 
-    range[0] = minposition;
-    range[1] = maxposition;
+    for(size_t d = 0; d < gdimension ; ++d){
+      range[0][d] = min[d];
+      range[1][d] = max[d];
+    }
   }
 
   void
