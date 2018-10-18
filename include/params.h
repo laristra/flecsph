@@ -181,6 +181,12 @@ namespace param {
   DECLARE_PARAM(bool, sph_update_uniform_h,false)
 # endif 
 
+//- if true, the smoothing length is variable, not the same among the 
+// particles.  
+#ifndef sph_variable_h
+  DECLARE_PARAM(bool, sph_variable_h,false)
+#endif 
+
 //
 // Geometric parameters
 //
@@ -533,7 +539,11 @@ void set_param(const std::string& param_name,
 
 # ifndef sph_update_uniform_h
   READ_BOOLEAN_PARAM(sph_update_uniform_h)
-# endif 
+# endif
+
+#ifndef sph_variable_h
+  READ_BOOLEAN_PARAM(sph_variable_h)
+#endif  
 
   // geometric configuration  -----------------------------------------------
 # ifndef domain_type

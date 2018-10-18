@@ -34,7 +34,7 @@ namespace execution{
 }
 }
 
-TEST(tree_topology, neighbors_sphere) {
+TEST(tree_topology, neighbors_sphere_NORMAL) {
   tree_topology_t t;
 
   vector<body_holder*> ents;
@@ -51,15 +51,15 @@ TEST(tree_topology, neighbors_sphere) {
 
 
   t.post_order_traversal(t.root(),traversal_t::update_COM,
-      0.1,false);
- // t.update_branches(0.1);
+      0.00001,false);
 
   ASSERT_TRUE(t.root()->mass() == n*mass);
 
   for(size_t i = 0; i < n; ++i){
     auto ent = ents[i];
 
-    auto ns = t.find_in_radius_b(ent->coordinates(), 0.10);
+    auto ns = t.find_in_radius(ent->coordinates(), 0.10,
+        tree_geometry_t::within);
 
     set<body_holder*> s1;
     s1.insert(ns.begin(), ns.end());
@@ -78,7 +78,53 @@ TEST(tree_topology, neighbors_sphere) {
   }
 }
 
-TEST(tree_topology, neighbors_box) {
+
+
+TEST(tree_topology, neighbors_sphere_VARIABLE) {
+  tree_topology_t t;
+
+  vector<body_holder*> ents;
+
+  size_t n = 5000;
+  double mass = 1.0;
+
+  for(size_t i = 0; i < n; ++i){
+    point_t p = {uniform(0, 1), uniform(0, 1), uniform(0, 1)};
+    auto e = t.make_entity(p,nullptr,0,mass,0,uniform(0,.2));
+    t.insert(e);
+    ents.push_back(e);
+  }
+
+
+  t.post_order_traversal(t.root(),traversal_t::update_COM,
+      0.00001,false);
+
+  ASSERT_TRUE(t.root()->mass() == n*mass);
+
+  for(size_t i = 0; i < n; ++i){
+    auto ent = ents[i];
+
+    auto ns = t.find_in_radius(ent->coordinates(), ent->h(),
+        tree_geometry_t::within_square);
+
+    set<body_holder*> s1;
+    s1.insert(ns.begin(), ns.end());
+
+    set<body_holder*> s2;
+
+    for(size_t j = 0; j < n; ++j){
+      auto ej = ents[j];
+      double dist = distance(ent->coordinates(),ej->coordinates());
+      if(dist*dist < (ent->h()+ej->h())*(ent->h()+ej->h())){
+        s2.insert(ej);
+      }
+    }
+
+    ASSERT_TRUE(s1 == s2);
+  }
+}
+
+TEST(tree_topology, neighbors_box_NORMAL) {
   tree_topology_t t;
 
   vector<body_holder*> ents;
@@ -97,7 +143,7 @@ TEST(tree_topology, neighbors_box) {
   }
   
   t.post_order_traversal(t.root(),traversal_t::update_COM,
-      0.1,false);
+      0.00001,false);
   
   ASSERT_TRUE(t.root()->mass() == n*mass);
 
@@ -108,10 +154,8 @@ TEST(tree_topology, neighbors_box) {
 		max[d] = ent->coordinates()[d]+0.1;
 		min[d] = ent->coordinates()[d]-0.1;
 	}
-    auto ns = t.find_in_box_b(min,max);
+    auto ns = t.find_in_box(min,max,tree_geometry_t::within_box);
 
-	//std::cout<<ns.size()<<std::endl;
-	
     set<body_holder*> s1;
     s1.insert(ns.begin(), ns.end());
 
@@ -133,11 +177,60 @@ TEST(tree_topology, neighbors_box) {
       }
     }
 
-    //std::cout<<s1.size()<<" && " << s2.size()<<std::endl;
-
     ASSERT_TRUE(s1 == s2);
   }
 }
+
+
+TEST(tree_topology, neighbors_box_VARIABLE) {
+  tree_topology_t t;
+
+  vector<body_holder*> ents;
+
+  size_t n = 5000;
+  double mass = 1.0;
+  
+  point_t max;
+  point_t min;
+
+  for(size_t i = 0; i < n; ++i){
+    point_t p = {uniform(0, 1), uniform(0, 1), uniform(0, 1)};
+    auto e = t.make_entity(p,nullptr,0,mass,0,uniform(0,.2));
+    t.insert(e);
+    ents.push_back(e);
+  }
+  
+  t.post_order_traversal(t.root(),traversal_t::update_COM,
+      0.00001,false);
+  
+  ASSERT_TRUE(t.root()->mass() == n*mass);
+
+  for(size_t i = 0; i < n; ++i){
+    auto ent = ents[i];
+	
+	  for(size_t d = 0; d < gdimension; ++d ){
+		  max[d] = ent->coordinates()[d]+0.00001+ent->h();
+		  min[d] = ent->coordinates()[d]-0.00001-ent->h();
+	  }
+    auto ns = t.find_in_box(min,max,tree_geometry_t::intersects_sphere_box);
+
+    set<body_holder*> s1;
+    s1.insert(ns.begin(), ns.end());
+
+    set<body_holder*> s2;
+
+    for(size_t j = 0; j < n; ++j){
+      auto ej = ents[j];
+
+      if(tree_geometry_t::intersects_sphere_box(min,max,
+        ej->coordinates(),ej->h())){
+        s2.insert(ej);
+      }
+	  }
+    ASSERT_TRUE(s1 == s2);
+  }
+}
+
 
 TEST(tree_topology,smoothing){
   size_t niter = 20; 
@@ -190,7 +283,8 @@ TEST(tree_topology,smoothing){
     // For each particle search in radius 
     for(size_t i = 0; i < nparticles; ++i){
       auto ent = ents[i];
-      auto ns = t.find_in_radius_b(ent->coordinates(), 2*h);
+      auto ns = t.find_in_radius(ent->coordinates(), 2*h,
+          tree_geometry_t::within);
       auto vec = ns.to_vec();
 
       vector<body_holder*> s1;

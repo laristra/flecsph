@@ -100,10 +100,8 @@ public:
   using branch_id_t = typename Policy::key_t; 
   using branch_id_vector_t = std::vector<branch_id_t>;
 
-
   using branch_t = typename Policy::branch_t;
   using branch_vector_t = std::vector<branch_t*>;
-
 
   using entity_t = typename Policy::entity_t;
   using entity_vector_t = std::vector<entity_t*>;
@@ -411,6 +409,7 @@ public:
       element_t radius,
       element_t MAC,
       int64_t ncritical,
+      bool do_square,
       EF&& ef,
       ARGS&&... args)
   {
@@ -427,7 +426,8 @@ public:
         {
           std::vector<branch_t*> inter_list; 
           sub_cells_inter(c,MAC,inter_list);
-          force_calc(c,inter_list,radius,ef,std::forward<ARGS>(args)...);
+          force_calc(c,inter_list,radius,do_square,
+              ef,std::forward<ARGS>(args)...);
         }
       }else{
         if((int64_t)c->sub_entities() < ncritical && c->sub_entities() > 0){
@@ -435,7 +435,8 @@ public:
           {
             std::vector<branch_t*> inter_list; 
             sub_cells_inter(c,MAC,inter_list);
-            force_calc(c,inter_list,radius,ef,std::forward<ARGS>(args)...);
+            force_calc(c,inter_list,radius,do_square,
+                ef,std::forward<ARGS>(args)...);
           } 
         }else{
           for(int i=0; i<(1<<dimension);++i){
@@ -447,7 +448,7 @@ public:
         }
       } 
     }
-    //#pragma omp taskwait
+    #pragma omp taskwait
   }
 
   void
@@ -488,6 +489,7 @@ public:
       branch_t* b, 
       std::vector<branch_t*>& inter_list,
       element_t radius,
+      bool do_square, 
       EF&& ef,
       ARGS&&... args)
   {
@@ -500,7 +502,11 @@ public:
       if(c->is_leaf()){
         for(auto child: *c){
           if(child->is_local()){
-            apply_sub_entity(child,inter_list,radius,ef,
+            if(do_square)
+              apply_sub_entity(child,inter_list,radius,ef,
+                std::forward<ARGS>(args)...);
+            else 
+              apply_sub_entity_sq(child,inter_list,radius,ef,
                 std::forward<ARGS>(args)...);
           }
         }
@@ -533,7 +539,7 @@ public:
         if(geometry_t::within(
               ent->coordinates(),
               nb->coordinates(),
-              radius))
+              ent->h()))
         {
           neighbors.push_back(nb);
         }
@@ -542,14 +548,45 @@ public:
     ef(ent,neighbors,std::forward<ARGS>(args)...);
   }
 
+  template<
+    typename EF,
+    typename... ARGS
+  >
+  void 
+  apply_sub_entity_sq(
+      entity_t* ent, 
+      std::vector<branch_t*>& inter_list,
+      element_t radius,
+      EF&& ef,
+      ARGS&&... args)
+  {
+    std::vector<entity_t*> neighbors;
+    for(auto b: inter_list){
+      for(auto nb: *b){
+        if(geometry_t::within_square(
+              ent->coordinates(),
+              nb->coordinates(),
+              ent->h(),nb->h()))
+        {
+          neighbors.push_back(nb);
+        }
+      }
+    }
+    ef(ent,neighbors,std::forward<ARGS>(args)...);
+  }
+
+
   /*!
     Return an index space containing all entities within the specified
     spheroid.
    */
+  template<
+    typename EF>
   subentity_space_t
-  find_in_radius_b(
+  find_in_radius(
     const point_t& center,
-    element_t radius
+    element_t radius,
+    EF&& ef
   )
   {
     subentity_space_t ents;
@@ -564,10 +601,10 @@ public:
       stk.pop();
       if(b->is_leaf()){
         for(auto child: *b){
-            // Check if in radius 
-            if(geometry_t::within(center,child->coordinates(),radius)){
-              ents.push_back(child);
-            }
+          // Check if in radius 
+          if(ef(center,child->coordinates(),radius,child->h())){
+            ents.push_back(child);
+          }
         }
       }else{
         for(int i=0 ; i<(1<<dimension);++i){
@@ -593,7 +630,7 @@ public:
     spheroid.
    */
   subentity_space_t
-  find_in_radius(
+  find_in_radius_n(
     const point_t& center,
     element_t radius
   )
@@ -620,10 +657,13 @@ public:
     Return an index space containing all entities within the specified
     Box
    */
+  template<
+    typename EF> 
   subentity_space_t
-  find_in_box_b(
+  find_in_box(
     const point_t& min,
-    const point_t& max
+    const point_t& max,
+    EF&& ef
   )
   {
     subentity_space_t ents;
@@ -639,7 +679,7 @@ public:
       if(b->is_leaf()){
         for(auto child: *b){
           // Check if in box 
-          if(geometry_t::within_box(child->coordinates(),min,max)){
+          if(ef(min,max,child->coordinates(),child->h())){
             ents.push_back(child);
           }
         }

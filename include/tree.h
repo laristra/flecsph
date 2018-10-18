@@ -199,7 +199,8 @@ public:
 
     point_t 
     coordinates(
-        const std::array<flecsi::point__<element_t, dimension>,2>& range) const{
+        const std::array<flecsi::point__<element_t, dimension>,2>& range) 
+    const{
       point_t p;
       branch_id_t bid = id(); 
       bid.coordinates(range,p);
@@ -230,11 +231,12 @@ public:
     return true;
   }
 
-  using branch_t = branch; 
+  using branch_t = branch;
 
 }; // class tree_policy
 
 using tree_topology_t = flecsi::topology::tree_topology<tree_policy>;
+using tree_geometry_t = flecsi::topology::tree_geometry<type_t,gdimension>;
 using body_holder = tree_topology_t::body_holder;
 using point_t = tree_topology_t::point_t;
 using branch_t = tree_topology_t::branch_t;
