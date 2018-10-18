@@ -503,10 +503,10 @@ public:
         for(auto child: *c){
           if(child->is_local()){
             if(do_square)
-              apply_sub_entity(child,inter_list,radius,ef,
+              apply_sub_entity_sq(child,inter_list,radius,ef,
                 std::forward<ARGS>(args)...);
             else 
-              apply_sub_entity_sq(child,inter_list,radius,ef,
+              apply_sub_entity(child,inter_list,radius,ef,
                 std::forward<ARGS>(args)...);
           }
         }
