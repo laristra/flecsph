@@ -84,25 +84,9 @@ struct tree_geometry<T, 1>
   within(
     const point_t& origin,
     const point_t& center,
-    element_t r1,
-    element_t r2 = 0)
+    element_t radius)
   {
-    return distance(origin, center) <= r1;
-  }
-
-  /*!
-    Return true if dist^2 < radius^2
-   */
-  static
-  bool
-  within_square(
-    const point_t& origin,
-    const point_t& center,
-    element_t r1,
-    element_t r2)
-  {
-    element_t dist = distance(origin,center);
-    return dist*dist < (r1+r2)*(r1+r2);
+    return distance(origin, center) <= radius;
   }
 
   /*!
@@ -111,10 +95,9 @@ struct tree_geometry<T, 1>
   static
   bool
   within_box(
-    const point_t& min, 
-    const point_t& max, 
     const point_t& origin,
-    const element_t& r)
+    const point_t& min,
+    const point_t& max)
   {
     return origin[0] <= max[0] && origin[0] >= min[0];
   }
@@ -235,25 +218,9 @@ struct tree_geometry<T, 2>
   within(
     const point_t& origin,
     const point_t& center,
-    element_t r1,
-    element_t r2 = 0)
-  {
-    return distance(origin, center) <= r1;
-  }
-
-  /*!
-    Return true if dist^2 < radius^2
-   */
-  static
-  bool
-  within_square(
-    const point_t& origin,
-    const point_t& center,
-    element_t r1,
-    element_t r2)
-  {
-    element_t dist = distance(origin,center);
-    return dist*dist < (r1+r2)*(r1+r2);
+    element_t radius)
+{
+    return distance(origin, center) <= radius;
   }
 
   /*!
@@ -262,10 +229,9 @@ struct tree_geometry<T, 2>
   static
   bool
   within_box(
-    const point_t& min,
-    const point_t& max,
     const point_t& origin,
-    const element_t& r)
+    const point_t& min,
+    const point_t& max)
   {
     return origin[0] <= max[0] && origin[0] >= min[0] &&
            origin[1] <= max[1] && origin[1] >= min[1];
@@ -401,27 +367,14 @@ struct tree_geometry<T, 3>
   within(
     const point_t& origin,
     const point_t& center,
-    element_t r1,
-    element_t r2 = 0)
+    element_t radius)
   {
-    return distance(origin, center) <= r1;
+    return (center[0]-origin[0])*(center[0]-origin[0])+
+      (center[1]-origin[1])*(center[1]-origin[1])+
+      (center[2]-origin[2])*(center[2]-origin[2])
+        < radius*radius;
   }
 
-  /*!
-    Return true if dist^2 < radius^2
-   */
-  static
-  bool
-  within_square(
-    const point_t& origin,
-    const point_t& center,
-    element_t r1,
-    element_t r2)
-  {
-    element_t dist = distance(origin,center);
-    return dist*dist < (r1+r2)*(r1+r2);
-  }
-  
   static
   bool 
   within_mac(
@@ -465,10 +418,9 @@ struct tree_geometry<T, 3>
   static
   bool
   within_box(
-    const point_t& min,
-    const point_t& max,
     const point_t& origin,
-    const element_t& r)
+    const point_t& min,
+    const point_t& max)
   {
     return origin[0] <= max[0] && origin[0] > min[0] &&
            origin[1] <= max[1] && origin[1] > min[1] &&

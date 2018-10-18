@@ -17,7 +17,6 @@
 #include "tree_fmm.h"
 #include "io.h"
 #include "utils.h"
-#include "params.h"
 
 #include <omp.h>
 #include <iostream>
@@ -56,9 +55,6 @@ public:
     #pragma omp single 
     rank || clog(warn)<<"USING OMP THREADS: "<<
       omp_get_num_threads()<<std::endl;
-    if(param::sph_variable_h){ 
-      rank || clog(warn) <<"Variable smoothing length ENABLE"<<std::endl;
-    }
   };
 
   /**
@@ -155,18 +151,14 @@ public:
         minmass_ = bi.second.getMass(); 
       }
     }
-    MPI_Allreduce(MPI_IN_PLACE,&minmass_,1,MPI_DOUBLE,
-        MPI_MIN,MPI_COMM_WORLD); 
-    MPI_Allreduce(MPI_IN_PLACE,&totalmass_,1,MPI_DOUBLE,
-        MPI_SUM,MPI_COMM_WORLD); 
+    MPI_Allreduce(MPI_IN_PLACE,&minmass_,1,MPI_DOUBLE,MPI_MIN,MPI_COMM_WORLD); 
+    MPI_Allreduce(MPI_IN_PLACE,&totalmass_,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD); 
     #endif
   }
 
   /**
-   * @brief      Write bodies to file in parallel Caution provide the 
-   * file name
-   *             prefix, h5part will be added This is useful in case 
-   *             of multiple
+   * @brief      Write bodies to file in parallel Caution provide the file name
+   *             prefix, h5part will be added This is useful in case of multiple
    *             files output
    *
    * @param[in]  filename       The outut file prefix
@@ -223,7 +215,9 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
-    tcolorer_.mpi_compute_range(localbodies_,range_);
+    getSmoothinglength();
+
+    tcolorer_.mpi_compute_range(localbodies_,range_,smoothinglength_);
     return range_;
   }
 
@@ -256,7 +250,7 @@ public:
     smoothinglength_ = getSmoothinglength();
 
     // Then compute the range of the system 
-    tcolorer_.mpi_compute_range(localbodies_,range_);
+    tcolorer_.mpi_compute_range(localbodies_,range_,smoothinglength_);
     // Generate the tree based on the range
     tree_ = new tree_topology_t(range_[0],range_[1]);
 
@@ -281,6 +275,7 @@ public:
           bi.second.getMass(),bi.second.getId(),bi.second.getSmoothinglength());
       tree_->insert(nbi); 
       bodies_.push_back(nbi);
+      //rank || std::cout<<nbi->id()<<" == "<<bi.second.id()<<std::endl<<std::flush;
       assert(nbi->global_id() == bi.second.id());
       assert(nbi->getBody() != nullptr);
       assert(nbi->is_local());
@@ -300,7 +295,7 @@ public:
 #endif
 
     tree_->post_order_traversal(tree_->root(),
-        traversal_t::update_COM,epsilon_,false);
+        traversal_t::update_COM,smoothinglength_/100.,false);
     assert(tree_->root()->sub_entities() == localnbodies_);
 
 #ifdef OUTPUT_TREE_INFO
@@ -338,11 +333,11 @@ public:
 
     // Exchnage usefull body_holder from my tree to other processes
     tcolorer_.mpi_branches_exchange(*tree_,localbodies_,rangeposproc_,
-        range_);
+        range_,smoothinglength_);
     
     // update the tree
     tree_->post_order_traversal(tree_->root(),
-        traversal_t::update_COM,epsilon_,false);
+        traversal_t::update_COM,smoothinglength_/100.,false);
 
 #ifdef OUTPUT_TREE_INFO
     lentities = tree_->root()->sub_entities();
@@ -366,8 +361,8 @@ public:
     rank|| clog(trace) << oss.str() << std::flush;
 #endif
     
-    tcolorer_.mpi_compute_ghosts(*tree_,bodies_);
-    tcolorer_.mpi_refresh_ghosts(*tree_); 
+    tcolorer_.mpi_compute_ghosts(*tree_,bodies_,smoothinglength_/*,range_*/);
+    tcolorer_.mpi_refresh_ghosts(*tree_/*,range_*/); 
 
   }
 
@@ -377,7 +372,7 @@ public:
    */
   void update_neighbors()
   {
-    tcolorer_.mpi_refresh_ghosts(*tree_);
+    tcolorer_.mpi_refresh_ghosts(*tree_/*,range_*/);
   }
 
   /**
@@ -396,7 +391,7 @@ public:
 
     // Just consider the local particles in the tree for FMM 
     tree_->post_order_traversal(tree_->root(),
-        traversal_t::update_COM,epsilon_,true);
+        traversal_t::update_COM,smoothinglength_/100.,true);
 
 
     //tree_->update_branches(smoothinglength_,true);
@@ -408,7 +403,9 @@ public:
     
     
     tree_->post_order_traversal(tree_->root(),
-        traversal_t::update_COM,epsilon_,false);
+        traversal_t::update_COM,smoothinglength_/100.,false);
+    // Reset the tree to normal before leaving
+    //tree_->update_branches(smoothinglength_);
   }
 
   /**
@@ -439,7 +436,6 @@ public:
         smoothinglength_,
         0.,
         ncritical,
-        param::sph_variable_h,
         ef,
         std::forward<ARGS>(args)...); 
   }
@@ -553,7 +549,6 @@ private:
   double smoothinglength_;    // Keep track of the biggest smoothing length 
   double totalmass_;          // Check the total mass of the system 
   double minmass_;            // Check the minimal mass of the system
-  double epsilon_ = 10e-6;
   
   std::vector<int64_t> neighbors_count_;
   std::vector<body_holder*> neighbors_; 

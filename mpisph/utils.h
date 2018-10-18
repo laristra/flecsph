@@ -245,6 +245,33 @@ namespace mpi_utils{
 
 #endif 
 
+  /**
+ * @brief      Compute the local range of particles
+ * range 0 = min range 1 = max
+ *
+ * @param      bodies  The bodies
+ * @param      range   The range
+ */
+  void 
+  local_range(
+    std::vector<std::pair<entity_key_t,body>>& bodies,
+    std::array<point_t,2>& range)
+  {
+    
+    range[1] = bodies.back().second.coordinates();
+    range[0] = bodies.back().second.coordinates();
+    
+    for(auto bi: bodies){
+      for(size_t i=0;i<gdimension;++i){
+        if(bi.second.coordinates()[i]>range[1][i])
+          range[1][i] = bi.second.coordinates()[i];
+        if(bi.second.coordinates()[i]<range[0][i])
+          range[0][i] = bi.second.coordinates()[i];
+      }
+    }
+  }
+
+
 }; // utils
 
 #endif // _mpisph_utils_
