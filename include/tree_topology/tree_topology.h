@@ -406,7 +406,6 @@ public:
   void 
   apply_sub_cells(
       branch_t * b,
-      element_t radius,
       element_t MAC,
       int64_t ncritical,
       bool do_square,
@@ -426,7 +425,7 @@ public:
         {
           std::vector<branch_t*> inter_list; 
           sub_cells_inter(c,MAC,inter_list);
-          force_calc(c,inter_list,radius,do_square,
+          force_calc(c,inter_list,do_square,
               ef,std::forward<ARGS>(args)...);
         }
       }else{
@@ -435,7 +434,7 @@ public:
           {
             std::vector<branch_t*> inter_list; 
             sub_cells_inter(c,MAC,inter_list);
-            force_calc(c,inter_list,radius,do_square,
+            force_calc(c,inter_list,do_square,
                 ef,std::forward<ARGS>(args)...);
           } 
         }else{
@@ -488,7 +487,6 @@ public:
   force_calc(
       branch_t* b, 
       std::vector<branch_t*>& inter_list,
-      element_t radius,
       bool do_square, 
       EF&& ef,
       ARGS&&... args)
@@ -503,10 +501,10 @@ public:
         for(auto child: *c){
           if(child->is_local()){
             if(do_square)
-              apply_sub_entity_sq(child,inter_list,radius,ef,
+              apply_sub_entity_sq(child,inter_list,ef,
                 std::forward<ARGS>(args)...);
             else 
-              apply_sub_entity(child,inter_list,radius,ef,
+              apply_sub_entity(child,inter_list,ef,
                 std::forward<ARGS>(args)...);
           }
         }
@@ -529,7 +527,6 @@ public:
   apply_sub_entity(
       entity_t* ent, 
       std::vector<branch_t*>& inter_list,
-      element_t radius,
       EF&& ef,
       ARGS&&... args)
   {
@@ -556,7 +553,6 @@ public:
   apply_sub_entity_sq(
       entity_t* ent, 
       std::vector<branch_t*>& inter_list,
-      element_t radius,
       EF&& ef,
       ARGS&&... args)
   {

@@ -88,6 +88,7 @@ public:
   point_t getVelocity() const{return velocity_;}
   point_t getVelocityhalf() const{return velocityhalf_;}
   point_t getAcceleration() const{return acceleration_;}
+  uint64_t neighbors(){return neighbors_;}
 
   point_t getLinMomentum() const { 
     point_t res = {};
@@ -103,6 +104,7 @@ public:
 
   bool is_wall(){return type_ == 1;};
 
+  void set_neighbors(uint64_t neighbors){neighbors_ = neighbors;}
   void setPosition(point_t position){position_ = position;}
   void setAcceleration(point_t acceleration){acceleration_ = acceleration;}
   void setVelocity(point_t velocity){velocity_ = velocity;}
@@ -174,7 +176,8 @@ private:
   double dadt_;
   double dt_;
   flecsi::topology::entity_id_t id_;
-  int type_; 
+  int type_;
+  int64_t neighbors_;  
 }; // class body 
   
 #endif // body_h

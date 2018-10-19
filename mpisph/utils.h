@@ -93,6 +93,9 @@ namespace mpi_utils{
       &recvbuffer[0],&recvcount[0],&recvoffsets[0],MPI_BYTE,MPI_COMM_WORLD);
   }
 
+
+  // MIN REDUCTION MPI -------------------
+  
   void reduce_min(
     double& value)
   {
@@ -106,11 +109,18 @@ namespace mpi_utils{
   }
 
   void reduce_min(
+    uint64_t& value)
+  {
+    MPI_Allreduce(MPI_IN_PLACE,&value,1,MPI_INT64_T,MPI_MIN,MPI_COMM_WORLD);
+  }
+
+  void reduce_min(
     int& value)
   {
     MPI_Allreduce(MPI_IN_PLACE,&value,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD);
   }
 
+  // SUM REDUCTION MPI ----------------------
 
   void reduce_sum(
     double& value)
@@ -123,6 +133,13 @@ namespace mpi_utils{
   {
     MPI_Allreduce(MPI_IN_PLACE,&value,1,MPI_FLOAT,MPI_SUM,MPI_COMM_WORLD);
   }
+  
+  void reduce_sum(
+    uint64_t& value)
+  {
+    MPI_Allreduce(MPI_IN_PLACE,&value,1,MPI_INT64_T,MPI_SUM,MPI_COMM_WORLD);
+  }
+
 
   void reduce_sum(
     int& value)
@@ -135,6 +152,35 @@ namespace mpi_utils{
   {
     MPI_Allreduce(MPI_IN_PLACE,&value[0],gdimension,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
   }
+
+  // MAX REDUCTION MPI -------------------
+
+  void reduce_max(
+    double& value)
+  {
+    MPI_Allreduce(MPI_IN_PLACE,&value,1,MPI_DOUBLE,MPI_MAX,MPI_COMM_WORLD);
+  }
+
+  void reduce_max(
+    float& value)
+  {
+    MPI_Allreduce(MPI_IN_PLACE,&value,1,MPI_FLOAT,MPI_MAX,MPI_COMM_WORLD);
+  }
+
+  void reduce_max(
+    uint64_t& value)
+  {
+    MPI_Allreduce(MPI_IN_PLACE,&value,1,MPI_INT64_T,MPI_MAX,MPI_COMM_WORLD);
+  }
+
+  void reduce_max(
+    int& value)
+  {
+    MPI_Allreduce(MPI_IN_PLACE,&value,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD);
+  }
+
+
+
 
 #if 0 
 
