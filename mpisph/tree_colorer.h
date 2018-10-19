@@ -183,7 +183,7 @@ public:
 
     // If one process, done 
     if(size==1){
-      clog(info)<<"Local particles: "<<totalnbodies<<std::endl;
+      clog(trace)<<"Local particles: "<<totalnbodies<<std::endl;
       return;
     } // if
     

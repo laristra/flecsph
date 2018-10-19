@@ -42,7 +42,7 @@
 #include "bodies_system.h"
 #include "default_physics.h"
 #include "analysis.h"
-#include "diagnosis.h"
+#include "diagnostic.h"
 
 #define OUTPUT_ANALYSIS
 
@@ -231,12 +231,12 @@ mpi_init_task(const char * parameter_file){
       analysis::scalar_output("scalar_reductions.dat");
     }
 
-    // Output the diagnosis 
-    if(out_diagnosis_every > 0 && physics::iteration%out_diagnosis_every==0){
-      bs.get_all(diagnosis::compute_neighbors,bs.tree(),bs.getNBodies());
-      bs.get_all(diagnosis::compute_smoothinglength,bs.getNBodies());
-      bs.get_all(diagnosis::compute_velocity,bs.getNBodies());
-      diagnosis::output("diagnosis.dat");
+    // Output the diagnostic
+    if(out_diagnostic_every > 0 && physics::iteration%out_diagnostic_every==0){
+      bs.get_all(diagnostic::compute_neighbors_stats,bs.tree(),bs.getNBodies());
+      bs.get_all(diagnostic::compute_smoothinglength_stats,bs.getNBodies());
+      bs.get_all(diagnostic::compute_velocity_stats,bs.getNBodies());
+      diagnostic::output("diagnostic.dat");
     }
 
     if(out_h5data_every > 0 && physics::iteration % out_h5data_every == 0){

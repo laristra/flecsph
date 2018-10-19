@@ -17,19 +17,19 @@
  *~--------------------------------------------------------------------------~*/
 
 /**
- * @file diagnosis.h
+ * @file diagnostic.h
  * @author Julien Loiseau
  * @date October 2018
- * @brief Basic diagnosis functions
+ * @brief Generic particle diagnostic functions
  */
 
-#ifndef _PHYSICS_DIAGNOSIS_H_
-#define _PHYSICS_DIAGNOSIS_H_
+#ifndef _PHYSICS_DIAGNOSTIC_H_
+#define _PHYSICS_DIAGNOSTIC_H_
 
 #include <vector>
 #include "params.h"
 
-namespace diagnosis{
+namespace diagnostic {
 
   uint64_t N_min, N_max, N_average; 
   double h_min, h_max, h_average; 
@@ -43,7 +43,7 @@ namespace diagnosis{
    * @param      bodies  Vector of all the local bodies
    */
   void
-  compute_neighbors(
+  compute_neighbors_stats(
       std::vector<body_holder*>& bodies, tree_topology_t* tree, 
       int64_t totalnbodies )
   {
@@ -109,7 +109,7 @@ namespace diagnosis{
    * @param      bodies  Vector of all the local bodies
    */
   void
-  compute_smoothinglength(
+  compute_smoothinglength_stats(
       std::vector<body_holder*>& bodies, int64_t totalnbodies)
   {
     double h_total = 0.;
@@ -132,7 +132,7 @@ namespace diagnosis{
    * @brief Compute the min, max and average norm of velocity 
    */
   void 
-  compute_velocity(
+  compute_velocity_stats(
       std::vector<body_holder*>& bodies, int64_t totalnbodies)
   {
     V_min = std::numeric_limits<double>::max();
@@ -148,26 +148,6 @@ namespace diagnosis{
     }
     V_average = V_tot/totalnbodies;
   }
-
-  /**
-   * @brief Rolling screen output
-   */
-  void
-  screen_output(int rank)
-  {
-    using namespace param;
-    static int count = 0;
-    const int screen_length = 40;
-    rank || clog(info)<< "#-- iteration:               time:" <<std::endl;
-    rank || clog(info)
-        << std::setw(14) << physics::iteration
-        << std::setw(20) << std::scientific << std::setprecision(12)
-        << physics::totaltime << std::endl;
-    rank || clog(info)<<" h_min h_max h_avg N_min N_max N_avg"<< std::endl;
-    rank || clog(info)<<h_min<<" "<<h_max<<" "<<h_average<<" "
-      <<N_min<<" "<<N_max<<" "<<N_average<<
-      std::endl;
-  } 
 
   /**
    * @brief Periodic file output
@@ -187,7 +167,7 @@ namespace diagnosis{
       // Generate and output the header
       std::ostringstream oss_header;
       oss_header
-        << "# Diagnosis: " <<std::endl
+        << "# Diagnostic: " <<std::endl
         << "# 1:iteration 2:time 3:h_min 4:h_max 5:h_avg "
         <<"6:N_min 7:N_max 8:N_avg 9:min_dist 10:avg_dist_h "
         <<"11:V_min 12:V_max 13:V_avg" << std::endl;
@@ -217,6 +197,6 @@ namespace diagnosis{
 
   } // scalar output
 
-}; // diagnosis
+}; // namespace diagnostic
 
-#endif // _PHYSICS_DIAGNOSIS_H_
+#endif // _PHYSICS_DIAGNOSTIC_H_
