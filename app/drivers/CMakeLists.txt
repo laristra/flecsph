@@ -124,7 +124,6 @@ cinch_add_unit(sedov_test
 if(ENABLE_UNIT_TESTS)
 add_custom_target(
     sedov_2d_generator_test
-    COMMAND mpirun -n 1 ../id_generators/sedov_2d_generator  
     COMMAND mpirun -n 1 ../id_generators/sedov_2d_generator ${PROJECT_SOURCE_DIR}/data/sedov_nx20.par
     COMMAND mv sedov_nx20.h5part ../../test/drivers
     DEPENDS ../id_generators/sedov_2d_generator
