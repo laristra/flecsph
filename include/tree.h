@@ -413,10 +413,8 @@ norm_point(
     const point_t& p)
 {
   double res = 0;
-  for(int d = 0; d < gdimension; ++d)
-  {
+  for(size_t d = 0; d < gdimension; ++d)
     res += p[d]*p[d];
-  }
   return sqrt(res);
 }
 
