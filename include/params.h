@@ -254,6 +254,11 @@ namespace param {
   DECLARE_PARAM(int32_t,out_scalar_every,10)
 #endif
 
+// - diagnosis values output frequency 
+#ifndef out_diagnosis_every
+  DECLARE_PARAM(int32_t,out_diagnosis_every,10);
+#endif 
+
 //- HDF5 output frequency
 #ifndef out_h5data_every
   DECLARE_PARAM(int32_t,out_h5data_every,10)
@@ -594,6 +599,10 @@ void set_param(const std::string& param_name,
 
 # ifndef out_scalar_every
   READ_NUMERIC_PARAM(out_scalar_every)
+# endif
+
+# ifndef out_diagnosis_every
+  READ_NUMERIC_PARAM(out_diagnosis_every)
 # endif
 
 # ifndef out_h5data_every
