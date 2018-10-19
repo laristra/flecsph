@@ -87,7 +87,7 @@ public:
 	      id_t id,
         element_t h
         )
-      : coordinates_(coordinates),bodyptr_(bodyptr),mass_(mass),h_(h)
+      : coordinates_(coordinates),mass_(mass),h_(h),bodyptr_(bodyptr)
     {
       locality_ = bodyptr_==nullptr?NONLOCAL:EXCL;
       global_id_ = id; 
@@ -96,9 +96,9 @@ public:
 
     body_holder()
       :coordinates_(point_t{0,0,0}),
-       bodyptr_(nullptr),
        mass_(0.0),
-       h_(0.0)
+       h_(0.0),
+       bodyptr_(nullptr)
     {
       locality_ = NONLOCAL;
       owner_ = -1; 

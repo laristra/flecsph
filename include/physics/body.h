@@ -59,8 +59,8 @@ public:
       density_(density),
       pressure_(pressure),
       entropy_(entropy),
-      mass_(mass),
       electronfraction_(electronfraction),
+      mass_(mass),
       smoothinglength_(smoothinglength),
       soundspeed_(0.0)
       ,internalenergy_(0.0)

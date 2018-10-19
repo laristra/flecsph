@@ -116,7 +116,7 @@ void inputDataHDF5(
   nparticles = H5PartGetNumParticles(dataFile);
   int64_t nparticlesproc = nparticles/size;
   // Handle the number of particles for the last one
-  if(size-1==rank){
+  if(size == rank + 1){
     nparticlesproc = nparticles - nparticlesproc*(size-1);
   }
 
@@ -303,7 +303,7 @@ void inputDataHDF5(
     for(int64_t i=0; i<nparticlesproc; ++i){
       bodies[i].second.setId(start+i); 
     }
-    if(size-1 == rank){
+    if(size == rank + 1){
       assert(totalnbodies==bodies.back().second.getId()); 
     }
   }
