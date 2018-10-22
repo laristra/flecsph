@@ -165,6 +165,12 @@ mpi_init_task(const char * parameter_file){
         bs.apply_in_smoothinglength(physics::compute_dudt);
       rank|| clog(trace) << ".done" << std::endl;
 
+      if (adaptive_timestep) {
+        rank|| clog(trace) << "compute adaptive timestep" << std::flush;
+        bs.apply_all(physics::compute_dt);
+        bs.get_all(physics::set_adaptive_timestep);
+        rank|| clog(trace) << ".done" << std::endl;
+      }
     }
     else {
       rank|| clog(trace) << "leapfrog: kick one" << std::flush;
@@ -218,6 +224,14 @@ mpi_init_task(const char * parameter_file){
       rank || clog(trace) << "updating smoothing length"<<std::flush;
       bs.get_all(physics::compute_average_smoothinglength,bs.getNBodies());
       rank || clog(trace) << ".done" << std::endl << std::flush;
+    }
+
+    if (adaptive_timestep) {
+      // Update timestep
+      rank|| clog(trace) << "compute adaptive timestep" << std::flush;
+      bs.apply_all(physics::compute_dt);
+      bs.get_all(physics::set_adaptive_timestep);
+      rank|| clog(trace) << ".done" << std::endl;
     }
 
     // Output the scalar values
