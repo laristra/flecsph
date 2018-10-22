@@ -52,23 +52,35 @@
 namespace particle_lattice {
 #define SQ(x) ((x)*(x))
 #define CU(x) ((x)*(x)*(x))
+const double b_tol = 1e-12; // boundary tolerance
 
 /**
- * @brief      in_domain checks to see if the entered particle position info
- *             is valid within the restrictive domain_type and total domain
- *             Returns boolean: true or false
+ * @brief  in_domain_?d functions check whether a particle belongs to a given
+ *         domain. This takes into account whether the boundaries are included
+ *         or not. 
+ *         Returns boolean: true or false
  *
- * @param      x,y,z       - position of the particle
- *             bbox_min    - minimum position for the total domain
- *             bbox_max    - maximum position for the total domain
- *             domain_type - int value, 0:cube, 1:sphere
+ * @param  x,y,z       - position of the particle
+ *         bbox_min    - minimum position for the total domain
+ *         bbox_max    - maximum position for the total domain
+ *         domain_type - int value, 0:cube, 1:sphere
+ *
+ * @uses   b_tol: tolerance comparing two floats with "<=" or ">="
  */
+bool in_domain_1d(const double x, const double xmin, const double xmax,
+                  const int domain_type) {
+  // 1D domain: half-interval [xmin, xmax)
+  bool within_domain = x>xmin*(1 - b_tol) && x<xmax*(1 - b_tol);
+  return within_domain;
+}
+
 bool in_domain_2d(const double x, const double y,
     const point_t& bbox_min, const point_t& bbox_max, const int domain_type) {
   // within_domain checks to see if the position is within the bounding box
-  const double xmin = bbox_min[0], xmax = bbox_max[0],
-               ymin = bbox_min[1], ymax = bbox_max[1];
-  bool within_domain = x>=xmin && x<=xmax && y>=ymin && y<=ymax;
+  const double q = 1.0 - b_tol;
+  const double xmin = q*bbox_min[0], xmax = q*bbox_max[0],
+               ymin = q*bbox_min[1], ymax = q*bbox_max[1];
+  bool within_domain = x>xmin && x<xmax && y>ymin && y<ymax;
 
   // extra check for a circular domain
   if(domain_type==1) {
@@ -83,9 +95,10 @@ bool in_domain_2d(const double x, const double y,
 bool in_domain_3d(const double x, const double y, const double z,
     const point_t& bbox_min, const point_t& bbox_max, const int domain_type) {
   // within_domain checks to see if the position is within the total domain
-  const double xmin = bbox_min[0], xmax = bbox_max[0],
-               ymin = bbox_min[1], ymax = bbox_max[1],
-               zmin = bbox_min[2], zmax = bbox_max[2];
+  const double q = 1.0 - b_tol;
+  const double xmin = q*bbox_min[0], xmax = q*bbox_max[0],
+               ymin = q*bbox_min[1], ymax = q*bbox_max[1],
+               zmin = q*bbox_min[2], zmax = q*bbox_max[2];
   bool within_domain =
        x>=xmin && x<=xmax && y>=ymin && y<=ymax && z>=zmin && z<=zmax;
 
@@ -129,12 +142,14 @@ int64_t generator_lattice_1d(
   // regular lattice in 1D
   double xmin = bbox_min[0], xmax = bbox_max[0];
   for(double x_p = xmin; x_p < xmax; x_p += sph_sep){
-    if(!count_only){
-      x[posid] = x_p;
-      y[posid] = 0.0;
-      z[posid] = 0.0;
+    if(in_domain_1d(x_p, xmin, xmax, domain_type)){
+      if(!count_only){
+        x[posid] = x_p;
+        y[posid] = 0.0;
+        z[posid] = 0.0;
+      }
+      posid++;
     }
-    posid++;
   }
   return (posid - posid_starting);
 }
