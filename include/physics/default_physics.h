@@ -203,6 +203,11 @@ namespace physics{
     double c_ij = (1./2.)*
         (source->getSoundspeed()+nb->getSoundspeed());
     double mu_ij = mu(source,nb);
+    if (adaptive_timestep) { // cache max_b mu_ab
+      const double mumax = source->getMumax();
+      if (mu_ij > mumax) 
+        source->setMumax(mu_ij);
+    }
     double res = ( -sph_viscosity_alpha*c_ij*mu_ij
                   + sph_viscosity_beta*mu_ij*mu_ij)/rho_ij;
     mpi_assert(res>=0.0);
@@ -228,8 +233,9 @@ namespace physics{
     // Reset the accelerastion 
     // \TODO add a function to reset in main_driver
     point_t acceleration = {};
-
     point_t hydro = {};
+    source->setMumax(0.0);
+
     for(auto nbh : ngbsh){ 
       body* nb = nbh->getBody();
 
@@ -662,40 +668,53 @@ namespace physics{
    * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics 
    *
    * @param      srch   The source's body holder
-   * @param      ngbhs  The neighbors' body holders
    */
-  void 
-  compute_dt(
-      body_holder* srch,
-      std::vector<body_holder*>& ngbhs)
-  {
+  void compute_dt(body_holder* srch) {
     body* source = srch->getBody();
+    const double tiny = 1e-24;
+    const double mc   = 0.6; // constant in denominator for viscosity
     
-    // First compute dt based on acceleration norm 
-    double accelNorm = 0.0;
-    for(size_t i=0;i<gdimension;++i){
-      accelNorm += source->getAcceleration()[i]*source->getAcceleration()[i];
-    }
-    accelNorm = sqrt(accelNorm);
-    double dt1 = pow(source->getSmoothinglength()/accelNorm,1.0/2.0);
-  
-    // Second based on max mu 
-    double max_mu_ij = -9999999;
-    for(auto nbh: ngbhs){
-      body* nb = nbh->getBody(); 
-      double local_mu = fabs(mu(source,nb));
-      max_mu_ij = std::max(max_mu_ij,local_mu);
-    }
-    double dt2 = source->getSmoothinglength()/
-        (source->getSoundspeed()+
-         1.2*sph_viscosity_alpha*source->getSoundspeed()+
-         1.2*sph_viscosity_beta*max_mu_ij);
-    dt2 *= 0.1;
+    // particles separation around this particle
+    const double dx = source->getSmoothinglength() 
+                    / (sph_eta*kernels::kernel_width);
+    
+    // timestep based on particle velocity
+    const double vel = norm_point(source->getVelocity());
+    const double dt_v = dx/(vel + tiny);
 
-    double min = std::min(dt1,dt2);
-    // Critical OMP to avoid outside synchronizations
-  #pragma omp critical 
-    physics::dt = std::min(dt,min);
+    // timestep based on acceleration
+    const double acc = norm_point(source->getAcceleration());
+    const double dt_a = sqrt(dx/(acc + tiny));
+  
+    // timestep based on sound speed and viscosity 
+    const double max_mu_ab = source->getMumax();
+    const double cs_a = source->getSoundspeed();
+    const double dt_c = dx/ (tiny + cs_a*(1 + mc*sph_viscosity_alpha) 
+                                  + mc*sph_viscosity_beta*max_mu_ab);
+
+    // critical OMP to avoid outside synchronizations
+    double dtmin = timestep_cfl_factor * std::min(std::min(dt_v,dt_a), dt_c);
+    source->setDt(dtmin);
+  }
+
+  /**
+   * @brief      Reduce adaptive timestep and set its value
+   *
+   * @param      bodies   Set of bodies
+   */
+  void set_adaptive_timestep(std::vector<body_holder*>& bodies) {
+    double dtmin = 1e24; // some ludicrous number
+    for(auto nbh: bodies) {
+      dtmin = std::min(dtmin, nbh->getBody()->getDt());
+    }
+    mpi_utils::reduce_min(dtmin);
+  
+  #pragma omp critical
+    if (dtmin < physics::dt)
+      physics::dt = std::min(dtmin, physics::dt/2.0);
+
+    if (dtmin > 2.0*physics::dt)
+      physics::dt = physics::dt*2.0;
   }
 
   void compute_smoothinglength( std::vector<body_holder*>& bodies)

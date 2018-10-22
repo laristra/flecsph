@@ -1,9 +1,9 @@
 /*~--------------------------------------------------------------------------~*
  * Copyright (c) 2017 Los Alamos National Security, LLC
  * All rights reserved.
- *~--------------------------------------------------------------------------~*\
+ *~--------------------------------------------------------------------------~*/
 
- /*~--------------------------------------------------------------------------~*
+/*~--------------------------------------------------------------------------~*
  * 
  * /@@@@@@@@ @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
  * /@@///// /@@          @@////@@ @@////// /@@////@@/@@     /@@
@@ -245,12 +245,13 @@ void mpi_init_task(const char * parameter_file){
     physics::dt = 1.0;
     rank|| clog(trace)<<"DT computation"<<std::flush; 
     wt = omp_get_wtime(); 
-    bs.apply_in_smoothinglength(physics::compute_dt);
-    mpi_utils::reduce_min(physics::dt);
+    bs.apply_all(physics::compute_dt);
+    bs.get_all(physics::set_adaptive_timestep);
+    //mpi_utils::reduce_min(physics::dt);
 
     rank|| clog(trace)<<".done "<< omp_get_wtime() - wt << "s" <<std::endl;
     rank|| clog(trace)<<"dt="<<physics::dt<<std::endl;
-    assert(physics::dt != 1.0);
+    assert(physics::dt != 1.0); // ???
 
     // Compute internal energy for output 
     bs.apply_all(physics::compute_internal_energy_from_adiabatic);
