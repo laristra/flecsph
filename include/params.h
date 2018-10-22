@@ -137,6 +137,16 @@ namespace param {
   DECLARE_PARAM(double,initial_dt,0.001)
 #endif
 
+//- timestep Courant-Friedrichs-Lewy factor (Dt/Dx)
+# ifndef timestep_cfl_factor
+  DECLARE_PARAM(double,timestep_cfl_factor,0.25)
+# endif
+
+//- adaptive timestepping flag
+#ifndef adaptive_timestep
+  DECLARE_PARAM(bool,adaptive_timestep,false)
+#endif
+
 //
 // Parameters related to particle number and density
 //
@@ -512,6 +522,13 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(initial_dt)
 # endif
 
+# ifndef timestep_cfl_factor
+  READ_NUMERIC_PARAM(timestep_cfl_factor)
+# endif
+
+# ifndef adaptive_timestep
+  READ_BOOLEAN_PARAM(adaptive_timestep)
+# endif
 
   // particle number and density --------------------------------------------
 # ifndef nparticles
