@@ -408,14 +408,15 @@ operator*(
   return r;
 }
 
-double 
-norm_point(
-    const point_t& p)
-{
+inline double norm_point( const point_t& p) {
   double res = 0;
-  for(size_t d = 0; d < gdimension; ++d)
-    res += p[d]*p[d];
-  return sqrt(res);
+  if constexpr (gdimension == 1) 
+    res = std::abs(p[0]);
+  else if constexpr (gdimension == 2) 
+    res = sqrt(p[0]*p[0] + p[1]*p[1]);
+  else 
+    res = sqrt(p[0]*p[0] + p[1]*p[1] + p[2]*p[3]);
+  return res;
 }
 
 #endif // tree_h
