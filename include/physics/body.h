@@ -100,6 +100,7 @@ public:
   flecsi::topology::entity_id_t getId(){return id_;};
   flecsi::topology::entity_id_t id(){return id_;};
   double getDt(){return dt_;};
+  double getMumax(){return mumax_;}
   int getType(){return type_;}; 
 
   bool is_wall(){return type_ == 1;};
@@ -118,6 +119,7 @@ public:
   void setSmoothinglength(double smoothinglength)
     {smoothinglength_=smoothinglength;};
   void setDt(double dt){dt_ = dt;};
+  void setMumax(double mumax){mumax_ = mumax;};
   void setId(flecsi::topology::entity_id_t id){id_ = id;};
   void setType(int type){type_ = type;}; 
 
@@ -175,6 +177,7 @@ private:
   double adiabatic_; 
   double dadt_;
   double dt_;
+  double mumax_;
   flecsi::topology::entity_id_t id_;
   int type_;
   int64_t neighbors_;  
