@@ -133,8 +133,7 @@ mpi_init_task(const char * parameter_file){
       // for all subsequent steps, however, they are computed at the end 
       // of the iteration
       rank|| clog(trace) << "first iteration: pressure, rho and cs" << std::flush;
-      bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed
-          );
+      bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
       bs.apply_all(integration::save_velocityhalf);
       rank|| clog(trace) << ".done" << std::endl;
 
@@ -198,7 +197,11 @@ mpi_init_task(const char * parameter_file){
       rank|| clog(trace) << ".done" << std::endl;
     }
 
-    if(sph_update_uniform_h){
+    if(sph_variable_h){
+      rank || clog(trace) << "updating smoothing length"<<std::flush;
+      bs.get_all(physics::compute_smoothinglength);
+      rank || clog(trace) << ".done" << std::endl << std::flush;
+    }else if(sph_update_uniform_h){
       // The particles moved, compute new smoothing length 
       rank || clog(trace) << "updating smoothing length"<<std::flush;
       bs.get_all(physics::compute_average_smoothinglength,bs.getNBodies());
