@@ -28,8 +28,12 @@
 
 #include <vector>
 
+#include <boost/algorithm/string.hpp>
+
 namespace viscosity{
   using namespace param;
+
+
 
   /**
    * @brief      mu_ij for the artificial viscosity 
@@ -45,9 +49,10 @@ namespace viscosity{
    */
   double 
   mu(
-      body* source, 
-      body* nb)
+      const body* source, 
+      const body* nb)
   {  
+
     using namespace param;
     double result = 0.0;
     double h_ij = .5*(source->getSmoothinglength()+nb->getSmoothinglength()); 
@@ -79,8 +84,8 @@ namespace viscosity{
    */
   double 
   artificial_viscosity(
-    body* source, 
-    body* nb)
+    const body* source, 
+    const body* nb)
   {
     using namespace param;
     double rho_ij = (1./2.)*(source->getDensity()+nb->getDensity());
@@ -91,6 +96,22 @@ namespace viscosity{
                   + sph_viscosity_beta*mu_ij*mu_ij)/rho_ij;
     mpi_assert(res>=0.0);
     return res;
+  }
+
+  typedef double (*viscosity_function_t)(const body*, const body *); 
+  viscosity_function_t viscosity = artificial_viscosity;
+
+  /**
+   * @brief Viscosity selector
+   * @param kstr Viscosity string descriptor 
+   */
+  void select(const std::string& kstr)
+  {
+    if (boost::iequals(kstr,"artificial_viscosity")){
+      viscosity = artificial_viscosity; 
+    }else{
+      clog_one(fatal) << "Bad viscosity parameter"<<std::endl;
+    }
   }
 
 }; // viscosity

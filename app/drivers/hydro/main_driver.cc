@@ -55,6 +55,9 @@ void set_derived_params() {
   // set kernel
   kernels::select(sph_kernel);
 
+  // set viscosity 
+  viscosity::select(sph_viscosity);
+
   // filenames (this will change for multiple files output)
   std::ostringstream oss;
   oss << initial_data_prefix << ".h5part";
@@ -139,14 +142,11 @@ mpi_init_task(const char * parameter_file){
       bs.update_neighbors();
 
       rank|| clog(trace) << "compute rhs of evolution equations" << std::flush;
-      bs.apply_in_smoothinglength(physics::compute_hydro_acceleration,
-          viscosity::artificial_viscosity);
+      bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
       if (thermokinetic_formulation)
-        bs.apply_in_smoothinglength(physics::compute_dedt,
-            viscosity::artificial_viscosity);
+        bs.apply_in_smoothinglength(physics::compute_dedt);
       else
-        bs.apply_in_smoothinglength(physics::compute_dudt,
-            viscosity::artificial_viscosity);
+        bs.apply_in_smoothinglength(physics::compute_dudt);
       rank|| clog(trace) << ".done" << std::endl;
 
       if (adaptive_timestep) {
@@ -179,8 +179,7 @@ mpi_init_task(const char * parameter_file){
       bs.update_neighbors();
 
       rank|| clog(trace) << "leapfrog: kick two (velocity)" << std::flush;
-      bs.apply_in_smoothinglength(physics::compute_hydro_acceleration,
-          viscosity::artificial_viscosity);
+      bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
       bs.apply_all(integration::leapfrog_kick_v);
       rank|| clog(trace) << ".done" << std::endl;
 
@@ -189,13 +188,11 @@ mpi_init_task(const char * parameter_file){
 
       rank|| clog(trace) << "leapfrog: kick two (energy)" << std::flush;
       if (thermokinetic_formulation) {
-        bs.apply_in_smoothinglength(physics::compute_dedt,
-            viscosity::artificial_viscosity);
+        bs.apply_in_smoothinglength(physics::compute_dedt);
         bs.apply_all(integration::leapfrog_kick_e);
       }
       else {
-        bs.apply_in_smoothinglength(physics::compute_dudt,
-            viscosity::artificial_viscosity);
+        bs.apply_in_smoothinglength(physics::compute_dudt);
         bs.apply_all(integration::leapfrog_kick_u);
       }
       rank|| clog(trace) << ".done" << std::endl;

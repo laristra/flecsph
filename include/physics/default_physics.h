@@ -150,8 +150,7 @@ namespace physics{
   void
   compute_hydro_acceleration(
     body_holder* srch, 
-    std::vector<body_holder*>& ngbsh,
-    double (*viscosity_function)(body*, body*))
+    std::vector<body_holder*>& ngbsh)
   { 
     using namespace param;
     body* source = srch->getBody();
@@ -169,7 +168,7 @@ namespace physics{
         continue;
 
       // Compute viscosity
-      double visc = viscosity_function(source,nb);
+      double visc = viscosity::viscosity(source,nb);
       
       // Hydro force
       point_t vecPosition = source->getPosition() - nb->getPosition();
@@ -204,8 +203,7 @@ namespace physics{
    */
   void compute_dudt(
       body_holder* srch, 
-      std::vector<body_holder*>& ngbsh,
-      double (*viscosity_function)(body*, body*))
+      std::vector<body_holder*>& ngbsh)
   {
     body* source = srch->getBody();
 
@@ -221,7 +219,7 @@ namespace physics{
       }
 
       // Artificial viscosity
-      double visc = viscosity_function(source,nb);
+      double visc = viscosity::viscosity(source,nb);
     
       // Compute the gradKernel ij      
       point_t vecPosition = source->getPosition()-nb->getPosition();
@@ -264,8 +262,7 @@ namespace physics{
    */
   void compute_dedt(
       body_holder* srch, 
-      std::vector<body_holder*>& ngbsh,
-      double (*viscosity_function)(body*, body*))
+      std::vector<body_holder*>& ngbsh)
   {
     body* source = srch->getBody();
 
@@ -300,7 +297,7 @@ namespace physics{
                    P_b = nb->getPressure(),
                    rho_b = nb->getDensity();
       const double Prho2_b = P_b/(rho_b*rho_b),
-                   Pi_ab = viscosity_function(source,nb);
+                   Pi_ab = viscosity::viscosity(source,nb);
 
       // add this neighbour's contribution
       dedt -= m_b*( Prho2_a*vb_dot_DaWab + Prho2_b*va_dot_DaWab 
