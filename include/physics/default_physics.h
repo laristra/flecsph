@@ -362,14 +362,31 @@ namespace physics{
       physics::dt = physics::dt*2.0;
   }
 
-  void compute_smoothinglength( std::vector<body_holder*>& bodies)  
+  void 
+  compute_smoothinglength(
+      std::vector<body_holder*>& bodies)  
   { 
-    for(auto b: bodies) { 
-      b->getBody()->setSmoothinglength( 
-        sph_eta*kernels::kernel_width*  
-        pow(b->getBody()->getMass()/b->getBody()->getDensity(), 
-        1./(double)gdimension));  
-    } 
+    if (gdimension == 1) {
+       for(auto b: bodies) { 
+         b->getBody()->setSmoothinglength( 
+           sph_eta*kernels::kernel_width*  
+           b->getBody()->getMass()/b->getBody()->getDensity();
+       } 
+    }
+    else if (gdimension == 2) {
+       for(auto b: bodies) { 
+         b->getBody()->setSmoothinglength( 
+           sph_eta*kernels::kernel_width*  
+           sqrt(b->getBody()->getMass()/b->getBody()->getDensity());
+       } 
+    }
+    else {
+       for(auto b: bodies) { 
+         b->getBody()->setSmoothinglength( 
+           sph_eta*kernels::kernel_width*  
+           cbrt(b->getBody()->getMass()/b->getBody()->getDensity());
+       }
+    } // if gdimension
   }
 
   /**
