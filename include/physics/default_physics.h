@@ -367,25 +367,31 @@ namespace physics{
       std::vector<body_holder*>& bodies)  
   { 
     if (gdimension == 1) {
-       for(auto b: bodies) { 
-         b->getBody()->setSmoothinglength( 
-           sph_eta*kernels::kernel_width*  
-           b->getBody()->getMass()/b->getBody()->getDensity();
-       } 
+      for(auto b: bodies) {
+        auto particle = b->getBody();
+        double m_b   = particle->getMass();
+        double rho_b = particle->getDensity();
+        particle->setSmoothinglength(
+          m_b/rho_b * sph_eta*kernels::kernel_width);  
+      } 
     }
     else if (gdimension == 2) {
-       for(auto b: bodies) { 
-         b->getBody()->setSmoothinglength( 
-           sph_eta*kernels::kernel_width*  
-           sqrt(b->getBody()->getMass()/b->getBody()->getDensity());
-       } 
+      for(auto b: bodies) {
+        auto particle = b->getBody();
+        double m_b   = particle->getMass();
+        double rho_b = particle->getDensity();
+        particle->setSmoothinglength(
+          sqrt(m_b/rho_b) * sph_eta*kernels::kernel_width);  
+      } 
     }
     else {
-       for(auto b: bodies) { 
-         b->getBody()->setSmoothinglength( 
-           sph_eta*kernels::kernel_width*  
-           cbrt(b->getBody()->getMass()/b->getBody()->getDensity());
-       }
+      for(auto b: bodies) {
+        auto particle = b->getBody();
+        double m_b   = particle->getMass();
+        double rho_b = particle->getDensity();
+        particle->setSmoothinglength(
+          cbrt(m_b/rho_b) * sph_eta*kernels::kernel_width);  
+      } 
     } // if gdimension
   }
 
