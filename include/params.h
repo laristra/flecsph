@@ -295,6 +295,12 @@ namespace param {
   DECLARE_PARAM(double,poly_gamma,1.4)
 #endif
 
+// - which viscosity computation to use? 
+// * artificial_viscosity
+#ifndef sph_viscosity 
+  DECLARE_STRING_PARAM(sph_viscosity,"artificial_viscosity")
+#endif 
+
 //- artificial viscosity: parameter alpha (Rosswog'09, eq.59)
 #ifndef sph_viscosity_alpha
   DECLARE_PARAM(double,sph_viscosity_alpha,1.0)
@@ -638,6 +644,10 @@ void set_param(const std::string& param_name,
 # ifndef poly_gamma
   READ_NUMERIC_PARAM(poly_gamma)
 # endif
+
+# ifndef sph_viscosity 
+  READ_STRING_PARAM(sph_viscosity)
+# endif 
 
 # ifndef sph_viscosity_alpha
   READ_NUMERIC_PARAM(sph_viscosity_alpha)

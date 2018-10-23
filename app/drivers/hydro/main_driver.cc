@@ -55,6 +55,9 @@ void set_derived_params() {
   // set kernel
   kernels::select(sph_kernel);
 
+  // set viscosity 
+  viscosity::select(sph_viscosity);
+
   // filenames (this will change for multiple files output)
   std::ostringstream oss;
   oss << initial_data_prefix << ".h5part";
@@ -97,19 +100,6 @@ mpi_init_task(const char * parameter_file){
   body_system<double,gdimension> bs;
   bs.read_bodies(initial_data_file.c_str(),initial_iteration);
 
-  // boundaries
-/*
-  auto range_boundaries = bs.getRange();
-  point_t distance = range_boundaries[1]-range_boundaries[0];
-  for(unsigned short i = 0; i < gdimension; ++i){
-    distance[i] = fabs(distance[i]);
-  }
-  double h = bs.getSmoothinglength();
-  physics::min_boundary = {(0.1+2*h)*distance+range_boundaries[0]};
-  physics::max_boundary = {-(0.1-2*h)*distance+range_boundaries[1]};
-  clog_one(info) << "Limits: " << physics::min_boundary << " ; "
-         << physics::max_boundary << std::endl;
- */
   MPI_Barrier(MPI_COMM_WORLD);
   bs.update_iteration();
   if(thermokinetic_formulation) {
@@ -136,22 +126,16 @@ mpi_init_task(const char * parameter_file){
     MPI_Barrier(MPI_COMM_WORLD);
 
     if (physics::iteration == 1){
-      // Compute and prepare the tree for this iteration
-      // - Compute the Max smoothing length
-      // - Compute the range of the system using the smoothinglength
-      // - Compute the keys
-      // - Distributed qsort and sharing
-      // - Generate and feed the tree
-      // - Exchange branches for smoothing length
-      // - Compute and exchange ghosts in real smoothing length
+      
       bs.update_iteration();
 
       // at the initial iteration, P, rho and cs have not been computed yet;
       // for all subsequent steps, however, they are computed at the end 
       // of the iteration
       rank|| clog(trace) << "first iteration: pressure, rho and cs" << std::flush;
-      bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
-      bs.apply_all(physics::save_velocityhalf);
+      bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed
+          );
+      bs.apply_all(integration::save_velocityhalf);
       rank|| clog(trace) << ".done" << std::endl;
 
       // necessary for computing dv/dt and du/dt in the next step
@@ -174,19 +158,19 @@ mpi_init_task(const char * parameter_file){
     }
     else {
       rank|| clog(trace) << "leapfrog: kick one" << std::flush;
-      bs.apply_all(physics::leapfrog_kick_v);
+      bs.apply_all(integration::leapfrog_kick_v);
       if (thermokinetic_formulation)
-        bs.apply_all(physics::leapfrog_kick_e);
+        bs.apply_all(integration::leapfrog_kick_e);
       else
-        bs.apply_all(physics::leapfrog_kick_u);
-      bs.apply_all(physics::save_velocityhalf);
+        bs.apply_all(integration::leapfrog_kick_u);
+      bs.apply_all(integration::save_velocityhalf);
       rank|| clog(trace) << ".done" << std::endl;
 
       // sync velocities
       bs.update_neighbors();
 
       rank|| clog(trace) << "leapfrog: drift" << std::flush;
-      bs.apply_all(physics::leapfrog_drift);
+      bs.apply_all(integration::leapfrog_drift);
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
       rank|| clog(trace) << ".done" << std::endl;
 
@@ -196,7 +180,7 @@ mpi_init_task(const char * parameter_file){
 
       rank|| clog(trace) << "leapfrog: kick two (velocity)" << std::flush;
       bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
-      bs.apply_all(physics::leapfrog_kick_v);
+      bs.apply_all(integration::leapfrog_kick_v);
       rank|| clog(trace) << ".done" << std::endl;
 
       // sync velocities
@@ -205,21 +189,16 @@ mpi_init_task(const char * parameter_file){
       rank|| clog(trace) << "leapfrog: kick two (energy)" << std::flush;
       if (thermokinetic_formulation) {
         bs.apply_in_smoothinglength(physics::compute_dedt);
-        bs.apply_all(physics::leapfrog_kick_e);
+        bs.apply_all(integration::leapfrog_kick_e);
       }
       else {
         bs.apply_in_smoothinglength(physics::compute_dudt);
-        bs.apply_all(physics::leapfrog_kick_u);
+        bs.apply_all(integration::leapfrog_kick_u);
       }
       rank|| clog(trace) << ".done" << std::endl;
     }
-      
-    if(sph_variable_h){
-      // The particles moved, compute new smoothing length 
-      rank || clog(trace) << "updating smoothing length"<<std::flush;
-      bs.get_all(physics::compute_smoothinglength);
-      rank || clog(trace) << ".done" << std::endl << std::flush;
-    }else if(sph_update_uniform_h){
+
+    if(sph_update_uniform_h){
       // The particles moved, compute new smoothing length 
       rank || clog(trace) << "updating smoothing length"<<std::flush;
       bs.get_all(physics::compute_average_smoothinglength,bs.getNBodies());
