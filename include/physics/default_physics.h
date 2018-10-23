@@ -362,6 +362,39 @@ namespace physics{
       physics::dt = physics::dt*2.0;
   }
 
+  void 
+  compute_smoothinglength(
+      std::vector<body_holder*>& bodies)  
+  { 
+    if (gdimension == 1) {
+      for(auto b: bodies) {
+        auto particle = b->getBody();
+        double m_b   = particle->getMass();
+        double rho_b = particle->getDensity();
+        particle->setSmoothinglength(
+          m_b/rho_b * sph_eta*kernels::kernel_width);  
+      } 
+    }
+    else if (gdimension == 2) {
+      for(auto b: bodies) {
+        auto particle = b->getBody();
+        double m_b   = particle->getMass();
+        double rho_b = particle->getDensity();
+        particle->setSmoothinglength(
+          sqrt(m_b/rho_b) * sph_eta*kernels::kernel_width);  
+      } 
+    }
+    else {
+      for(auto b: bodies) {
+        auto particle = b->getBody();
+        double m_b   = particle->getMass();
+        double rho_b = particle->getDensity();
+        particle->setSmoothinglength(
+          cbrt(m_b/rho_b) * sph_eta*kernels::kernel_width);  
+      } 
+    } // if gdimension
+  }
+
   /**
    * @brief update smoothing length for particles (Rosswog'09, eq.51)
    * 
@@ -369,16 +402,17 @@ namespace physics{
    */
   void compute_average_smoothinglength( std::vector<body_holder*>& bodies,
       int64_t nparticles) {
+    compute_smoothinglength(bodies);
     // Compute the total 
     double total = 0.;
-    for(auto b: bodies) {
-      total += pow(b->getBody()->getMass()/b->getBody()->getDensity(),
-          1./(double)gdimension);
+    for(auto b: bodies)
+    {
+      total += b->getBody()->getSmoothinglength();
     }
     // Add up with all the processes 
     MPI_Allreduce(MPI_IN_PLACE,&total,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
     // Compute the new smoothing length 
-    double new_h = sph_eta*kernels::kernel_width/(double)nparticles * total;
+    double new_h = 1./(double)nparticles * total;
     for(auto b: bodies) { 
       b->getBody()->setSmoothinglength(new_h);
     }
