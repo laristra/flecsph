@@ -242,7 +242,7 @@ namespace param {
 #endif
 
 #ifndef do_periodic_boundary
-  DECLARE_PARAM(bool,do_periodic_boundary,true)
+  DECLARE_PARAM(bool,do_periodic_boundary,false)
 #endif 
 
 //
