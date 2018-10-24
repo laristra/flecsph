@@ -55,6 +55,10 @@ namespace boundary{
       std::vector<std::pair<entity_key_t,body>>& lbodies,
       double halo_size)
   {
+    int64_t original_nparticles = lbodies.size();
+    MPI_Allreduce(MPI_IN_PLACE,&original_nparticles,1,MPI_INT64_T,
+        MPI_SUM,MPI_COMM_WORLD); 
+
     // Generate box from dimension 
     range_t box; 
     point_t min, max; 
@@ -67,7 +71,25 @@ namespace boundary{
       min[2] = -box_height/2.; max[2] = box_height/2.;
     }
     box = {min,max};
-    std::cout<<"Box="<<box[0]<<";"<<box[1]<<std::endl;
+
+    // Step 1, teleport the particles to the other side of the domain
+    // Keep the same id 
+    #pragma omp parallel for 
+    for(int i = 0 ; i < lbodies.size(); ++i)
+    {
+      for(int d = 0 ; d < gdimension ; ++d)
+      {
+        point_t coord = lbodies[i].second.coordinates();
+        if(lbodies[i].second.coordinates()[d] > box[1][d])
+        {
+          coord[d] = box[0][d] + (coord[d]-box[1][d]); 
+        }else if(lbodies[i].second.coordinates()[d] < box[0][d])
+        {
+          coord[d] = box[1][d] - (box[0][d]-coord[d]);
+        }
+        lbodies[i].second.setPosition(coord);
+      }
+    }
 
     // Search for particles near the edge 
     std::vector<body> edge;  
@@ -126,28 +148,39 @@ namespace boundary{
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
-    std::cout<<rank<<" "<<edge.size()<<" particles transfered"<<
-    std::endl<<std::flush; 
+    //std::cout<<rank<<" "<<edge.size()<<" particles transfered"<<
+    //std::endl<<std::flush; 
     
     // Add them in the body array
     for(auto b: edge)
       lbodies.push_back(std::make_pair(entity_key_t{},b));
   
-    std::vector<int64_t> nparticles(size); 
-    int64_t local_particles = lbodies.size();
-    MPI_Allgather(&local_particles,1,MPI_INT64_T,
-        &nparticles[0],1,MPI_INT64_T,MPI_COMM_WORLD);
+    std::vector<int64_t> nparticles_wall(size); 
+    int64_t local_wall = edge.size();
+    MPI_Allgather(&local_wall,1,MPI_INT64_T,
+        &nparticles_wall[0],1,MPI_INT64_T,MPI_COMM_WORLD);
 
     // Prefix scan 
-    std::partial_sum(nparticles.begin(),nparticles.end(),nparticles.begin());
-    nparticles.insert(nparticles.begin(),0);
+    std::partial_sum(nparticles_wall.begin(),
+        nparticles_wall.end(),nparticles_wall.begin());
+    nparticles_wall.insert(nparticles_wall.begin(),0);
 
-    // Re Index the particles in this case to avoid conflicts 
-    int64_t i = nparticles[rank]; 
+    // Re Index the particles in this case to avoid conflicts
+    // Keep the same index for domain particles
+    // Create special index for wall particles  
+    int64_t i = original_nparticles+nparticles_wall[rank]; 
+    int64_t total_check = 0L;
+    int64_t total_part = original_nparticles+nparticles_wall[size];
     for(auto& b: lbodies)
     {
-      b.second.setId((i++));
+      if(b.second.getType() == WALL)
+        b.second.setId((i++));
+      total_check += b.second.id(); 
     }
+    MPI_Allreduce(MPI_IN_PLACE,&total_check,1,MPI_INT64_T,MPI_SUM,
+        MPI_COMM_WORLD);
+    //std::cout<<total_check<<" == "<<(total_part-1)*(total_part)/2<<std::endl;
+    assert(total_check == (total_part-1)*(total_part)/2);
   }
     
   /**
