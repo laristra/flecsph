@@ -241,6 +241,10 @@ namespace param {
   DECLARE_PARAM(bool,reflect_boundaries,false)
 #endif
 
+#ifndef do_periodic_boundary
+  DECLARE_PARAM(bool,do_periodic_boundary,true)
+#endif 
+
 //
 // I/O parameters
 //
@@ -606,6 +610,10 @@ void set_param(const std::string& param_name,
 # ifndef reflect_boundaries
   READ_BOOLEAN_PARAM(reflect_boundaries)
 # endif
+
+# ifndef do_periodic_boundary
+  READ_BOOLEAN_PARAM(do_periodic_boundary)
+# endif 
 
   // i/o parameters  --------------------------------------------------------
 # ifndef initial_data_prefix

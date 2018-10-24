@@ -148,7 +148,7 @@ namespace physics{
    * @param      nbsh  The neighbors' body holders
    */
   void
-  compute_hydro_acceleration(
+  compute_acceleration(
     body_holder* srch, 
     std::vector<body_holder*>& ngbsh)
   { 

@@ -53,7 +53,8 @@ namespace analysis{
   {
     linear_momentum = {0};
     for(auto nbh: bodies) {
-      linear_momentum += nbh->getBody()->getLinMomentum();
+      if(nbh->getBody()->type() == NORMAL)
+        linear_momentum += nbh->getBody()->getLinMomentum();
     }
     reduce_sum(linear_momentum);
   }
@@ -69,7 +70,8 @@ namespace analysis{
   {
     total_mass = 0.;
     for(auto nbh: bodies) {
-      total_mass += nbh->getBody()->getMass();
+      if(nbh->getBody()->type() == NORMAL)
+        total_mass += nbh->getBody()->getMass();
     }
     reduce_sum(total_mass);
   }
@@ -84,13 +86,17 @@ namespace analysis{
       std::vector<body_holder*>& bodies)
   {
     using namespace param;
+
     total_energy = 0.;
     if (thermokinetic_formulation) {
       for(auto nbh: bodies)
-        total_energy += nbh->getBody()->getMass()*nbh->getBody()->getTotalenergy();
+        if(nbh->getBody()->type() == NORMAL)
+          total_energy += nbh->getBody()->getMass()*nbh->getBody()->getTotalenergy();
     }
     else {
       for(auto nbh: bodies) {
+        if(nbh->getBody()->type() != NORMAL)
+          continue; 
         total_energy += nbh->getBody()->getMass()*nbh->getBody()->getInternalenergy();
         linear_velocity = nbh->getBody()->getVelocity();
         velocity_part = 0.;
@@ -120,6 +126,8 @@ namespace analysis{
     part_mom = {0};
     part_position = {0};
     for(auto nbh: bodies) {
+      if(nbh->getBody()->type() != NORMAL)
+        continue; 
       part_mom = nbh->getBody()->getLinMomentum();
       part_position = nbh->getBody()->getPosition();
       if(gdimension==3){

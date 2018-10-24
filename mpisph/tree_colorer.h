@@ -37,11 +37,10 @@
 
 #include "params.h" // For the variable smoothing length 
 
-
 using namespace mpi_utils;
 
 // Output the data regarding the distribution for debug
-//#define OUTPUT_TREE_INFO 1
+#define OUTPUT_TREE_INFO 1
 
 
 /**
@@ -160,9 +159,7 @@ public:
   */
   void mpi_qsort(
     std::vector<std::pair<entity_key_t,body>>& rbodies,
-    int totalnbodies,
-    const std::vector<int64_t>& neighbors_count = std::vector<int64_t>()
-  )
+    int totalnbodies)
   {
     int size, rank;
     MPI_Comm_size(MPI_COMM_WORLD,&size);
@@ -191,19 +188,7 @@ public:
 
     std::vector<std::pair<entity_key_t,int64_t>> splitters;
     
-    // If nothing int the neighbor arraym normal repartition
-
-    if(neighbors_count.size() > 1){
-      #ifdef OUTPUT_TREE_INFO
-      rank|| clog(trace)<<"Weight function"<<std::endl;
-      #endif
-      generate_splitters_weight(splitters,rbodies,totalnbodies,neighbors_count); 
-    }else{
-      generate_splitters_samples(splitters,rbodies,totalnbodies);
-      #ifdef OUTPUT_TREE_INFO
-      rank|| clog(trace)<<"Normal function"<<std::endl;
-      #endif
-    }
+    generate_splitters_samples(splitters,rbodies,totalnbodies);
 
     // The rbodies array is already sorted. We just need to determine the 
     // limits for each process
@@ -306,7 +291,7 @@ public:
       search_branches);
 
     // Make a list of boundaries
-    std::vector<std::array<point_t,2>> send_branches(search_branches.size());
+    std::vector<range_t> send_branches(search_branches.size());
 
     #pragma omp parallel for 
     for(long unsigned int i=0;i<search_branches.size();++i){
@@ -314,56 +299,9 @@ public:
       send_branches[i][1] = search_branches[i]->bmax();
     }
 
-    int nbranches = send_branches.size();
-    // Send to neighbors 
-    std::vector<int> count_search_branches(size);
-    
-    MPI_Allgather(
-      &nbranches,
-      1,
-      MPI_INT,
-      &count_search_branches[0],
-      1,
-      MPI_INT,
-      MPI_COMM_WORLD
-    );
-
-    #ifdef OUTPUT_TREE_INFO
-    std::ostringstream oss;
-    oss <<"Packets with ncrit="<<criterion_branches<<" = ";
-    for(auto v: count_search_branches){
-      oss <<v<<";";
-    }
-    rank|| clog(trace) << oss.str()<<std::endl;
-    #endif 
-
-    std::vector<int> count_search_branches_byte(size);
-    std::vector<int> offset_search_branches_byte(size);
-    int64_t total_branches = 0L;
-    for(int i = 0; i < size; ++i){
-      total_branches += count_search_branches[i];
-      count_search_branches_byte[i] = 
-          count_search_branches[i]*sizeof(std::array<point_t,2>);
-    }
-
-    std::partial_sum(count_search_branches_byte.begin(),
-      count_search_branches_byte.end(),&offset_search_branches_byte[0]); 
-    // As we need an exscan, add a zero
-    offset_search_branches_byte.insert(offset_search_branches_byte.begin(),0);
-
-    std::vector<std::array<point_t,2>> recv_search_branches(total_branches);
-
-
-    MPI_Allgatherv(
-      &send_branches[0],
-      count_search_branches_byte[rank],
-      MPI_BYTE,
-      &recv_search_branches[0],
-      &count_search_branches_byte[0],
-      &offset_search_branches_byte[0],
-      MPI_BYTE,
-      MPI_COMM_WORLD
-    );
+    std::vector<range_t> recv_branches; 
+    std::vector<int> count; 
+    mpi_allgatherv(send_branches,recv_branches,count);
 
     reset_buffers();
     std::vector<body_holder_mpi_t> sendbuffer;
@@ -374,31 +312,24 @@ public:
     for(int i=0;i<size;++i)
     {
       if(i==rank){
-        cur += count_search_branches[i];
+        cur += count[i];
         continue;
       }
       std::vector<body_holder_mpi_t> tmpsendbuffer; 
-      for(int j = cur; j < cur+count_search_branches[i]; ++j ){
+      for(int j = cur; j < cur+count[i]; ++j ){
         // Then for each branches
         tree_topology_t::subentity_space_t ents; 
         if(param::sph_variable_h){
-          ents = tree.find_in_box(
-            recv_search_branches[j][0],
-            recv_search_branches[j][1],
+          ents = tree.find_in_box(recv_branches[j][0],recv_branches[j][1],
             tree_geometry_t::intersects_sphere_box);
         }else{
-          ents = tree.find_in_box(
-            recv_search_branches[j][0],
-            recv_search_branches[j][1],
+          ents = tree.find_in_box(recv_branches[j][0],recv_branches[j][1],
             tree_geometry_t::within_box);
         } 
         for(auto ent: ents){
           assert(ent != nullptr);
           tmpsendbuffer.push_back(body_holder_mpi_t{
-            ent->coordinates(),
-            rank,
-            ent->mass(),
-            ent->getBody()->getId(),
+            ent->coordinates(),rank,ent->mass(),ent->getBody()->getId(),
             ent->getBody()->getSmoothinglength()});
         }
       }
@@ -417,8 +348,8 @@ public:
 
       sendbuffer.insert(sendbuffer.end(),tmpsendbuffer.begin(),
         tmpsendbuffer.end());
-    
-      cur += count_search_branches[i];
+
+      cur += count[i];
     }
 
     std::vector<body_holder_mpi_t> recvbuffer;
@@ -442,8 +373,7 @@ public:
 
   }
 
-
-
+ 
 void mpi_refresh_ghosts(
     tree_topology_t& tree
     )
@@ -711,7 +641,7 @@ void mpi_refresh_ghosts(
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
     // Compute the local range 
-    std::array<point_t,2> lrange;
+    range_t lrange;
 
     lrange[1] = bodies.back().second.coordinates();
     lrange[0] = bodies.back().second.coordinates();
@@ -729,7 +659,6 @@ void mpi_refresh_ghosts(
       }
     }
     
-
     double max[gdimension]; 
     double min[gdimension]; 
     for(size_t i=0; i<gdimension; ++i){
@@ -743,123 +672,10 @@ void mpi_refresh_ghosts(
     MPI_Allreduce(MPI_IN_PLACE,min,dimension,MPI_DOUBLE,MPI_MIN,
         MPI_COMM_WORLD); 
 
-#ifdef OUTPUT_TREE_INFO
-    rank|| clog(trace)<<"boundaries: "<< minposition << maxposition << 
-      std::endl;
-#endif 
-
     for(size_t d = 0; d < gdimension ; ++d){
       range[0][d] = min[d];
       range[1][d] = max[d];
     }
-  }
-
-  void
-  generate_splitters_weight(
-    std::vector<std::pair<entity_key_t,int64_t>>& splitters,
-    std::vector<std::pair<entity_key_t,body>>& rbodies, 
-    const int64_t totalnbodies, 
-    const std::vector<int64_t>& neighbors_count)
-  {
-    int rank, size; 
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    MPI_Comm_size(MPI_COMM_WORLD,&size); 
-
-    // Get the total of neighbors 
-    int64_t totalneighbors = neighbors_count.back();
-    MPI_Allreduce(MPI_IN_PLACE,
-      &totalneighbors,1,MPI_INT64_T,MPI_SUM,MPI_COMM_WORLD);
-
-    #ifdef OUTPUT_TREE_INFO
-    rank|| clog(trace)<<"Total number of neighbors = "<< totalneighbors << std::endl;
-    #endif
-
-    // Create a vector for the samplers 
-    std::vector<std::pair<entity_key_t,int64_t>> keys_sample;
-    // Number of elements for sampling 
-    // In this implementation we share up to 256KB to 
-    // the master. 
-    size_t maxnsamples = 1024;
-    double maxweightsample = 1./(double)maxnsamples;
-    
-    int64_t nvalues = rbodies.size();
-    
-    double weight_cur = 0.;
-    for(int64_t i = 0; i< nvalues; ++i){
-      if(weight_cur > maxweightsample){
-        weight_cur = 0.;
-        keys_sample.push_back(std::make_pair(rbodies[i].first,
-        rbodies[i].second.getId()));
-      }
-      weight_cur += (double)(neighbors_count[i+1] - neighbors_count[i])/
-        (double)totalneighbors;
-    }
-
-    size_t nsample = keys_sample.size();
-  
-    std::vector<std::pair<entity_key_t,int64_t>> master_keys;
-    std::vector<int> master_recvcounts;
-    std::vector<int> master_offsets;
-    int master_nkeys = 0; 
-
-    if(rank==0){
-      master_recvcounts.resize(size);
-    } // if
-
-    // Echange the number of samples
-    MPI_Gather(&nsample,1,MPI_INT,
-      &master_recvcounts[0],1,MPI_INT,0,MPI_COMM_WORLD);
-
-    // Master 
-    // Sort the received keys and create the pivots
-    if(rank == 0){
-      master_offsets.resize(size); 
-      master_nkeys = std::accumulate(
-        master_recvcounts.begin(),master_recvcounts.end(),0);
-      if(totalnbodies<master_nkeys){master_nkeys=totalnbodies;}
-      // Number to receiv from each process
-      for(int i=0;i<size;++i){
-        master_recvcounts[i]*=sizeof(std::pair<entity_key_t,int64_t>);
-      } // for
-      std::partial_sum(master_recvcounts.begin(),master_recvcounts.end(),
-        &master_offsets[0]); 
-      master_offsets.insert(master_offsets.begin(),0);
-      master_keys.resize(master_nkeys);
-    } // if
-
-
-    MPI_Gatherv(&keys_sample[0],nsample*sizeof(std::pair<entity_key_t,int64_t>)
-      ,MPI_BYTE,&master_keys[0],&master_recvcounts[0],&master_offsets[0]
-      ,MPI_BYTE,0,MPI_COMM_WORLD);
-
-    // Generate the splitters
-    splitters.resize(size-1);
-    if(rank==0){
-      std::sort(master_keys.begin(),master_keys.end(),
-        [](auto& left, auto& right){
-          if(left.first < right.first){
-            return true; 
-          }
-          if(left.first == right.first){
-            return left.second < right.second; 
-          }
-          return false; 
-        });
-
-      //std::cout<<entity_key_t::first_key()<<std::endl;
-      for(int i=0;i<size-1;++i){
-        int64_t position = (master_nkeys/size)*(i+1);
-        splitters[i] = master_keys[position];
-        //std::cout<<splitters[i].first<<std::endl;
-      } // for
-      // Last key 
-      //std::cout<<entity_key_t::last_key()<<std::endl;
-    } // if
-
-    // Bradcast the splitters 
-    MPI_Bcast(&splitters[0],(size-1)*sizeof(std::pair<entity_key_t,int64_t>)
-    ,MPI_BYTE,0,MPI_COMM_WORLD);
-
   }
 
 
