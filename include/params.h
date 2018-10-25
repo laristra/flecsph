@@ -137,6 +137,16 @@ namespace param {
   DECLARE_PARAM(double,initial_dt,0.001)
 #endif
 
+//- timestep Courant-Friedrichs-Lewy factor (Dt/Dx)
+# ifndef timestep_cfl_factor
+  DECLARE_PARAM(double,timestep_cfl_factor,0.25)
+# endif
+
+//- adaptive timestepping flag
+#ifndef adaptive_timestep
+  DECLARE_PARAM(bool,adaptive_timestep,false)
+#endif
+
 //
 // Parameters related to particle number and density
 //
@@ -254,6 +264,11 @@ namespace param {
   DECLARE_PARAM(int32_t,out_scalar_every,10)
 #endif
 
+// - diagnostic info output frequency 
+#ifndef out_diagnostic_every
+  DECLARE_PARAM(int32_t,out_diagnostic_every,10);
+#endif 
+
 //- HDF5 output frequency
 #ifndef out_h5data_every
   DECLARE_PARAM(int32_t,out_h5data_every,10)
@@ -279,6 +294,12 @@ namespace param {
 #ifndef poly_gamma
   DECLARE_PARAM(double,poly_gamma,1.4)
 #endif
+
+// - which viscosity computation to use? 
+// * artificial_viscosity
+#ifndef sph_viscosity 
+  DECLARE_STRING_PARAM(sph_viscosity,"artificial_viscosity")
+#endif 
 
 //- artificial viscosity: parameter alpha (Rosswog'09, eq.59)
 #ifndef sph_viscosity_alpha
@@ -507,6 +528,13 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(initial_dt)
 # endif
 
+# ifndef timestep_cfl_factor
+  READ_NUMERIC_PARAM(timestep_cfl_factor)
+# endif
+
+# ifndef adaptive_timestep
+  READ_BOOLEAN_PARAM(adaptive_timestep)
+# endif
 
   // particle number and density --------------------------------------------
 # ifndef nparticles
@@ -596,6 +624,10 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(out_scalar_every)
 # endif
 
+# ifndef out_diagnostic_every
+  READ_NUMERIC_PARAM(out_diagnostic_every)
+# endif
+
 # ifndef out_h5data_every
   READ_NUMERIC_PARAM(out_h5data_every)
 # endif
@@ -612,6 +644,10 @@ void set_param(const std::string& param_name,
 # ifndef poly_gamma
   READ_NUMERIC_PARAM(poly_gamma)
 # endif
+
+# ifndef sph_viscosity 
+  READ_STRING_PARAM(sph_viscosity)
+# endif 
 
 # ifndef sph_viscosity_alpha
   READ_NUMERIC_PARAM(sph_viscosity_alpha)

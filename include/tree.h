@@ -87,7 +87,7 @@ public:
 	      id_t id,
         element_t h
         )
-      : coordinates_(coordinates),bodyptr_(bodyptr),mass_(mass),h_(h)
+      : coordinates_(coordinates),mass_(mass),h_(h),bodyptr_(bodyptr)
     {
       locality_ = bodyptr_==nullptr?NONLOCAL:EXCL;
       global_id_ = id; 
@@ -96,9 +96,9 @@ public:
 
     body_holder()
       :coordinates_(point_t{0,0,0}),
-       bodyptr_(nullptr),
        mass_(0.0),
-       h_(0.0)
+       h_(0.0),
+       bodyptr_(nullptr)
     {
       locality_ = NONLOCAL;
       owner_ = -1; 
@@ -406,6 +406,17 @@ operator*(
   for(size_t i=0;i<gdimension;++i)
     r[i] *= q[i];
   return r;
+}
+
+inline double norm_point( const point_t& p) {
+  double res = 0;
+  if constexpr (gdimension == 1) 
+    res = std::abs(p[0]);
+  else if constexpr (gdimension == 2) 
+    res = sqrt(p[0]*p[0] + p[1]*p[1]);
+  else 
+    res = sqrt(p[0]*p[0] + p[1]*p[1] + p[2]*p[3]);
+  return res;
 }
 
 #endif // tree_h

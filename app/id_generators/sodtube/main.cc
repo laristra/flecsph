@@ -177,37 +177,24 @@ int main(int argc, char * argv[]){
     tparticles = particle_lattice::count(lattice_type,2,cbox_min,cbox_max,
                                          sph_separation,0);
     if(gdimension==1){
-      mass = rho_1*(cbox_max[0]-cbox_min[0])/tparticles;
-      if(lattice_type==0){
-        temp_part = tparticles;
-      } else if(lattice_type==1 || lattice_type==2){
-        temp_part = tparticles/sqrt(2.);
-      }
-      temp_part_new = rho_2/rho_1*(temp_part);
-      lr_sph_sep = 1./(temp_part_new-1.);
+      mass = rho_1*sph_separation;
+      lr_sph_sep = mass/rho_2;
     } else if(gdimension==2){
-      mass = rho_1*(cbox_max[0]-cbox_min[0])*(cbox_max[1]-cbox_min[1])/tparticles;
-      if(lattice_type==0){
-        temp_part = tparticles;
-      } else if(lattice_type==1 || lattice_type==2){
-        temp_part = tparticles/sqrt(2.);
-      }
-      temp_part_new = rho_2/rho_1*(temp_part);
-      lr_sph_sep = 1./((int)sqrt(temp_part_new)-1.);
+      mass = rho_1*sph_separation*sph_separation;
+      if (lattice_type == 1 or lattice_type == 2)
+        mass *= sqrt(3.0)/2.0;
+      lr_sph_sep = sph_separation * sqrt(rho_1/rho_2);
     } else{
-      mass = rho_1*(cbox_max[0]-cbox_min[0])*(cbox_max[1]-cbox_min[1])*(cbox_max[2]-cbox_min[2])/tparticles;
-      if(lattice_type==0){
-        temp_part = tparticles;
-      } else if(lattice_type==1 || lattice_type==2){
-        temp_part = tparticles/sqrt(2.);
-      }
-      temp_part_new = rho_2/rho_1*(temp_part);
-      lr_sph_sep = 1./((int)cbrt(temp_part_new)-1.);
+      mass = rho_1*sph_separation*sph_separation*sph_separation;
+      if (lattice_type == 1 or lattice_type == 2)
+        mass *= 1.0/sqrt(2.0);
+      lr_sph_sep = sph_separation * cbrt(rho_1/rho_2);
     }
+    rbox_min += (lr_sph_sep - sph_separation) / 2.0; // adjust rbox
     tparticles += particle_lattice::count(lattice_type,2,rbox_min,rbox_max,
-                                          lr_sph_sep,tparticles-1);
+                                          lr_sph_sep,tparticles);
     tparticles += particle_lattice::count(lattice_type,2,lbox_min,lbox_max,
-                                          lr_sph_sep,tparticles-1);
+                                          lr_sph_sep,tparticles);
   }
 
   // Initialize the arrays to be filled later
@@ -242,17 +229,17 @@ int main(int argc, char * argv[]){
     tparticles =  particle_lattice::generate(lattice_type,2,cbox_min,cbox_max,
                                              sph_separation,0,x,y,z);
     tparticles += particle_lattice::generate(lattice_type,2,rbox_min,rbox_max,
-                                             sph_separation,tparticles-1,x,y,z);
+                                             sph_separation,tparticles,x,y,z);
     tparticles += particle_lattice::generate(lattice_type,2,lbox_min,lbox_max,
-                                             sph_separation,tparticles-1,x,y,z);
+                                             sph_separation,tparticles,x,y,z);
   }
   if(equal_mass){
     tparticles =  particle_lattice::generate(lattice_type,2,cbox_min,cbox_max,
                                              sph_separation,0,x,y,z);
     tparticles += particle_lattice::generate(lattice_type,2,rbox_min,rbox_max,
-                                             lr_sph_sep,tparticles-1,x,y,z);
+                                             lr_sph_sep,tparticles,x,y,z);
     tparticles += particle_lattice::generate(lattice_type,2,lbox_min,lbox_max,
-                                             lr_sph_sep,tparticles-1,x,y,z);
+                                             lr_sph_sep,tparticles,x,y,z);
   }
 
   // particle id number
@@ -267,16 +254,18 @@ int main(int argc, char * argv[]){
   if(equal_separation){
     for(int64_t part=0; part<tparticles; ++part){
       id[part] = posid++;
-      if(x[part] < cbox_min[0] || x[part] > cbox_max[0]){
-        P[part] = pressure_2;
-        rho[part] = rho_2;
-        vx[part] = vx_2;
-        m[part] = rho[part]/(double)parts_lr;
-      } else{
+      if (particle_lattice::in_domain_1d(x[part], 
+          cbox_min[0], cbox_max[0], domain_type)) {
         P[part] = pressure_1;
         rho[part] = rho_1;
         vx[part] = vx_1;
         m[part] = rho[part]/(double)parts_mid;
+      } 
+      else {
+        P[part] = pressure_2;
+        rho[part] = rho_2;
+        vx[part] = vx_2;
+        m[part] = rho[part]/(double)parts_lr;
       }
 
       // compute internal energy using gamma-law eos
@@ -290,14 +279,16 @@ int main(int argc, char * argv[]){
   if(equal_mass){
     for(int64_t part=0; part<tparticles; ++part){
       id[part] = posid++;
-      if(x[part] < cbox_min[0] || x[part] > cbox_max[0]){
-        P[part] = pressure_2;
-        rho[part] = rho_2;
-        vx[part] = vx_2;
-      } else{
+      if (particle_lattice::in_domain_1d(x[part], 
+          cbox_min[0], cbox_max[0], domain_type)) {
         P[part] = pressure_1;
         rho[part] = rho_1;
         vx[part] = vx_1;
+      } 
+      else {
+        P[part] = pressure_2;
+        rho[part] = rho_2;
+        vx[part] = vx_2;
       }
 
       // compute internal energy using gamma-law eos

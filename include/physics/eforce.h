@@ -37,13 +37,11 @@ namespace external_force {
    * @param      srch  The source's body holder
    */
   point_t acceleration_zero(body_holder* srch) {
-    // body* source = srch->getBody();
     point_t a = 0.0;
     return a;
   }
 
   double potential_zero(body_holder* srch) {
-    // body* source = srch->getBody();
     return param::zero_potential_poison_value; // POISON IT
   }
 

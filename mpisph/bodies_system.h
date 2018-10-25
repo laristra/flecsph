@@ -436,7 +436,6 @@ public:
     int64_t ncritical = 32; 
     tree_->apply_sub_cells(
         tree_->root(),
-        smoothinglength_,
         0.,
         ncritical,
         param::sph_variable_h,
@@ -536,6 +535,11 @@ public:
   int64_t getNBodies()
   {
     return totalnbodies_;
+  }
+
+  tree_topology_t* tree() const
+  {
+    return tree_;
   }
 
 private:

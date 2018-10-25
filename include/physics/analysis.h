@@ -190,7 +190,7 @@ namespace analysis{
       std::ostringstream oss_header;
       oss_header
         << "# Scalar reductions: " <<std::endl
-        << "# 1:iteration 2:time 3:mass 4:total_energy 5:mom_x ";
+        << "# 1:iteration 2:time 3:timestep 4:total_energy 5:mom_x ";
 
       // The momentum depends on dimension
       if(gdimension > 1){
@@ -218,7 +218,7 @@ namespace analysis{
     std::ostringstream oss_data;
     oss_data << std::setw(14) << physics::iteration
       << std::setw(20) << std::scientific << std::setprecision(12)
-      << physics::totaltime << std::setw(20) << total_mass
+      << physics::totaltime << std::setw(20) << physics::dt
       << std::setw(20) << total_energy;
     for(size_t i = 0 ; i < gdimension ; ++i){
       oss_data

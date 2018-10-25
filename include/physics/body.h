@@ -59,8 +59,8 @@ public:
       density_(density),
       pressure_(pressure),
       entropy_(entropy),
-      mass_(mass),
       electronfraction_(electronfraction),
+      mass_(mass),
       smoothinglength_(smoothinglength),
       soundspeed_(0.0)
       ,internalenergy_(0.0)
@@ -88,6 +88,7 @@ public:
   point_t getVelocity() const{return velocity_;}
   point_t getVelocityhalf() const{return velocityhalf_;}
   point_t getAcceleration() const{return acceleration_;}
+  uint64_t neighbors(){return neighbors_;}
 
   point_t getLinMomentum() const { 
     point_t res = {};
@@ -99,10 +100,12 @@ public:
   flecsi::topology::entity_id_t getId(){return id_;};
   flecsi::topology::entity_id_t id(){return id_;};
   double getDt(){return dt_;};
+  double getMumax(){return mumax_;}
   int getType(){return type_;}; 
 
   bool is_wall(){return type_ == 1;};
 
+  void set_neighbors(uint64_t neighbors){neighbors_ = neighbors;}
   void setPosition(point_t position){position_ = position;}
   void setAcceleration(point_t acceleration){acceleration_ = acceleration;}
   void setVelocity(point_t velocity){velocity_ = velocity;}
@@ -116,6 +119,7 @@ public:
   void setSmoothinglength(double smoothinglength)
     {smoothinglength_=smoothinglength;};
   void setDt(double dt){dt_ = dt;};
+  void setMumax(double mumax){mumax_ = mumax;};
   void setId(flecsi::topology::entity_id_t id){id_ = id;};
   void setType(int type){type_ = type;}; 
 
@@ -173,8 +177,10 @@ private:
   double adiabatic_; 
   double dadt_;
   double dt_;
+  double mumax_;
   flecsi::topology::entity_id_t id_;
-  int type_; 
+  int type_;
+  int64_t neighbors_;  
 }; // class body 
   
 #endif // body_h
