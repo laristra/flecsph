@@ -272,5 +272,5 @@ https://github.com/laristra/cinch/blob/master/logging/README.md
 
  # Contacts
 
- If you have any questions or concerns regarding FleCSPH, please contact Julien Loiseau (julien.loiseau@univ-reims.fr), Oleg Korobkin (korobkin@lanl.gov) and/or Hyun Lim (hylim1988@gmail.com)
+ If you have any questions or concerns regarding FleCSPH, please contact Julien Loiseau (jloiseau@lanl.gov), Oleg Korobkin (korobkin@lanl.gov) and/or Hyun Lim (hylim1988@gmail.com)
 
