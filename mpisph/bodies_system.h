@@ -312,7 +312,7 @@ if(!param::do_periodic_boundary)
 
 #ifdef OUTPUT_TREE_INFO
     // Tree informations
-    rank || clog(info) << *tree_ << " root range = "<< tree_->root()->bmin() 
+    rank || clog(trace) << *tree_ << " root range = "<< tree_->root()->bmin() 
      <<";"<<tree_->root()->bmax()<< std::endl; 
 #endif 
 
