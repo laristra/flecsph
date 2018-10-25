@@ -21,9 +21,9 @@
 //
 void print_usage() {
   clog(warn)
-      << "Initial data generator for Sod shocktube test in"
+      << "Initial data generator for KH test in"
       << gdimension << "D" << std::endl
-      << "Usage: ./sodtube_generator <parameter-file.par>" << std::endl;
+      << "Usage: ./KD_XD_generator <parameter-file.par>" << std::endl;
 }
 
 //
@@ -35,10 +35,10 @@ static double vx_1, vx_2;             // velocities
 static double pressure_1, pressure_2; // pressures
 static std::string initial_data_file; // = initial_data_prefix + ".h5part"
 
-// geometric extents of the three regions: left, right and central
-static point_t cbox_min, cbox_max;
-static point_t rbox_min, rbox_max;
-static point_t lbox_min, lbox_max;
+// geometric extents of the three regions: up, middle and bottom
+static point_t ubox_min, ubox_max;
+static point_t mbox_min, mbox_max;
+static point_t bbox_min, bbox_max;
 
 void set_derived_params() {
   using namespace std;
@@ -46,72 +46,48 @@ void set_derived_params() {
 
   // compute the total number of particles
   int64_t npd = lattice_nx;
+  
+  mbox_max[0] = bbox_max[0] = ubox_max[0] = box_length/2.;
+  mbox_min[0] = bbox_min[0] = ubox_min[0] = -box_length/2.;
+  
+  mbox_max[1] =  box_width/4.;
+  mbox_min[1] =  -box_width/4.;
+  bbox_min[1] = -box_width/2.;
+  bbox_max[1] =  -box_width/4.;
+  ubox_min[1] =  box_width/4.;
+  ubox_max[1] =  box_width/2.;
 
-  // 1D setup
-  cbox_max[0] =  box_length/6.;
-  cbox_min[0] = -cbox_max[0];
-  lbox_min[0] = -box_length/2.;
-  lbox_max[0] =  cbox_min[0];
-  rbox_min[0] =  cbox_max[0];
-  rbox_max[0] = -lbox_min[0];
 
-  // 2D case
-  if (gdimension>1) {
-     cbox_max[1] = lbox_max[1] = rbox_max[1] = box_width/2.0;
-     cbox_min[1] = lbox_min[1] = rbox_min[1] =-box_width/2.0;
-     npd *= (int64_t)((double)lattice_nx*box_width/box_length);
-  }
+  npd *= (int64_t)((double)lattice_nx*box_length/box_width);
 
-  // 3D case
-  if (gdimension>2) {
-     cbox_max[2] = lbox_max[2] = rbox_max[2] = box_height/2.0;
-     cbox_min[2] = lbox_min[2] = rbox_min[2] =-box_height/2.0;
-     npd *= (int64_t)((double)lattice_nx*box_height/box_length);
-  }
+  std::cout<<"Boxes: up="
+    <<"("<<ubox_min[0]<<";"<<ubox_min[1]<<")-" 
+    <<"("<<ubox_max[0]<<";"<<ubox_max[1]<<")"<<" middle="
+    <<"("<<mbox_min[0]<<";"<<mbox_min[1]<<")"
+    <<"("<<mbox_max[0]<<";"<<mbox_max[1]<<")"<<" bottom="
+    <<"("<<bbox_min[0]<<";"<<bbox_min[1]<<")"
+    <<"("<<bbox_max[0]<<";"<<bbox_max[1]<<")";
+
   SET_PARAM(nparticles, npd);
 
   // test selector
-  switch (sodtest_num) {
+  switch (KH_num) {
     case (1):
-      // -- middle         | left and right side -- //
-      rho_1      = 1.0;      rho_2      = 0.125;
-      pressure_1 = 1.0;      pressure_2 = 0.1;
-      vx_1       = 0.0;      vx_2       = 0.0;
-      break;
-
-    case (2):
-      rho_1      = 1.0;      rho_2      = 1.0;
-      pressure_1 = 0.4;      pressure_2 = 0.4;
-      vx_1       =-2.0;      vx_2       = 2.0;
-      break;
-
-    case (3):
-      rho_1      = 1.0;      rho_2      = 1.0;
-      pressure_1 = 1000.;    pressure_2 = 0.01;
-      vx_1       = 0.0;      vx_2       = 0.0;
-      break;
-
-    case (4):
-      rho_1      = 1.0;      rho_2      = 1.0;
-      pressure_1 = 0.01;     pressure_2 = 100.;
-      vx_1       = 0.0;      vx_2       = 0.0;
-      break;
-
-    case (5):
-      rho_1      = 5.99924;  rho_2      = 5.99242;
-      pressure_1 = 460.894;  pressure_2 = 46.0950;
-      vx_1       = 19.5975;  vx_2       =-6.19633;
+      // -- |y|<.25          | elsewhere -- //
+      rho_1      = 2;        rho_2      = 1;
+      pressure_1 = 2.5;      pressure_2 = 2.5;
+      vx_1       = 0.5;      vx_2       = -0.5;
       break;
 
     default:
-      clog(error) << "ERROR: invalid test (" << sodtest_num << ")." << endl;
+      clog(error) << "ERROR: invalid test (" << KH_num << ")." << endl;
       MPI_Finalize();
       exit(-1);
 
   }
 
   // particle spacing
-  SET_PARAM(sph_separation, (box_length/(double)(lattice_nx - 1)));
+  SET_PARAM(sph_separation, (box_width/(double)(lattice_nx - 1)));
 
   // file to be generated
   std::ostringstream oss;
@@ -148,7 +124,7 @@ int main(int argc, char * argv[]){
   kernels::select(sph_kernel);
 
   // screen output
-  std::cout << "Sod test #" << sodtest_num << " in " << gdimension
+  std::cout << "KH #" << KH_num << " in " << gdimension
        << "D:" << std::endl << " - number of particles: " << nparticles
        << std::endl << " - particles per core:  " << nparticlesproc << std::endl
        << " - generated initial data file: " << initial_data_file << std::endl;
@@ -160,41 +136,31 @@ int main(int argc, char * argv[]){
   double mass = 0;
   bool equal_separation = !equal_mass;
   if(equal_separation){
-    tparticles =  particle_lattice::count(lattice_type,2,cbox_min,cbox_max,
+    tparticles =  particle_lattice::count(lattice_type,2,mbox_min,mbox_max,
                                           sph_separation,0);
     parts_mid = tparticles;
-    tparticles += particle_lattice::count(lattice_type,2,rbox_min,rbox_max,
+    tparticles += particle_lattice::count(lattice_type,2,ubox_min,ubox_max,
                                           sph_separation,tparticles-1);
     parts_lr = tparticles-parts_mid;
-    tparticles += particle_lattice::count(lattice_type,2,lbox_min,lbox_max,
+    tparticles += particle_lattice::count(lattice_type,2,bbox_min,bbox_max,
                                           sph_separation,tparticles-1);
   }
 
-  double lr_sph_sep = 0.;
+  double ub_sph_sep = 0.;
   double temp_part = 0;
   double temp_part_new = 0;
   if(equal_mass){
-    tparticles = particle_lattice::count(lattice_type,2,cbox_min,cbox_max,
+    tparticles = particle_lattice::count(lattice_type,2,mbox_min,mbox_max,
                                          sph_separation,0);
-    if(gdimension==1){
-      mass = rho_1*sph_separation;
-      lr_sph_sep = mass/rho_2;
-    } else if(gdimension==2){
-      mass = rho_1*sph_separation*sph_separation;
-      if (lattice_type == 1 or lattice_type == 2)
-        mass *= sqrt(3.0)/2.0;
-      lr_sph_sep = sph_separation * sqrt(rho_1/rho_2);
-    } else{
-      mass = rho_1*sph_separation*sph_separation*sph_separation;
-      if (lattice_type == 1 or lattice_type == 2)
-        mass *= 1.0/sqrt(2.0);
-      lr_sph_sep = sph_separation * cbrt(rho_1/rho_2);
-    }
-    rbox_min += (lr_sph_sep - sph_separation) / 2.0; // adjust rbox
-    tparticles += particle_lattice::count(lattice_type,2,rbox_min,rbox_max,
-                                          lr_sph_sep,tparticles);
-    tparticles += particle_lattice::count(lattice_type,2,lbox_min,lbox_max,
-                                          lr_sph_sep,tparticles);
+    mass = rho_1*sph_separation*sph_separation;
+    if (lattice_type == 1 or lattice_type == 2)
+      mass *= sqrt(3.0)/2.0;
+    ub_sph_sep = sph_separation * sqrt(rho_1/rho_2);
+    ubox_min += (ub_sph_sep - sph_separation) / 2.0; // adjust rbox
+    tparticles += particle_lattice::count(lattice_type,2,ubox_min,ubox_max,
+                                          ub_sph_sep,tparticles);
+    tparticles += particle_lattice::count(lattice_type,2,bbox_min,bbox_max,
+                                          ub_sph_sep,tparticles);
   }
 
   // Initialize the arrays to be filled later
@@ -226,20 +192,20 @@ int main(int argc, char * argv[]){
   double* dt = new double[tparticles]();
 
   if(equal_separation){
-    tparticles =  particle_lattice::generate(lattice_type,2,cbox_min,cbox_max,
+    tparticles =  particle_lattice::generate(lattice_type,2,mbox_min,mbox_max,
                                              sph_separation,0,x,y,z);
-    tparticles += particle_lattice::generate(lattice_type,2,rbox_min,rbox_max,
+    tparticles += particle_lattice::generate(lattice_type,2,ubox_min,ubox_max,
                                              sph_separation,tparticles,x,y,z);
-    tparticles += particle_lattice::generate(lattice_type,2,lbox_min,lbox_max,
+    tparticles += particle_lattice::generate(lattice_type,2,bbox_min,bbox_max,
                                              sph_separation,tparticles,x,y,z);
   }
   if(equal_mass){
-    tparticles =  particle_lattice::generate(lattice_type,2,cbox_min,cbox_max,
+    tparticles =  particle_lattice::generate(lattice_type,2,mbox_min,mbox_max,
                                              sph_separation,0,x,y,z);
-    tparticles += particle_lattice::generate(lattice_type,2,rbox_min,rbox_max,
-                                             lr_sph_sep,tparticles,x,y,z);
-    tparticles += particle_lattice::generate(lattice_type,2,lbox_min,lbox_max,
-                                             lr_sph_sep,tparticles,x,y,z);
+    tparticles += particle_lattice::generate(lattice_type,2,ubox_min,ubox_max,
+                                             ub_sph_sep,tparticles,x,y,z);
+    tparticles += particle_lattice::generate(lattice_type,2,bbox_min,bbox_max,
+                                             ub_sph_sep,tparticles,x,y,z);
   }
 
   // particle id number
@@ -254,8 +220,8 @@ int main(int argc, char * argv[]){
   if(equal_separation){
     for(int64_t part=0; part<tparticles; ++part){
       id[part] = posid++;
-      if (particle_lattice::in_domain_1d(x[part], 
-          cbox_min[0], cbox_max[0], domain_type)) {
+      if (particle_lattice::in_domain_1d(y[part], 
+          mbox_min[1], mbox_max[1], domain_type)) {
         P[part] = pressure_1;
         rho[part] = rho_1;
         vx[part] = vx_1;
@@ -279,8 +245,8 @@ int main(int argc, char * argv[]){
   if(equal_mass){
     for(int64_t part=0; part<tparticles; ++part){
       id[part] = posid++;
-      if (particle_lattice::in_domain_1d(x[part], 
-          cbox_min[0], cbox_max[0], domain_type)) {
+      if (particle_lattice::in_domain_1d(y[part], 
+          mbox_min[1], mbox_max[1], domain_type)) {
         P[part] = pressure_1;
         rho[part] = rho_1;
         vx[part] = vx_1;
@@ -289,6 +255,20 @@ int main(int argc, char * argv[]){
         P[part] = pressure_2;
         rho[part] = rho_2;
         vx[part] = vx_2;
+      }
+  
+      vy[part] = 0.;
+
+      // Set the velocity for test 1 
+      if(KH_num == 1 && particle_lattice::in_domain_1d(y[part],
+          0.25-0.025,0.25,domain_type))
+      {
+        vy[part] = KH_A*sin(-2*M_PI*(x[part]+.5)/KH_lambda);
+      }
+      if(KH_num == 1 && particle_lattice::in_domain_1d(y[part],
+            -0.25,-0.25+0.025,domain_type))
+      {
+        vy[part] = KH_A*sin(2*M_PI*(x[part]+.5)/KH_lambda);
       }
 
       // compute internal energy using gamma-law eos
@@ -301,7 +281,7 @@ int main(int argc, char * argv[]){
 
     } // for part=0..nparticles
   }
-  clog_one(info) << "Actual number of particles: " << tparticles << std::endl
+  std::cout << "Actual number of particles: " << tparticles << std::endl
     << std::flush;
   // delete the output file if exists
   remove(initial_data_file.c_str());
@@ -323,6 +303,7 @@ int main(int argc, char * argv[]){
   H5PartWriteDataFloat64(dataFile,"y",y);
   H5PartWriteDataFloat64(dataFile,"z",z);
   H5PartWriteDataFloat64(dataFile,"vx",vx);
+  H5PartWriteDataFloat64(dataFile,"vy",vy);
   H5PartWriteDataFloat64(dataFile,"h",h);
   H5PartWriteDataFloat64(dataFile,"rho",rho);
   H5PartWriteDataFloat64(dataFile,"u",u);

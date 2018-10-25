@@ -433,6 +433,21 @@ namespace param {
   DECLARE_PARAM(double,flow_velocity,0.0)
 # endif
 
+// Number of KH test 
+# ifndef KH_num
+  DECLARE_PARAM(unsigned short, KH_num,1)
+# endif 
+
+// A value from KH in Price's paper
+# ifndef KH_A 
+  DECLARE_PARAM(double, KH_A, 0.025) 
+#endif 
+
+// Lamdba value for KH in Price's paper
+#ifndef KH_lambda 
+  DECLARE_PARAM(double, KH_lambda, 1./6.) 
+#endif 
+
 //
 // Airfoil parameters
 //
@@ -748,6 +763,18 @@ void set_param(const std::string& param_name,
 # ifndef flow_velocity
   READ_NUMERIC_PARAM(flow_velocity)
 # endif
+
+# ifndef KH_num 
+  READ_NUMERIC_PARAM(KH_num)
+# endif 
+
+# ifndef KH_A 
+  READ_NUMERIC_PARAM(KH_A)
+# endif 
+
+# ifndef KH_lambda 
+  READ_NUMERIC_PARAM(KH_lambda)
+# endif  
 
   // airfoil parameters  ----------------------------------------------------
 # ifndef airfoil_size

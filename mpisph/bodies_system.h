@@ -259,7 +259,7 @@ public:
     smoothinglength_ = getSmoothinglength();
 
     if(param::do_periodic_boundary)
-      boundary::pboundary_generate(localbodies_,smoothinglength_);
+      boundary::pboundary_generate(localbodies_,2.*smoothinglength_);
 
    // Then compute the range of the system 
     tcolorer_.mpi_compute_range(localbodies_,range_);
