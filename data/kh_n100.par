@@ -12,6 +12,7 @@
   box_length = 1.0
   pressure_initial = 2.5
   KH_density_ratio = 2.0
+  flow_velocity = 1.0     # relative velocity between two opposing streams
 
 # evolution
   sph_kernel = "Wendland C6"
