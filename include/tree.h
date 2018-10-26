@@ -245,6 +245,7 @@ using space_vector_t = tree_topology_t::space_vector_t;
 using entity_key_t = tree_topology_t::key_t;
 using entity_id_t = flecsi::topology::entity_id_t;
 
+using range_t = std::array<point_t,2>;
 
 template <
   typename T,

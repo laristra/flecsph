@@ -1,0 +1,29 @@
+#
+# Kelvin-Helmholtz instability test
+#
+# initial data
+  initial_data_prefix = "kh_n100"
+  lattice_nx = 100        # particle lattice linear dimension
+  poly_gamma = 1.4        # polytropic index
+  equal_mass = yes        # determines whether equal mass particles are used or equal separation
+  sph_eta = 1.5
+  lattice_type = 1        # 0:rectangular, 1:hcp, 2:fcc
+  domain_type = 1         # 0:cube, 1:sphere
+  box_length = 1.0
+  pressure_initial = 2.5
+  KH_density_ratio = 2.0
+  flow_velocity = 1.0     # relative velocity between two opposing streams
+
+# evolution
+  sph_kernel = "Wendland C6"
+  initial_dt = 1.0
+  sph_variable_h = yes
+  adaptive_timestep = yes
+  timestep_cfl_factor = 0.25
+  final_iteration = 10000
+  out_screen_every = 1
+  out_scalar_every = 1
+  out_h5data_every = 10
+  out_diagnostic_every = 1
+  output_h5data_prefix = "ev_kh_n100"
+  do_periodic_boundary = yes

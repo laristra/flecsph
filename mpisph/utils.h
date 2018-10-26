@@ -34,6 +34,43 @@
 namespace mpi_utils{
 
 
+  /** 
+   * @brief Simple version of all gather 
+   * Send the size of arrays and then the all gather operation
+   */
+  template<
+    typename M>
+  void 
+  mpi_allgatherv(
+    const std::vector<M>& send,
+    std::vector<M>& recv,
+    std::vector<int>& count = 0)
+  {
+    int size, rank; 
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Comm_size(MPI_COMM_WORLD,&size);
+    
+    count.clear();
+    count.resize(size);
+    
+    int my_count = send.size(); 
+    // Gather the total size
+    MPI_Allgather(&my_count,1,MPI_INT,&count[0],1,MPI_INT,MPI_COMM_WORLD);
+    // Convert to byte 
+    std::vector<int> count_byte(size);
+    std::vector<int> offset_byte(size);
+    int64_t total = 0L;
+    for(int i = 0; i < size; ++i){
+      total += count[i];
+      count_byte[i] = count[i]*sizeof(M);
+    }
+    std::partial_sum(count_byte.begin(),count_byte.end(),&offset_byte[0]); 
+    offset_byte.insert(offset_byte.begin(),0);
+    recv.resize(total);
+    
+    MPI_Allgatherv(&send[0],count_byte[rank],MPI_BYTE,&recv[0],&count_byte[0],
+        &offset_byte[0],MPI_BYTE,MPI_COMM_WORLD);
+  }
 
   /**
  * @brief      Simple version of all to all 

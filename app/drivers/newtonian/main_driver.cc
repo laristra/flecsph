@@ -144,7 +144,7 @@ mpi_init_task(const char * parameter_file){
 
 
       rank|| clog(trace) << "compute rhs of evolution equations" << std::flush;
-      bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
+      bs.apply_in_smoothinglength(physics::compute_acceleration);
       bs.gravitation_fmm();
       if (thermokinetic_formulation)
         bs.apply_in_smoothinglength(physics::compute_dedt);
@@ -176,7 +176,7 @@ mpi_init_task(const char * parameter_file){
       bs.update_neighbors();
 
       rank|| clog(trace) << "leapfrog: kick two (velocity)" << std::flush;
-      bs.apply_in_smoothinglength(physics::compute_hydro_acceleration);
+      bs.apply_in_smoothinglength(physics::compute_acceleration);
       bs.gravitation_fmm();
       bs.apply_all(integration::leapfrog_kick_v);
       rank|| clog(trace) << ".done" << std::endl;
