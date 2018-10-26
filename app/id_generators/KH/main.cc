@@ -124,7 +124,7 @@ void set_derived_params() {
   tbox_min[1] = mbox_max[1] - dy + 0.5*(dy_tb + dy);
   double bbox_width = 2*dy_tb * floor((bbox_max[1] - bbox_min[1])/(2*dy_tb));
   bbox_max[1] = mbox_min[1] - 0.5*(dy_tb + dy) + dy;
-  bbox_min[1] = bbox_max[1] - bbox_width;
+  bbox_min[1] = bbox_max[1] - bbox_width - dy_tb;
 
   // count the number of particles
   np_middle = particle_lattice::count(lattice_type,2,mbox_min,mbox_max,
