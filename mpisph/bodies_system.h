@@ -251,17 +251,21 @@ public:
     if(tree_ !=  nullptr){
       delete tree_;
     }
+
+    if(param::do_periodic_boundary)
+      boundary::pboundary_clean(localbodies_); 
      
     // Choose the smoothing length to be the biggest from everyone 
     smoothinglength_ = getSmoothinglength();
 
-    // Then compute the range of the system 
+    if(param::do_periodic_boundary)
+      boundary::pboundary_generate(localbodies_,2.*smoothinglength_);
+
+   // Then compute the range of the system 
     tcolorer_.mpi_compute_range(localbodies_,range_);
+     
     // Generate the tree based on the range
     tree_ = new tree_topology_t(range_[0],range_[1]);
-
-    // Setup the keys range 
-    //entity_key_t::set_range(range_); 
     // Compute the keys 
     for(auto& bi:  localbodies_){
       bi.first = entity_key_t(tree_->range(),bi.second.coordinates());
@@ -287,6 +291,8 @@ public:
     }
     localnbodies_ = localbodies_.size();
 
+if(!param::do_periodic_boundary)
+{
 #ifdef DEBUG 
     // Check the total number of bodies 
     int64_t checknparticles = bodies_.size();
@@ -294,6 +300,7 @@ public:
     MPI_SUM,MPI_COMM_WORLD); 
     assert(checknparticles==totalnbodies_);
 #endif 
+}
 
 #ifdef OUTPUT_TREE_INFO
     rank || clog(trace) << "Computing branches"<<std::endl;
@@ -305,7 +312,7 @@ public:
 
 #ifdef OUTPUT_TREE_INFO
     // Tree informations
-    rank || clog(info) << *tree_ << " root range = "<< tree_->root()->bmin() 
+    rank || clog(trace) << *tree_ << " root range = "<< tree_->root()->bmin() 
      <<";"<<tree_->root()->bmax()<< std::endl; 
 #endif 
 
@@ -548,8 +555,8 @@ private:
   double macangle_;             // Macangle for FMM
   double maxmasscell_;          // Mass criterion for FMM
   std::vector<std::pair<entity_key_t,body>> localbodies_;
-  std::array<point_t,2> range_;
-  std::vector<std::array<point_t,2>> rangeposproc_;
+  range_t range_;
+  std::vector<range_t> rangeposproc_;
   tree_colorer<T,D> tcolorer_;
   tree_fmm<T,D> tfmm_;        // tree_fmm.h function for FMM 
   tree_topology_t* tree_;     // The particle tree data structure

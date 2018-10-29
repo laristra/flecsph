@@ -241,6 +241,10 @@ namespace param {
   DECLARE_PARAM(bool,reflect_boundaries,false)
 #endif
 
+#ifndef do_periodic_boundary
+  DECLARE_PARAM(bool,do_periodic_boundary,false)
+#endif 
+
 //
 // I/O parameters
 //
@@ -419,7 +423,7 @@ namespace param {
   DECLARE_PARAM(double,sedov_blast_radius,1.0)
 # endif
 
-// in Sedov test: set the lattice types
+// initial data lattice type: 
 # ifndef lattice_type
   DECLARE_PARAM(int,lattice_type,0)
 # endif
@@ -428,6 +432,21 @@ namespace param {
 # ifndef flow_velocity
   DECLARE_PARAM(double,flow_velocity,0.0)
 # endif
+
+// in Kelvin-Helmholtz instability test: density ratio
+# ifndef KH_density_ratio
+  DECLARE_PARAM(double,KH_density_ratio,2.0)
+# endif
+
+// A value from KH in Price's paper
+# ifndef KH_A 
+  DECLARE_PARAM(double, KH_A, 0.025) 
+#endif 
+
+// Lamdba value for KH in Price's paper
+#ifndef KH_lambda 
+  DECLARE_PARAM(double, KH_lambda, 1./6.) 
+#endif 
 
 //
 // Airfoil parameters
@@ -607,6 +626,10 @@ void set_param(const std::string& param_name,
   READ_BOOLEAN_PARAM(reflect_boundaries)
 # endif
 
+# ifndef do_periodic_boundary
+  READ_BOOLEAN_PARAM(do_periodic_boundary)
+# endif 
+
   // i/o parameters  --------------------------------------------------------
 # ifndef initial_data_prefix
   READ_STRING_PARAM(initial_data_prefix)
@@ -740,6 +763,18 @@ void set_param(const std::string& param_name,
 # ifndef flow_velocity
   READ_NUMERIC_PARAM(flow_velocity)
 # endif
+
+# ifndef KH_density_ratio
+  READ_NUMERIC_PARAM(KH_density_ratio)
+# endif
+
+# ifndef KH_A 
+  READ_NUMERIC_PARAM(KH_A)
+# endif 
+
+# ifndef KH_lambda 
+  READ_NUMERIC_PARAM(KH_lambda)
+# endif  
 
   // airfoil parameters  ----------------------------------------------------
 # ifndef airfoil_size

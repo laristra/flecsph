@@ -34,12 +34,15 @@
 
 #include "user.h"
 
+enum particle_type_t {NORMAL = 0 ,WALL = 1};
+
 class body{
 
   static const size_t dimension = gdimension;
   using element_t = type_t; 
   using point_t = flecsi::point__<element_t, dimension>;
-  
+ 
+
 public:
   
   body(const point_t& position, 
@@ -73,7 +76,7 @@ public:
       //hydroforce_(point_t{})
    {};
 
-   body()
+   body(): type_(NORMAL)
    {};
 
   const point_t& coordinates() const{return position_;}   
@@ -89,6 +92,7 @@ public:
   point_t getVelocityhalf() const{return velocityhalf_;}
   point_t getAcceleration() const{return acceleration_;}
   uint64_t neighbors(){return neighbors_;}
+  particle_type_t type(){return type_;};
 
   point_t getLinMomentum() const { 
     point_t res = {};
@@ -121,7 +125,8 @@ public:
   void setDt(double dt){dt_ = dt;};
   void setMumax(double mumax){mumax_ = mumax;};
   void setId(flecsi::topology::entity_id_t id){id_ = id;};
-  void setType(int type){type_ = type;}; 
+  void setType(particle_type_t type){type_ = type;};
+  void setType(int type){type_= static_cast<particle_type_t>(type);};
 
   // Dependent of the problem 
     double getInternalenergy() const{return internalenergy_;}
@@ -179,7 +184,7 @@ private:
   double dt_;
   double mumax_;
   flecsi::topology::entity_id_t id_;
-  int type_;
+  particle_type_t type_;
   int64_t neighbors_;  
 }; // class body 
   
