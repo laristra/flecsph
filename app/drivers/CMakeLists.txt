@@ -79,13 +79,13 @@ target_compile_definitions(newtonian_3d PUBLIC -DEXT_GDIMENSION=3)
 #------------------------------------------------------------------------------#
 
 # 3D-version
-add_executable(newtonian_collapse_3d
-  newtonian_collapse/main.cc 
-  newtonian_collapse/main_driver.cc 
-  ${FleCSI_RUNTIME}/runtime_driver.cc
-)
-target_link_libraries(newtonian_collapse_3d ${FleCSPH_LIBRARIES})
-target_compile_definitions(newtonian_collapse_3d PUBLIC -DEXT_GDIMENSION=3)
+#add_executable(newtonian_collapse_3d
+#  newtonian/main.cc 
+#  newtonian/main_driver.cc 
+#  ${FleCSI_RUNTIME}/runtime_driver.cc
+#)
+#target_link_libraries(newtonian_collapse_3d ${FleCSPH_LIBRARIES})
+#target_compile_definitions(newtonian_collapse_3d PUBLIC -DEXT_GDIMENSION=3)
 
 #------------------------------------------------------------------------------#
 # sodtube test, call the default parameter file 
