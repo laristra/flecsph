@@ -34,11 +34,25 @@ add_executable(noh_2d_generator         noh/main.cc)
 add_executable(noh_3d_generator         noh/main.cc)
 add_executable(implosion_2d_generator   implosion/main.cc)
 add_executable(implosion_3d_generator   implosion/main.cc)
-#add_executable(fluid_2d_generator       fluid_2d/main.cc)
-#add_executable(fluid_3d_generator       fluid_3d/main.cc)
 add_executable(wtunnel_2d_generator     wtunnel/main.cc)
 add_executable(wtunnel_3d_generator     wtunnel/main.cc)
 add_executable(KH_2d_generator          KH/main.cc)
+# Install
+install(TARGETS 
+    sodtube_1d_generator 
+    sodtube_2d_generator
+    sodtube_3d_generator
+    sedov_2d_generator 
+    sedov_3d_generator 
+    noh_2d_generator 
+    noh_3d_generator
+    implosion_2d_generator
+    implosion_3d_generator 
+    wtunnel_2d_generator 
+    wtunnel_3d_generator
+    KH_2d_generator 
+    RUNTIME 
+    DESTINATION bin/id_generators) 
 
 target_link_libraries(sodtube_1d_generator 
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
