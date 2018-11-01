@@ -93,11 +93,12 @@ mpi_init_task(const char * parameter_file){
   set_derived_params();
 
   // remove output file
-  remove(output_h5data_file.c_str());
+  //remove(output_h5data_file.c_str());
 
   // read input file
   body_system<double,gdimension> bs;
-  bs.read_bodies(initial_data_file.c_str(),initial_iteration);
+  bs.read_bodies(initial_data_file.c_str(),output_h5data_prefix,
+      initial_iteration);
   bs.setMacangle(param::fmm_macangle);
   bs.setMaxmasscell(param::fmm_max_cell_mass);
 
@@ -119,9 +120,9 @@ mpi_init_task(const char * parameter_file){
     analysis::scalar_output("scalar_reductions.dat");
   }
 
-  bs.write_bodies(output_h5data_prefix,physics::iteration,physics::totaltime);
+  //bs.write_bodies(output_h5data_prefix,physics::iteration,physics::totaltime);
+  //++physics::iteration;
 
-  ++physics::iteration;
   do {
     analysis::screen_output(rank);
     MPI_Barrier(MPI_COMM_WORLD);
@@ -220,7 +221,7 @@ mpi_init_task(const char * parameter_file){
 
 
     if(out_h5data_every > 0 && physics::iteration % out_h5data_every == 0){
-      bs.write_bodies(output_h5data_prefix,physics::iteration/out_h5data_every,
+      bs.write_bodies(output_h5data_prefix,physics::iteration,
           physics::totaltime);
     }
     MPI_Barrier(MPI_COMM_WORLD);

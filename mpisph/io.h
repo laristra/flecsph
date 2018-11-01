@@ -80,36 +80,179 @@ input_parameter_int(
 void inputDataHDF5(
   std::vector<std::pair<entity_key_t,body>>& bodies,
   const char * filename,
+  const char * output_file_prefix, 
   int64_t& totalnbodies,
   int64_t& nbodies,
-  int startiteration)
+  int startIteration)
 {
+
+  char output_filename[128];
+  sprintf(output_filename,"%s.h5part",output_file_prefix);
+
+  // Default if new file, startStep = 0
+  int startStep = 0;
 
   // Lower message level, handle them here on one process 
   H5SetVerbosityLevel  (0); 
 
-  
   int rank, size; 
   MPI_Comm_size(MPI_COMM_WORLD,&size); 
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
   rank|| clog(trace)<<"Input particles" << std::endl;
-  
-  //--------------- OPEN FILE AND READ NUMBER OF PARTICLES -------------------- 
-  auto dataFile = H5OpenFile(filename,H5_O_RDONLY
+ 
+  // The input file depend of the type of output, separate or one file. 
+  h5_file_t * dataFile = nullptr; 
+  if(startIteration == 0){
+    dataFile = H5OpenFile(filename,H5_O_RDONLY
+      | H5_VFD_MPIIO_IND,// Flag to be not use mpiposix
+      MPI_COMM_WORLD); 
+  }
+
+  // ------------- CHECK IF THE SEARCHED ITERATION EXISTS ---------------------
+  // Go through all the steps of the file and try to read the iteration 
+  if(!param::out_h5data_separate_iterations && startIteration != 0){
+   dataFile = H5OpenFile(filename,H5_O_RDONLY
       | H5_VFD_MPIIO_IND,// Flag to be not use mpiposix
       MPI_COMM_WORLD);
+   int step = 1; 
+    bool end = false; 
+    bool found = false; 
+    while(!end){
+      int hasStep = H5HasStep(dataFile,step); 
+      if(hasStep){
+        // Check iteration number 
+        H5SetStep(dataFile,step); 
+        int64_t iteration; 
+        if(H5_SUCCESS != H5ReadStepAttribInt64(dataFile,"iteration",
+            &iteration)){
+          rank || clog(error) << "Cannot read iteration in step "
+            <<step<<std::endl;
+          MPI_Barrier(MPI_COMM_WORLD);
+          MPI_Finalize(); 
+        }
+        if(iteration == startIteration){
+          found = true;
+          end = true;  
+        }
+      }else{
+        end = true; 
+      }
+      ++step; 
+    }
+    if(!found){
+      rank || clog(error) << "Cannot find iteration "<<startIteration<<" in "
+        <<filename<<std::endl;
+      MPI_Barrier(MPI_COMM_WORLD);
+      MPI_Finalize(); 
+    }
+    startStep = step-1;
+    rank || clog(warn)<<"Found step "<<startStep<<" for iteration "<<
+      startIteration<<std::endl; 
+  }
 
-  int val = H5HasStep(dataFile,startiteration);
+
+  // Check if the file exists in case of multiple files
+  if(param::out_h5data_separate_iterations && startIteration != 0){
+    char step_filename[128];
+    bool end = false; 
+    bool found = false; 
+    int step = 1;  
+    while(!end){
+      // Generate the filename associate with this step 
+      sprintf(step_filename,"%s_%05d.h5part",output_file_prefix,step);
+      rank || clog(trace) <<"Checking if file "<<step_filename<<" exists"
+        <<std::endl<<std::flush;
+      MPI_Barrier(MPI_COMM_WORLD); 
+      // Check if files exists 
+      if(access(step_filename,F_OK)==-1){
+        rank || clog(error)<<"Cannot find file "<< step_filename<<
+          " unable to find file with iteration "<<startIteration<<std::endl;
+        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Finalize(); 
+      }
+      // File exists, check the iteration 
+      auto stepFile = H5OpenFile(step_filename,H5_O_RDONLY
+          | H5_VFD_MPIIO_IND, MPI_COMM_WORLD);
+      int64_t iteration; 
+      H5SetStep(stepFile,step); 
+      if(H5_SUCCESS != H5ReadStepAttribInt64(stepFile,"iteration",
+            &iteration)){
+          rank || clog(error) << "Cannot read iteration in file "
+            <<step_filename<<std::endl;
+          MPI_Barrier(MPI_COMM_WORLD);
+          MPI_Finalize(); 
+      }
+      if(iteration == startIteration){
+        found = true; 
+        end = true; 
+      }
+      ++step; 
+    }
+    startStep = step-1;
+    char diff_filename[128];
+    sprintf(diff_filename,"%s_%05d.h5part",output_file_prefix,startStep);
+    rank || clog(warn) << "Reading from file "<<diff_filename<<std::endl;
+    // Change input file in this case 
+    dataFile = H5OpenFile(diff_filename,H5_O_RDONLY
+      | H5_VFD_MPIIO_IND,// Flag to be not use mpiposix
+      MPI_COMM_WORLD);
+  }
+
+  // ------------- CHECK THAT THE STEP FOUND IS THE LAST IN OUTPUT ------------
+  // If we are in single file mode 
+  if(!param::out_h5data_separate_iterations){
+    // If I start a new simulation, just delete the file
+    // if not equal to the input file 
+    if(startIteration == 0 && (strcmp(output_filename,filename) != 0)){
+      remove(output_filename);
+    }
+    // If the file exists (either same as input or different)
+    // Check if the lastStep is the startIteration 
+    if(access(output_filename,F_OK)!=-1){
+      auto outputFile = H5OpenFile(output_filename,H5_O_RDONLY
+          | H5_VFD_MPIIO_IND, MPI_COMM_WORLD);
+      // Check if startStep == lastStep 
+      int lastStep = startStep;
+      while(H5_SUCCESS == H5HasStep(outputFile,lastStep++)){}
+      --lastStep; 
+      rank || clog(trace)<<"startStep: "<<startStep<<" lastStep: "
+        <<lastStep<<std::endl;
+      if(startStep != lastStep){
+        rank || clog(error) << "First step not last step in output"<<std::endl;
+        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Finalize(); 
+      }
+    }
+  }
+
+  if(dataFile == nullptr){
+    rank || clog(error) << "Cannot find data file"<<std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Finalize(); 
+  }
+
+  int val = H5HasStep(dataFile,startStep);
   
   if(val != 1){
-    rank|| clog(error)<<std::endl<<"Step "<<startiteration<<" not found in file "<<
-        filename<<std::endl<<std::endl;
+    rank|| clog(error)<<"Step "<<startStep<<" not found in file "<<
+        filename<<std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();
   }
+ 
+  // Check if there is one step ahead of this one
+  int step_ahead = H5HasStep(dataFile,startStep+1); 
+  if(step_ahead == 1)
+  {
+    rank || clog(error)<<"ERROR Input file already have"<<
+      " next step: "<<startStep+1<<std::endl<<std::flush;
+    MPI_Barrier(MPI_COMM_WORLD); 
+    MPI_Finalize(); 
+  }
+
   // If yes, get into this step 
-  H5SetStep(dataFile,startiteration);
+  H5SetStep(dataFile,startStep);
   
   // Get the number of particles 
   int64_t nparticles = 0UL; 
@@ -140,6 +283,22 @@ void inputDataHDF5(
   // Resize the bodies vector 
   bodies.clear();
   bodies.resize(nparticlesproc); 
+
+  // Try to read timestep if exists 
+  if(startIteration != 0){
+    double timestep = 0.;
+    double totaltime = 0.;
+    if(H5_SUCCESS == H5ReadStepAttribFloat64(dataFile,"timestep",&timestep)){
+      physics::dt = timestep; 
+    }else{
+      rank || clog(warn)<<"Unable to read timestep from file"<<std::endl;
+    }
+    if(H5_SUCCESS == H5ReadStepAttribFloat64(dataFile,"time",&totaltime)){
+      physics::totaltime = totaltime; 
+    }else{
+      rank || clog(warn)<<"Unable to read totaltime from file"<<std::endl;
+    }
+  }
 
   // Read the dataset and fill the particles data 
   double* dataX = new double[nparticlesproc];
@@ -288,6 +447,8 @@ void inputDataHDF5(
   }
   #endif
 
+  
+
   //bool b_index = false; 
   // \TODO check if user ID is uniq
   bool b_index = H5_SUCCESS == 
@@ -350,10 +511,12 @@ void inputDataHDF5(
 void outputDataHDF5(
     std::vector<std::pair<entity_key_t,body>>& bodies,
     const char* fileprefix,
-    int step,
-    double totaltime,
-    bool do_diff_files = param::out_h5data_separate_iterations)
+    int64_t iteration,
+    double totaltime)
 {
+  int step = iteration/param::out_h5data_every; 
+
+  bool do_diff_files = param::out_h5data_separate_iterations;
   int size, rank;
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -365,35 +528,39 @@ void outputDataHDF5(
 
   char filename[128];
   if(do_diff_files){
-    sprintf(filename,"%s_%05d.h5part",fileprefix,step*param::out_h5data_every);
+    sprintf(filename,"%s_%05d.h5part",fileprefix,step);
   }
   else {
     sprintf(filename,"%s.h5part",fileprefix);
   }
 
-  // Remove previous data file if iteration 0 
-  if(step == 0 && rank == 0)
-  {
+  // If different file per iteration, just remove the file with same name 
+  // If one big file, remove the file if it is the Step 0  
+  if(do_diff_files && rank == 0){
+    remove(filename);
+  }else if(step == 0 && rank == 0){
     remove(filename);
   }
+
+  // Wait for removing the file before writing in 
+  MPI_Barrier(MPI_COMM_WORLD);
 
   h5_file_t* dataFile = H5OpenFile(filename,H5_O_RDWR | H5_VFD_MPIIO_IND,
       MPI_COMM_WORLD);
   
   //-------------------GLOBAL HEADER-------------------------------------------
   // Only for the first output
-  if(step == 0){
+  if(do_diff_files || step == 0){
     int gdimension32 = gdimension;  
-    H5WriteFileAttribInt32(dataFile,"ndim",&gdimension32,1);
+    H5WriteFileAttribInt32(dataFile,"dimension",&gdimension32,1);
   }
 
   //------------------STEP HEADER----------------------------------------------
   // Put the step header
-  //simio.setTimeStep(step); 
   H5SetStep(dataFile,step);
   H5WriteStepAttribFloat64(dataFile,"time",&physics::totaltime,1); 
-  //int iteration = step*param::out_h5data_every;
-  H5WriteStepAttribInt64(dataFile,"iteration",&physics::iteration,1);  
+  H5WriteStepAttribInt64(dataFile,"iteration",&physics::iteration,1);
+  H5WriteStepAttribFloat64(dataFile,"timestep",&physics::dt,1);  
   //------------------STEP DATA------------------------------------------------
 
   H5PartSetNumParticles(dataFile,nparticlesproc);
