@@ -108,7 +108,7 @@ namespace mpi_utils{
     std::partial_sum(recvcount.begin(),recvcount.end(),&recvoffsets[0]); 
     // As we need an exscan, add a zero
     recvoffsets.insert(recvoffsets.begin(),0);
-    
+
     // Then send offsets
     std::partial_sum(sendcount.begin(),sendcount.end(),&sendoffsets[0]);
     // As we need an exscan, add a zero
@@ -120,9 +120,13 @@ namespace mpi_utils{
     // Trnaform the offsets for bytes 
     for(int i=0;i<size;++i){
       sendcount[i] *= sizeof(M);
+      assert(sendcount[i]>=0);
       recvcount[i] *= sizeof(M);
+      assert(recvcount[i]>=0); 
       sendoffsets[i] *= sizeof(M);
+      assert(sendoffsets[i]>=0);
       recvoffsets[i] *= sizeof(M);
+      assert(recvoffsets[i]>=0); 
     } // for
     
     // Use this array for the global buckets communication

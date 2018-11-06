@@ -153,6 +153,7 @@ public:
     assert(root_ != branch_map_.end());
    
     max_depth_ = 0;
+    max_scale_ = end[0] - start[0]; 
 
     for(size_t d = 0; d < dimension; ++d)
     {
@@ -169,7 +170,9 @@ public:
    */
   ~tree_topology()
   {
-    branch_map_.clear();
+    branch_map_.clear(); 
+    entities_vector_.clear(); 
+    //for(auto it: entities_) delete it; 
     entities_.clear(); 
   } 
 
@@ -808,6 +811,17 @@ public:
       apply_(b, size, f, geometry_t::intersects_box, min, max);
     }
 
+    /*
+     * Set the number of entities 
+     */
+    void 
+    set_entities_vector_size(
+        int64_t size)
+    {
+      entities_vector_.resize(size);
+      entities_vector_current_ = 0;
+    }
+
     /*!
       Construct a new entity. The entity's constructor should not be called
       directly.
@@ -820,10 +834,15 @@ public:
       Args&&... args
     )
     {
-      auto ent = new entity_t(std::forward<Args>(args)...);
+      entities_vector_.emplace(
+            entities_vector_.begin()+entities_vector_current_,
+            std::forward<Args>(args)...);
+      auto ent = &(entities_vector_[entities_vector_current_]);
+      //auto ent = new entity_t(std::forward<Args>(args)...);
       entity_id_t id = entities_.size();
       ent->set_id_(id);
       entities_.push_back(ent);
+      entities_vector_current_++; 
       return ent;
     }
 
@@ -1274,6 +1293,8 @@ public:
   std::array<point__<element_t, dimension>, 2> range_;
   point__<element_t, dimension> scale_;
   element_t max_scale_;
+  std::vector<entity_t> entities_vector_;
+  int64_t entities_vector_current_;  
 };
 
 } // namespace topology
