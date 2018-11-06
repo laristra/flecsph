@@ -139,11 +139,12 @@ public:
   void 
   read_bodies(
       const char * filename,
+      const char * output_filename, 
       const int startiteration)
   {
 
-    io::inputDataHDF5(localbodies_,filename,totalnbodies_,localnbodies_,
-        startiteration);
+    io::inputDataHDF5(localbodies_,filename,output_filename, 
+        totalnbodies_,localnbodies_,startiteration);
     
     #ifdef DEBUG
     minmass_ = 1.0e50;
@@ -177,10 +178,9 @@ public:
   write_bodies(
       const char * filename, 
       int iter,
-      double totaltime, 
-      bool do_diff_files = false)
+      double totaltime)
   {
-    io::outputDataHDF5(localbodies_,filename,iter,totaltime,do_diff_files);
+    io::outputDataHDF5(localbodies_,filename,iter,totaltime);
   }
 
 

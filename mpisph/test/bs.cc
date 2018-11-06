@@ -24,7 +24,7 @@ TEST(body_system, write_range_read) {
   const char * filename = "io_test.h5part";
 
   body_system<double,gdimension> bs; 
-  bs.read_bodies(filename,0); 
+  bs.read_bodies(filename,fileprefix,0); 
 
   double h = bs.getSmoothinglength(); 
   ASSERT_TRUE(h==0.05);

@@ -35,8 +35,10 @@ add_executable(hydro_1d
   ${FleCSI_RUNTIME}/runtime_driver.cc
 )
 
+
 target_link_libraries(hydro_1d ${FleCSPH_LIBRARIES})
 target_compile_definitions(hydro_1d PUBLIC -DEXT_GDIMENSION=1)
+install(TARGETS hydro_1d RUNTIME DESTINATION bin/drivers)
 
 # MPILEGION version: 2D
 add_executable(hydro_2d
@@ -45,8 +47,10 @@ add_executable(hydro_2d
   ${FleCSI_RUNTIME}/runtime_driver.cc
 )
 
+
 target_link_libraries(hydro_2d ${FleCSPH_LIBRARIES})
 target_compile_definitions(hydro_2d PUBLIC -DEXT_GDIMENSION=2)
+install(TARGETS hydro_2d RUNTIME DESTINATION bin/drivers)
 
 # MPILEGION version: 3D
 add_executable(hydro_3d
@@ -57,6 +61,7 @@ add_executable(hydro_3d
 
 target_link_libraries(hydro_3d ${FleCSPH_LIBRARIES})
 target_compile_definitions(hydro_3d PUBLIC -DEXT_GDIMENSION=3)
+install(TARGETS hydro_3d RUNTIME DESTINATION bin/drivers)
 
 #------------------------------------------------------------------------------#
 # Hydro drivers with Newtonian gravity
@@ -73,6 +78,7 @@ target_link_libraries(newtonian_3d ${FleCSPH_LIBRARIES})
 # target_link_libraries(newtonian_3d ${CMAKE_SOURCE_DIR}/third-party-libraries/stellar_collapse/libTABEOS_RF.a)
 # target_link_libraries(newtonian_3d ${CMAKE_SOURCE_DIR}/third-party-libraries/stellar_collapse/libTABEOS_SC.a)
 target_compile_definitions(newtonian_3d PUBLIC -DEXT_GDIMENSION=3)
+install(TARGETS newtonian_3d RUNTIME DESTINATION bin/drivers)
 
 
 #------------------------------------------------------------------------------#
@@ -187,3 +193,5 @@ add_custom_target(
 )
 add_dependencies(implosion_test implosion_2d_generator_test)
 endif()
+
+
