@@ -10,7 +10,7 @@
 #include <H5hut.h>
 
 #include "user.h"
-#include "implosion.h"
+#include "collapse.h"
 #include "params.h"
 #include "lattice.h"
 #include "kernels.h"
@@ -19,10 +19,7 @@
 #define CU(x) ((x)*(x)*(x))
 
 /*
-Implosion of a homogeneous disk. For details, see
-I. Sagert, W.P. Even, T.T. Strother, PHYSICAL REVIEW E 95, 053206 (2017)
-] D. García-Senz, A. Relaño, R. M. Cabezón, and E. Bravo, Mon. Not. R.
-Astron. Soc. 392, 346 (2009).
+Cold Dust Cloud Collapse test
 */
 
 
@@ -30,9 +27,9 @@ Astron. Soc. 392, 346 (2009).
 // help message
 //
 void print_usage() {
-  clog(warn)
-      << "Initial data generator for the " << gdimension << "D Implosion"
-      << std::endl << "Usage: ./implosion_generator <parameter-file.par>"
+  std::cout
+      << "Initial data generator for the " << gdimension << "D Dust Cloud Collapse test"
+      << std::endl << "Usage: ./collapse_generator <parameter-file.par>"
       << std::endl;
 }
 
@@ -40,7 +37,6 @@ void print_usage() {
 // derived parameters
 //
 static double timestep = 1.0;         // Recommended timestep
-static double inner_radius = 0.8;     // Radius of injection region
 static double total_mass = 1.;        // total mass of the fluid
 static double mass_particle = 1.;     // mass of an individual particle
 static point_t bbox_max, bbox_min;    // bounding box of the domain
@@ -54,8 +50,6 @@ void set_derived_params() {
   // The value for constant timestep
   timestep = initial_dt;
 
-  inner_radius = 0.8*sphere_radius;
-  
   // Bounding box of the domain
   if (domain_type == 0) { // box
     bbox_min[0] = -box_length/2.;
@@ -87,11 +81,11 @@ void set_derived_params() {
   SET_PARAM(nparticles, tparticles);
 
   // total mass
-  if (gdimension == 2) {
-    if (domain_type == 0) // a box
-      total_mass = rho_initial * box_length*box_width;
-    else if (domain_type == 1) // a circle
-      total_mass = rho_initial * M_PI*SQ(sphere_radius);
+  if (gdimension < 3) {
+    clog(error) << "This test must be run in 3D" << std::endl;
+    print_usage();
+    MPI_Finalize();
+    exit(0);
   }
   else if (gdimension == 3) {
     if (domain_type == 0) // a box
@@ -117,7 +111,6 @@ void set_derived_params() {
   // intial internal energy
   SET_PARAM(uint_initial, (pressure_initial/(rho_initial*(poly_gamma-1.0))));
 
-
   // file to be generated
   std::ostringstream oss;
   oss << initial_data_prefix << ".h5part";
@@ -139,7 +132,7 @@ int main(int argc, char * argv[]){
 
   // check options list: exactly one option is allowed
   if (argc != 2) {
-    clog_one(error) << "ERROR: parameter file not specified!" << std::endl;
+    clog(error) << "ERROR: parameter file not specified!" << std::endl;
     print_usage();
     MPI_Finalize();
     exit(0);
@@ -185,24 +178,7 @@ int main(int argc, char * argv[]){
   // Particle id number
   int64_t posid = 0;
 
-  // Number of particles in the blast zone
-  int64_t particles_blast = 0;
-
-  // Total mass of particles in the blast zone
-  double mass_blast = 0.;
-
-  double particle_radius = 0.;
-  // Count the number of particles and mass in the blast zone
-  // The blast is centered at the origin ({0,0} or {0,0,0})
-  for(int64_t part=0; part<nparticles; ++part) {
-    particle_radius = sqrt(SQ(x[part]) + SQ(y[part]) + SQ(z[part]));
-    if(particle_radius >= inner_radius) {
-       particles_blast++;
-       mass_blast += mass_particle;
-    }
-  }
-
-  // Assign density, pressure, etc. to particles
+  // Assign density, pressure and specific internal energy to particles
   for(int64_t part=0; part<nparticles; ++part){
     m[part] = mass_particle;
     P[part] = pressure_initial;
@@ -210,29 +186,19 @@ int main(int argc, char * argv[]){
     u[part] = uint_initial;
     h[part] = sph_smoothing_length;
     id[part] = posid++;
-
-    particle_radius = sqrt(SQ(x[part]) + SQ(y[part]) + SQ(z[part]));
-    if (particle_radius >= inner_radius) {
-      double m = 1.0;
-      double y = 1.0;
-      u[part] = (inner_radius - particle_radius)*m + y;
-      P[part] = (poly_gamma -1.0) * rho[part] * u[part];
-    }
   }
 
   clog(info) << "Number of particles: " << nparticles << std::endl;
-  clog(info) << "Total number of seeded blast particles: " << particles_blast << std::endl;
-//  clog(info) << "Total blast energy (E_blast = u_blast * total mass): "
-//                 << sedov_blast_energy * mass_blast << std::endl;
+
   // remove the previous file
   remove(initial_data_file.c_str());
 
-  h5_file_t * dataFile = H5OpenFile(initial_data_file.c_str(),
-      H5_O_WRONLY, MPI_COMM_WORLD);
+  h5_file_t * dataFile = H5OpenFile(initial_data_file.c_str()
+      ,H5_O_WRONLY, MPI_COMM_WORLD);
     
   int use_fixed_timestep = 1; 
   // add the global attributes
-
+  
   H5WriteFileAttribInt64(dataFile,"nparticles",&nparticles,1);
   H5WriteFileAttribFloat64(dataFile,"timestep",&timestep,1);
   int dim = gdimension; 
@@ -264,3 +230,4 @@ int main(int argc, char * argv[]){
   MPI_Finalize();
   return 0;
 }
+
