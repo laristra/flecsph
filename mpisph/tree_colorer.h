@@ -411,32 +411,45 @@ void mpi_refresh_ghosts(
 
     // Then link the holders with these bodies
     //auto ents = tree.entities(); 
-    int64_t nelem = tree.entities().size(); 
-    
-    int64_t totalfound = 0;
+    //int64_t nelem = tree.entities_ghosts().size(); 
+    //rank || clog(trace) <<tree.entities_ghosts().size()<<" != " <<tree.entities().size()<<std::endl; 
+    //rank || clog(trace) <<"Received:"<<ghosts_data.rbodies.size()<<std::endl;
+
+    //int64_t totalfound = 0;
+
+    //auto entities = tree.entities(); 
+
+#pragma omp parallel for 
+  //For all the received neighbors, need to find a local ghosts 
+  for(size_t i = 0 ; i < ghosts_data.rbodies.size(); ++i){
+    auto * bh = tree.get_ghost(ghosts_data.rbodies[i].id());  
+    assert(!bh->is_local());
+    bh->setBody(&(ghosts_data.rbodies[i]));
+  }
+
+#if 0     
 #pragma omp parallel for reduction(+:totalfound)
     for(int64_t i=0; i<nelem; ++i)
     {
-      body_holder* bi = tree.get(i);
-      if(!bi->is_local())
+      body_holder* bi = tree.get_ghost(i);
+      assert(!bi->is_local());
+      for(auto& nl: ghosts_data.rbodies)
       {
-        for(auto& nl: ghosts_data.rbodies)
+        if(bi->global_id() == nl.id())
         {
-          if(bi->global_id() == nl.id())
-          {
-            totalfound++;
-            bi->setBody(&(nl));
-            break;
-          }
+          totalfound++;
+          bi->setBody(&(nl));
+          break;
         }
       }
     }
+#endif 
 
-    if(totalfound != (int) ghosts_data.rbodies.size())
-      std::cout<<rank<<": t="<<totalfound<<" g="<<ghosts_data.rbodies.size()<<
-       std::endl; 
+   // if(totalfound != (int) ghosts_data.rbodies.size())
+   //   std::cout<<rank<<": t="<<totalfound<<" g="<<ghosts_data.rbodies.size()<<
+   //    std::endl; 
     
-    assert(totalfound == (int)ghosts_data.rbodies.size()); 
+   // assert(totalfound == (int)ghosts_data.rbodies.size()); 
   
 #ifdef OUTPUT_TREE_INFO
     MPI_Barrier(MPI_COMM_WORLD);

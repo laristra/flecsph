@@ -444,7 +444,7 @@ if(!param::do_periodic_boundary)
       EF&& ef,
       ARGS&&... args)
   {
-    int64_t ncritical = 1024; 
+    int64_t ncritical = 32; 
     tree_->apply_sub_cells(
         tree_->root(),
         0.,

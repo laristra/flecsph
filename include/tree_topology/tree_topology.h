@@ -171,6 +171,8 @@ public:
   {
     branch_map_.clear();  
     entities_.clear(); 
+    //entities_ghosts_.clear(); 
+    ghosts_id_.clear(); 
   } 
 
   /** 
@@ -218,6 +220,22 @@ public:
   entities()
   {
     return entities_;
+  }
+
+  //std::vector<entity_id_t>& 
+  //entities_ghosts()
+  //{
+  //  return entities_ghosts_; 
+  //}
+
+  entity_t* 
+  get_ghost(
+      const size_t& global_id)
+  {
+    auto local_id_itr = ghosts_id_.find(global_id);
+    assert(local_id_itr != ghosts_id_.end());
+    auto local_id = local_id_itr->second; 
+    return &(entities_[local_id]); 
   }
 
   /*!
@@ -414,29 +432,33 @@ public:
   {
     std::stack<branch_t*> stk;
     stk.push(b);
+
+    std::vector<branch_t*> work_branch; 
     
-    #pragma omp parallel
-    #pragma omp single
+    //#pragma omp parallel
+    //#pragma omp single
     while(!stk.empty()){
       branch_t* c = stk.top();
       stk.pop();
       if(c->is_leaf() && c->sub_entities() > 0){
-        #pragma omp task firstprivate(c) untied
-        {
-          std::vector<branch_t*> inter_list; 
-          sub_cells_inter(c,MAC,inter_list);
-          force_calc(c,inter_list,do_square,
-              ef,std::forward<ARGS>(args)...);
-        }
+        work_branch.push_back(c);
+        //#pragma omp task firstprivate(c) untied
+        //{
+        //  std::vector<branch_t*> inter_list; 
+        //  sub_cells_inter(c,MAC,inter_list);
+        //  force_calc(c,inter_list,do_square,
+        //      ef,std::forward<ARGS>(args)...);
+        //}
       }else{
         if((int64_t)c->sub_entities() < ncritical && c->sub_entities() > 0){
-          #pragma omp task firstprivate(c) untied
-          {
-            std::vector<branch_t*> inter_list; 
-            sub_cells_inter(c,MAC,inter_list);
-            force_calc(c,inter_list,do_square,
-                ef,std::forward<ARGS>(args)...);
-          } 
+          //#pragma omp task firstprivate(c) untied
+          work_branch.push_back(c);
+          //{
+          //  std::vector<branch_t*> inter_list; 
+          //  sub_cells_inter(c,MAC,inter_list);
+          //  force_calc(c,inter_list,do_square,
+          //      ef,std::forward<ARGS>(args)...);
+          //} 
         }else{
           for(int i=0; i<(1<<dimension);++i){
             branch_t * next = child(c,i);
@@ -447,7 +469,19 @@ public:
         }
       } 
     }
-    #pragma omp taskwait
+
+    std::cout<<"Tasks:"<<work_branch.size()<<std::endl;
+
+    // Start the threads on the branches 
+    #pragma omp parallel for 
+    for(size_t i = 0; i < work_branch.size(); ++i){
+      std::vector<branch_t*> inter_list; 
+      sub_cells_inter(work_branch[i],MAC,inter_list);
+      force_calc(work_branch[i],inter_list,do_square,
+               ef,std::forward<ARGS>(args)...);
+    }
+
+    //#pragma omp taskwait
   }
 
   void
@@ -686,6 +720,11 @@ public:
       // Size -1 to start at 0 
       entity_id_t id = entities_.size()-1;
       ent->set_id_(id);
+      if(!ent->is_local()){
+        //entities_ghosts_.push_back(id);
+        // Map of local-global id 
+        ghosts_id_.insert(std::make_pair(ent->global_id(),id));
+      }
       return id; 
     }
 
@@ -944,7 +983,10 @@ public:
   point__<element_t, dimension> scale_;
   element_t max_scale_;
   std::vector<entity_t> entities_vector_;
+  //std::vector<entity_id_t> entities_ghosts_;
   int64_t entities_vector_current_; 
+
+  std::map<entity_id_t,entity_id_t> ghosts_id_;
 
   int64_t nonlocal_branches_;  
 };

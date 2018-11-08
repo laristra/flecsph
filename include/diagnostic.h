@@ -32,6 +32,7 @@
 namespace diagnostic {
 
   uint64_t N_min, N_max, N_average; 
+  uint64_t N_ghosts; 
   double h_min, h_max, h_average; 
   double min_dist, average_dist_in_h;
   entity_id_t id_N_min, id_N_max, id_h_min, id_h_max;
@@ -44,12 +45,14 @@ namespace diagnostic {
    */
   void
   compute_neighbors_stats(
-      std::vector<body_holder>& bodies, tree_topology_t* tree, 
+      std::vector<body_holder>& bodies, 
+      tree_topology_t* tree, 
       int64_t totalnbodies )
   {
     min_dist = std::numeric_limits<double>::max(); 
     int64_t ncritical = 32; 
     uint64_t N_total = 0;
+    N_ghosts = 0;
     average_dist_in_h = 0.;
     N_min = std::numeric_limits<std::uint64_t>::max();
     N_max = 0;
@@ -61,13 +64,14 @@ namespace diagnostic {
         param::sph_variable_h, 
         [](body_holder * srch, 
           std::vector<body_holder*>& nbh,
-          double& min_d, double& average_dist)
+          double& min_d, double& average_dist, uint64_t& N_ghosts)
         {
             // \TODO assert all bodies not nullptr and in interaction? 
             srch->getBody()->set_neighbors(nbh.size()-1); 
             
             double dist = std::numeric_limits<double>::max();
             double total_distance = 0.;
+            uint64_t g = 0; 
             for(auto n: nbh)
             {
               double d = distance(srch->coordinates(),
@@ -77,14 +81,17 @@ namespace diagnostic {
 
               if(d!=0.)
                 dist = std::min(dist,d);
+
+              if(!n->is_local()) ++n;
             }
             // Min distance 
             #pragma omp critical
             {
+              N_ghosts += g; 
               min_d = std::min(min_d,dist);
               average_dist += total_distance/(nbh.size()-1);
             } 
-        },min_dist,average_dist_in_h
+        },min_dist,average_dist_in_h,N_ghosts
     );
     for(auto& b: bodies)
     {
@@ -100,6 +107,7 @@ namespace diagnostic {
     reduce_max(N_max);
     reduce_min(min_dist);
     reduce_sum(average_dist_in_h);
+    reduce_max(N_ghosts); 
     average_dist_in_h /= totalnbodies; 
     N_average = N_total/ totalnbodies;
   }
@@ -175,7 +183,7 @@ namespace diagnostic {
         << "# Diagnostic: " <<std::endl
         << "# 1:iteration 2:time 3:h_min 4:h_max 5:h_avg "
         <<"6:N_min 7:N_max 8:N_avg 9:min_dist 10:avg_dist_h "
-        <<"11:V_min 12:V_max 13:V_avg" << std::endl;
+        <<"11:V_min 12:V_max 13:V_avg 14:N_ghosts" << std::endl;
 
       std::ofstream out(filename);
       out << oss_header.str();
@@ -192,7 +200,8 @@ namespace diagnostic {
       << h_average << std::setw(5) << N_min << std::setw(5)
       << N_max << std::setw(5) << N_average << std::setw(20)
       << min_dist << std::setw(20) << average_dist_in_h << std::setw(20)
-      << V_min << std::setw(20) << V_max << std::setw(20) << V_average;
+      << V_min << std::setw(20) << V_max << std::setw(20) << V_average
+      << std::setw(20) << N_ghosts;
     oss_data << std::endl;
 
     // Open file in append mode
