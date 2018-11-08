@@ -43,8 +43,6 @@ key_step = h5file.keys()[0]
 Nsteps = len(h5file.keys())
 dset = h5file[key_step]
 Npart = dset['x'].len()
-print ("Npart = " + str(Npart))
-print ("Nsteps = " + str(Nsteps))
 if args.pid < 0 or args.pid >= Npart:
   sys.exit ("ERROR: wrong particle ID '%d'" % args.pid)
 
