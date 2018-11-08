@@ -48,19 +48,17 @@ TEST(tree, add_entities){
     bi.first = entity_key_t(tree->range(),bi.second.coordinates());
   }
  
-  // Bodies holders
-  std::vector<body_holder*> bodies_holders; 
- 
- // Set the size of the vector 
- tree->set_entities_vector_size(nbodies); 
-  
  clog(trace)<<"Adding in tree"<<std::endl<<std::flush; 
   // Add my local bodies in my tree 
   for(auto& bi:  bodies){
-    auto nbi = tree->make_entity(bi.second.getPosition(),&(bi.second),0,
+    std::cout<<"Creating body"<<std::endl<<std::flush;
+    auto id = tree->make_entity(bi.second.getPosition(),&(bi.second),0,
       bi.second.getMass(),bi.second.getId(),bi.second.getSmoothinglength());
-    tree->insert(nbi); 
-    bodies_holders.push_back(nbi);
+    std::cout<<"Create ID:"<<id<<std::endl<<std::flush;
+    tree->insert(id); 
+    std::cout<<"Inserted"<<std::endl<<std::flush;
+    auto nbi = tree->get(id); 
+    std::cout<<"Got body:"<<*nbi<<std::endl<<std::flush;
     assert(nbi->global_id() == bi.second.id());
     assert(nbi->getBody() != nullptr);
     assert(nbi->is_local());

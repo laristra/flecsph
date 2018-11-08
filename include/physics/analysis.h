@@ -49,12 +49,13 @@ namespace analysis{
    */
   void
   compute_lin_momentum(
-      std::vector<body_holder*>& bodies)
+      std::vector<body_holder>& bodies)
   {
     linear_momentum = {0};
-    for(auto nbh: bodies) {
-      if(nbh->getBody()->type() == NORMAL){
-        linear_momentum += nbh->getBody()->getLinMomentum();
+    for(auto& nbh: bodies) {
+      if(!nbh.is_local()) continue; 
+      if(nbh.getBody()->type() == NORMAL){
+        linear_momentum += nbh.getBody()->getLinMomentum();
       }
     }
     reduce_sum(linear_momentum);
@@ -67,12 +68,13 @@ namespace analysis{
    */
   void
   compute_total_mass(
-      std::vector<body_holder*>& bodies)
+      std::vector<body_holder>& bodies)
   {
     total_mass = 0.;
-    for(auto nbh: bodies) {
-      if(nbh->getBody()->type() == NORMAL){
-        total_mass += nbh->getBody()->getMass();
+    for(auto& nbh: bodies) {
+      if(!nbh.is_local()) continue; 
+      if(nbh.getBody()->type() == NORMAL){
+        total_mass += nbh.getBody()->getMass();
       }
     }
     reduce_sum(total_mass);
@@ -85,30 +87,33 @@ namespace analysis{
    */
   void
   compute_total_energy(
-      std::vector<body_holder*>& bodies)
+      std::vector<body_holder>& bodies)
   {
     using namespace param;
 
     total_energy = 0.;
     if (thermokinetic_formulation) {
-      for(auto nbh: bodies)
-        if(nbh->getBody()->type() == NORMAL){
-          total_energy += nbh->getBody()->getMass()*nbh->getBody()->getTotalenergy();
+      for(auto& nbh: bodies){
+        if(!nbh.is_local()) continue; 
+        if(nbh.getBody()->type() == NORMAL){
+          total_energy += nbh.getBody()->getMass()*nbh.getBody()->getTotalenergy();
         }
+      }
     }
     else {
-      for(auto nbh: bodies) {
-        if(nbh->getBody()->type() != NORMAL){
+      for(auto& nbh: bodies) {
+        if(!nbh.is_local()) continue; 
+        if(nbh.getBody()->type() != NORMAL){
           continue; 
         }
-        total_energy += nbh->getBody()->getMass()*nbh->getBody()->getInternalenergy();
-        linear_velocity = nbh->getBody()->getVelocity();
+        total_energy += nbh.getBody()->getMass()*nbh.getBody()->getInternalenergy();
+        linear_velocity = nbh.getBody()->getVelocity();
         velocity_part = 0.;
         for(size_t i = 0 ; i < gdimension ; ++i){
           velocity_part += pow(linear_velocity[i],2);
-          part_position = nbh->getBody()->getPosition();
+          part_position = nbh.getBody()->getPosition();
         }
-        total_energy += 1./2.*velocity_part*nbh->getBody()->getMass();
+        total_energy += 1./2.*velocity_part*nbh.getBody()->getMass();
       }
     }
     reduce_sum(total_energy);
@@ -121,7 +126,7 @@ namespace analysis{
    */
   void
   compute_total_ang_mom(
-      std::vector<body_holder*>& bodies)
+      std::vector<body_holder>& bodies)
   {
     double part_ang_x;
     double part_ang_y;
@@ -129,12 +134,13 @@ namespace analysis{
     total_ang_mom = {0};
     part_mom = {0};
     part_position = {0};
-    for(auto nbh: bodies) {
-      if(nbh->getBody()->type() != NORMAL){
+    for(auto& nbh: bodies) {
+      if(!nbh.is_local()) continue; 
+      if(nbh.getBody()->type() != NORMAL){
         continue; 
       }
-      part_mom = nbh->getBody()->getLinMomentum();
-      part_position = nbh->getBody()->getPosition();
+      part_mom = nbh.getBody()->getLinMomentum();
+      part_position = nbh.getBody()->getPosition();
       if(gdimension==3){
         part_ang_x = part_position[1]*part_mom[2]-part_position[2]*part_mom[1];
         part_ang_y = -part_position[0]*part_mom[2]+part_position[2]*part_mom[0];

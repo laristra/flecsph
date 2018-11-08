@@ -44,7 +44,7 @@ namespace diagnostic {
    */
   void
   compute_neighbors_stats(
-      std::vector<body_holder*>& bodies, tree_topology_t* tree, 
+      std::vector<body_holder>& bodies, tree_topology_t* tree, 
       int64_t totalnbodies )
   {
     min_dist = std::numeric_limits<double>::max(); 
@@ -86,9 +86,10 @@ namespace diagnostic {
             } 
         },min_dist,average_dist_in_h
     );
-    for(auto b: bodies)
+    for(auto& b: bodies)
     {
-      uint64_t N = b->getBody()->neighbors(); 
+      if(!b.is_local()) continue; 
+      uint64_t N = b.getBody()->neighbors(); 
       N_min = std::min(N_min,N); 
       N_max = std::max(N_max,N);
 
@@ -110,14 +111,16 @@ namespace diagnostic {
    */
   void
   compute_smoothinglength_stats(
-      std::vector<body_holder*>& bodies, int64_t totalnbodies)
+      std::vector<body_holder>& bodies, 
+      int64_t totalnbodies)
   {
     double h_total = 0.;
     h_min = std::numeric_limits<double>::max();
     h_max = std::numeric_limits<double>::min();
     for(auto& b: bodies)
     {
-      double h = b->getBody()->getSmoothinglength();
+      if(!b.is_local()) continue; 
+      double h = b.getBody()->getSmoothinglength();
       h_total += h;
       h_min = std::min(h,h_min);
       h_max = std::max(h,h_max);
@@ -133,15 +136,17 @@ namespace diagnostic {
    */
   void 
   compute_velocity_stats(
-      std::vector<body_holder*>& bodies, int64_t totalnbodies)
+      std::vector<body_holder>& bodies, 
+      int64_t totalnbodies)
   {
     V_min = std::numeric_limits<double>::max();
     V_max = std::numeric_limits<double>::min();
     V_average = 0.;
     double V_tot = 0.;
-    for(auto b: bodies)
+    for(auto& b: bodies)
     {
-      double V = norm_point(b->getBody()->getVelocity());
+      if(!b.is_local()) continue; 
+      double V = norm_point(b.getBody()->getVelocity());
       V_max = std::max(V,V_max);
       V_min = std::min(V,V_min);
       V_tot += V;

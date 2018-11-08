@@ -81,6 +81,7 @@ namespace physics{
    * @param      srch  The source's body holder
    */
   void set_total_energy (body_holder* srch) { 
+    assert(srch->is_local()); 
     body* source = srch->getBody();
     const point_t pos = source->getPosition(),
                   vel = source->getVelocity();
@@ -347,10 +348,14 @@ namespace physics{
    *
    * @param      bodies   Set of bodies
    */
-  void set_adaptive_timestep(std::vector<body_holder*>& bodies) {
+  void set_adaptive_timestep(
+      std::vector<body_holder>& bodies
+      ) 
+  {
     double dtmin = 1e24; // some ludicrous number
-    for(auto nbh: bodies) {
-      dtmin = std::min(dtmin, nbh->getBody()->getDt());
+    for(auto& nbh: bodies) {
+      if(!nbh.is_local()) continue; 
+      dtmin = std::min(dtmin, nbh.getBody()->getDt());
     }
     mpi_utils::reduce_min(dtmin);
   
@@ -364,11 +369,12 @@ namespace physics{
 
   void 
   compute_smoothinglength(
-      std::vector<body_holder*>& bodies)  
+      std::vector<body_holder>& bodies)  
   { 
     if (gdimension == 1) {
-      for(auto b: bodies) {
-        auto particle = b->getBody();
+      for(auto& b: bodies) {
+        if(!b.is_local()) continue; 
+        auto particle = b.getBody();
         double m_b   = particle->getMass();
         double rho_b = particle->getDensity();
         particle->setSmoothinglength(
@@ -376,8 +382,9 @@ namespace physics{
       } 
     }
     else if (gdimension == 2) {
-      for(auto b: bodies) {
-        auto particle = b->getBody();
+      for(auto& b: bodies) {
+        if(!b.is_local()) continue; 
+        auto particle = b.getBody();
         double m_b   = particle->getMass();
         double rho_b = particle->getDensity();
         particle->setSmoothinglength(
@@ -385,8 +392,9 @@ namespace physics{
       } 
     }
     else {
-      for(auto b: bodies) {
-        auto particle = b->getBody();
+      for(auto& b: bodies) {
+        if(!b.is_local()) continue; 
+        auto particle = b.getBody();
         double m_b   = particle->getMass();
         double rho_b = particle->getDensity();
         particle->setSmoothinglength(
@@ -400,21 +408,24 @@ namespace physics{
    * 
    * ha = eta/N \sum_b pow(m_b / rho_b,1/dimension)
    */
-  void compute_average_smoothinglength( std::vector<body_holder*>& bodies,
+  void compute_average_smoothinglength( 
+      std::vector<body_holder>& bodies,
       int64_t nparticles) {
     compute_smoothinglength(bodies);
     // Compute the total 
     double total = 0.;
-    for(auto b: bodies)
+    for(auto& b: bodies)
     {
-      total += b->getBody()->getSmoothinglength();
+      if(!b.is_local()) continue; 
+      total += b.getBody()->getSmoothinglength();
     }
     // Add up with all the processes 
     MPI_Allreduce(MPI_IN_PLACE,&total,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
     // Compute the new smoothing length 
     double new_h = 1./(double)nparticles * total;
-    for(auto b: bodies) { 
-      b->getBody()->setSmoothinglength(new_h);
+    for(auto& b: bodies) { 
+      if(!b.is_local()) continue; 
+      b.getBody()->setSmoothinglength(new_h);
     }
   }
 }; // physics

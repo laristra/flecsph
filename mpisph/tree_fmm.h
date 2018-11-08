@@ -565,7 +565,8 @@ private:
         // Already done 
       }else{
         if(cur->is_leaf()){
-          for(auto bi: *cur){
+          for(auto id: *cur){
+            auto bi = tree.get(id); 
             if(bi->is_local()){
               ninter++;
               // Apply to all subbodies of this sink
@@ -604,7 +605,8 @@ private:
       stk.pop();
   
       if(cur->is_leaf()){
-        for(auto bi: *cur){
+        for(auto id: *cur){
+          auto bi = tree.get(id); 
           if(bi->is_local()){
             computeAcceleration_direct(
               bi->getBody(),
@@ -703,7 +705,8 @@ private:
         //}
       }else{
         if(cur->is_leaf()){
-          for(auto bi: *cur){
+          for(auto id: *cur){
+            auto bi = tree.get(id); 
             if(bi->is_local()){
               // Only send this body if not for me 
               if(owner != rank){
@@ -745,7 +748,8 @@ private:
       stk.pop();
       if(cur->is_leaf()){
         // Apply the expansion on the bodies
-        for(auto bi: *cur){
+        for(auto id: *cur){
+          auto bi = tree.get(id); 
           //Do not expand on non local particles
           if(!bi->is_local()){
             continue;

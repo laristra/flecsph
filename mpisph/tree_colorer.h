@@ -82,7 +82,7 @@ private:
   // To share the ghosts data within the radius
   mpi_ghosts_t ghosts_data;
 
-  const int criterion_branches = 64; // Number of branches to share in 
+  const int criterion_branches = 32; // Number of branches to share in 
                                        // exchange_branches
   const size_t noct = 256*1024;        // Number of octets used for quicksort    
 
@@ -318,7 +318,7 @@ public:
       std::vector<body_holder_mpi_t> tmpsendbuffer; 
       for(int j = cur; j < cur+count[i]; ++j ){
         // Then for each branches
-        tree_topology_t::subentity_space_t ents; 
+        tree_topology_t::entity_space_ptr_t ents; 
         if(param::sph_variable_h){
           ents = tree.find_in_box(recv_branches[j][0],recv_branches[j][1],
             tree_geometry_t::intersects_sphere_box);
@@ -358,11 +358,15 @@ public:
     // Add them in the tree 
     for(auto bi: recvbuffer)
     {
+      // Only add if the body is useful 
+      
       assert(bi.owner!=rank);
       assert(bi.mass!=0.);
-      auto nbi = tree.make_entity(bi.position,nullptr,bi.owner,bi.mass,bi.id,
+      auto id = tree.make_entity(bi.position,nullptr,bi.owner,bi.mass,bi.id,
           bi.h);
-      tree.insert(nbi);
+      tree.insert(id);
+      auto nbi = tree.get(id);
+      assert(!nbi->is_local());  
       assert(nbi->global_id() == bi.id);
     }
 
@@ -406,14 +410,14 @@ void mpi_refresh_ghosts(
       &ghosts_data.roffsets[0],MPI_BYTE,MPI_COMM_WORLD);
 
     // Then link the holders with these bodies
-    auto ents = tree.entities().to_vec(); 
-    int64_t nelem = ents.size(); 
+    //auto ents = tree.entities(); 
+    int64_t nelem = tree.entities().size(); 
     
     int64_t totalfound = 0;
 #pragma omp parallel for reduction(+:totalfound)
     for(int64_t i=0; i<nelem; ++i)
     {
-      body_holder* bi = ents[i];
+      body_holder* bi = tree.get(i);
       if(!bi->is_local())
       {
         for(auto& nl: ghosts_data.rbodies)
@@ -454,8 +458,7 @@ void mpi_refresh_ghosts(
    */
   void 
   mpi_compute_ghosts(
-    tree_topology_t& tree,
-    std::vector<body_holder*>& lbodies
+    tree_topology_t& tree
   )
   {    
     int rank,size;
@@ -484,7 +487,7 @@ void mpi_refresh_ghosts(
     std::fill(ghosts_data.nsbodies.begin(),ghosts_data.nsbodies.end(),0); 
     std::fill(ghosts_data.nrbodies.begin(),ghosts_data.nrbodies.end(),0);
 
-    int64_t nelem = lbodies.size();
+    int64_t nelem = tree.entities().size();
 
     // Count send
 #pragma omp parallel for 
@@ -493,9 +496,12 @@ void mpi_refresh_ghosts(
       // array of bools to check unique send 
       std::vector<bool> proc(size,false);
       proc[rank] = true; 
-      body_holder * bi = lbodies[i];
+      
+      body_holder * bi = tree.get(i);
+      if(!bi->is_local()) continue;  
+
       assert(bi->is_local());
-      tree_topology_t::subentity_space_t nbs; 
+      tree_topology_t::entity_space_ptr_t nbs; 
       if(param::sph_variable_h){
         nbs = tree.find_in_radius(
             bi->coordinates(), 
@@ -546,9 +552,12 @@ void mpi_refresh_ghosts(
     {
       std::vector<bool> proc(size,false);
       proc[rank] = true;
-      body_holder* bi = lbodies[i];
+
+      body_holder* bi = tree.get(i);
+      if(!bi->is_local()) continue; 
+      
       assert(bi->is_local());
-      tree_topology_t::subentity_space_t nbs; 
+      tree_topology_t::entity_space_ptr_t nbs; 
       if(param::sph_variable_h){
         nbs = tree.find_in_radius(
             bi->coordinates(), 

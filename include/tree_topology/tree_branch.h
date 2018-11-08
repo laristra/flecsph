@@ -69,6 +69,12 @@ template<
 >
 class tree_branch
 {
+
+public:
+  enum b_locality: size_t{
+    LOCAL=0,NONLOCAL=1 
+  };
+
 public:
   using branch_int_t = T;
   static const size_t dimension = D;
@@ -149,6 +155,25 @@ public:
     sub_entities_ = sub_entities;
   }
 
+  void
+  set_locality(
+      b_locality locality)
+  {
+    locality_ = locality; 
+  }
+
+  b_locality 
+  locality()
+  {
+    return locality_; 
+  }
+
+  bool 
+  is_local() const 
+  {
+    return locality_ == LOCAL; 
+  }
+
 
 protected:
   template<class P>
@@ -172,6 +197,7 @@ protected:
   branch_id_t id_;
   uint64_t sub_entities_ = 0; // Subentities in this subtree
   bool leaf_ = true; 
+  b_locality locality_ = LOCAL; 
 
 };
 
