@@ -150,13 +150,15 @@ public:
     #ifdef DEBUG
     minmass_ = 1.0e50;
     totalmass_ = 0.;
-    // Also compute the total mass 
-    for(auto bi: localbodies_){
-      totalmass_ += bi.second.getMass(); 
-      if(bi.second.getMass() < minmass_){
-        minmass_ = bi.second.getMass(); 
+    // Also compute the total mass
+#pragma omp parallel for reduction(+:totalmass_) reduction(min:minmass_)
+    for(size_t i = 0; i < localbodies_.size() ; ++i){
+      totalmass_ += localbodies_[i].second.getMass(); 
+      if(localbodies_[i].second.getMass() < minmass_){
+        minmass_ = localbodies_[i].second.getMass(); 
       }
     }
+
     MPI_Allreduce(MPI_IN_PLACE,&minmass_,1,MPI_DOUBLE,
         MPI_MIN,MPI_COMM_WORLD); 
     MPI_Allreduce(MPI_IN_PLACE,&totalmass_,1,MPI_DOUBLE,
@@ -200,11 +202,13 @@ public:
 
     // Choose the smoothing length to be the biggest from everyone 
     smoothinglength_ = 0;
-    for(auto bi: localbodies_){
-      if(smoothinglength_ < bi.second.getSmoothinglength()){
-        smoothinglength_ = bi.second.getSmoothinglength();
+#pragma omp parallel for reduction(max:smoothinglength_)
+    for(size_t i = 0 ; i < localbodies_.size(); ++i){
+      if(smoothinglength_ < localbodies_[i].second.getSmoothinglength()){
+        smoothinglength_ = localbodies_[i].second.getSmoothinglength();
       }
     }
+    
     MPI_Allreduce(MPI_IN_PLACE,&smoothinglength_,1,MPI_DOUBLE,MPI_MAX,
         MPI_COMM_WORLD);
 
@@ -267,9 +271,12 @@ public:
      
     // Generate the tree based on the range
     tree_ = new tree_topology_t(range_[0],range_[1]);
-    // Compute the keys 
-    for(auto& bi:  localbodies_){
-      bi.first = entity_key_t(tree_->range(),bi.second.coordinates());
+
+    // Compute the keys
+#pragma omp parallel for  
+    for(size_t i = 0; i < localbodies_.size(); ++i){
+      localbodies_[i].first = 
+          entity_key_t(tree_->range(),localbodies_[i].second.coordinates());
     }
 
     tcolorer_.mpi_qsort(localbodies_,totalnbodies_);
@@ -311,9 +318,6 @@ if(!param::do_periodic_boundary)
     tree_->post_order_traversal(tree_->root(),
         traversal_t::update_COM,epsilon_,false);
     assert(tree_->root()->sub_entities() == localnbodies_);
-
-
-
 
 #ifdef OUTPUT_TREE_INFO
     std::vector<int> nentities(size);
