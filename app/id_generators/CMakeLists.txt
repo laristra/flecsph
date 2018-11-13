@@ -34,9 +34,11 @@ add_executable(noh_2d_generator         noh/main.cc)
 add_executable(noh_3d_generator         noh/main.cc)
 add_executable(implosion_2d_generator   implosion/main.cc)
 add_executable(implosion_3d_generator   implosion/main.cc)
+add_executable(collapse_3d_generator    collapse/main.cc)
 add_executable(wtunnel_2d_generator     wtunnel/main.cc)
 add_executable(wtunnel_3d_generator     wtunnel/main.cc)
 add_executable(KH_2d_generator          KH/main.cc)
+
 # Install
 install(TARGETS 
     sodtube_1d_generator 
@@ -72,10 +74,8 @@ target_link_libraries(implosion_2d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 target_link_libraries(implosion_3d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
-#target_link_libraries(fluid_2d_generator
-#  ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
-#target_link_libraries(fluid_3d_generator
-#  ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
+target_link_libraries(collapse_3d_generator
+  ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 target_link_libraries(wtunnel_2d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 target_link_libraries(wtunnel_3d_generator
@@ -92,8 +92,7 @@ target_compile_definitions(noh_2d_generator         PUBLIC -DEXT_GDIMENSION=2)
 target_compile_definitions(noh_3d_generator         PUBLIC -DEXT_GDIMENSION=3)
 target_compile_definitions(implosion_2d_generator   PUBLIC -DEXT_GDIMENSION=2)
 target_compile_definitions(implosion_3d_generator   PUBLIC -DEXT_GDIMENSION=3)
-#target_compile_definitions(fluid_2d_generator       PUBLIC -DEXT_GDIMENSION=2)
-#target_compile_definitions(fluid_3d_generator       PUBLIC -DEXT_GDIMENSION=3)
+target_compile_definitions(collapse_3d_generator    PUBLIC -DEXT_GDIMENSION=3)
 target_compile_definitions(wtunnel_2d_generator     PUBLIC -DEXT_GDIMENSION=2)
 target_compile_definitions(wtunnel_3d_generator     PUBLIC -DEXT_GDIMENSION=3)
 target_compile_definitions(KH_2d_generator          PUBLIC -DEXT_GDIMENSION=2)

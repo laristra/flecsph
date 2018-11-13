@@ -3,16 +3,12 @@
 # Copyright (c) 2017 Los Alamos National Security, LLC
 # All rights reserved
 
-# Converter from FleCSPH hdf5-output to 1D data. Type:
-#   ./conv1d.py    # or ./conv1d.py -h
-# for usage.
-
 import sys, h5py, argparse
 import numpy as np
 
 ########################
 my_description = """
-Reads in a FleCSPH hdf5 file and produces its 1D ASCII slice."""
+Reads in a FleCSPH hdf5 file and produces 1D or 2D ASCII slice."""
 my_usage="""
    %(prog)s ifile [-h] [-x|-y|-z|-xy|-yz|-xz]
               [-s|--step <val>]

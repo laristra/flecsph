@@ -427,7 +427,7 @@ inline double norm_point( const point_t& p) {
   else if constexpr (gdimension == 2) 
     res = sqrt(p[0]*p[0] + p[1]*p[1]);
   else 
-    res = sqrt(p[0]*p[0] + p[1]*p[1] + p[2]*p[3]);
+    res = sqrt(p[0]*p[0] + p[1]*p[1] + p[2]*p[2]);
   return res;
 }
 
