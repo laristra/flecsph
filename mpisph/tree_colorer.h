@@ -32,6 +32,8 @@
 #include <numeric>
 #include <omp.h>
 
+#include <boost/sort/sort.hpp>
+
 #include "tree.h"
 #include "utils.h"
 
@@ -164,11 +166,15 @@ public:
     int size, rank;
     MPI_Comm_size(MPI_COMM_WORLD,&size);
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    // double start = omp_get_wtime(); // unused
-
+    
     // Sort the keys 
+    // Use boost parallel sort 
+#if 0     
     std::sort(rbodies.begin(),rbodies.end(),
-      [](auto& left, auto& right){
+#endif 
+    boost::sort::block_indirect_sort(
+        rbodies.begin(),rbodies.end(),
+        [](auto& left, auto& right){
         if(left.first < right.first){
           return true; 
         }
@@ -184,10 +190,7 @@ public:
       return;
     } // if
     
-    MPI_Barrier(MPI_COMM_WORLD);
-
     std::vector<std::pair<entity_key_t,int64_t>> splitters;
-    
     generate_splitters_samples(splitters,rbodies,totalnbodies);
 
     // The rbodies array is already sorted. We just need to determine the 
@@ -216,8 +219,12 @@ public:
     rbodies.clear();
     rbodies = recvbuffer; 
     
-    // Sort the incoming buffer 
+    // Sort the incoming buffer
+#if 0  
     sort(rbodies.begin(),rbodies.end(),
+#endif 
+    boost::sort::block_indirect_sort(
+     rbodies.begin(),rbodies.end(), 
       [](auto& left, auto &right){
         if(left.first<right.first){
           return true; 
@@ -315,7 +322,23 @@ public:
         cur += count[i];
         continue;
       }
-      std::vector<body_holder_mpi_t> tmpsendbuffer; 
+
+      // Predicate for the sets 
+      auto set_predicate = [](const auto& left, const auto& right)->bool
+      {
+        return left.id < right.id; 
+      }; 
+
+      std::set<body_holder_mpi_t,decltype(set_predicate)> tmpsendbuffer(set_predicate);
+
+
+
+#pragma omp parallel shared(tmpsendbuffer) 
+{
+  // Local set for the threads 
+    std::set<body_holder_mpi_t,decltype(set_predicate)> tmpsendset(set_predicate); 
+
+#pragma omp for  
       for(int j = cur; j < cur+count[i]; ++j ){
         // Then for each branches
         tree_topology_t::entity_space_ptr_t ents; 
@@ -326,24 +349,20 @@ public:
           ents = tree.find_in_box(recv_branches[j][0],recv_branches[j][1],
             tree_geometry_t::within_box);
         } 
+
         for(auto ent: ents){
           assert(ent != nullptr);
-          tmpsendbuffer.push_back(body_holder_mpi_t{
+          
+          tmpsendset.insert(body_holder_mpi_t{
             ent->coordinates(),rank,ent->mass(),ent->getBody()->getId(),
             ent->getBody()->getSmoothinglength()});
         }
       }
+      // Merge the sets 
+#pragma omp critical 
+      tmpsendbuffer.merge(tmpsendset); 
+}
 
-      std::sort(tmpsendbuffer.begin(),tmpsendbuffer.end(),
-        [](const auto& left, const auto& right){
-          return left.id < right.id;
-      });  
-
-      tmpsendbuffer.erase(
-          std::unique(tmpsendbuffer.begin(),tmpsendbuffer.end(),
-          [](const auto& left, const auto& right){
-            return (left.id == right.id);
-          }),tmpsendbuffer.end());
       scount[i] = tmpsendbuffer.size(); 
 
       sendbuffer.insert(sendbuffer.end(),tmpsendbuffer.begin(),
@@ -355,7 +374,8 @@ public:
     std::vector<body_holder_mpi_t> recvbuffer;
     mpi_alltoallv(scount,sendbuffer,recvbuffer); 
 
-    // Add them in the tree 
+    // Add them in the tree
+    // Not doable in parallel due to the tree utilization  
     for(auto bi: recvbuffer)
     {
       // Only add if the body is useful 
@@ -396,28 +416,19 @@ void mpi_refresh_ghosts(
     double start = omp_get_wtime(); 
 #endif 
    // Refresh the sendbodies with new data
-    auto itsb = ghosts_data.sbodies.begin();
-    for(auto bi: ghosts_data.sholders)
+   // auto itsb = ghosts_data.sbodies.begin();
+  
+#pragma omp parallel for 
+    for(size_t i = 0; i < ghosts_data.sbodies.size() ; ++i)
     {
-      assert(bi->getBody()!=nullptr);
-      *itsb = *(bi->getBody());
-      itsb++;
-    }  
+      assert(ghosts_data.sholders[i]->getBody() != nullptr); 
+      ghosts_data.sbodies[i] = *(ghosts_data.sholders[i]->getBody()); 
+    }
 
     MPI_Alltoallv(&ghosts_data.sbodies[0],&ghosts_data.nsbodies[0],
       &ghosts_data.soffsets[0],MPI_BYTE,
       &ghosts_data.rbodies[0],&ghosts_data.nrbodies[0],
       &ghosts_data.roffsets[0],MPI_BYTE,MPI_COMM_WORLD);
-
-    // Then link the holders with these bodies
-    //auto ents = tree.entities(); 
-    //int64_t nelem = tree.entities_ghosts().size(); 
-    //rank || clog(trace) <<tree.entities_ghosts().size()<<" != " <<tree.entities().size()<<std::endl; 
-    //rank || clog(trace) <<"Received:"<<ghosts_data.rbodies.size()<<std::endl;
-
-    //int64_t totalfound = 0;
-
-    //auto entities = tree.entities(); 
 
 #pragma omp parallel for 
   //For all the received neighbors, need to find a local ghosts 
@@ -426,30 +437,6 @@ void mpi_refresh_ghosts(
     assert(!bh->is_local());
     bh->setBody(&(ghosts_data.rbodies[i]));
   }
-
-#if 0     
-#pragma omp parallel for reduction(+:totalfound)
-    for(int64_t i=0; i<nelem; ++i)
-    {
-      body_holder* bi = tree.get_ghost(i);
-      assert(!bi->is_local());
-      for(auto& nl: ghosts_data.rbodies)
-      {
-        if(bi->global_id() == nl.id())
-        {
-          totalfound++;
-          bi->setBody(&(nl));
-          break;
-        }
-      }
-    }
-#endif 
-
-   // if(totalfound != (int) ghosts_data.rbodies.size())
-   //   std::cout<<rank<<": t="<<totalfound<<" g="<<ghosts_data.rbodies.size()<<
-   //    std::endl; 
-    
-   // assert(totalfound == (int)ghosts_data.rbodies.size()); 
   
 #ifdef OUTPUT_TREE_INFO
     MPI_Barrier(MPI_COMM_WORLD);

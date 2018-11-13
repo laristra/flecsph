@@ -101,8 +101,9 @@ struct tree_geometry<T, 1>
     element_t r1,
     element_t r2)
   {
-    element_t dist = distance(origin,center);
-    return dist*dist < (r1+r2)*(r1+r2);
+    element_t x2 = (origin[0]-center[0])*(origin[0]-center[0]);
+    element_t dist_2 = x2; 
+    return dist_2 < (r1+r2)*(r1+r2);  
   }
 
   /*!
@@ -251,9 +252,11 @@ struct tree_geometry<T, 2>
     const point_t& center,
     element_t r1,
     element_t r2)
-  {
-    element_t dist = distance(origin,center);
-    return dist*dist < (r1+r2)*(r1+r2);
+  {    
+    element_t x2 = (origin[0]-center[0])*(origin[0]-center[0]);
+    element_t y2 = (origin[1]-center[1])*(origin[1]-center[1]);
+    element_t dist_2 = x2 + y2; 
+    return dist_2 < (r1+r2)*(r1+r2);
   }
 
   /*!
@@ -418,8 +421,11 @@ struct tree_geometry<T, 3>
     element_t r1,
     element_t r2)
   {
-    element_t dist = distance(origin,center);
-    return dist*dist < (r1+r2)*(r1+r2);
+    element_t x2 = (origin[0]-center[0])*(origin[0]-center[0]);
+    element_t y2 = (origin[1]-center[1])*(origin[1]-center[1]);
+    element_t z2 = (origin[2]-center[2])*(origin[2]-center[2]);
+    element_t dist_2 = x2 + y2 + z2; 
+    return dist_2 < (r1+r2)*(r1+r2);
   }
   
   static

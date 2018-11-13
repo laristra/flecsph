@@ -34,7 +34,7 @@
 
 #include "user.h"
 
-enum particle_type_t {NORMAL = 0 ,WALL = 1};
+enum particle_type_t : int {NORMAL = 0 ,WALL = 1};
 
 class body{
 
@@ -72,12 +72,18 @@ public:
       ,dedt_(0.0)
       ,adiabatic_(0.0)
       ,dadt_(0.0)
+      ,type_(NORMAL)
       //gravforce_(point_t{}),
       //hydroforce_(point_t{})
    {};
 
    body(): type_(NORMAL)
    {};
+
+  inline bool operator==(const body& a)
+  {
+    return a.id_ == this->id_; 
+  } 
 
   const point_t& coordinates() const{return position_;}   
   const point_t& getPosition() const{return position_;}
@@ -91,8 +97,8 @@ public:
   point_t getVelocity() const{return velocity_;}
   point_t getVelocityhalf() const{return velocityhalf_;}
   point_t getAcceleration() const{return acceleration_;}
-  uint64_t neighbors(){return neighbors_;}
-  particle_type_t type(){return type_;};
+  const uint64_t neighbors() const {return neighbors_;}
+  const particle_type_t type() const {return type_;};
 
   point_t getLinMomentum() const { 
     point_t res = {};
@@ -101,11 +107,11 @@ public:
     }
     return res;
   };
-  flecsi::topology::entity_id_t getId(){return id_;};
+  const flecsi::topology::entity_id_t getId() const {return id_;};
   flecsi::topology::entity_id_t id(){return id_;};
   double getDt(){return dt_;};
   double getMumax(){return mumax_;}
-  int getType(){return type_;}; 
+  const particle_type_t getType() const {return type_;}; 
 
   bool is_wall(){return type_ == 1;};
 
