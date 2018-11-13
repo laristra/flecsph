@@ -268,6 +268,8 @@ public:
 
    // Then compute the range of the system 
     tcolorer_.mpi_compute_range(localbodies_,range_);
+
+    rank || clog(trace) << "Range="<<range_[0]<<";"<<range_[1]<<std::endl; 
      
     // Generate the tree based on the range
     tree_ = new tree_topology_t(range_[0],range_[1]);

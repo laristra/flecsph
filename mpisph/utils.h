@@ -60,6 +60,8 @@ namespace mpi_utils{
     std::vector<int> count_byte(size);
     std::vector<int> offset_byte(size);
     int64_t total = 0L;
+
+#pragma omp parallel for reduction(+:total) 
     for(int i = 0; i < size; ++i){
       total += count[i];
       count_byte[i] = count[i]*sizeof(M);
@@ -118,6 +120,7 @@ namespace mpi_utils{
     recvbuffer.resize(recvoffsets.back()); 
     
     // Trnaform the offsets for bytes 
+#pragma omp parallel for 
     for(int i=0;i<size;++i){
       sendcount[i] *= sizeof(M);
       assert(sendcount[i]>=0);
