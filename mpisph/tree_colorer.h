@@ -298,14 +298,18 @@ public:
       search_branches);
 
     // Make a list of boundaries
+    //std::vector<std::pair<point_t,double>> send_branches(search_branches.size()); 
     std::vector<range_t> send_branches(search_branches.size());
 
     #pragma omp parallel for 
     for(long unsigned int i=0;i<search_branches.size();++i){
+      //send_branches[i].first = search_branches[i]->coordinates(); 
+      //send_branches[i].second = search_branches[i]->radius(); 
       send_branches[i][0] = search_branches[i]->bmin();
       send_branches[i][1] = search_branches[i]->bmax();
     }
 
+    //std::vector<std::pair<point_t,double>> recv_branches; 
     std::vector<range_t> recv_branches; 
     std::vector<int> count; 
     mpi_allgatherv(send_branches,recv_branches,count);
@@ -341,9 +345,17 @@ public:
           // Then for each branches
           tree_topology_t::entity_space_ptr_t ents; 
           if(param::sph_variable_h){
+            //ents = tree.find_in_radius(
+            //    recv_branches[j].first,
+            //    recv_branches[j].second,
+            //    tree_geometry_t::within_square);
             ents = tree.find_in_box(recv_branches[j][0],recv_branches[j][1],
               tree_geometry_t::intersects_sphere_box);
           }else{
+            //ents = tree.find_in_radius(
+            //    recv_branches[j].first,
+            //    recv_branches[j].second,
+            //    tree_geometry_t::within); 
             ents = tree.find_in_box(recv_branches[j][0],recv_branches[j][1],
               tree_geometry_t::within_box);
           } 
@@ -488,12 +500,13 @@ void mpi_refresh_ghosts(
 #pragma omp parallel for 
     for(int64_t i=0; i<nelem;++i)
     {
+      
+      body_holder * bi = tree.get(i);
+      if(!bi->is_local()) continue;
+
       // array of bools to check unique send 
       std::vector<bool> proc(size,false);
       proc[rank] = true; 
-      
-      body_holder * bi = tree.get(i);
-      if(!bi->is_local()) continue;  
 
       assert(bi->is_local());
       tree_topology_t::entity_space_ptr_t nbs; 
@@ -545,11 +558,12 @@ void mpi_refresh_ghosts(
 #pragma omp parallel for 
     for(int64_t i=0; i<nelem; ++i)
     {
-      std::vector<bool> proc(size,false);
-      proc[rank] = true;
-
+ 
       body_holder* bi = tree.get(i);
       if(!bi->is_local()) continue; 
+
+      std::vector<bool> proc(size,false);
+      proc[rank] = true;
       
       assert(bi->is_local());
       tree_topology_t::entity_space_ptr_t nbs; 

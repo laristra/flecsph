@@ -269,7 +269,7 @@ struct traversal
     element_t mass = element_t(0); 
     point_t bmax{}; 
     point_t bmin{}; 
-    element_t radius; 
+    element_t radius = 0.; 
     point_t coordinates = point_t{};
     uint64_t nchildren = 0; 
     for(size_t d = 0 ; d < dimension ; ++d){
@@ -294,10 +294,18 @@ struct traversal
           bmin[d] = std::min(bmin[d],ent->coordinates()[d]-epsilon-ent->h());
         }
         coordinates += childmass * ent->coordinates(); 
-        mass += childmass;  
+        mass += childmass;
       }
       if(mass > element_t(0))
-        coordinates /= mass; 
+        coordinates /= mass;
+      // Compute the radius 
+      for(auto child: *b)
+      {
+        auto ent = tree->get(child); 
+        radius = std::max(
+            radius,
+            distance(ent->coordinates(),coordinates)  + epsilon + ent->h());
+      } 
     }else{
       for(int i = 0 ; i < (1<<dimension); ++i)
       {
@@ -319,7 +327,16 @@ struct traversal
       }
       if(mass > element_t(0))
         coordinates /= mass; 
+      // Compute the radius 
+      for(int i = 0 ; i < (1<<dimension); ++i)
+      {
+        auto branch = tree->child(b,i); 
+        radius = std::max(
+            radius,
+            distance(coordinates,branch->coordinates()) + branch->radius()); 
+      }
     }
+    b->set_radius(radius);
     b->set_sub_entities(nchildren);
     b->set_coordinates(coordinates);
     b->set_mass(mass);

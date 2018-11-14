@@ -576,7 +576,7 @@ private:
   double smoothinglength_;    // Keep track of the biggest smoothing length 
   double totalmass_;          // Check the total mass of the system 
   double minmass_;            // Check the minimal mass of the system
-  double epsilon_ = 10e-6;
+  double epsilon_ = 0.;
   
   std::vector<int64_t> neighbors_count_;
   std::vector<body_holder*> neighbors_; 

@@ -435,30 +435,14 @@ public:
 
     std::vector<branch_t*> work_branch; 
     
-    //#pragma omp parallel
-    //#pragma omp single
     while(!stk.empty()){
       branch_t* c = stk.top();
       stk.pop();
       if(c->is_leaf() && c->sub_entities() > 0){
         work_branch.push_back(c);
-        //#pragma omp task firstprivate(c) untied
-        //{
-        //  std::vector<branch_t*> inter_list; 
-        //  sub_cells_inter(c,MAC,inter_list);
-        //  force_calc(c,inter_list,do_square,
-        //      ef,std::forward<ARGS>(args)...);
-        //}
       }else{
         if((int64_t)c->sub_entities() < ncritical && c->sub_entities() > 0){
-          //#pragma omp task firstprivate(c) untied
           work_branch.push_back(c);
-          //{
-          //  std::vector<branch_t*> inter_list; 
-          //  sub_cells_inter(c,MAC,inter_list);
-          //  force_calc(c,inter_list,do_square,
-          //      ef,std::forward<ARGS>(args)...);
-          //} 
         }else{
           for(int i=0; i<(1<<dimension);++i){
             branch_t * next = child(c,i);
@@ -470,8 +454,6 @@ public:
       } 
     }
 
-    std::cout<<"Tasks:"<<work_branch.size()<<std::endl;
-
     // Start the threads on the branches 
     #pragma omp parallel for 
     for(size_t i = 0; i < work_branch.size(); ++i){
@@ -481,7 +463,6 @@ public:
                ef,std::forward<ARGS>(args)...);
     }
 
-    //#pragma omp taskwait
   }
 
   void
