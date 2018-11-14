@@ -409,12 +409,12 @@ struct tree_geometry<T, 3>
        min_b1[0] >= min_b2[0] && max_b1[0] <= max_b2[0])   // b2 b1 b1 b2
       &&
       (min_b1[1] <= max_b2[1] && min_b1[1] >= min_b2[1] || // b2 b1 b2 b1 
-       max_b1[0] <= max_b2[0] && max_b1[0] >= min_b2[0] || // b1 b2 b1 b2 
+       max_b1[1] <= max_b2[1] && max_b1[1] >= min_b2[1] || // b1 b2 b1 b2 
        max_b1[1] >= max_b2[1] && min_b1[1] <= min_b2[1] || // b1 b2 b2 b1
        min_b1[1] >= min_b2[1] && max_b1[1] <= max_b2[1])   // b2 b1 b1 b2
       &&
       (min_b1[2] <= max_b2[2] && min_b1[2] >= min_b2[2] || // b2 b1 b2 b1 
-       max_b1[1] <= max_b2[1] && max_b1[1] >= min_b2[1] || // b1 b2 b1 b2 
+       max_b1[2] <= max_b2[2] && max_b1[2] >= min_b2[2] || // b1 b2 b1 b2 
        max_b1[2] >= max_b2[2] && min_b1[2] <= min_b2[2] || // b1 b2 b2 b1
        min_b1[2] >= min_b2[2] && max_b1[2] <= max_b2[2]);  // b2 b1 b1 b2
   }
