@@ -130,7 +130,7 @@ struct tree_geometry<T, 1>
   {
     return 
       min_b1[0] <= max_b2[0] && min_b1[0] >= min_b2[0] || // b2 b1 b2 b1 
-      max_b1[0] <= max_b2[0] && max_b1[0] >= min_b2[0] || // b1 b2 b1 b2 
+      min_b1[0] <= min_b2[0] && max_b1[0] >= min_b2[0] || // b1 b2 b1 b2 
       max_b1[0] >= max_b2[0] && min_b1[0] <= min_b2[0] || // b1 b2 b2 b1
       min_b1[0] >= min_b2[0] && max_b1[0] <= max_b2[0];   // b2 b1 b1 b2
   }
@@ -174,18 +174,6 @@ struct tree_geometry<T, 1>
     point_t x = point_t(std::max(min[0],std::min(c[0],max[0])));  
     element_t dist = distance(x,c); 
     return dist <= r;
-  }
-
-  static
-  bool
-  intersect_true(
-    const point_t& origin,
-    element_t size,
-    const point_t& scale,
-    const point_t& center,
-    element_t radius)
-  {
-    return true;
   }
 
   static
@@ -256,7 +244,7 @@ struct tree_geometry<T, 2>
     element_t x2 = (origin[0]-center[0])*(origin[0]-center[0]);
     element_t y2 = (origin[1]-center[1])*(origin[1]-center[1]);
     element_t dist_2 = x2 + y2; 
-    return dist_2 < (r1+r2)*(r1+r2);
+    return dist_2 <= (r1+r2)*(r1+r2);
   }
 
   /*!
@@ -272,26 +260,6 @@ struct tree_geometry<T, 2>
   {
     return origin[0] <= max[0] && origin[0] >= min[0] &&
            origin[1] <= max[1] && origin[1] >= min[1];
-  }
-
-  // initial attempt to get this working, needs to be optimized
-
-  /*!
-    Spheroid/box intersection test.
-   */
-  static
-  bool
-  intersects(
-    const point_t& origin,
-    element_t size,
-    const point_t& scale,
-    const point_t& center,
-    element_t radius)
-  {
-    return center[0] >= origin[0] - radius &&
-           center[0] <= origin[0] + size * scale[0] + radius &&
-           center[1] >= origin[1] - radius &&
-           center[1] <= origin[1] + size * scale[1] + radius;
   }
 
   static
@@ -315,12 +283,12 @@ struct tree_geometry<T, 2>
   {
     return 
       (min_b1[0] <= max_b2[0] && min_b1[0] >= min_b2[0] || // b2 b1 b2 b1 
-       max_b1[0] <= max_b2[0] && max_b1[0] >= min_b2[0] || // b1 b2 b1 b2 
+       min_b1[0] <= min_b2[0] && max_b1[0] >= min_b2[0] || // b1 b2 b1 b2 
        max_b1[0] >= max_b2[0] && min_b1[0] <= min_b2[0] || // b1 b2 b2 b1
        min_b1[0] >= min_b2[0] && max_b1[0] <= max_b2[0])   // b2 b1 b1 b2
       &&
       (min_b1[1] <= max_b2[1] && min_b1[1] >= min_b2[1] || // b2 b1 b2 b1 
-       max_b1[1] <= max_b2[1] && max_b1[1] >= min_b2[1] || // b1 b2 b1 b2 
+       min_b1[1] <= min_b2[1] && max_b1[1] >= min_b2[1] || // b1 b2 b1 b2 
        max_b1[1] >= max_b2[1] && min_b1[1] <= min_b2[1] || // b1 b2 b2 b1
        min_b1[1] >= min_b2[1] && max_b1[1] <= max_b2[1]);  // b2 b1 b1 b2
   }
@@ -351,19 +319,6 @@ struct tree_geometry<T, 2>
         std::max(min[1],std::min(c[1],max[1])));  
     element_t dist = distance(x,c); 
     return dist <= r;
-  }
-
-
-  static
-  bool
-  intersect_true(
-    const point_t& origin,
-    element_t size,
-    const point_t& scale,
-    const point_t& center,
-    element_t radius)
-  {
-    return true;
   }
 
   static
@@ -449,17 +404,17 @@ struct tree_geometry<T, 3>
   {
     return 
       (min_b1[0] <= max_b2[0] && min_b1[0] >= min_b2[0] || // b2 b1 b2 b1 
-       max_b1[0] <= max_b2[0] && max_b1[0] >= min_b2[0] || // b1 b2 b1 b2 
+       min_b1[0] <= max_b2[0] && max_b1[0] >= min_b2[0] || // b1 b2 b1 b2 
        max_b1[0] >= max_b2[0] && min_b1[0] <= min_b2[0] || // b1 b2 b2 b1
        min_b1[0] >= min_b2[0] && max_b1[0] <= max_b2[0])   // b2 b1 b1 b2
       &&
       (min_b1[1] <= max_b2[1] && min_b1[1] >= min_b2[1] || // b2 b1 b2 b1 
-       max_b1[1] <= max_b2[1] && max_b1[1] >= min_b2[1] || // b1 b2 b1 b2 
+       max_b1[0] <= max_b2[0] && max_b1[0] >= min_b2[0] || // b1 b2 b1 b2 
        max_b1[1] >= max_b2[1] && min_b1[1] <= min_b2[1] || // b1 b2 b2 b1
        min_b1[1] >= min_b2[1] && max_b1[1] <= max_b2[1])   // b2 b1 b1 b2
       &&
       (min_b1[2] <= max_b2[2] && min_b1[2] >= min_b2[2] || // b2 b1 b2 b1 
-       max_b1[2] <= max_b2[2] && max_b1[2] >= min_b2[2] || // b1 b2 b1 b2 
+       max_b1[1] <= max_b2[1] && max_b1[1] >= min_b2[1] || // b1 b2 b1 b2 
        max_b1[2] >= max_b2[2] && min_b1[2] <= min_b2[2] || // b1 b2 b2 b1
        min_b1[2] >= min_b2[2] && max_b1[2] <= max_b2[2]);  // b2 b1 b1 b2
   }
@@ -482,26 +437,6 @@ struct tree_geometry<T, 3>
   }
 
 
-
-  /*!
-    Spheroid/box intersection test.
-   */
-  static
-  bool
-  intersects(
-    const point_t& origin,
-    element_t size,
-    const point_t& scale,
-    const point_t& center,
-    element_t radius)
-  {
-    return center[0] >= origin[0] - radius &&
-           center[0] <= origin[0] + size * scale[0] + radius &&
-           center[1] >= origin[1] - radius &&
-           center[1] <= origin[1] + size * scale[1] + radius &&
-           center[2] >= origin[2] - radius &&
-           center[2] <= origin[2] + size * scale[2] + radius;
-  }
   
   // Intersection of two spheres
   static 
@@ -535,18 +470,6 @@ struct tree_geometry<T, 3>
         std::max(min[2],std::min(c[2],max[2]))); 
     element_t dist = distance(x,c); 
     return dist <= r;
-  }
-
-  static
-  bool
-  intersect_true(
-    const point_t& origin,
-    element_t size,
-    const point_t& scale,
-    const point_t& center,
-    element_t radius)
-  {
-    return true;
   }
 
   static

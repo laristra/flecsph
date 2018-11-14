@@ -349,8 +349,7 @@ public:
           } 
 
           for(auto ent: ents){
-            assert(ent != nullptr);
-          
+            assert(ent != nullptr); 
             tmpsendset.insert(body_holder_mpi_t{
               ent->coordinates(),rank,ent->mass(),ent->getBody()->getId(),
               ent->getBody()->getSmoothinglength()});
@@ -622,7 +621,9 @@ void mpi_refresh_ghosts(
       ghosts_data.soffsets[i]*=sizeof(body);
       ghosts_data.roffsets[i]*=sizeof(body);
     }
-  
+ 
+    assert(totalsendbodies == ghosts_data.sbodies.size()); 
+
 #ifdef OUTPUT_TREE_INFO
     MPI_Barrier(MPI_COMM_WORLD);
     double end = omp_get_wtime();
