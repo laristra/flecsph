@@ -52,8 +52,9 @@ public:
     int rank = 0; 
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     // Display the number of threads in DEBUG mode
+    
     #pragma omp parallel 
-    #pragma omp single 
+    #pragma omp master
     rank || clog(warn)<<"USING OMP THREADS: "<<
       omp_get_num_threads()<<std::endl;
     

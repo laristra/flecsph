@@ -45,17 +45,6 @@ namespace boundary{
       std::vector<std::pair<entity_key_t,body>>& lbodies)
   {
     // Sort items based on type, all the walls at the end 
-//    boost::sort::block_indirect_sort(
-//        lbodies.begin(),lbodies.end(),
-//        [](const auto& left, 
-//          const auto& right)
-//        { 
-//          auto typeR = right.second.getType(); 
-//          auto typeL = left.second.getType(); 
-//          return typeR == particle_type_t::WALL && 
-//          typeL != particle_type_t::WALL;
-//        });
-  
     auto start = std::stable_partition(
         lbodies.begin(),lbodies.end(), 
         [](const auto& left)

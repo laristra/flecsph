@@ -289,30 +289,32 @@ public:
 #endif
 
     // Do a tree search up to a branch 
-    // Keep those branches in a list 
-    
+    // Keep those branches in a list
     std::vector<branch_t*> search_branches; 
     tree.find_sub_cells(
       tree.root(),
       criterion_branches,
       search_branches);
 
+    rank|| clog(trace) << "1. branches: "<< search_branches.size() << std::endl << std::flush;
+    MPI_Barrier(MPI_COMM_WORLD); 
+
     // Make a list of boundaries
-    //std::vector<std::pair<point_t,double>> send_branches(search_branches.size()); 
     std::vector<range_t> send_branches(search_branches.size());
 
     #pragma omp parallel for 
     for(long unsigned int i=0;i<search_branches.size();++i){
-      //send_branches[i].first = search_branches[i]->coordinates(); 
-      //send_branches[i].second = search_branches[i]->radius(); 
       send_branches[i][0] = search_branches[i]->bmin();
       send_branches[i][1] = search_branches[i]->bmax();
     }
 
-    //std::vector<std::pair<point_t,double>> recv_branches; 
     std::vector<range_t> recv_branches; 
     std::vector<int> count; 
     mpi_allgatherv(send_branches,recv_branches,count);
+
+    rank|| clog(trace) << "2. Received:"<<recv_branches.size() << std::endl << std::flush;
+    MPI_Barrier(MPI_COMM_WORLD); 
+
 
     reset_buffers();
     std::vector<body_holder_mpi_t> sendbuffer;
@@ -345,17 +347,9 @@ public:
           // Then for each branches
           tree_topology_t::entity_space_ptr_t ents; 
           if(param::sph_variable_h){
-            //ents = tree.find_in_radius(
-            //    recv_branches[j].first,
-            //    recv_branches[j].second,
-            //    tree_geometry_t::within_square);
             ents = tree.find_in_box(recv_branches[j][0],recv_branches[j][1],
               tree_geometry_t::intersects_sphere_box);
           }else{
-            //ents = tree.find_in_radius(
-            //    recv_branches[j].first,
-            //    recv_branches[j].second,
-            //    tree_geometry_t::within); 
             ents = tree.find_in_box(recv_branches[j][0],recv_branches[j][1],
               tree_geometry_t::within_box);
           } 
@@ -380,8 +374,15 @@ public:
       cur += count[i];
     }
 
+    rank|| clog(trace) << "3. Entities:"<< sendbuffer.size() << std::endl<<std::flush;
+    rank|| clog(trace) << "BH:"<<sizeof(body_holder_mpi_t)<<" tot:"<<sizeof(body_holder_mpi_t)*sendbuffer.size()<<std::endl<<std::flush; 
+    MPI_Barrier(MPI_COMM_WORLD); 
+
     std::vector<body_holder_mpi_t> recvbuffer;
     mpi_alltoallv(scount,sendbuffer,recvbuffer); 
+
+    rank|| clog(trace) << "4. Ent received:"<<recvbuffer.size()*sizeof(body_holder_mpi_t)<<std::endl<<std::flush;
+    MPI_Barrier(MPI_COMM_WORLD); 
 
     // Add them in the tree
     // Not doable in parallel due to the tree utilization  
@@ -397,6 +398,8 @@ public:
       assert(!nbi->is_local());  
       assert(nbi->global_id() == bi.id);
     }
+
+    
 
 #ifdef OUTPUT_TREE_INFO
     MPI_Barrier(MPI_COMM_WORLD);

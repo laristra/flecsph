@@ -30,6 +30,16 @@ endif()
 #------------------------------------------------------------------------------#
 cinch_load_extras()
 
+#------------------------------------------------------------------------------#
+# Legion
+#------------------------------------------------------------------------------#
+option(ENABLE_LEGION "Enable Legion" OFF) 
+if(ENABLE_LEGION)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DENABLE_LEGION")
+  find_package(Legion REQUIRED)
+  include_directories(${Legion_INCLUDE_DIRS})
+  list(APPEND FleCSPH_LIBRARIES ${Legion_LIBRARY} ${REALM_LIBRARY})
+endif()
 
 #------------------------------------------------------------------------------#
 # Find FleCSI
@@ -46,13 +56,6 @@ message(STATUS ${FleCSPH_LIBRARIES})
 find_package(MPI REQUIRED)
 include_directories(${MPI_INCLUDE_PATH})
 list(APPEND FleCSPH_LIBRARIES ${MPI_LIBRARIES})
-
-#------------------------------------------------------------------------------#
-# Legion
-#------------------------------------------------------------------------------#
-find_package(Legion REQUIRED)
-include_directories(${Legion_INCLUDE_DIRS})
-list(APPEND FleCSPH_LIBRARIES ${Legion_LIBRARY} ${REALM_LIBRARY})
 
 #------------------------------------------------------------------------------#
 # Pthreads for parallelism in the tree

@@ -26,13 +26,17 @@
 #ifndef _mpisph_utils_
 #define _mpisph_utils_
 
+#include <numeric>
+
+#include "tree.h"
+
 // Local version of assert to handle MPI abort
 #define mpi_assert( assertion )  ((assertion) ? true : \
     (fprintf(stderr,"Failed assertion in %s in %d\n",__FILE__,__LINE__) \
+     && fflush(stderr) \
      && MPI_Abort(MPI_COMM_WORLD, 1)));
 
 namespace mpi_utils{
-
 
   /** 
    * @brief Simple version of all gather 
@@ -222,118 +226,6 @@ namespace mpi_utils{
   {
     MPI_Allreduce(MPI_IN_PLACE,&value,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD);
   }
-
-
-
-
-#if 0 
-
-  /**
-   * @brief      Export to a file the current tree in memory 
-   * This is useful for small number of particles to help representing the tree 
-   *
-   * @param      tree   The tree to output
-   * @param      range  The range of the particles, use to construct entity_keys
-   */
-  void mpi_tree_traversal_graphviz(
-    tree_topology_t & tree/*,*/
-    /*std::array<point_t,2>& range*/)
-  {
-    int rank = 0;
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-
-    char fname[64];
-    sprintf(fname,"output_graphviz_%02d.gv",rank);
-    std::ofstream output;
-    output.open(fname);
-    output<<"digraph G {"<<std::endl<<"forcelabels=true;"<<std::endl;
-
-    std::stack<branch_t*> stk;
-    // Get root
-    auto rt = tree.root();
-    stk.push(rt);
-
-    while(!stk.empty()){
-      branch_t* cur = stk.top();
-      stk.pop();
-      if(!cur->is_leaf()){
-        if(gdimension == 3){
-          output<<std::oct<<cur->id().value_()<<" [label=\""<< 
-          cur->id().value_()<<std::dec<< "\", xlabel=\"" << cur->sub_entities() 
-          <<"\"];"<<std::endl;
-        }
-        if(gdimension == 2){
-          output<<cur->id().value_()<<" [label=\""<< cur->id().value_() 
-          << "\", xlabel=\"" << cur->sub_entities() <<"\"];"<<std::endl;
-
-        }
-
-        // Add the child to the stack and add for display 
-        for(size_t i=0;i<(1<<gdimension);++i)
-        {
-          auto br = tree.child(cur,i);
-          stk.push(br);
-          if(gdimension == 3){
-            output<<std::oct<<cur->id().value_()
-              <<"->"<<br->id().value_()<<std::dec<<std::endl;
-          }
-          if(gdimension == 2){
-            output<<cur->id().value_()
-              <<"->"<<br->id().value_()<<std::dec<<std::endl;  
-          }
-        }
-      }else{
-        if(gdimension == 3){
-          output<<std::oct<<cur->id().value_()<<" [label=\""<< 
-          cur->id().value_() <<std::dec<< "\", xlabel=\"" << cur->sub_entities() 
-          <<"\"];"<<std::endl;
-        }
-        if(gdimension == 2){
-          output<<cur->id().value_()<<" [label=\""<< cur->id().value_() 
-          << "\", xlabel=\"" << cur->sub_entities() <<"\"];"<<std::endl; 
-        }    
-        for(auto ent: *cur)
-        {
-          entity_key_t key(tree.range(),ent->coordinates());
-          int64_t key_int = key.truncate_value(tree.max_depth()+2);
-          if(gdimension == 3){
-            output<<std::oct<<cur->id().value_()<<
-              "->"<<key_int<<std::endl;
-          }
-          if(gdimension == 2){
-            output<<cur->id().value_()<<
-              "->"<<key_int<<std::endl;
-          }
-          switch (ent->getLocality())
-          {
-            case 2:
-              output<<key_int<<" [shape=box,color=blue]"<<std::endl;
-              break;
-            case 3:
-              output<<key_int<<" [shape=box,color=red]"<<std::endl;
-              //fprintf(output,"\"%lo\" [shape=box,color=red]\n",
-              //  key.truncate_value(17));
-              break;
-            case 1:
-              output<<key_int<<" [shape=box,color=green]"<<std::endl;
-              //fprintf(output,"\"%lo\" [shape=box,color=green]\n",
-              //  key.truncate_value(17));
-              break;
-            default:
-              output<<key_int<<" [shape=circle,color=black]"<<std::endl;
-              //fprintf(output,"\"%lo\" [shape=circle,color=black]\n",
-              //  key.truncate_value(17));
-              break;
-          }
-          output<<std::dec;
-        }
-      } 
-    }
-    output<<"}"<<std::endl;
-    output.close();
-  }
-
-#endif 
 
 }; // utils
 

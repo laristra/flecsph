@@ -30,7 +30,9 @@
 #include <iostream>
 
 #include <mpi.h>
+#ifdef ENABLE_LEGION
 #include <legion.h>
+#endif 
 #include <omp.h>
 
 #include "flecsi/execution/execution.h"
@@ -102,31 +104,21 @@ mpi_init_task(const char * parameter_file){
       output_h5data_prefix,initial_iteration);
 
   MPI_Barrier(MPI_COMM_WORLD);
-  
-  bs.update_iteration();
-
-  if(thermokinetic_formulation) {
-    // compute total energy for every particle
-    bs.apply_all(physics::set_total_energy);
-  }
-
-  bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
-    
-  if(out_scalar_every > 0 && physics::iteration % out_scalar_every == 0){
-    // Compute conserved quantities
-    bs.get_all(analysis::compute_lin_momentum);
-    bs.get_all(analysis::compute_total_mass);
-    bs.get_all(analysis::compute_total_energy);
-    bs.get_all(analysis::compute_total_ang_mom);
-    analysis::scalar_output("scalar_reductions.dat");
-  }
-
+   
   do {
     analysis::screen_output(rank);
     MPI_Barrier(MPI_COMM_WORLD);
 
     if (physics::iteration == param::initial_iteration){
-      
+
+      bs.update_iteration();
+
+      if(thermokinetic_formulation) {
+        // compute total energy for every particle
+        bs.apply_all(physics::set_total_energy);
+      }
+
+      bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
       bs.apply_all(integration::save_velocityhalf);
 
       // necessary for computing dv/dt and du/dt in the next step

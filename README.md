@@ -28,7 +28,6 @@ FleCSPH can be installed anywhere in your system; to be particular, below we
 assume that all repositories are downloaded in FLECSPH root directory `${HOME}/FLECSPH`.
 The code requires:
 
-- FleCSI third party library
 - FleCSI
 - shared local directory
 
@@ -74,27 +73,6 @@ You will need the following tools:
 - boost library version > 1.59;
 - Python version > 2.7.
 
-## FleCSI third-party libraries
-
-Clone the FleCSI third-party libraries repo and check out the compatible branch `FleCSPH`:
-
-```{engine=sh}    
-   cd $HOME/FLECSPH
-   git clone --recursive git@github.com:laristra/flecsi-third-party.git
-   cd flecsi-third-party
-   git submodule update --recursive
-   mkdir build ; cd build
-   cmake .. \
-        -DGASNet_CONDUIT=mpi \
-        -DENABLE_EXODUS=OFF -DENABLE_HPX=OFF \
-        -DCMAKE_INSTALL_PREFIX=${HOME}/FLECSPH/local
-```    
-
-Build the libraries using several cores:
-
-    % make -j
-    % make install
-
 ## FleCSI
 
 Clone FleCSI repo and change to the `feature/flecsph` branch.
@@ -115,7 +93,9 @@ Checkout submodules recursively, then configure as below:
        -DENABLE_OPENMP=ON                         \
        -DCXX_CONFORMANCE_STANDARD=c++17           \
        -DENABLE_CLOG=ON                           \
-       -DFLECSI_RUNTIME_MODEL=mpi
+       -DFLECSI_RUNTIME_MODEL=mpi                 \
+       -DENABLE_FLECSIT=OFF                       \
+       -DENABLE_FLECSI_TUTORIAL=OFF               
 ```    
 
 In this configuration, Legion is used as FleCSI backend.
@@ -164,7 +144,6 @@ Configure and build FleCSPH:
        -DENABLE_UNIT_TESTS=ON                     \
        -DCXX_CONFORMANCE_STANDARD=c++17           \
        -DENABLE_CLOG=ON                           \
-       -DCMAKE_CXX_FLAGS=-DPARALLEL_IO            \
        -DHDF5_IS_PARALLEL=ON
 ```
 
