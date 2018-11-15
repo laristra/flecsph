@@ -449,7 +449,7 @@ public:
 } // omp parallel  
 
     rank|| clog(trace) << "4. Ent received:"<<recvbuffer.size()*sizeof(body_holder_mpi_t)<<std::endl<<std::flush;
-    MPI_Barrier(MPI_COMM_WORLD); 
+    //MPI_Barrier(MPI_COMM_WORLD); 
 
     // Add them in the tree
     // Not doable in parallel due to the tree utilization  
