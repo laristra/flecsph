@@ -125,6 +125,12 @@ public:
     return (locality_ == LOCAL || locality_ == EXCL || locality_ == SHARED); 
   }
 
+  bool 
+  is_shared() const 
+  {
+    return locality_==SHARED; 
+  }
+
   void 
   set_locality(e_locality_ loc)
   {

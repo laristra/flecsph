@@ -213,8 +213,10 @@ public:
       } // if
     } // for
 
-    std::vector<std::pair<entity_key_t,body>> recvbuffer; 
-    mpi_alltoallv(scount,rbodies,recvbuffer); 
+    std::vector<std::pair<entity_key_t,body>> recvbuffer;
+
+    // Direct exchange using point to point 
+    mpi_alltoallv_p2p(scount,rbodies,recvbuffer); 
     
     rbodies.clear();
     rbodies = recvbuffer; 
@@ -355,6 +357,8 @@ public:
           } 
 
           for(auto ent: ents){
+            // Mark these bodies as shared for the future 
+            ent->set_shared();
             assert(ent != nullptr); 
             tmpsendset.insert(body_holder_mpi_t{
               ent->coordinates(),rank,ent->mass(),ent->getBody()->getId(),
@@ -379,25 +383,87 @@ public:
     MPI_Barrier(MPI_COMM_WORLD); 
 
     std::vector<body_holder_mpi_t> recvbuffer;
-    mpi_alltoallv(scount,sendbuffer,recvbuffer); 
+    // Exchange the bodies and add them in the tree 
+    //mpi_alltoallv_p2p(scount,sendbuffer,recvbuffer); 
+    int size_bhm = sizeof(body_holder_mpi_t); 
+    
+    std::vector<int> recvcount(size), recvoffsets(size), sendoffsets(size); 
+    // Exchange the send count 
+    MPI_Alltoall(&scount[0],1,MPI_INT,&recvcount[0],1,MPI_INT,
+        MPI_COMM_WORLD);
+    std::partial_sum(recvcount.begin(),recvcount.end(),&recvoffsets[0]); 
+    recvoffsets.insert(recvoffsets.begin(),0);
+    std::partial_sum(scount.begin(),scount.end(),&sendoffsets[0]);
+    sendoffsets.insert(sendoffsets.begin(),0);
+    // Set the recvbuffer to the right size
+    recvbuffer.resize(recvoffsets.back()); 
+    // Transform the offsets for bytes 
+    #pragma omp parallel for 
+    for(int i=0;i<size;++i){
+      scount[i] *= size_bhm;assert(scount[i]>=0);
+      recvcount[i] *= size_bhm;assert(recvcount[i]>=0); 
+      sendoffsets[i] *= size_bhm;assert(sendoffsets[i]>=0);
+      recvoffsets[i] *= size_bhm;assert(recvoffsets[i]>=0); 
+    } // for
+    std::vector<MPI_Status> status(size); 
+    std::vector<MPI_Request> request(size);
+
+#pragma omp parallel 
+{ 
+    #pragma omp for nowait  
+    for(int i = 0 ; i < size; ++i){
+      if(scount[i] != 0){
+        char * start = (char*)&(sendbuffer[0]);
+        MPI_Isend(start+sendoffsets[i],scount[i],MPI_BYTE,
+          i,0,MPI_COMM_WORLD,&request[i]); 
+      }
+    }
+    #pragma omp for nowait 
+    for(int i = 0 ; i < size; ++i){
+      if(recvcount[i] != 0){
+        char * start = (char*)&(recvbuffer[0]); 
+        MPI_Recv(start+recvoffsets[i],recvcount[i],MPI_BYTE,
+          i,MPI_ANY_TAG,MPI_COMM_WORLD,&status[i]); 
+        // Add in the tree 
+        #pragma omp critical
+        {
+          size_t start = recvoffsets[i]/size_bhm;
+          size_t stop = start+recvcount[i]/size_bhm;
+          for(size_t i = start; i < stop; ++i ){
+            auto* bi = &(recvbuffer[i]);
+            assert(bi->owner!=rank);
+            assert(bi->mass!=0.);
+            auto id = tree.make_entity(bi->position,nullptr,bi->owner,bi->mass,
+              bi->id,bi->h);
+            tree.insert(id);
+            auto nbi = tree.get(id);
+            assert(!nbi->is_local());  
+            assert(nbi->global_id() == bi->id);
+          } // for 
+        } // omp critical 
+      }
+      if(scount[i] != 0){
+        MPI_Wait(&request[i],&status[i]);
+      }
+    }
+} // omp parallel  
 
     rank|| clog(trace) << "4. Ent received:"<<recvbuffer.size()*sizeof(body_holder_mpi_t)<<std::endl<<std::flush;
     MPI_Barrier(MPI_COMM_WORLD); 
 
     // Add them in the tree
     // Not doable in parallel due to the tree utilization  
-    for(auto bi: recvbuffer)
-    {
-      // Only add if the body is useful  
-      assert(bi.owner!=rank);
-      assert(bi.mass!=0.);
-      auto id = tree.make_entity(bi.position,nullptr,bi.owner,bi.mass,bi.id,
-          bi.h);
-      tree.insert(id);
-      auto nbi = tree.get(id);
-      assert(!nbi->is_local());  
-      assert(nbi->global_id() == bi.id);
-    }
+    //for(auto bi: recvbuffer)
+    //{
+    //  assert(bi.owner!=rank);
+    //  assert(bi.mass!=0.);
+    //  auto id = tree.make_entity(bi.position,nullptr,bi.owner,bi.mass,bi.id,
+    //      bi.h);
+    //  tree.insert(id);
+    //  auto nbi = tree.get(id);
+    //  assert(!nbi->is_local());  
+    //  assert(nbi->global_id() == bi.id);
+    //}
 
     
 
@@ -429,24 +495,59 @@ void mpi_refresh_ghosts(
    // Refresh the sendbodies with new data
    // auto itsb = ghosts_data.sbodies.begin();
   
-#pragma omp parallel for 
+    #pragma omp parallel for 
     for(size_t i = 0; i < ghosts_data.sbodies.size() ; ++i){
       assert(ghosts_data.sholders[i]->getBody() != nullptr); 
       ghosts_data.sbodies[i] = *(ghosts_data.sholders[i]->getBody()); 
     }
 
-    MPI_Alltoallv(&ghosts_data.sbodies[0],&ghosts_data.nsbodies[0],
-      &ghosts_data.soffsets[0],MPI_BYTE,
-      &ghosts_data.rbodies[0],&ghosts_data.nrbodies[0],
-      &ghosts_data.roffsets[0],MPI_BYTE,MPI_COMM_WORLD);
+    // Point to point communication 
+    std::vector<MPI_Status> status(size); 
+    std::vector<MPI_Request> request(size); 
+#pragma omp parallel 
+{
+    #pragma omp for nowait   
+    for(int i = 0 ; i < size; ++i){
+      if(ghosts_data.nsbodies[i] != 0){
+        char * start = (char*)&(ghosts_data.sbodies[0]);
+        MPI_Isend(start+ghosts_data.soffsets[i],ghosts_data.nsbodies[i],
+            MPI_BYTE,i,0,MPI_COMM_WORLD,&request[i]); 
+      }
+    } // for 
+    #pragma omp for nowait
+    for(int i = 0 ; i < size; ++i){
+      if(ghosts_data.nrbodies[i] != 0){
+        char * start = (char*)&(ghosts_data.rbodies[0]); 
+        MPI_Recv(start+ghosts_data.roffsets[i],ghosts_data.nrbodies[i],
+            MPI_BYTE,i,MPI_ANY_TAG,MPI_COMM_WORLD,&status[i]); 
+      }
+      // Link the received ghosts 
+      #pragma omp parallel for 
+      for(size_t j = ghosts_data.roffsets[i]/sizeof(body); j < 
+         ghosts_data.roffsets[i]/sizeof(body)+
+         ghosts_data.nrbodies[i]/sizeof(body) ; ++j){
+        auto * bh = tree.get_ghost(ghosts_data.rbodies[j].id());  
+        assert(!bh->is_local());
+        bh->setBody(&(ghosts_data.rbodies[j]));
+      } // for 
+      if(ghosts_data.nsbodies[i] != 0){
+        MPI_Wait(&request[i],&status[i]);
+      }
+    } // for 
+} // omp parallel 
 
-#pragma omp parallel for 
+    //MPI_Alltoallv(&ghosts_data.sbodies[0],&ghosts_data.nsbodies[0],
+    //  &ghosts_data.soffsets[0],MPI_BYTE,
+    //  &ghosts_data.rbodies[0],&ghosts_data.nrbodies[0],
+    //  &ghosts_data.roffsets[0],MPI_BYTE,MPI_COMM_WORLD);
+
+//#pragma omp parallel for 
   //For all the received neighbors, need to find a local ghosts 
-  for(size_t i = 0 ; i < ghosts_data.rbodies.size(); ++i){
-    auto * bh = tree.get_ghost(ghosts_data.rbodies[i].id());  
-    assert(!bh->is_local());
-    bh->setBody(&(ghosts_data.rbodies[i]));
-  }
+  //for(size_t i = 0 ; i < ghosts_data.rbodies.size(); ++i){
+  //  auto * bh = tree.get_ghost(ghosts_data.rbodies[i].id());  
+  //  assert(!bh->is_local());
+  //  bh->setBody(&(ghosts_data.rbodies[i]));
+  //}
   
 #ifdef OUTPUT_TREE_INFO
     MPI_Barrier(MPI_COMM_WORLD);
@@ -505,7 +606,7 @@ void mpi_refresh_ghosts(
     {
       
       body_holder * bi = tree.get(i);
-      if(!bi->is_local()) continue;
+      if(!bi->is_shared()) continue;
 
       // array of bools to check unique send 
       std::vector<bool> proc(size,false);

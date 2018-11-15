@@ -119,6 +119,7 @@ public:
     void set_id(id_t& id){id_ = id;}; 
     void set_coordinates(point_t& coordinates){coordinates_=coordinates;};
     void set_h(element_t h){h_=h;};
+    void set_shared(){locality_ = SHARED;};
 
     friend std::ostream& operator<<(std::ostream& os, const body_holder& b){
       os << std::setprecision(10);

@@ -141,6 +141,61 @@ namespace mpi_utils{
       &recvbuffer[0],&recvcount[0],&recvoffsets[0],MPI_BYTE,MPI_COMM_WORLD);
   }
 
+  template<
+    typename M>
+  void 
+  mpi_alltoallv_p2p(
+      std::vector<int> sendcount,
+      std::vector<M>& sendbuffer,
+      std::vector<M>& recvbuffer
+    )
+  {
+    int rank, size; 
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Comm_size(MPI_COMM_WORLD,&size); 
+
+    std::vector<int> recvcount(size), recvoffsets(size), sendoffsets(size); 
+    // Exchange the send count 
+    MPI_Alltoall(&sendcount[0],1,MPI_INT,&recvcount[0],1,MPI_INT,
+      MPI_COMM_WORLD);
+    std::partial_sum(recvcount.begin(),recvcount.end(),&recvoffsets[0]); 
+    recvoffsets.insert(recvoffsets.begin(),0);
+    std::partial_sum(sendcount.begin(),sendcount.end(),&sendoffsets[0]);
+    sendoffsets.insert(sendoffsets.begin(),0);
+    // Set the recvbuffer to the right size
+    recvbuffer.resize(recvoffsets.back()); 
+    // Transform the offsets for bytes 
+#pragma omp parallel for 
+    for(int i=0;i<size;++i){
+      sendcount[i] *= sizeof(M);assert(sendcount[i]>=0);
+      recvcount[i] *= sizeof(M);assert(recvcount[i]>=0); 
+      sendoffsets[i] *= sizeof(M);assert(sendoffsets[i]>=0);
+      recvoffsets[i] *= sizeof(M);assert(recvoffsets[i]>=0); 
+    } // for
+    std::vector<MPI_Status> status(size); 
+    std::vector<MPI_Request> request(size); 
+#pragma omp parallel for  
+    for(int i = 0 ; i < size; ++i){
+      if(sendcount[i] != 0){
+        char * start = (char*)&(sendbuffer[0]);
+        MPI_Isend(start+sendoffsets[i],sendcount[i],MPI_BYTE,
+            i,0,MPI_COMM_WORLD,&request[i]); 
+      }
+    }
+#pragma omp parallel for 
+    for(int i = 0 ; i < size; ++i){
+      if(recvcount[i] != 0){
+        char * start = (char*)&(recvbuffer[0]); 
+        MPI_Recv(start+recvoffsets[i],recvcount[i],MPI_BYTE,
+            i,MPI_ANY_TAG,MPI_COMM_WORLD,&status[i]); 
+      }
+      if(sendcount[i] != 0){
+        MPI_Wait(&request[i],&status[i]);
+      }
+    } 
+} // mpi_alltoallv_p2p
+
+
 
   // MIN REDUCTION MPI -------------------
   
