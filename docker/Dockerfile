@@ -31,17 +31,17 @@ RUN yum install -y which; exit 0
 USER flecsi
 
 #rebuild flecsi-third-party
-WORKDIR /home/flecsi/tpl
-RUN git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
-RUN git submodule update --recursive
-RUN rm -rf build && mkdir build
-WORKDIR /home/flecsi/tpl/build
-RUN  cmake .. -DENABLE_HPX=OFF \
-              -DCMAKE_INSTALL_PREFIX=/usr/local
-USER root
-RUN rm -rf /usr/local/include/legion* /usr/local/include/realm*
-RUN make VERBOSE=1 -j4
-RUN make install
+#WORKDIR /home/flecsi/tpl
+#RUN git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+#RUN git submodule update --recursive
+#RUN rm -rf build && mkdir build
+#WORKDIR /home/flecsi/tpl/build
+#RUN  cmake .. -DENABLE_HPX=OFF \
+#              -DCMAKE_INSTALL_PREFIX=/usr/local
+#USER root
+#RUN rm -rf /usr/local/include/legion* /usr/local/include/realm*
+#RUN make VERBOSE=1 -j4
+#RUN make install
 USER flecsi
 
 #build flecsi
@@ -49,8 +49,7 @@ WORKDIR /home/flecsi
 RUN git clone -b feature/flecsph --depth 1 --recursive https://github.com/laristra/flecsi flecsi 
 RUN  cd flecsi && mkdir build && cd build
 WORKDIR flecsi/build
-RUN  cmake .. -DFLECSI_RUNTIME_MODEL=legion \
-              -DENABLE_LEGION=ON \
+RUN  cmake .. -DFLECSI_RUNTIME_MODEL=mpi \
               -DENABLE_CLOG=OFF \
               -DENABLE_MPI=ON \
               -DENABLE_OPENMP=ON \
@@ -58,7 +57,9 @@ RUN  cmake .. -DFLECSI_RUNTIME_MODEL=legion \
               -DENABLE_CONFORMANCE_STANDARD=c++17 \
               -DLegion_ROOT=/usr/local \
               -DCMAKE_INSTALL_PREFIX=/usr/local \
-              -DENABLE_BOOST_PREPROCESSOR=ON 
+              -DENABLE_BOOST_PREPROCESSOR=ON  \
+              -DENABLE_FLECSIT=OFF \
+              -DENABLE_FLECSI_TUTORIAL=OFF  
 RUN make VERBOSE=1 -j4
 USER root
 RUN make install
@@ -85,17 +86,15 @@ RUN mkdir build
 WORKDIR build
 RUN ccache -z
 # FleCSI lib location regarding distro
-RUN cmake -DENABLE_MPI=$MPI \
+RUN cmake -DENABLE_MPI=ON \
           -DENABLE_UNIT_TESTS=ON \
           -DENABLE_OPENMP=ON \
-          -DENABLE_LEGION=ON \
           -DENABLE_DOXYGEN=ON \
           -DCMAKE_CXX_FLAGS="-fpermissive" \
           -DCXX_CONFORMANCE_STANDARD=c++17 \
           -DENABLE_BOOST_PREPROCESSOR=ON \
           -DENABLE_CLOG=ON \
           -DENABLE_COLOR_UNIT_TEST=ON \
-          -DLegion_ROOT=/usr/local \
           -DFleCSI_INCLUDE_DIR=/usr/local/include \
           -DFleCSI_RUNTIME=/usr/local/share/FleCSI/runtime \
           -DFleCSI_LIBRARY=/usr/local/lib*/libFleCSI.so \

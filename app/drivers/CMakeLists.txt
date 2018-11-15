@@ -7,10 +7,11 @@
 # Debug and release flags     
 #------------------------------------------------------------------------------#
 
+# For vectorization: -fopt-info-vec-missed/optimized/note/all
 set(CMAKE_CXX_FLAGS_DEBUG 
-  "-g -O2 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses")
+  "-DPARALLEL_IO -Wno-sign-compare -Wno-reorder -Wno-narrowing -Wno-deprecated-declaration -ftree-vectorize -ffast-math -msse2 -g -O2 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses")
 set(CMAKE_CXX_FLAGS_RELEASE 
-  "-O3 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses") 
+  "-DPARALLEL_IO -Wno-sign-compare -Wno-reorder -Wno-narrowing -Wno-deprecated-declaration -ftree-vectorize -ffast-math -msse2 -O3 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses") 
 
 # includes 
 

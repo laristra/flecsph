@@ -26,10 +26,10 @@
 #include "flecsi/execution/execution.h"
 #include "flecsi/concurrency/thread_pool.h"
 
-#if FLECSI_RUNTIME_MODEL == FLECSI_RUNTIME_MODEL_legion
-  #include <mpi.h>
+#include <mpi.h>
+#ifdef ENABLE_LEGION
   #include <legion.h>
-#endif
+#endif 
 
 int main(int argc, char * argv[]){
   

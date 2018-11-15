@@ -3,16 +3,16 @@
  * All rights reserved.
  *~--------------------------------------------------------------------------~*/
 
-/*~--------------------------------------------------------------------------~*
- * 
- * /@@@@@@@@ @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
- * /@@///// /@@          @@////@@ @@////// /@@////@@/@@     /@@
- * /@@      /@@  @@@@@  @@    // /@@       /@@   /@@/@@     /@@
- * /@@@@@@@ /@@ @@///@@/@@       /@@@@@@@@@/@@@@@@@ /@@@@@@@@@@
- * /@@////  /@@/@@@@@@@/@@       ////////@@/@@////  /@@//////@@
- * /@@      /@@/@@//// //@@    @@       /@@/@@      /@@     /@@
- * /@@      @@@//@@@@@@ //@@@@@@  @@@@@@@@ /@@      /@@     /@@
- * //       ///  //////   //////  ////////  //       //      //  
+ /*~--------------------------------------------------------------------------~*
+ *
+ * /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
+ * /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
+ * /@@       /@@  @@@@@  @@    // /@@       /@@   /@@/@@     /@@
+ * /@@@@@@@  /@@ @@///@@/@@       /@@@@@@@@@/@@@@@@@ /@@@@@@@@@@
+ * /@@////   /@@/@@@@@@@/@@       ////////@@/@@////  /@@//////@@
+ * /@@       /@@/@@//// //@@    @@       /@@/@@      /@@     /@@
+ * /@@       @@@//@@@@@@ //@@@@@@  @@@@@@@@ /@@      /@@     /@@
+ * //       ///  //////   //////  ////////  //       //      //
  *
  *~--------------------------------------------------------------------------~*/
 
@@ -30,7 +30,9 @@
 #include <iostream>
 
 #include <mpi.h>
+#ifdef ENABLE_LEGION
 #include <legion.h>
+#endif 
 #include <omp.h>
 
 #include "flecsi/execution/execution.h"
@@ -42,6 +44,7 @@
 #include "bodies_system.h"
 #include "default_physics.h"
 #include "analysis.h"
+#include "diagnostic.h"
 
 #define OUTPUT_ANALYSIS
 
@@ -97,52 +100,31 @@ mpi_init_task(const char * parameter_file){
 
   // read input file
   body_system<double,gdimension> bs;
-  bs.read_bodies(initial_data_file.c_str(),output_h5data_prefix,
-      initial_iteration);
+  bs.read_bodies(initial_data_file.c_str(),
+      output_h5data_prefix,initial_iteration);
   bs.setMacangle(param::fmm_macangle);
   bs.setMaxmasscell(param::fmm_max_cell_mass);
-
+  
   MPI_Barrier(MPI_COMM_WORLD);
-  bs.update_iteration();
-  if(thermokinetic_formulation) {
-    // compute total energy for every particle
-    bs.apply_all(physics::set_total_energy);
-  }
-
-  bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
-    
-  if(out_scalar_every > 0 && physics::iteration % out_scalar_every == 0){
-    // Compute conserved quantities
-    bs.get_all(analysis::compute_lin_momentum);
-    bs.get_all(analysis::compute_total_mass);
-    bs.get_all(analysis::compute_total_energy);
-    bs.get_all(analysis::compute_total_ang_mom);
-    analysis::scalar_output("scalar_reductions.dat");
-  }
-
-  //bs.write_bodies(output_h5data_prefix,physics::iteration,physics::totaltime);
-  //++physics::iteration;
-
+   
   do {
     analysis::screen_output(rank);
     MPI_Barrier(MPI_COMM_WORLD);
 
-    if (physics::iteration == 1){
-      
+    if (physics::iteration == param::initial_iteration){
+
       bs.update_iteration();
 
-      // at the initial iteration, P, rho and cs have not been computed yet;
-      // for all subsequent steps, however, they are computed at the end 
-      // of the iteration
-      rank|| clog(trace) << "first iteration: pressure, rho and cs" << std::flush;
-      bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed
-          );
+      if(thermokinetic_formulation) {
+        // compute total energy for every particle
+        bs.apply_all(physics::set_total_energy);
+      }
+
+      bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
       bs.apply_all(integration::save_velocityhalf);
-      rank|| clog(trace) << ".done" << std::endl;
 
       // necessary for computing dv/dt and du/dt in the next step
       bs.update_neighbors();
-
 
       rank|| clog(trace) << "compute rhs of evolution equations" << std::flush;
       bs.apply_in_smoothinglength(physics::compute_acceleration);
@@ -164,21 +146,21 @@ mpi_init_task(const char * parameter_file){
       bs.apply_all(integration::save_velocityhalf);
       rank|| clog(trace) << ".done" << std::endl;
 
-      // sync velocities
-      bs.update_neighbors();
-
       rank|| clog(trace) << "leapfrog: drift" << std::flush;
-      bs.apply_all(integration::leapfrog_drift);
-      bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
+      bs.apply_all(integration::leapfrog_drift); 
       rank|| clog(trace) << ".done" << std::endl;
-
-      // recompute the tree and sync
+      
+      // sync velocities
       bs.update_iteration();
+
+      bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
+
+      // Sync density/pressure/cs
       bs.update_neighbors();
 
       rank|| clog(trace) << "leapfrog: kick two (velocity)" << std::flush;
       bs.apply_in_smoothinglength(physics::compute_acceleration);
-      bs.gravitation_fmm();
+      bs.gravitation_fmm(); 
       bs.apply_all(integration::leapfrog_kick_v);
       rank|| clog(trace) << ".done" << std::endl;
 
@@ -198,7 +180,6 @@ mpi_init_task(const char * parameter_file){
     }
 
     if(sph_variable_h){
-       // The particles moved, compute new smoothing length 
       rank || clog(trace) << "updating smoothing length"<<std::flush;
       bs.get_all(physics::compute_smoothinglength);
       rank || clog(trace) << ".done" << std::endl << std::flush;
@@ -208,7 +189,16 @@ mpi_init_task(const char * parameter_file){
       bs.get_all(physics::compute_average_smoothinglength,bs.getNBodies());
       rank || clog(trace) << ".done" << std::endl << std::flush;
     }
-    
+
+    if (adaptive_timestep) {
+      // Update timestep
+      rank|| clog(trace) << "compute adaptive timestep" << std::flush;
+      bs.apply_all(physics::compute_dt);
+      bs.get_all(physics::set_adaptive_timestep);
+      rank|| clog(trace) << ".done" << std::endl;
+    }
+
+    // Output the scalar values
     if(out_scalar_every > 0 && physics::iteration % out_scalar_every == 0){
       // Compute the analysis values based on physics
       bs.get_all(analysis::compute_lin_momentum);
@@ -219,6 +209,13 @@ mpi_init_task(const char * parameter_file){
       analysis::scalar_output("scalar_reductions.dat");
     }
 
+    // Output the diagnostic
+    if(out_diagnostic_every > 0 && physics::iteration%out_diagnostic_every==0){
+      bs.get_all(diagnostic::compute_neighbors_stats,bs.tree(),bs.getNBodies());
+      bs.get_all(diagnostic::compute_smoothinglength_stats,bs.getNBodies());
+      bs.get_all(diagnostic::compute_velocity_stats,bs.getNBodies());
+      diagnostic::output("diagnostic.dat");
+    }
 
     if(out_h5data_every > 0 && physics::iteration % out_h5data_every == 0){
       bs.write_bodies(output_h5data_prefix,physics::iteration,
@@ -226,6 +223,7 @@ mpi_init_task(const char * parameter_file){
     }
     MPI_Barrier(MPI_COMM_WORLD);
     ++physics::iteration;
+
     physics::totaltime += physics::dt;
 
   } while(physics::iteration <= final_iteration);

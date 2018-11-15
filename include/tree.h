@@ -33,7 +33,7 @@
 #include "tree_topology/tree_entity_id.h"
 #include "flecsi/geometry/point.h"
 #include "flecsi/geometry/space_vector.h"
-#include "utils.h"
+//#include "utils.h"
 
 #include "body.h"
 
@@ -153,8 +153,8 @@ public:
 
     branch(const branch_id_t& id):tree_branch(id){}
 
-    void insert(body_holder* ent){
-      ents_.push_back(ent); 
+    void insert(const flecsi::topology::entity_id_t& id){
+      ents_.push_back(id); 
       if(ents_.size() > num_children){
         refine();
       }
@@ -189,8 +189,8 @@ public:
       ents_.clear(); 
     }
 
-    void remove(body_holder* ent){
-      auto itr = find(ents_.begin(), ents_.end(), ent);
+    void remove(const flecsi::topology::entity_id_t& id){
+      auto itr = find(ents_.begin(), ents_.end(), id);
       ents_.erase(itr);  
       if(ents_.empty()){
         coarsen();
@@ -222,9 +222,10 @@ public:
     point_t coordinates_; 
     double mass_; 
     double radius_;
-    std::vector<body_holder*> ents_; 
+    std::vector<flecsi::topology::entity_id_t> ents_; 
     point_t bmax_;
     point_t bmin_;
+
   }; // class branch 
 
   bool should_coarsen(branch* parent){
@@ -264,10 +265,11 @@ struct traversal
       element_t epsilon = element_t(0),
       bool local_only = false)
   {
+    bool local_branch = false; 
     element_t mass = element_t(0); 
     point_t bmax{}; 
     point_t bmin{}; 
-    element_t radius; 
+    element_t radius = 0.; 
     point_t coordinates = point_t{};
     uint64_t nchildren = 0; 
     for(size_t d = 0 ; d < dimension ; ++d){
@@ -277,27 +279,40 @@ struct traversal
     if(b->is_leaf()){
       for(auto child: *b)
       {
-        if(local_only && !child->is_local()){
+        auto ent = tree->get(child); 
+        if(ent->is_local()){
+          local_branch = true; 
+        }
+        if(local_only && !ent->is_local()){
           continue; 
         }
         nchildren++; 
-        element_t childmass = child->mass();
+        element_t childmass = ent->mass();
         for(size_t d = 0 ; d < dimension ; ++d)
         {
-          bmax[d] = std::max(bmax[d],child->coordinates()[d]+epsilon+
-              child->h());
-          bmin[d] = std::min(bmin[d],child->coordinates()[d]-epsilon-
-              child->h());
+          bmax[d] = std::max(bmax[d],ent->coordinates()[d]+epsilon+ent->h());
+          bmin[d] = std::min(bmin[d],ent->coordinates()[d]-epsilon-ent->h());
         }
-        coordinates += childmass * child->coordinates(); 
-        mass += childmass;  
+        coordinates += childmass * ent->coordinates(); 
+        mass += childmass;
       }
       if(mass > element_t(0))
-        coordinates /= mass; 
+        coordinates /= mass;
+      // Compute the radius 
+      for(auto child: *b)
+      {
+        auto ent = tree->get(child); 
+        radius = std::max(
+            radius,
+            distance(ent->coordinates(),coordinates)  + epsilon + ent->h());
+      } 
     }else{
       for(int i = 0 ; i < (1<<dimension); ++i)
       {
         auto branch = tree->child(b,i);
+        if(branch->is_local()){
+          local_branch=true; 
+        }
         nchildren+=branch->sub_entities();
         mass += branch->mass(); 
         if(branch->mass() > 0)
@@ -312,12 +327,25 @@ struct traversal
       }
       if(mass > element_t(0))
         coordinates /= mass; 
+      // Compute the radius 
+      for(int i = 0 ; i < (1<<dimension); ++i)
+      {
+        auto branch = tree->child(b,i); 
+        radius = std::max(
+            radius,
+            distance(coordinates,branch->coordinates()) + branch->radius()); 
+      }
     }
+    b->set_radius(radius);
     b->set_sub_entities(nchildren);
     b->set_coordinates(coordinates);
     b->set_mass(mass);
     b->set_bmin(bmin);
     b->set_bmax(bmax);
+    local_branch?
+      b->set_locality(branch_t::LOCAL):
+      b->set_locality(branch_t::NONLOCAL); 
+    if(!b->is_local()) tree->nonlocal_branches_add(); 
   }
 
 

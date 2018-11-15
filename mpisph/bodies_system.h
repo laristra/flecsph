@@ -52,10 +52,12 @@ public:
     int rank = 0; 
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     // Display the number of threads in DEBUG mode
+    
     #pragma omp parallel 
-    #pragma omp single 
+    #pragma omp master
     rank || clog(warn)<<"USING OMP THREADS: "<<
       omp_get_num_threads()<<std::endl;
+    
     if(param::sph_variable_h){ 
       rank || clog(warn) <<"Variable smoothing length ENABLE"<<std::endl;
     }
@@ -149,13 +151,15 @@ public:
     #ifdef DEBUG
     minmass_ = 1.0e50;
     totalmass_ = 0.;
-    // Also compute the total mass 
-    for(auto bi: localbodies_){
-      totalmass_ += bi.second.getMass(); 
-      if(bi.second.getMass() < minmass_){
-        minmass_ = bi.second.getMass(); 
+    // Also compute the total mass
+#pragma omp parallel for reduction(+:totalmass_) reduction(min:minmass_)
+    for(size_t i = 0; i < localbodies_.size() ; ++i){
+      totalmass_ += localbodies_[i].second.getMass(); 
+      if(localbodies_[i].second.getMass() < minmass_){
+        minmass_ = localbodies_[i].second.getMass(); 
       }
     }
+
     MPI_Allreduce(MPI_IN_PLACE,&minmass_,1,MPI_DOUBLE,
         MPI_MIN,MPI_COMM_WORLD); 
     MPI_Allreduce(MPI_IN_PLACE,&totalmass_,1,MPI_DOUBLE,
@@ -199,11 +203,13 @@ public:
 
     // Choose the smoothing length to be the biggest from everyone 
     smoothinglength_ = 0;
-    for(auto bi: localbodies_){
-      if(smoothinglength_ < bi.second.getSmoothinglength()){
-        smoothinglength_ = bi.second.getSmoothinglength();
+#pragma omp parallel for reduction(max:smoothinglength_)
+    for(size_t i = 0 ; i < localbodies_.size(); ++i){
+      if(smoothinglength_ < localbodies_[i].second.getSmoothinglength()){
+        smoothinglength_ = localbodies_[i].second.getSmoothinglength();
       }
     }
+    
     MPI_Allreduce(MPI_IN_PLACE,&smoothinglength_,1,MPI_DOUBLE,MPI_MAX,
         MPI_COMM_WORLD);
 
@@ -263,12 +269,17 @@ public:
 
    // Then compute the range of the system 
     tcolorer_.mpi_compute_range(localbodies_,range_);
+
+    rank || clog(trace) << "Range="<<range_[0]<<";"<<range_[1]<<std::endl; 
      
     // Generate the tree based on the range
     tree_ = new tree_topology_t(range_[0],range_[1]);
-    // Compute the keys 
-    for(auto& bi:  localbodies_){
-      bi.first = entity_key_t(tree_->range(),bi.second.coordinates());
+
+    // Compute the keys
+#pragma omp parallel for  
+    for(size_t i = 0; i < localbodies_.size(); ++i){
+      localbodies_[i].first = 
+          entity_key_t(tree_->range(),localbodies_[i].second.coordinates());
     }
 
     tcolorer_.mpi_qsort(localbodies_,totalnbodies_);
@@ -279,12 +290,13 @@ public:
 
     // Add my local bodies in my tree 
     // Clear the bodies_ vector 
-    bodies_.clear();
+    //bodies_.clear();
     for(auto& bi:  localbodies_){
-      auto nbi = tree_->make_entity(bi.second.getPosition(),&(bi.second),rank,
+      auto id = tree_->make_entity(bi.second.getPosition(),&(bi.second),rank,
           bi.second.getMass(),bi.second.getId(),bi.second.getSmoothinglength());
-      tree_->insert(nbi); 
-      bodies_.push_back(nbi);
+      tree_->insert(id);
+      auto nbi = tree_->get(id);  
+      //bodies_.push_back(nbi);
       assert(nbi->global_id() == bi.second.id());
       assert(nbi->getBody() != nullptr);
       assert(nbi->is_local());
@@ -295,7 +307,7 @@ if(!param::do_periodic_boundary)
 {
 #ifdef DEBUG 
     // Check the total number of bodies 
-    int64_t checknparticles = bodies_.size();
+    int64_t checknparticles = tree_->entities().size();
     MPI_Allreduce(MPI_IN_PLACE,&checknparticles,1,MPI_INT64_T,
     MPI_SUM,MPI_COMM_WORLD); 
     assert(checknparticles==totalnbodies_);
@@ -309,13 +321,6 @@ if(!param::do_periodic_boundary)
     tree_->post_order_traversal(tree_->root(),
         traversal_t::update_COM,epsilon_,false);
     assert(tree_->root()->sub_entities() == localnbodies_);
-
-#ifdef OUTPUT_TREE_INFO
-    // Tree informations
-    rank || clog(trace) << *tree_ << " root range = "<< tree_->root()->bmin() 
-     <<";"<<tree_->root()->bmax()<< std::endl; 
-#endif 
-
 
 #ifdef OUTPUT_TREE_INFO
     std::vector<int> nentities(size);
@@ -373,8 +378,14 @@ if(!param::do_periodic_boundary)
     rank|| clog(trace) << oss.str() << std::flush;
 #endif
     
-    tcolorer_.mpi_compute_ghosts(*tree_,bodies_);
-    tcolorer_.mpi_refresh_ghosts(*tree_); 
+    tcolorer_.mpi_compute_ghosts(*tree_);
+    tcolorer_.mpi_refresh_ghosts(*tree_);
+
+#ifdef OUTPUT_TREE_INFO
+    // Tree informations
+    rank || clog(trace) << *tree_ << " root range = "<< tree_->root()->bmin() 
+     <<";"<<tree_->root()->bmax()<< std::endl; 
+#endif 
 
   }
 
@@ -467,10 +478,12 @@ if(!param::do_periodic_boundary)
       EF&& ef,
       ARGS&&... args)
   {
-    int64_t nelem = bodies_.size(); 
+    int64_t nelem = tree_->entities().size(); 
     #pragma omp parallel for 
     for(int64_t i=0; i<nelem; ++i){
-        ef(bodies_[i],std::forward<ARGS>(args)...);
+        auto ent = tree_->get(i); 
+        if(ent->is_local())
+          ef(ent,std::forward<ARGS>(args)...);
     }
   }
 
@@ -491,7 +504,7 @@ if(!param::do_periodic_boundary)
     EF&& ef, 
     ARGS&&... args)
   {
-    ef(bodies_,std::forward<ARGS>(args)...);
+    ef(tree_->entities(),std::forward<ARGS>(args)...);
   }
 
 
@@ -512,10 +525,10 @@ if(!param::do_periodic_boundary)
     EF&& ef, 
     ARGS&&... args)
   {
-    int64_t nelem = bodies_.size();
+    int64_t nelem = tree_->entities().size();
     #pragma omp parallel for 
     for(int64_t i = 0 ; i < nelem; ++i){
-      ef(bodies_[i],bodies_,std::forward<ARGS>(args)...);
+      ef(tree_->get(i),tree_->entities(),std::forward<ARGS>(args)...);
     }
   }
 
@@ -560,11 +573,11 @@ private:
   tree_colorer<T,D> tcolorer_;
   tree_fmm<T,D> tfmm_;        // tree_fmm.h function for FMM 
   tree_topology_t* tree_;     // The particle tree data structure
-  std::vector<body_holder*> bodies_;
+  //std::vector<body_holder*> bodies_;
   double smoothinglength_;    // Keep track of the biggest smoothing length 
   double totalmass_;          // Check the total mass of the system 
   double minmass_;            // Check the minimal mass of the system
-  double epsilon_ = 10e-6;
+  double epsilon_ = 0.;
   
   std::vector<int64_t> neighbors_count_;
   std::vector<body_holder*> neighbors_; 

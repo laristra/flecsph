@@ -28,6 +28,9 @@
 
 #include <vector>
 
+#include <boost/sort/sort.hpp>
+//#include <boost/compute/algorithm/stable_partition.hpp>
+
 #include "params.h"
 
 namespace boundary{
@@ -41,14 +44,32 @@ namespace boundary{
   void pboundary_clean(
       std::vector<std::pair<entity_key_t,body>>& lbodies)
   {
+    // Sort items based on type, all the walls at the end 
+    auto start = std::stable_partition(
+        lbodies.begin(),lbodies.end(), 
+        [](const auto& left)
+        {
+          return left.second.getType() != particle_type_t::WALL; 
+        });
+
+    assert(start != lbodies.begin());
+#ifdef DEBUG
+    for(auto it = start; it != lbodies.end(); ++it)
+      assert(it->second.getType() == particle_type_t::WALL); 
+#endif 
+
+    lbodies.erase(start,lbodies.end());  
+
+    // Delete all the last ones 
+    
     // Delete all local WALL particles
-    for(auto it = lbodies.begin(); it != lbodies.end(); )
-    {
-      if((*it).second.getType() == particle_type_t::WALL)
-        it = lbodies.erase(it);
-      else
-        ++it;
-    }
+    //for(auto it = lbodies.begin(); it != lbodies.end(); )
+    //{
+    //  if((*it).second.getType() == particle_type_t::WALL)
+    //    it = lbodies.erase(it);
+    //  else
+    //    ++it;
+    //}
   }
 
   void pboundary_generate(

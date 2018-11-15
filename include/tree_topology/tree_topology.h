@@ -108,9 +108,8 @@ public:
   using apply_function = std::function<void(branch_t&)>;
   using entity_id_vector_t = std::vector<entity_id_t>;
   using geometry_t = tree_geometry<element_t, dimension>;
-  using entity_space_t = index_space__<entity_t*, true, true, false>;
-  using branch_space_t = index_space__<branch_t*, true, true, false>;
-  using subentity_space_t = index_space__<entity_t*, false, true, false>;
+  using entity_space_t = std::vector<entity_t>;
+  using entity_space_ptr_t = std::vector<entity_t*>;
 
   struct filter_valid{
     bool operator()(entity_t* ent) const{
@@ -153,6 +152,7 @@ public:
     assert(root_ != branch_map_.end());
    
     max_depth_ = 0;
+    max_scale_ = end[0] - start[0]; 
 
     for(size_t d = 0; d < dimension; ++d)
     {
@@ -169,8 +169,10 @@ public:
    */
   ~tree_topology()
   {
-    branch_map_.clear();
+    branch_map_.clear();  
     entities_.clear(); 
+    //entities_ghosts_.clear(); 
+    ghosts_id_.clear(); 
   } 
 
   /** 
@@ -205,20 +207,35 @@ public:
   /*!
     Return an index space containing all entities (including those removed).
    */
-  auto
+  std::vector<entity_t>&
   all_entities() const
   {
-    return entities_.template slice<>();
+    return entities_;
   }
 
   /*!
     Return an index space containing all non-removed entities.
    */
-  auto
+  std::vector<entity_t>&
   entities()
   {
-    return entities_.template cast<
-      entity_t*, false, false, false, filter_valid>();
+    return entities_;
+  }
+
+  //std::vector<entity_id_t>& 
+  //entities_ghosts()
+  //{
+  //  return entities_ghosts_; 
+  //}
+
+  entity_t* 
+  get_ghost(
+      const size_t& global_id)
+  {
+    auto local_id_itr = ghosts_id_.find(global_id);
+    assert(local_id_itr != ghosts_id_.end());
+    auto local_id = local_id_itr->second; 
+    return &(entities_[local_id]); 
   }
 
   /*!
@@ -226,10 +243,10 @@ public:
    */
   void
   insert(
-    entity_t* ent
+    const entity_id_t& id
   )
   {
-    insert(ent, max_depth_);
+    insert(id, max_depth_);
   }
 
   /**
@@ -247,6 +264,7 @@ public:
       F&& function,
       ARGS&&... args)
   {
+    nonlocal_branches_ = 0L; 
     std::stack<branch_t*> stk1; 
     std::stack<branch_t*> stk2;
     stk1.push(start);
@@ -414,40 +432,37 @@ public:
   {
     std::stack<branch_t*> stk;
     stk.push(b);
+
+    std::vector<branch_t*> work_branch; 
     
-    #pragma omp parallel
-    #pragma omp single
     while(!stk.empty()){
       branch_t* c = stk.top();
       stk.pop();
       if(c->is_leaf() && c->sub_entities() > 0){
-        #pragma omp task firstprivate(c)
-        {
-          std::vector<branch_t*> inter_list; 
-          sub_cells_inter(c,MAC,inter_list);
-          force_calc(c,inter_list,do_square,
-              ef,std::forward<ARGS>(args)...);
-        }
+        work_branch.push_back(c);
       }else{
         if((int64_t)c->sub_entities() < ncritical && c->sub_entities() > 0){
-          #pragma omp task firstprivate(c)
-          {
-            std::vector<branch_t*> inter_list; 
-            sub_cells_inter(c,MAC,inter_list);
-            force_calc(c,inter_list,do_square,
-                ef,std::forward<ARGS>(args)...);
-          } 
+          work_branch.push_back(c);
         }else{
           for(int i=0; i<(1<<dimension);++i){
             branch_t * next = child(c,i);
-            if(next->sub_entities() > 0){
+            if(next->sub_entities() > 0 && next->is_local()){
               stk.push(next);
             }
           }
         }
       } 
     }
-    #pragma omp taskwait
+
+    // Start the threads on the branches 
+    #pragma omp parallel for 
+    for(size_t i = 0; i < work_branch.size(); ++i){
+      std::vector<branch_t*> inter_list; 
+      sub_cells_inter(work_branch[i],MAC,inter_list);
+      force_calc(work_branch[i],inter_list,do_square,
+               ef,std::forward<ARGS>(args)...);
+    }
+
   }
 
   void
@@ -498,7 +513,8 @@ public:
       branch_t* c = stk.top();
       stk.pop();
       if(c->is_leaf()){
-        for(auto child: *c){
+        for(auto id: *c){
+          auto child = this->get(id); 
           if(child->is_local()){
             if(do_square)
               apply_sub_entity_sq(child,inter_list,ef,
@@ -532,7 +548,8 @@ public:
   {
     std::vector<entity_t*> neighbors;
     for(auto b: inter_list){
-      for(auto nb: *b){
+      for(auto id: *b){
+        auto nb = this->get(id);
         if(geometry_t::within(
               ent->coordinates(),
               nb->coordinates(),
@@ -558,7 +575,8 @@ public:
   {
     std::vector<entity_t*> neighbors;
     for(auto b: inter_list){
-      for(auto nb: *b){
+      for(auto id: *b){
+        auto nb = this->get(id); 
         if(geometry_t::within_square(
               ent->coordinates(),
               nb->coordinates(),
@@ -578,15 +596,14 @@ public:
    */
   template<
     typename EF>
-  subentity_space_t
+  entity_space_ptr_t
   find_in_radius(
     const point_t& center,
     element_t radius,
     EF&& ef
   )
   {
-    subentity_space_t ents;
-    ents.set_master(entities_);
+    entity_space_ptr_t ents;
 
     // ITERATIVE VERSION
     std::stack<branch_t*> stk;
@@ -596,7 +613,8 @@ public:
       branch_t* b = stk.top();
       stk.pop();
       if(b->is_leaf()){
-        for(auto child: *b){
+        for(auto id: *b){
+          auto child = &(entities_[id]);
           // Check if in radius 
           if(ef(center,child->coordinates(),radius,child->h())){
             ents.push_back(child);
@@ -621,49 +639,20 @@ public:
   }
 
 
-  /*!
-    Return an index space containing all entities within the specified
-    spheroid.
-   */
-  subentity_space_t
-  find_in_radius_n(
-    const point_t& center,
-    element_t radius
-  )
-  {
-    subentity_space_t ents;
-    ents.set_master(entities_);
-
-    auto ef =
-    [&](entity_t* ent, const point_t& center, element_t radius) -> bool{
-      return geometry_t::within(ent->coordinates(), center, radius);
-    };
-
-    size_t depth;
-    element_t size;
-    branch_t* b = find_start_(center, radius, depth, size);
-
-    find_(b, size, ents, ef, geometry_t::intersects, center, radius);
-
-    return ents;
-  }
-
-
 /*!
     Return an index space containing all entities within the specified
     Box
    */
   template<
     typename EF> 
-  subentity_space_t
+  entity_space_ptr_t
   find_in_box(
     const point_t& min,
     const point_t& max,
     EF&& ef
   )
   {
-    subentity_space_t ents;
-    ents.set_master(entities_);
+    entity_space_ptr_t ents;
 
     // ITERATIVE VERSION
     std::stack<branch_t*> stk;
@@ -673,7 +662,8 @@ public:
       branch_t* b = stk.top();
       stk.pop();
       if(b->is_leaf()){
-        for(auto child: *b){
+        for(auto id: *b){
+          auto child = &(entities_[id]);
           // Check if in box 
           if(ef(min,max,child->coordinates(),child->h())){
             ents.push_back(child);
@@ -694,120 +684,6 @@ public:
   }
 
 
-
-    /*!
-      Return an index space containing all entities within the specified
-      box.
-     */
-    subentity_space_t
-    find_in_box(
-      const point_t& min,
-      const point_t& max
-    )
-    {
-      subentity_space_t ents;
-      ents.set_master(entities_);
-
-      auto ef =
-      [&](entity_t* ent, const point_t& min, const point_t& max) -> bool{
-        return geometry_t::within_box(ent->coordinates(), min, max);
-      };
-
-      element_t radius = 0;
-      for(size_t d = 0; d < dimension; ++d)
-      {
-        radius = std::max(radius, max[d] - min[d]);
-      }
-
-      element_t const c = std::sqrt(element_t(2))/element_t(2);
-      radius *= c;
-
-      point_t center = min;
-      center += radius;
-
-      size_t depth;
-      element_t size;
-      branch_t* b = find_start_(center, radius, depth, size);
-
-      find_(b, size, ents, ef, geometry_t::intersects_box, min, max);
-
-      return ents;
-    }
-
-    /*!
-      For all entities within the specified spheroid, apply the given callable
-      object ef with args.
-     */
-    template<
-      typename EF,
-      typename... ARGS
-    >
-    void
-    apply_in_radius(
-      const point_t& center,
-      element_t radius,
-      EF&& ef,
-      ARGS&&... args)
-    {
-
-      auto f = [&](entity_t* ent, const point_t& center, element_t radius)
-      {
-        if(geometry_t::within(ent->coordinates(), center, radius))
-        {
-          ef(ent, std::forward<ARGS>(args)...);
-        }
-      };
-
-      size_t depth;
-      element_t size;
-      branch_t* b = find_start_(center, radius, depth, size);
-
-      apply_(b, size, f, geometry_t::intersects, center, radius);
-    }
-
-    /*!
-      For all entities within the specified spheroid, apply the given callable
-      object ef with args. (Concurrent version.)
-     */
-    template<
-      typename EF,
-      typename... ARGS
-    >
-    void
-    apply_in_box(
-      const point_t& min,
-      const point_t& max,
-      EF&& ef,
-      ARGS&&... args
-    )
-    {
-      auto f = [&](entity_t* ent, const point_t& min, const point_t& max)
-      {
-        if(geometry_t::within_box(ent->coordinates(), min, max))
-        {
-          ef(ent, std::forward<ARGS>(args)...);
-        }
-      };
-
-      element_t radius = 0;
-      for(size_t d = 0; d < dimension; ++d)
-      {
-        radius = std::max(radius, max[d] - min[d]);
-      }
-
-      constexpr element_t c = std::sqrt(element_t(2))/element_t(2);
-      radius *= c;
-
-      point_t center = min;
-      center += radius;
-
-      size_t depth;
-      element_t size;
-      branch_t* b = find_start_(center, radius, depth, size);
-
-      apply_(b, size, f, geometry_t::intersects_box, min, max);
-    }
-
     /*!
       Construct a new entity. The entity's constructor should not be called
       directly.
@@ -815,16 +691,22 @@ public:
     template<
       class... Args
     >
-    entity_t*
+    entity_id_t
     make_entity(
       Args&&... args
     )
     {
-      auto ent = new entity_t(std::forward<Args>(args)...);
-      entity_id_t id = entities_.size();
+      entities_.emplace_back(std::forward<Args>(args)...);
+      auto ent = &(entities_.back());
+      // Size -1 to start at 0 
+      entity_id_t id = entities_.size()-1;
       ent->set_id_(id);
-      entities_.push_back(ent);
-      return ent;
+      if(!ent->is_local()){
+        //entities_ghosts_.push_back(id);
+        // Map of local-global id 
+        ghosts_id_.insert(std::make_pair(ent->global_id(),id));
+      }
+      return id; 
     }
 
     /*!
@@ -845,7 +727,15 @@ public:
     )
     {
       assert(id < entities_.size());
-      return entities_[id];
+      return &(entities_[id]);
+    }
+
+    entity_t* 
+    get(
+        size_t id)
+    {
+      assert(id < entities_.size()); 
+      return &(entities_[id]);
     }
 
     branch_t*
@@ -867,54 +757,17 @@ public:
       return &root_->second;
     }
 
-    /*!
-      Visit and apply callable object f and args on all sub-branches of branch b.
-     */
-    template<
-      typename F,
-      typename... ARGS
-    >
-    void
-    visit(
-      branch_t* b,
-      F&& f,
-      ARGS&&... args
-    )
+    int64_t
+    nonlocal_branches()
     {
-      visit_(b, 0, std::forward<F>(f), std::forward<ARGS>(args)...);
+      return nonlocal_branches_; 
     }
 
-
-    /*!
-      Visit and apply callable object f and args on all sub-entities of branch b.
-     */
-    template<
-    typename F,
-    typename... ARGS
-    >
-    void
-    visit_children(
-      branch_t* b,
-      F&& f,
-      ARGS&&... args
-    )
+    void 
+    nonlocal_branches_add()
     {
-      if(b->is_leaf())
-      {
-        for(auto ent : *b)
-        {
-          f(ent, std::forward<ARGS>(args)...);
-        }
-        return;
-      }
-
-      for(size_t i = 0; i < branch_t::num_children; ++i)
-      {
-        branch_t* bi = b->template child_<branch_t>(i);
-        visit_children(bi, std::forward<F>(f), std::forward<ARGS>(args)...);
-      }
+      ++nonlocal_branches_; 
     }
-
 
     /**
     * @brief Generic information for the tree topology 
@@ -924,6 +777,7 @@ public:
      os<<"Tree topology: "<<"#branches: "<<t.branch_map_.size()<<
        " #entities: "<<t.entities_.size();
      os <<" #root_subentities: "<<t.root()->sub_entities();
+     os <<" #nonlocal_branches: "<<t.nonlocal_branches();
      return os;
    } 
 
@@ -950,15 +804,16 @@ public:
 
       void
       insert(
-        entity_t* ent,
+        const entity_id_t& id,
         size_t max_depth
       )
       {
+        auto ent = &(entities_[id]); 
         branch_id_t bid = to_branch_id(ent->coordinates(), max_depth);
         branch_t& b = find_parent(bid, max_depth);
         ent->set_branch_id_(b.id());
 
-        b.insert(ent);
+        b.insert(id);
 
         switch(b.requested_action_())
         {
@@ -973,7 +828,7 @@ public:
       }
 
 
-      branch_t&
+    branch_t&
       find_parent_(
       branch_id_t bid
     )
@@ -1095,173 +950,7 @@ public:
       double bn = std::log2(double(rb));
       return std::log2(double(n))/bn + 1;
     }
-
-    branch_t*
-    find_start_(
-      const point_t& center,
-      element_t radius,
-      size_t& depth,
-      element_t& size
-    )
-    {
-
-      //element_t norm_radius = radius / max_scale_;
-
-      branch_id_t bid = to_branch_id(center, max_depth_);
-            
-      int d = bid.depth();
-
-      while(d > 0)
-      {
-        branch_t* b = find_parent(bid, d);
-
-        point_t p2;
-        b->id().coordinates(range_, p2);
-
-        size = std::pow(element_t(2), -d);
-
-        //bool found = true;
-        if(!(distance(center,p2) <= radius)){
-          depth = d;
-          return b;
-        }
-        
-        //for(size_t dim = 0; dim < dimension; ++dim)
-        //{
-        //  if(!(center[dim] - radius >= p2[dim] &&
-        //       center[dim] + radius <= p2[dim] + size))
-        //  {
-        //    found = false;
-        //    break;
-        //  }
-        // }
-
-        //if(found)
-        //{
-        //  depth = d;
-        //  return b;
-        //}
-
-        --d;
-      }
-
-      depth = 0;
-      size = element_t(1);
-      return root_;
-    }
-
-    template<
-      typename EF,
-      typename BF,
-      typename... ARGS
-    >
-    void
-    apply_(
-      branch_t* b,
-      element_t size,
-      EF&& ef,
-      BF&& bf,
-      ARGS&&... args
-    )
-    {
-
-      if(b->is_leaf())
-      {
-        for(auto ent : *b)
-        {
-          ef(ent, std::forward<ARGS>(args)...);
-        }
-        return;
-      }
-
-      size /= 2;
-
-      for(size_t i = 0; i < branch_t::num_children; ++i)
-      {
-        branch_t* ci = b->template child_<branch_t>(i);
-
-        if(bf(ci->coordinates(range_),
-              size, scale_, std::forward<ARGS>(args)...))
-        {
-          apply_(ci, size,
-                 std::forward<EF>(ef), std::forward<BF>(bf),
-                 std::forward<ARGS>(args)...);
-        }
-      }
-    }
-
-    template<
-      typename EF,
-      typename BF,
-      typename... ARGS
-    >
-    void
-    find_(
-      branch_t* b,
-      element_t size,
-      subentity_space_t& ents,
-      EF&& ef,
-      BF&& bf,
-      ARGS&&... args
-    )
-    {
-
-      if(b->is_leaf())
-      {
-        for(auto ent : *b)
-        {
-          if(ef(ent, std::forward<ARGS>(args)...))
-          {
-            ents.push_back(ent);
-          }
-        }
-        return;
-      }
-
-      size /= 2;
-
-      for(size_t i = 0; i < branch_t::num_children; ++i)
-      {
-        branch_t* ci = b->template child_<branch_t>(i);
-
-        if(bf(ci->coordinates(range_),
-              size, scale_, std::forward<ARGS>(args)...))
-        {
-          find_(ci, size, ents,
-                std::forward<EF>(ef), std::forward<BF>(bf),
-                std::forward<ARGS>(args)...);
-        }
-      }
-    }
-
-    template<
-      typename F,
-      typename... ARGS
-    >
-    void visit_(
-      branch_t* b,
-      size_t depth,
-      F&& f,
-      ARGS&&... args
-    )
-    {
-      if(f(b, depth, std::forward<ARGS>(args)...))
-      {
-        return;
-      }
-
-      if(b->is_leaf())
-      {
-        return;
-      }
-
-      for(size_t i = 0; i < branch_t::num_children; ++i)
-      {
-        branch_t* bi = b->template child_<branch_t>(i);
-        visit_(bi, depth + 1, std::forward<F>(f), std::forward<ARGS>(args)...);
-      }
-    }
-    
+ 
   // Declared before, here for readability 
   //using branch_map_t = std::unordered_map<branch_id_t, branch_t,
   //    branch_id_hasher__<branch_int_t, dimension>>;
@@ -1274,6 +963,13 @@ public:
   std::array<point__<element_t, dimension>, 2> range_;
   point__<element_t, dimension> scale_;
   element_t max_scale_;
+  std::vector<entity_t> entities_vector_;
+  //std::vector<entity_id_t> entities_ghosts_;
+  int64_t entities_vector_current_; 
+
+  std::map<entity_id_t,entity_id_t> ghosts_id_;
+
+  int64_t nonlocal_branches_;  
 };
 
 } // namespace topology

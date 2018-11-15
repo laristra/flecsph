@@ -30,7 +30,9 @@
 #include <iostream>
 
 #include <mpi.h>
+#ifdef ENABLE_LEGION
 #include <legion.h>
+#endif 
 #include <omp.h>
 
 #include "flecsi/execution/execution.h"
@@ -102,41 +104,22 @@ mpi_init_task(const char * parameter_file){
       output_h5data_prefix,initial_iteration);
 
   MPI_Barrier(MPI_COMM_WORLD);
-  bs.update_iteration();
-  if(thermokinetic_formulation) {
-    // compute total energy for every particle
-    bs.apply_all(physics::set_total_energy);
-  }
-
-  bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
-    
-  if(out_scalar_every > 0 && physics::iteration % out_scalar_every == 0){
-    // Compute conserved quantities
-    bs.get_all(analysis::compute_lin_momentum);
-    bs.get_all(analysis::compute_total_mass);
-    bs.get_all(analysis::compute_total_energy);
-    bs.get_all(analysis::compute_total_ang_mom);
-    analysis::scalar_output("scalar_reductions.dat");
-  }
-
-  //bs.write_bodies(output_h5data_prefix,physics::iteration,physics::totaltime);
-  //++physics::iteration;
-
+   
   do {
     analysis::screen_output(rank);
     MPI_Barrier(MPI_COMM_WORLD);
 
-    if (physics::iteration == 0){
-      
+    if (physics::iteration == param::initial_iteration){
+
       bs.update_iteration();
 
-      // at the initial iteration, P, rho and cs have not been computed yet;
-      // for all subsequent steps, however, they are computed at the end 
-      // of the iteration
-      rank|| clog(trace) << "first iteration: pressure, rho and cs" << std::flush;
+      if(thermokinetic_formulation) {
+        // compute total energy for every particle
+        bs.apply_all(physics::set_total_energy);
+      }
+
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
       bs.apply_all(integration::save_velocityhalf);
-      rank|| clog(trace) << ".done" << std::endl;
 
       // necessary for computing dv/dt and du/dt in the next step
       bs.update_neighbors();
@@ -149,12 +132,6 @@ mpi_init_task(const char * parameter_file){
         bs.apply_in_smoothinglength(physics::compute_dudt);
       rank|| clog(trace) << ".done" << std::endl;
 
-      if (adaptive_timestep) {
-        rank|| clog(trace) << "compute adaptive timestep" << std::flush;
-        bs.apply_all(physics::compute_dt);
-        bs.get_all(physics::set_adaptive_timestep);
-        rank|| clog(trace) << ".done" << std::endl;
-      }
     }
     else {
       rank|| clog(trace) << "leapfrog: kick one" << std::flush;
@@ -166,16 +143,16 @@ mpi_init_task(const char * parameter_file){
       bs.apply_all(integration::save_velocityhalf);
       rank|| clog(trace) << ".done" << std::endl;
 
-      // sync velocities
-      bs.update_neighbors();
-
       rank|| clog(trace) << "leapfrog: drift" << std::flush;
-      bs.apply_all(integration::leapfrog_drift);
-      bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
+      bs.apply_all(integration::leapfrog_drift); 
       rank|| clog(trace) << ".done" << std::endl;
-
-      // recompute the tree and sync
+      
+      // sync velocities
       bs.update_iteration();
+
+      bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
+
+      // Sync density/pressure/cs
       bs.update_neighbors();
 
       rank|| clog(trace) << "leapfrog: kick two (velocity)" << std::flush;
@@ -242,6 +219,7 @@ mpi_init_task(const char * parameter_file){
     }
     MPI_Barrier(MPI_COMM_WORLD);
     ++physics::iteration;
+
     physics::totaltime += physics::dt;
 
   } while(physics::iteration <= final_iteration);

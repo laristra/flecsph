@@ -32,6 +32,8 @@
 #include <numeric>
 #include <omp.h>
 
+#include <boost/sort/sort.hpp>
+
 #include "tree.h"
 #include "utils.h"
 
@@ -82,7 +84,7 @@ private:
   // To share the ghosts data within the radius
   mpi_ghosts_t ghosts_data;
 
-  const int criterion_branches = 64; // Number of branches to share in 
+  const int criterion_branches = 32; // Number of branches to share in 
                                        // exchange_branches
   const size_t noct = 256*1024;        // Number of octets used for quicksort    
 
@@ -164,11 +166,15 @@ public:
     int size, rank;
     MPI_Comm_size(MPI_COMM_WORLD,&size);
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    // double start = omp_get_wtime(); // unused
-
+    
     // Sort the keys 
+    // Use boost parallel sort 
+#if 0     
     std::sort(rbodies.begin(),rbodies.end(),
-      [](auto& left, auto& right){
+#endif 
+    boost::sort::block_indirect_sort(
+        rbodies.begin(),rbodies.end(),
+        [](auto& left, auto& right){
         if(left.first < right.first){
           return true; 
         }
@@ -184,10 +190,7 @@ public:
       return;
     } // if
     
-    MPI_Barrier(MPI_COMM_WORLD);
-
     std::vector<std::pair<entity_key_t,int64_t>> splitters;
-    
     generate_splitters_samples(splitters,rbodies,totalnbodies);
 
     // The rbodies array is already sorted. We just need to determine the 
@@ -216,8 +219,12 @@ public:
     rbodies.clear();
     rbodies = recvbuffer; 
     
-    // Sort the incoming buffer 
+    // Sort the incoming buffer
+#if 0  
     sort(rbodies.begin(),rbodies.end(),
+#endif 
+    boost::sort::block_indirect_sort(
+     rbodies.begin(),rbodies.end(), 
       [](auto& left, auto &right){
         if(left.first<right.first){
           return true; 
@@ -282,13 +289,15 @@ public:
 #endif
 
     // Do a tree search up to a branch 
-    // Keep those branches in a list 
-    
+    // Keep those branches in a list
     std::vector<branch_t*> search_branches; 
     tree.find_sub_cells(
       tree.root(),
       criterion_branches,
       search_branches);
+
+    rank|| clog(trace) << "1. branches: "<< search_branches.size() << std::endl << std::flush;
+    MPI_Barrier(MPI_COMM_WORLD); 
 
     // Make a list of boundaries
     std::vector<range_t> send_branches(search_branches.size());
@@ -303,6 +312,10 @@ public:
     std::vector<int> count; 
     mpi_allgatherv(send_branches,recv_branches,count);
 
+    rank|| clog(trace) << "2. Received:"<<recv_branches.size() << std::endl << std::flush;
+    MPI_Barrier(MPI_COMM_WORLD); 
+
+
     reset_buffers();
     std::vector<body_holder_mpi_t> sendbuffer;
     int cur = 0;
@@ -315,35 +328,44 @@ public:
         cur += count[i];
         continue;
       }
-      std::vector<body_holder_mpi_t> tmpsendbuffer; 
-      for(int j = cur; j < cur+count[i]; ++j ){
-        // Then for each branches
-        tree_topology_t::subentity_space_t ents; 
-        if(param::sph_variable_h){
-          ents = tree.find_in_box(recv_branches[j][0],recv_branches[j][1],
-            tree_geometry_t::intersects_sphere_box);
-        }else{
-          ents = tree.find_in_box(recv_branches[j][0],recv_branches[j][1],
-            tree_geometry_t::within_box);
-        } 
-        for(auto ent: ents){
-          assert(ent != nullptr);
-          tmpsendbuffer.push_back(body_holder_mpi_t{
-            ent->coordinates(),rank,ent->mass(),ent->getBody()->getId(),
-            ent->getBody()->getSmoothinglength()});
-        }
-      }
 
-      std::sort(tmpsendbuffer.begin(),tmpsendbuffer.end(),
-        [](const auto& left, const auto& right){
-          return left.id < right.id;
-      });  
+      // Predicate for the sets 
+      auto set_predicate = [](const auto& left, const auto& right)->bool
+      {
+        return left.id < right.id; 
+      }; 
 
-      tmpsendbuffer.erase(
-          std::unique(tmpsendbuffer.begin(),tmpsendbuffer.end(),
-          [](const auto& left, const auto& right){
-            return (left.id == right.id);
-          }),tmpsendbuffer.end());
+      std::set<body_holder_mpi_t,decltype(set_predicate)> tmpsendbuffer(set_predicate);
+
+      #pragma omp parallel shared(tmpsendbuffer) 
+      {
+        // Local set for the threads 
+        std::set<body_holder_mpi_t,decltype(set_predicate)> tmpsendset(set_predicate); 
+
+        #pragma omp for  
+        for(int j = cur; j < cur+count[i]; ++j ){
+          // Then for each branches
+          tree_topology_t::entity_space_ptr_t ents; 
+          if(param::sph_variable_h){
+            ents = tree.find_in_box(recv_branches[j][0],recv_branches[j][1],
+              tree_geometry_t::intersects_sphere_box);
+          }else{
+            ents = tree.find_in_box(recv_branches[j][0],recv_branches[j][1],
+              tree_geometry_t::within_box);
+          } 
+
+          for(auto ent: ents){
+            assert(ent != nullptr); 
+            tmpsendset.insert(body_holder_mpi_t{
+              ent->coordinates(),rank,ent->mass(),ent->getBody()->getId(),
+              ent->getBody()->getSmoothinglength()});
+          }
+        } // for 
+        // Merge the sets 
+        #pragma omp critical 
+          tmpsendbuffer.merge(tmpsendset); 
+      } // pragma omp parallel 
+
       scount[i] = tmpsendbuffer.size(); 
 
       sendbuffer.insert(sendbuffer.end(),tmpsendbuffer.begin(),
@@ -352,19 +374,32 @@ public:
       cur += count[i];
     }
 
+    rank|| clog(trace) << "3. Entities:"<< sendbuffer.size() << std::endl<<std::flush;
+    rank|| clog(trace) << "BH:"<<sizeof(body_holder_mpi_t)<<" tot:"<<sizeof(body_holder_mpi_t)*sendbuffer.size()<<std::endl<<std::flush; 
+    MPI_Barrier(MPI_COMM_WORLD); 
+
     std::vector<body_holder_mpi_t> recvbuffer;
     mpi_alltoallv(scount,sendbuffer,recvbuffer); 
 
-    // Add them in the tree 
+    rank|| clog(trace) << "4. Ent received:"<<recvbuffer.size()*sizeof(body_holder_mpi_t)<<std::endl<<std::flush;
+    MPI_Barrier(MPI_COMM_WORLD); 
+
+    // Add them in the tree
+    // Not doable in parallel due to the tree utilization  
     for(auto bi: recvbuffer)
     {
+      // Only add if the body is useful  
       assert(bi.owner!=rank);
       assert(bi.mass!=0.);
-      auto nbi = tree.make_entity(bi.position,nullptr,bi.owner,bi.mass,bi.id,
+      auto id = tree.make_entity(bi.position,nullptr,bi.owner,bi.mass,bi.id,
           bi.h);
-      tree.insert(nbi);
+      tree.insert(id);
+      auto nbi = tree.get(id);
+      assert(!nbi->is_local());  
       assert(nbi->global_id() == bi.id);
     }
+
+    
 
 #ifdef OUTPUT_TREE_INFO
     MPI_Barrier(MPI_COMM_WORLD);
@@ -392,47 +427,26 @@ void mpi_refresh_ghosts(
     double start = omp_get_wtime(); 
 #endif 
    // Refresh the sendbodies with new data
-    auto itsb = ghosts_data.sbodies.begin();
-    for(auto bi: ghosts_data.sholders)
-    {
-      assert(bi->getBody()!=nullptr);
-      *itsb = *(bi->getBody());
-      itsb++;
-    }  
+   // auto itsb = ghosts_data.sbodies.begin();
+  
+#pragma omp parallel for 
+    for(size_t i = 0; i < ghosts_data.sbodies.size() ; ++i){
+      assert(ghosts_data.sholders[i]->getBody() != nullptr); 
+      ghosts_data.sbodies[i] = *(ghosts_data.sholders[i]->getBody()); 
+    }
 
     MPI_Alltoallv(&ghosts_data.sbodies[0],&ghosts_data.nsbodies[0],
       &ghosts_data.soffsets[0],MPI_BYTE,
       &ghosts_data.rbodies[0],&ghosts_data.nrbodies[0],
       &ghosts_data.roffsets[0],MPI_BYTE,MPI_COMM_WORLD);
 
-    // Then link the holders with these bodies
-    auto ents = tree.entities().to_vec(); 
-    int64_t nelem = ents.size(); 
-    
-    int64_t totalfound = 0;
-#pragma omp parallel for reduction(+:totalfound)
-    for(int64_t i=0; i<nelem; ++i)
-    {
-      body_holder* bi = ents[i];
-      if(!bi->is_local())
-      {
-        for(auto& nl: ghosts_data.rbodies)
-        {
-          if(bi->global_id() == nl.id())
-          {
-            totalfound++;
-            bi->setBody(&(nl));
-            break;
-          }
-        }
-      }
-    }
-
-    if(totalfound != (int) ghosts_data.rbodies.size())
-      std::cout<<rank<<": t="<<totalfound<<" g="<<ghosts_data.rbodies.size()<<
-       std::endl; 
-    
-    assert(totalfound == (int)ghosts_data.rbodies.size()); 
+#pragma omp parallel for 
+  //For all the received neighbors, need to find a local ghosts 
+  for(size_t i = 0 ; i < ghosts_data.rbodies.size(); ++i){
+    auto * bh = tree.get_ghost(ghosts_data.rbodies[i].id());  
+    assert(!bh->is_local());
+    bh->setBody(&(ghosts_data.rbodies[i]));
+  }
   
 #ifdef OUTPUT_TREE_INFO
     MPI_Barrier(MPI_COMM_WORLD);
@@ -454,8 +468,7 @@ void mpi_refresh_ghosts(
    */
   void 
   mpi_compute_ghosts(
-    tree_topology_t& tree,
-    std::vector<body_holder*>& lbodies
+    tree_topology_t& tree
   )
   {    
     int rank,size;
@@ -484,18 +497,22 @@ void mpi_refresh_ghosts(
     std::fill(ghosts_data.nsbodies.begin(),ghosts_data.nsbodies.end(),0); 
     std::fill(ghosts_data.nrbodies.begin(),ghosts_data.nrbodies.end(),0);
 
-    int64_t nelem = lbodies.size();
+    int64_t nelem = tree.entities().size();
 
     // Count send
 #pragma omp parallel for 
     for(int64_t i=0; i<nelem;++i)
     {
+      
+      body_holder * bi = tree.get(i);
+      if(!bi->is_local()) continue;
+
       // array of bools to check unique send 
       std::vector<bool> proc(size,false);
       proc[rank] = true; 
-      body_holder * bi = lbodies[i];
+
       assert(bi->is_local());
-      tree_topology_t::subentity_space_t nbs; 
+      tree_topology_t::entity_space_ptr_t nbs; 
       if(param::sph_variable_h){
         nbs = tree.find_in_radius(
             bi->coordinates(), 
@@ -544,11 +561,15 @@ void mpi_refresh_ghosts(
 #pragma omp parallel for 
     for(int64_t i=0; i<nelem; ++i)
     {
+ 
+      body_holder* bi = tree.get(i);
+      if(!bi->is_local()) continue; 
+
       std::vector<bool> proc(size,false);
       proc[rank] = true;
-      body_holder* bi = lbodies[i];
+      
       assert(bi->is_local());
-      tree_topology_t::subentity_space_t nbs; 
+      tree_topology_t::entity_space_ptr_t nbs; 
       if(param::sph_variable_h){
         nbs = tree.find_in_radius(
             bi->coordinates(), 
@@ -586,6 +607,9 @@ void mpi_refresh_ghosts(
 
     int64_t totalsendbodies = 0L; 
     int64_t totalrecvbodies = 0L; 
+
+#pragma omp parallel for reduction(+:totalsendbodies) \
+    reduction(+:totalrecvbodies)
     for(int i=0;i<size;++i){
       assert(ghosts_data.nsbodies[i]>=0);
       assert(ghosts_data.nrbodies[i]>=0);
@@ -607,13 +631,16 @@ void mpi_refresh_ghosts(
     ghosts_data.rbodies.resize(totalrecvbodies);
 
     // Convert the offsets to byte
+#pragma omp parallel for 
     for(int i=0;i<size;++i){
       ghosts_data.nsbodies[i]*=sizeof(body);
       ghosts_data.nrbodies[i]*=sizeof(body);
       ghosts_data.soffsets[i]*=sizeof(body);
       ghosts_data.roffsets[i]*=sizeof(body);
     }
-  
+ 
+    assert(totalsendbodies == ghosts_data.sbodies.size()); 
+
 #ifdef OUTPUT_TREE_INFO
     MPI_Barrier(MPI_COMM_WORLD);
     double end = omp_get_wtime();
@@ -645,19 +672,35 @@ void mpi_refresh_ghosts(
 
     lrange[1] = bodies.back().second.coordinates();
     lrange[0] = bodies.back().second.coordinates();
-          
-    for(auto bi: bodies){
-      for(size_t i=0;i<gdimension;++i){
-        if(bi.second.coordinates()[i]+bi.second.getSmoothinglength()>
-            lrange[1][i])
-          lrange[1][i] = bi.second.coordinates()[i]+
-                        bi.second.getSmoothinglength();
-        if(bi.second.coordinates()[i]-bi.second.getSmoothinglength()<
-            lrange[0][i])
-          lrange[0][i] = bi.second.coordinates()[i]-
-                        bi.second.getSmoothinglength();
+
+#pragma omp parallel 
+{
+  range_t trange; 
+  trange[1] = bodies.back().second.coordinates(); 
+  trange[0] = bodies.back().second.coordinates(); 
+
+#pragma omp parallel for 
+    for(size_t i = 0 ; i < bodies.size(); ++i){      
+      for(size_t d = 0; d < gdimension; ++d){
+
+        if(bodies[i].second.coordinates()[d]+
+            bodies[i].second.getSmoothinglength()>trange[1][d])
+          trange[1][d] = bodies[i].second.coordinates()[d]+
+                        bodies[i].second.getSmoothinglength();
+
+        if(bodies[i].second.coordinates()[d]-
+            bodies[i].second.getSmoothinglength()<trange[0][d])
+          trange[0][d] = bodies[i].second.coordinates()[d]-
+                        bodies[i].second.getSmoothinglength();
       }
     }
+#pragma omp critical 
+    for(size_t d = 0 ; d < gdimension; ++d)
+    {
+      lrange[1][d] = std::max(lrange[1][d],trange[1][d]); 
+      lrange[0][d] = std::min(lrange[0][d],trange[0][d]); 
+    }
+}
     
     double max[gdimension]; 
     double min[gdimension]; 
@@ -767,14 +810,10 @@ void mpi_refresh_ghosts(
           return false; 
         });
 
-      //std::cout<<entity_key_t::first_key()<<std::endl;
       for(int i=0;i<size-1;++i){
         int64_t position = (master_nkeys/size)*(i+1);
         splitters[i] = master_keys[position];
-        //std::cout<<splitters[i].first<<std::endl;
       } // for
-      // Last key 
-      //std::cout<<entity_key_t::last_key()<<std::endl;
     } // if
 
     // Bradcast the splitters 
