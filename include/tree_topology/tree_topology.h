@@ -56,6 +56,7 @@
 #include "flecsi/topology/index_space.h"
 
 #include "morton_id.h"
+#include "hilbert_id.h"
 #include "tree_branch.h"
 #include "tree_entity.h"
 #include "tree_geometry.h"
@@ -68,7 +69,8 @@ namespace topology {
 template<
   typename T,
   size_t D,
-  class IDTYPE=morton_id<T,D>
+  class IDTYPE=hilbert_id<T,D> 
+  //  class IDTYPE=morton_id<T,D>
 >
 struct branch_id_hasher__{
   size_t
@@ -246,6 +248,7 @@ public:
     const entity_id_t& id
   )
   {
+    //std::cout<<"Inserting -------------> "<<id<<std::endl;
     insert(id, max_depth_);
   }
 
@@ -808,9 +811,12 @@ public:
         size_t max_depth
       )
       {
+        //std::cout<<"Inserting body "<<id<<std::endl;
         auto ent = &(entities_[id]); 
         branch_id_t bid = to_branch_id(ent->coordinates(), max_depth);
+        //std::cout<<"Searching parent at depth:"<<max_depth<<std::endl;
         branch_t& b = find_parent(bid, max_depth);
+        //std::cout<<"Parent is: "<<std::endl<<"P: "<<b.id()<<std::endl;
         ent->set_branch_id_(b.id());
 
         b.insert(id);
@@ -877,6 +883,7 @@ public:
       branch_t& b
     )
     {
+      //std::cout<<"Refining"<<std::endl;
       // Not leaf anymore 
       branch_id_t pid = b.id();
       size_t depth = pid.depth() + 1;
@@ -886,10 +893,13 @@ public:
       {
         branch_id_t cid = pid;
         cid.push(i);
+        //std::cout<<"Adding branch:"<<std::endl;
+        //std::cout<<"N: "<<cid<<std::endl;
         branch_map_.emplace(cid,cid);
       }
 
       max_depth_ = std::max(max_depth_, depth);
+      //std::cout<<"new max_depth="<<max_depth_<<std::endl;
 
       for(auto ent : b)
       {
@@ -899,6 +909,7 @@ public:
       b.set_leaf(false); 
       b.clear();
       b.reset();
+      //std::cout<<"Refining done"<<std::endl;
     }
 
     // helper method in coarsening

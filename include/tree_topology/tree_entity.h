@@ -47,6 +47,7 @@
 
 #include "tree_entity_id.h"
 #include "morton_id.h"
+#include "hilbert_id.h"
 #include "tree_branch.h"
 #include "tree_geometry.h"
 
@@ -65,7 +66,8 @@ class tree_entity{
 public:
 
   using id_t = entity_id_t;
-  using branch_id_t = morton_id<T, D>;
+  using branch_id_t = hilbert_id<T,D>; 
+  //using branch_id_t = morton_id<T, D>;
   
 protected:
   enum e_locality_ {LOCAL=0,NONLOCAL=1,SHARED=2,EXCL=3,GHOST=4}; 

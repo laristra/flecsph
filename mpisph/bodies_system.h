@@ -288,6 +288,19 @@ public:
     rank || clog(trace) << "Construction of the tree"<<std::endl;
 #endif
 
+    // Sort the bodies 
+    boost::sort::block_indirect_sort(
+      localbodies_.begin(),localbodies_.end(), 
+        [](auto& left, auto &right){
+          if(left.first<right.first){
+            return true; 
+          }
+          if(left.first == right.first){
+            return left.second.getId()<right.second.getId(); 
+          }
+          return false; 
+    }); // sort
+
     // Add my local bodies in my tree 
     // Clear the bodies_ vector 
     //bodies_.clear();

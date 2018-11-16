@@ -44,6 +44,7 @@
 #include "flecsi/topology/index_space.h"
 
 #include "morton_id.h"
+#include "hilbert_id.h"
 
 namespace flecsi {
 namespace topology {
@@ -78,7 +79,8 @@ public:
 public:
   using branch_int_t = T;
   static const size_t dimension = D;
-  using branch_id_t = morton_id<T, D>;
+  using branch_id_t = hilbert_id<T,D>; 
+  //  using branch_id_t = morton_id<T, D>;
   using id_t = branch_id_t;
   static constexpr size_t num_children = 1 << dimension;
   using point_t = point__<E,D>;

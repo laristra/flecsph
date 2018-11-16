@@ -257,7 +257,6 @@ public:
     // Sort the incoming buffer
 #if 0  
     sort(rbodies.begin(),rbodies.end(),
-#endif 
     boost::sort::block_indirect_sort(
      rbodies.begin(),rbodies.end(), 
       [](auto& left, auto &right){
@@ -269,7 +268,7 @@ public:
         }
         return false; 
       }); // sort
-   
+#endif   
 
 #ifdef OUTPUT 
     std::vector<int> totalprocbodies;
@@ -732,6 +731,23 @@ void mpi_refresh_ghosts(
 
     MPI_Alltoall(&ghosts_data.nsbodies[0],1,MPI_INT,
         &ghosts_data.nrbodies[0],1,MPI_INT,MPI_COMM_WORLD);
+
+#ifdef DEBUG 
+    // total receive 
+    int64_t totalnrecv = 0; 
+    for(size_t i = 0 ; i < ghosts_data.nrbodies.size(); ++i)
+      totalnrecv += ghosts_data.nrbodies[i];
+    std::vector<int64_t> tabnrecv(size); 
+    MPI_Gather(&totalnrecv,1,MPI_INT64_T,&(tabnrecv[0]),1,MPI_INT64_T,0,
+        MPI_COMM_WORLD);
+    if(rank == 0){
+      std::ostringstream oss;
+      for(size_t i = 0 ; i < size; ++i){
+        oss << tabnrecv[i] << ";";  
+      }
+      clog(trace) << oss.str() << std::endl;
+    }
+#endif 
 
     int64_t totalsendbodies = 0L; 
     int64_t totalrecvbodies = 0L; 

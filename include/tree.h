@@ -56,8 +56,9 @@ public:
   using space_vector_t = flecsi::space_vector<element_t,dimension>;
   using geometry_t = flecsi::topology::tree_geometry<element_t, gdimension>;
   using id_t = flecsi::topology::entity_id_t;
-  using key_t = flecsi::topology::morton_id<branch_int_t,dimension>;
 
+  using key_t = flecsi::topology::hilbert_id<branch_int_t,dimension>;
+  //using key_t = flecsi::topology::morton_id<branch_int_t,dimension>;
 
   /** 
    * @brief BODY_HOLDER, entity in the tree. Light representation of a body
@@ -186,7 +187,7 @@ public:
       } 
     }
 
-    point_t 
+/*    point_t 
     coordinates(
         const std::array<flecsi::point__<element_t, dimension>,2>& range) 
     const{
@@ -194,7 +195,7 @@ public:
       branch_id_t bid = id(); 
       bid.coordinates(range,p);
       return p;
-    }
+    }*/
 
     point_t coordinates(){return coordinates_;};
     element_t mass(){return mass_;};
