@@ -46,18 +46,6 @@ void driver(int argc, char*argv[]);
 } // namespace execution
 } // namespace flecsi 
 
-struct body_holder_mpi_t{
-  static const size_t dimension = gdimension;
-  using element_t = type_t; 
-  using point_t = flecsi::point__<element_t, dimension>;
-
-  point_t position; 
-  int owner; 
-  double mass;
-  flecsi::topology::entity_id_t id;
-  double h; 
-};
-
 class tree_policy{
 public:
   using tree_t = flecsi::topology::tree_topology<tree_policy>;

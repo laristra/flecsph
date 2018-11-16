@@ -61,6 +61,18 @@ struct mpi_ghosts_t{
   std::vector<body_holder*> rholders;
 };
 
+struct body_holder_mpi_t{
+  static const size_t dimension = gdimension;
+  using element_t = type_t; 
+  using point_t = flecsi::point__<element_t, dimension>;
+
+  point_t position; 
+  int owner; 
+  double mass;
+  flecsi::topology::entity_id_t id;
+  double h; 
+};
+
 /**
  * @brief      All the function and buffers for the tree_colorer.
  *
@@ -81,11 +93,13 @@ private:
   std::vector<int> roffset;
   std::vector<int> soffset;
 
+  // Communication of body_holders
+  MPI_Datatype MPI_BH_T;
+
   // To share the ghosts data within the radius
   mpi_ghosts_t ghosts_data;
 
-  const int criterion_branches = 32; // Number of branches to share in 
-                                       // exchange_branches
+  const int criterion_branches = 1; // Number of sub-entities in the branches 
   const size_t noct = 256*1024;        // Number of octets used for quicksort    
 
   void reset_buffers()
@@ -132,6 +146,25 @@ public:
     ghosts_data.nrbodies.resize(size);
     ghosts_data.roffsets.resize(size);
     ghosts_data.soffsets.resize(size);
+
+    // Create the types for communications 
+    // Create datatype
+    body_holder_mpi_t tmp;  
+    MPI_Datatype type[5] = 
+      {MPI_DOUBLE,MPI_INT,MPI_DOUBLE,MPI_INT64_T,MPI_DOUBLE};
+    int blocklen[5] = { gdimension, 2, 1, 1, 1};
+    MPI_Aint disp[5];
+    disp[0] = 0;
+    disp[1] = sizeof(double)*gdimension;
+    disp[2] = disp[1] + sizeof(int)*2; // Times 2 due to alignement 
+    disp[3] = disp[2] + sizeof(double); 
+    disp[4] = disp[3] + sizeof(int64_t); 
+    MPI_Type_create_struct(5, blocklen, disp, type, &MPI_BH_T);
+    MPI_Type_commit(&MPI_BH_T);
+
+    int size_BH; 
+    MPI_Type_size(MPI_BH_T,&size_BH);
+    rank|| clog(trace) << "Size of MPI_BH_T: "<<size_BH<< " BH: "<<sizeof(body_holder_mpi_t)<<std::endl; 
   }
 
   ~tree_colorer(){}
@@ -379,13 +412,10 @@ public:
     }
 
     rank|| clog(trace) << "3. Entities:"<< sendbuffer.size() << std::endl<<std::flush;
-    rank|| clog(trace) << "BH:"<<sizeof(body_holder_mpi_t)<<" tot:"<<sizeof(body_holder_mpi_t)*sendbuffer.size()<<std::endl<<std::flush; 
+    rank|| clog(trace) << "BH:"<<sizeof(body_holder_mpi_t)<<" tot:"<<sendbuffer.size()<<std::endl<<std::flush; 
     MPI_Barrier(MPI_COMM_WORLD); 
 
     std::vector<body_holder_mpi_t> recvbuffer;
-    // Exchange the bodies and add them in the tree 
-    //mpi_alltoallv_p2p(scount,sendbuffer,recvbuffer); 
-    int size_bhm = sizeof(body_holder_mpi_t); 
     
     std::vector<int> recvcount(size), recvoffsets(size), sendoffsets(size); 
     // Exchange the send count 
@@ -400,10 +430,10 @@ public:
     // Transform the offsets for bytes 
     #pragma omp parallel for 
     for(int i=0;i<size;++i){
-      scount[i] *= size_bhm;assert(scount[i]>=0);
-      recvcount[i] *= size_bhm;assert(recvcount[i]>=0); 
-      sendoffsets[i] *= size_bhm;assert(sendoffsets[i]>=0);
-      recvoffsets[i] *= size_bhm;assert(recvoffsets[i]>=0); 
+      assert(scount[i]>=0);
+      assert(recvcount[i]>=0); 
+      assert(sendoffsets[i]>=0);
+      assert(recvoffsets[i]>=0); 
     } // for
     std::vector<MPI_Status> status(size); 
     std::vector<MPI_Request> request(size);
@@ -413,24 +443,21 @@ public:
     #pragma omp for nowait  
     for(int i = 0 ; i < size; ++i){
       if(scount[i] != 0){
-        char * start = (char*)&(sendbuffer[0]);
-        MPI_Isend(start+sendoffsets[i],scount[i],MPI_BYTE,
+        MPI_Isend(&(sendbuffer[sendoffsets[i]]),scount[i],MPI_BH_T,
           i,0,MPI_COMM_WORLD,&request[i]); 
       }
     }
     #pragma omp for nowait 
     for(int i = 0 ; i < size; ++i){
       if(recvcount[i] != 0){
-        char * start = (char*)&(recvbuffer[0]); 
-        MPI_Recv(start+recvoffsets[i],recvcount[i],MPI_BYTE,
+        MPI_Recv(&(recvbuffer[recvoffsets[i]]),recvcount[i],MPI_BH_T,
           i,MPI_ANY_TAG,MPI_COMM_WORLD,&status[i]); 
         // Add in the tree 
         #pragma omp critical
         {
-          size_t start = recvoffsets[i]/size_bhm;
-          size_t stop = start+recvcount[i]/size_bhm;
-          for(size_t i = start; i < stop; ++i ){
-            auto* bi = &(recvbuffer[i]);
+          for(size_t j = recvoffsets[i]; j < recvoffsets[i]+recvcount[i]; ++j )
+          {
+            auto* bi = &(recvbuffer[j]);
             assert(bi->owner!=rank);
             assert(bi->mass!=0.);
             auto id = tree.make_entity(bi->position,nullptr,bi->owner,bi->mass,
@@ -448,7 +475,7 @@ public:
     }
 } // omp parallel  
 
-    rank|| clog(trace) << "4. Ent received:"<<recvbuffer.size()*sizeof(body_holder_mpi_t)<<std::endl<<std::flush;
+    rank|| clog(trace) << "4. Ent received:"<<recvbuffer.size()<<std::endl<<std::flush;
     //MPI_Barrier(MPI_COMM_WORLD); 
 
     // Add them in the tree
