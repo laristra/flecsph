@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <cassert>
 #include <math.h>
-#include <H5hut.h>
+//#include <H5hut.h>
 
 #include "user.h"
 #include "sodtube.h"
@@ -34,8 +34,8 @@
 //
 void print_usage() {
   using namespace std;
-  clog_one(warn) << "Initial data generator for the wind tunnel test in" 
-                 << gdimension << "D" << endl << "Usage: ./wtunnel_" 
+  clog_one(warn) << "Initial data generator for the wind tunnel test in"
+                 << gdimension << "D" << endl << "Usage: ./wtunnel_"
                  << gdimension << "d_generator <parameter-file.par>"
                  << endl;
 }
@@ -183,7 +183,7 @@ int main(int argc, char * argv[]){
   clog_one(info) << "Actual number of particles: " << tparticles << std::endl;
   // delete the output file if exists
   remove(initial_data_file.c_str());
-    
+/*
   h5_file_t * dataFile = H5OpenFile(initial_data_file.c_str(),
       H5_O_WRONLY, MPI_COMM_WORLD);
 
@@ -214,9 +214,9 @@ int main(int argc, char * argv[]){
   H5PartWriteDataInt64(dataFile,"id",id);
 
   H5CloseFile(dataFile);
-
+*/
   delete[] x, y, z, vx, vy, vz, ax, ay, az, h, rho, u, P, m, id, dt;
-  
+
 
   MPI_Finalize();
   return 0;

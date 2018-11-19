@@ -35,7 +35,7 @@
 #include <algorithm>
 #include <cassert>
 #include <math.h>
-#include <H5hut.h>
+//#include <H5hut.h>
 
 #include "user.h"
 #include "noh.h"
@@ -210,13 +210,13 @@ int main(int argc, char * argv[]){
 
   // remove the previous file
   remove(initial_data_file.c_str());
-
+/*
   h5_file_t * dataFile = H5OpenFile(initial_data_file.c_str()
       ,H5_O_WRONLY, MPI_COMM_WORLD);
-    
-  int use_fixed_timestep = 1; 
+
+  int use_fixed_timestep = 1;
   // add the global attributes
-  
+
   H5WriteFileAttribInt64(dataFile,"nparticles",&nparticles,1);
   H5WriteFileAttribFloat64(dataFile,"timestep",&timestep,1);
   int dim = gdimension;
@@ -240,10 +240,10 @@ int main(int argc, char * argv[]){
   H5PartWriteDataFloat64(dataFile,"P",P);
   H5PartWriteDataFloat64(dataFile,"m",m);
   H5PartWriteDataInt64(dataFile,"id",id);
- 
-  H5CloseFile(dataFile);
 
-  delete[] x, y, z, vx, vy, vz, ax, ay, az, h, rho, u, P, m, id, dt; 
+  H5CloseFile(dataFile);
+*/
+  delete[] x, y, z, vx, vy, vz, ax, ay, az, h, rho, u, P, m, id, dt;
 
   MPI_Finalize();
   return 0;

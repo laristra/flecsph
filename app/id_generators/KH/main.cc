@@ -8,14 +8,16 @@
 #include <algorithm>
 #include <cassert>
 #include <math.h>
-#include <H5hut.h>
+//#include <H5hut.h>
 
 #include "user.h"
 #include "sodtube.h"
 #include "params.h"
 #include "lattice.h"
 #include "kernels.h"
+#include "io.h"
 
+using namespace io;
 //
 // help message
 //
@@ -120,7 +122,7 @@ void set_derived_params() {
   }
   dy_tb = dy * sph_sep_tb/sph_separation;
 
-  // adjust top and bottom blocks 
+  // adjust top and bottom blocks
   tbox_min[1] = mbox_max[1] - dy + 0.5*(dy_tb + dy);
   double bbox_width = 2*dy_tb * floor((bbox_max[1] - bbox_min[1])/(2*dy_tb));
   bbox_max[1] = mbox_min[1] - 0.5*(dy_tb + dy) + dy;
@@ -234,9 +236,9 @@ int main(int argc, char * argv[]){
     vy[part] = 0.;
 
     // Add velocity perturbation a-la Price (2008)
-    if(y[part] < 0.25 and y[part] > 0.25 - 0.025) 
+    if(y[part] < 0.25 and y[part] > 0.25 - 0.025)
       vy[part] = KH_A*sin(-2*M_PI*(x[part]+.5)/KH_lambda);
-    if(y[part] >-0.25 and y[part] <-0.25 + 0.025) 
+    if(y[part] >-0.25 and y[part] <-0.25 + 0.025)
       vy[part] = KH_A*sin(2*M_PI*(x[part]+.5)/KH_lambda);
 
     // compute internal energy using gamma-law eos
@@ -252,32 +254,32 @@ int main(int argc, char * argv[]){
   // delete the output file if exists
   remove(initial_data_file.c_str());
 
-  h5_file_t * dataFile = H5OpenFile(initial_data_file.c_str(),
-      H5_O_WRONLY | H5_VFD_MPIIO_IND, MPI_COMM_WORLD);
+  hid_t dataFile = H5P_openFile(initial_data_file.c_str(),H5F_ACC_RDWR);
 
   int use_fixed_timestep = 1;
   // add the global attributes
-  H5WriteFileAttribInt64(dataFile,"nparticles",&nparticles,1);
-  H5WriteFileAttribFloat64(dataFile,"timestep",&timestep,1);
+  H5P_writeAttribute(dataFile,"nparticles",&nparticles);
+  H5P_writeAttribute(dataFile,"timestep",&timestep);
   int dim = gdimension;
-  H5WriteFileAttribInt32(dataFile,"dimension",&dim,1);
-  H5WriteFileAttribInt32(dataFile,"use_fixed_timestep",&use_fixed_timestep,1);
+  H5P_writeAttribute(dataFile,"dimension",&dim);
+  H5P_writeAttribute(dataFile,"use_fixed_timestep",&use_fixed_timestep);
 
-  H5SetStep(dataFile,0);
-  H5PartSetNumParticles(dataFile,nparticles);
-  H5PartWriteDataFloat64(dataFile,"x",x);
-  H5PartWriteDataFloat64(dataFile,"y",y);
-  H5PartWriteDataFloat64(dataFile,"z",z);
-  H5PartWriteDataFloat64(dataFile,"vx",vx);
-  H5PartWriteDataFloat64(dataFile,"vy",vy);
-  H5PartWriteDataFloat64(dataFile,"h",h);
-  H5PartWriteDataFloat64(dataFile,"rho",rho);
-  H5PartWriteDataFloat64(dataFile,"u",u);
-  H5PartWriteDataFloat64(dataFile,"P",P);
-  H5PartWriteDataFloat64(dataFile,"m",m);
-  H5PartWriteDataInt64(dataFile,"id",id);
+  H5P_setStep(dataFile,0);
 
-  H5CloseFile(dataFile);
+  //H5PartSetNumParticles(dataFile,nparticles);
+  H5P_writeDataset(dataFile,"x",x,nparticles);
+  H5P_writeDataset(dataFile,"y",y,nparticles);
+  H5P_writeDataset(dataFile,"z",z,nparticles);
+  H5P_writeDataset(dataFile,"vx",vx,nparticles);
+  H5P_writeDataset(dataFile,"vy",vy,nparticles);
+  H5P_writeDataset(dataFile,"h",h,nparticles);
+  H5P_writeDataset(dataFile,"rho",rho,nparticles);
+  H5P_writeDataset(dataFile,"u",u,nparticles);
+  H5P_writeDataset(dataFile,"P",P,nparticles);
+  H5P_writeDataset(dataFile,"m",m,nparticles);
+  H5P_writeDataset(dataFile,"id",id,nparticles);
+
+  H5P_closeFile(dataFile);
 
   delete[] x, y, z, vx, vy, vz, ax, ay, az, h, rho, u, P, m, id, dt;
 

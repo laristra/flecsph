@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <cassert>
 #include <math.h>
-#include <H5hut.h>
+//#include <H5hut.h>
 
 #include "user.h"
 #include "sodtube.h"
@@ -254,13 +254,13 @@ int main(int argc, char * argv[]){
   if(equal_separation){
     for(int64_t part=0; part<tparticles; ++part){
       id[part] = posid++;
-      if (particle_lattice::in_domain_1d(x[part], 
+      if (particle_lattice::in_domain_1d(x[part],
           cbox_min[0], cbox_max[0], domain_type)) {
         P[part] = pressure_1;
         rho[part] = rho_1;
         vx[part] = vx_1;
         m[part] = rho[part]/(double)parts_mid;
-      } 
+      }
       else {
         P[part] = pressure_2;
         rho[part] = rho_2;
@@ -279,12 +279,12 @@ int main(int argc, char * argv[]){
   if(equal_mass){
     for(int64_t part=0; part<tparticles; ++part){
       id[part] = posid++;
-      if (particle_lattice::in_domain_1d(x[part], 
+      if (particle_lattice::in_domain_1d(x[part],
           cbox_min[0], cbox_max[0], domain_type)) {
         P[part] = pressure_1;
         rho[part] = rho_1;
         vx[part] = vx_1;
-      } 
+      }
       else {
         P[part] = pressure_2;
         rho[part] = rho_2;
@@ -305,15 +305,15 @@ int main(int argc, char * argv[]){
     << std::flush;
   // delete the output file if exists
   remove(initial_data_file.c_str());
-
+/*
   h5_file_t * dataFile = H5OpenFile(initial_data_file.c_str(),
       H5_O_WRONLY | H5_VFD_MPIIO_IND, MPI_COMM_WORLD);
-    
-  int use_fixed_timestep = 1; 
+
+  int use_fixed_timestep = 1;
   // add the global attributes
   H5WriteFileAttribInt64(dataFile,"nparticles",&tparticles,1);
   H5WriteFileAttribFloat64(dataFile,"timestep",&timestep,1);
-  int dim = gdimension; 
+  int dim = gdimension;
   H5WriteFileAttribInt32(dataFile,"dimension",&dim,1);
   H5WriteFileAttribInt32(dataFile,"use_fixed_timestep",&use_fixed_timestep,1);
 
@@ -329,10 +329,10 @@ int main(int argc, char * argv[]){
   H5PartWriteDataFloat64(dataFile,"P",P);
   H5PartWriteDataFloat64(dataFile,"m",m);
   H5PartWriteDataInt64(dataFile,"id",id);
- 
-  H5CloseFile(dataFile);
 
-  delete[] x, y, z, vx, vy, vz, ax, ay, az, h, rho, u, P, m, id, dt; 
+  H5CloseFile(dataFile);
+*/
+  delete[] x, y, z, vx, vy, vz, ax, ay, az, h, rho, u, P, m, id, dt;
 
   MPI_Finalize();
   return 0;
