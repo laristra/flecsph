@@ -40,45 +40,6 @@
 
 namespace io{
 
-/*
-double
-input_parameter_double(
-    const char * filename,
-    const char * attribute_name)
-{
-
-  auto dataFile = H5OpenFile(filename,H5_O_RDONLY
-      | H5_VFD_MPIIO_IND,// Flag to be not use mpiposix
-      MPI_COMM_WORLD);
-
-  double value;
-  if(H5_SUCCESS != H5ReadFileAttribFloat64(dataFile,attribute_name,&value)){
-    value = double{};
-  }
-  H5CloseFile(dataFile);
-  return value;
-}
-
-
-int
-input_parameter_int(
-    const char * filename,
-    const char * attribute_name)
-{
-
-  auto dataFile = H5OpenFile(filename,H5_O_RDONLY
-      | H5_VFD_MPIIO_IND,// Flag to be not use mpiposix
-      MPI_COMM_WORLD);
-
-  int value;
-  if(H5_SUCCESS != H5ReadFileAttribInt32(dataFile,attribute_name,&value)){
-    value = int{};
-  }
-  H5CloseFile(dataFile);
-  return value;
-}
-*/
-
 hid_t group_id; // Group id to keep track of the current step
 
 hid_t
@@ -312,16 +273,23 @@ H5P_writeAttribute(
   /* Create the dataspace for the dataset.*/
   hid_t filespace = H5Screate_simple(1, &hdim, NULL);
   /*Create the dataset with default properties and close filespace.*/
-  hid_t att_id = H5Acreate(file_id, dsname, H5T_NATIVE_INT, filespace,
-    H5P_DEFAULT, H5P_DEFAULT);
+  hid_t att_id = 1;
 
   if(typeid(T) == typeid(int)){
+    att_id = H5Acreate(file_id, dsname, H5T_NATIVE_INT, filespace,
+      H5P_DEFAULT, H5P_DEFAULT);
     status = H5Awrite(att_id, H5T_NATIVE_INT, data);
   }else if(typeid(T) == typeid(double)){
+    att_id = H5Acreate(file_id, dsname, H5T_NATIVE_DOUBLE, filespace,
+      H5P_DEFAULT, H5P_DEFAULT);
     status = H5Awrite(att_id, H5T_NATIVE_DOUBLE, data);
   }else if (typeid(T) == typeid(int64_t)){
+    att_id = H5Acreate(file_id, dsname, H5T_NATIVE_LLONG, filespace,
+      H5P_DEFAULT, H5P_DEFAULT);
     status = H5Awrite(att_id, H5T_NATIVE_LLONG, data);
   }else if (typeid(T) == typeid(uint64_t)){
+    att_id = H5Acreate(file_id, dsname, H5T_NATIVE_ULLONG, filespace,
+      H5P_DEFAULT, H5P_DEFAULT);
     status = H5Awrite(att_id, H5T_NATIVE_ULLONG, data);
   } else {
     MPI_Barrier(MPI_COMM_WORLD);
@@ -350,16 +318,23 @@ H5P_writeAttributeStep(
   /* Create the dataspace for the dataset.*/
   hid_t filespace = H5Screate_simple(1, &hdim, NULL);
   /*Create the dataset with default properties and close filespace.*/
-  hid_t att_id = H5Acreate(group_id, dsname, H5T_NATIVE_INT, filespace,
-    H5P_DEFAULT, H5P_DEFAULT);
+  hid_t att_id = 1;
 
   if(typeid(T) == typeid(int)){
+    att_id = H5Acreate(group_id, dsname, H5T_NATIVE_INT, filespace,
+      H5P_DEFAULT, H5P_DEFAULT);
     status = H5Awrite(att_id, H5T_NATIVE_INT, data);
   }else if(typeid(T) == typeid(double)){
+    att_id = H5Acreate(group_id, dsname, H5T_NATIVE_DOUBLE, filespace,
+      H5P_DEFAULT, H5P_DEFAULT);
     status = H5Awrite(att_id, H5T_NATIVE_DOUBLE, data);
   }else if (typeid(T) == typeid(int64_t)){
+    att_id = H5Acreate(group_id, dsname, H5T_NATIVE_LLONG, filespace,
+      H5P_DEFAULT, H5P_DEFAULT);
     status = H5Awrite(att_id, H5T_NATIVE_LLONG, data);
   }else if (typeid(T) == typeid(uint64_t)){
+    att_id = H5Acreate(group_id, dsname, H5T_NATIVE_ULLONG, filespace,
+      H5P_DEFAULT, H5P_DEFAULT);
     status = H5Awrite(att_id, H5T_NATIVE_ULLONG, data);
   } else {
     MPI_Barrier(MPI_COMM_WORLD);

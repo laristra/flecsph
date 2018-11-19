@@ -131,7 +131,7 @@ public:
     }
     return value;
   }
-#endif 
+#endif
   /**
    * @brief      Read the bodies from H5part file Compute also the total to
    *             check for mass lost

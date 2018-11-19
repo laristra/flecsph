@@ -41,7 +41,7 @@
 #include "flecsi/data/storage.h"
 #include "flecsi/data/data_client.h"
 #include "flecsi/topology/index_space.h"
- 
+
 
 namespace flecsi{
 namespace topology{
@@ -59,7 +59,7 @@ class hilbert_id
 public:
 
   using int_t = T;
-  
+
   static const size_t dimension = D;
   static constexpr size_t bits = sizeof(int_t) * 8;
   static constexpr size_t max_depth = bits/dimension-1;
@@ -69,24 +69,24 @@ public:
   {}
 
 
-  void rotation(int_t& n, 
-      std::array<int_t,dimension>& coords, 
+  void rotation(int_t& n,
+      std::array<int_t,dimension>& coords,
       std::array<int_t,dimension>& bits)
   {
     if(bits[1] == 0){
       if(bits[0] == 1){
-        coords[0] = n-1 - coords[0]; 
-        coords[1] = n-1 - coords[1]; 
+        coords[0] = n-1 - coords[0];
+        coords[1] = n-1 - coords[1];
       }
-      // Swap X-Y or Z 
-      int t = coords[0]; 
-      coords[0] = coords[1]; 
-      coords[1] = t; 
+      // Swap X-Y or Z
+      int t = coords[0];
+      coords[0] = coords[1];
+      coords[1] = t;
     }
   }
 
-  
-  /* 2D Hilbert key 
+
+  /* 2D Hilbert key
    * Hilbert key is always generated to the max_depth and then truncated
    * */
   template<
@@ -97,29 +97,35 @@ public:
     size_t depth)
   : id_(int_t(1) << max_depth * dimension + bits%dimension)
   {
-    assert(depth <= max_depth); 
+    assert(depth <= max_depth);
 
-    std::array<int_t, dimension> coords;
-    // Convert the position to integer 
+    std::array<int_t, dimension> coords{};
+    //std::fill(coords.begin(),coords.end(),0);
+
+    // Convert the position to integer
     for(size_t i = 0; i < dimension; ++i)
     {
       S min = range[0][i];
       S scale = range[1][i] - min;
-      coords[i] = (p[i] - min)/scale * (int_t(1) << (bits - 1)/dimension);
+      coords[i] = (p[i] - min)/scale * (int_t(1) << ((bits - 1)/dimension));
     }
 
-    if(dimension == 0) 
+    if(dimension == 1)
     {
-      id_ = coords[0]; 
-      return; 
+      std::cout<<coords[0]<<std::endl;
+      assert(id_ & 1UL<<max_depth);
+      id_ |= coords[0]>>dimension;
+      id_ >>= (max_depth-depth);
+      std::cout<<"k: "<<std::bitset<64>(id_)<<std::endl<<std::flush;
+      return;
     }
 
     //std::cout<<"b: "<<std::bitset<64>(id_)<<std::endl;
     //std::cout<<"max_depth="<<max_depth<<" depth="<<depth<<std::endl;
-    int_t mask = static_cast<int_t>(1)<<(max_depth); 
+    int_t mask = static_cast<int_t>(1)<<(max_depth);
     for(int_t s = mask>>1 ; s > 0; s >>= 1)
     {
-      std::array<int_t,dimension> bits; 
+      std::array<int_t,dimension> bits;
       for(size_t j = 0 ; j < dimension; ++j)
       {
         bits[j] = (s & coords[j]) > 0;
@@ -128,11 +134,11 @@ public:
       rotation(s,coords,bits);
     }
     // Then truncate the key to the depth
-    id_ >>= (max_depth-depth)*dimension; 
+    id_ >>= (max_depth-depth)*dimension;
     //std::cout<<"pos: "<<p<<std::endl;
     //std::cout<<"k: "<<std::bitset<64>(id_)<<std::endl;
 
-    // Be sure the head bit is one 
+    // Be sure the head bit is one
     //assert((id_ & (int_t(1)<<depth*dimension+bits%dimension)) > 0);
   }
 
@@ -352,8 +358,8 @@ public:
   }*/
 
   /**
-   * @brief Compute the range of a branch from its key 
-   * The space is recursively decomposed regarding the dimension 
+   * @brief Compute the range of a branch from its key
+   * The space is recursively decomposed regarding the dimension
    */
 /*  template<
     typename S
@@ -361,16 +367,16 @@ public:
   std::array<point__<S,dimension>, 2>
   range(
       const std::array<point__<S,dimension>, 2>& range)
-  { 
-    // The result range 
+  {
+    // The result range
     std::array<point__<S,dimension>, 2> result;
-    result[0] = range[0]; 
-    result[1] = range[1]; 
-    // Copy the key 
-    int_t tmp = id_; 
-    int_t root = hilbert_id::root().id_; 
-    
-    // Extract x,y and z 
+    result[0] = range[0];
+    result[1] = range[1];
+    // Copy the key
+    int_t tmp = id_;
+    int_t root = hilbert_id::root().id_;
+
+    // Extract x,y and z
     std::array<int_t, dimension> coords;
     coords.fill(int_t(0));
 
@@ -389,22 +395,22 @@ public:
     }
 
     std::cout<<"depth="<<d<<std::endl;
-   
+
     for(size_t i = 0 ; i < dimension ; ++i)
     {
-      // apply the reduction 
+      // apply the reduction
       for(size_t j = d ; j > 0; --j)
       {
         double nu = (result[0][i]+result[1][i])/2.;
         if(coords[i] & (int_t(1)<<j-1))
         {
-          result[0][i] = nu; 
+          result[0][i] = nu;
         }else{
           result[1][i] = nu;
         }
       }
     }
-    return result; 
+    return result;
   }*/
 
 private:
@@ -418,10 +424,10 @@ private:
   {}
 };
 
-// output for hilbert id 
+// output for hilbert id
 template<
-  typename T, 
-  size_t D> 
+  typename T,
+  size_t D>
 std::ostream&
 operator<<(
   std::ostream& ostr,
@@ -431,7 +437,7 @@ operator<<(
   return ostr;
 }
 
-} // namespace topology 
+} // namespace topology
 } // namespace flecsi
 
 #endif // flecsi_topology_hilbert_id_h
