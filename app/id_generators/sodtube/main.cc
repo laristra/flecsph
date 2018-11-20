@@ -316,6 +316,7 @@ int main(int argc, char * argv[]){
   H5P_writeAttribute(dataFile,"dimension",&dim);
   H5P_writeAttribute(dataFile,"use_fixed_timestep",&use_fixed_timestep);
 
+  H5P_setNumParticles(tparticles);
   H5P_setStep(dataFile,0);
 
   //H5PartSetNumParticles(dataFile,nparticles);

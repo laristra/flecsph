@@ -265,8 +265,12 @@ public:
     // Choose the smoothing length to be the biggest from everyone
     smoothinglength_ = getSmoothinglength();
 
-    if(param::do_periodic_boundary)
+    if(param::do_periodic_boundary){
       boundary::pboundary_generate(localbodies_,2.*smoothinglength_);
+      localnbodies_ = localbodies_.size();
+      MPI_Allreduce(&localnbodies_,&totalnbodies_,1,MPI_INT64_T,MPI_SUM,
+        MPI_COMM_WORLD);
+    }
 
    // Then compute the range of the system
     tcolorer_.mpi_compute_range(localbodies_,range_);

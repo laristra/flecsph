@@ -240,6 +240,7 @@ int main(int argc, char * argv[]){
 
   // remove the previous file
   remove(initial_data_file.c_str());
+
   hid_t dataFile = H5P_openFile(initial_data_file.c_str(),H5F_ACC_RDWR);
 
   int use_fixed_timestep = 1;
@@ -250,6 +251,7 @@ int main(int argc, char * argv[]){
   H5P_writeAttribute(dataFile,"dimension",&dim);
   H5P_writeAttribute(dataFile,"use_fixed_timestep",&use_fixed_timestep);
 
+  H5P_setNumParticles(nparticles);
   H5P_setStep(dataFile,0);
 
   //H5PartSetNumParticles(dataFile,nparticles);
