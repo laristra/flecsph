@@ -75,8 +75,8 @@ RUN HDF5_USE_SHLIB=yes ${SONARQUBE:+build-wrapper-linux-x86-64 --out-dir bw-outp
 RUN ccache -s
 RUN make doxygen
 RUN make install DESTDIR=${PWD}/install && rm -rf ${PWD}/install
-ENV export LD_LIBRARY_PATH="/usr/local/lib64/:${LD_LIBRARY_PATH}"
-ENV export LD_LIBRARY_PATH="/usr/local/lib/:${LD_LIBRARY_PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/lib64/:${LD_LIBRARY_PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/lib/:${LD_LIBRARY_PATH}"
 RUN echo $LD_LIBRARY_PATH
 RUN make test ARGS="-V"
 RUN cd .. && if [ ${COVERAGE} ]; then \
