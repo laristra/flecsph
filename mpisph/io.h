@@ -48,103 +48,11 @@ hsize_t IO_count;
 int64_t IO_nparticlesproc;
 int64_t IO_nparticles;
 
-hid_t
-H5P_openFile(const char * filename,	unsigned int flags )
-{
-  //std::cout<<"Opening file";
-  MPI_Comm comm  = MPI_COMM_WORLD;
-  MPI_Info info  = MPI_INFO_NULL;
-  /* Set up file access property list with parallel I/O access */
-  hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
-  H5Pset_fapl_mpio(plist_id, comm, info);
-
-  hid_t file_id = 0;
-  if( access( filename, F_OK ) != -1 ) {
-    // file exists
-    //std::cout<<"EXISTING FILE"<<std::endl;
-    file_id = H5Fopen(filename, flags, plist_id);
-  }else{
-    //std::cout<<"CREATING FILE"<<std::endl;
-    file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
-  }
-
-  H5Pclose(plist_id);
-  //std::cout<<"done"<<std::endl;
-  return file_id;
-}
-
-void
-H5P_closeFile(hid_t& file_id)
-{
-  //if(H5I_type_t(group_id) == H5I_GROUP)
-  H5Gclose(IO_group_id);
-  H5Fclose(file_id);
-}
-
-bool
-H5P_hasStep(hid_t& file_id, size_t step)
-{
-  hid_t error_stack = 0;
-  H5Eset_auto(error_stack, NULL, NULL);
-
-  /* Turn off error handling */
-  //H5Eset_auto(error_stack, NULL, NULL);
-
-  /* Save old error handler */
-  //herr_t (*old_func)(hid_t,void*);
-  //void *old_client_data;
-  //hid_t estack_id = H5Eget_current_stack();
-  //hid_t nstack = H5Ecreate_stack();
-  //H5Eget_auto(estack_id, &old_func, &old_client_data);
-  /* Turn off error handling */
-  //H5Eset_auto(nstack, NULL, NULL);
-  //std::cout<<"Checking step: "<<step<<" ";
-  char cstep[255];
-  sprintf(cstep,"/Step#%lu",step);
-  hid_t stat = H5Gget_objinfo (file_id, cstep, 0, NULL);
-  /* Restore previous error handler */
-  //H5Eset_auto(estack_id, old_func, old_client_data);
-  if (stat == 0){
-    //std::cout<<"FOUND"<<std::endl;
-    return true;
-  }
-  //std::cout<<"NOTFOUND"<<std::endl;
-  return false;
-}
-
-void
-H5P_setStep(
-  hid_t& file_id,
-  size_t step
-)
-{
-  //std::cout<<"Creating GROUP";
-  char cstep[255];
-  sprintf(cstep,"/Step#%lu",step);
-  hid_t plist_id = H5Pcreate(H5P_DATASET_XFER);
-  H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
-  if(H5P_hasStep(file_id,step)){
-    IO_group_id = H5Gopen(file_id, cstep, H5P_DEFAULT );
-  }else{
-    IO_group_id = H5Gcreate(file_id, cstep, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  }
-  //std::cout<<"done"<<std::endl;
-  H5Pclose(plist_id);
-}
-
-/**
-*
-*/
 template<
   typename T>
 hid_t
-H5P_writeDataset(
-  hid_t& file_id,
-  const char * dsname,
-  T* data,
-  size_t dim = IO_nparticlesproc)
+H5P_getType(T* data)
 {
-
   hid_t type = H5T_NATIVE_INT;
   if(typeid(T) == typeid(int)){
   }else if(typeid(T) == typeid(double)){
@@ -158,15 +66,85 @@ H5P_writeDataset(
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();
   }
+  return type;
+}
 
-  //std::cout<<"Writing Dataset "<<dsname<<std::flush;
+hid_t
+H5P_openFile(const char * filename,	unsigned int flags )
+{
+  MPI_Comm comm  = MPI_COMM_WORLD;
+  MPI_Info info  = MPI_INFO_NULL;
+  /* Set up file access property list with parallel I/O access */
+  hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
+  H5Pset_fapl_mpio(plist_id, comm, info);
+
+  hid_t file_id = 0;
+  if( access( filename, F_OK ) != -1 ) {
+    file_id = H5Fopen(filename, flags, plist_id);
+  }else{
+    file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
+  }
+
+  H5Pclose(plist_id);
+  return file_id;
+}
+
+void
+H5P_closeFile(hid_t& file_id)
+{
+  H5Gclose(IO_group_id);
+  H5Fclose(file_id);
+}
+
+bool
+H5P_hasStep(hid_t& file_id, size_t step)
+{
+  hid_t error_stack = 0;
+  H5Eset_auto(error_stack, NULL, NULL);
+
+  char cstep[255];
+  sprintf(cstep,"/Step#%lu",step);
+  hid_t stat = H5Gget_objinfo (file_id, cstep, 0, NULL);
+  if (stat == 0){
+    return true;
+  }
+  return false;
+}
+
+void
+H5P_setStep(
+  hid_t& file_id,
+  size_t step
+)
+{
+  char cstep[255];
+  sprintf(cstep,"/Step#%lu",step);
+  hid_t plist_id = H5Pcreate(H5P_DATASET_XFER);
+  H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
+  if(H5P_hasStep(file_id,step)){
+    IO_group_id = H5Gopen(file_id, cstep, H5P_DEFAULT );
+  }else{
+    IO_group_id = H5Gcreate(file_id, cstep, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  }
+  H5Pclose(plist_id);
+}
+
+template<
+  typename T>
+hid_t
+H5P_writeDataset(
+  hid_t& file_id,
+  const char * dsname,
+  T* data,
+  size_t dim = IO_nparticlesproc)
+{
+
+  hid_t type = H5P_getType(data);
+
   hid_t status = 1;
-  //char cstep[255];
-  //sprintf(cstep,"/#Step%lu/%s",step,dsname);
   hsize_t hdim = dim;
   /* Create the dataspace for the dataset.*/
   hsize_t total = IO_nparticles;
-  //std::cout<<"Total: "<<total<<std::endl;
   hid_t filespace = H5Screate_simple(1, &total, NULL);
   hid_t dset_id = H5Dcreate(IO_group_id, dsname, type, filespace,
     H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -174,11 +152,7 @@ H5P_writeDataset(
 
   hsize_t offset_in = 0;
   hsize_t count_in = dim;
-  //std::cout<<"Count: "<<dim<<std::endl;
   hid_t memspace = H5Screate_simple(1, &count_in, NULL);
-  // output hyperslab
-  //status = H5Sselect_hyperslab(memspace, H5S_SELECT_SET, &offset_in, NULL,
-  //   &count_in, NULL);
 
   // Select the hyperslab
   hid_t dataspace = H5Dget_space(dset_id);
@@ -193,16 +167,12 @@ H5P_writeDataset(
   // Close everythings
   H5Sclose(memspace);
   H5Sclose(dataspace);
-  //H5Sclose(filespace);
   H5Dclose(dset_id);
   H5Pclose(plist_id);
 
   H5Fflush(file_id, H5F_SCOPE_GLOBAL);
-
-  //std::cout<<"done"<<std::endl;
   return status;
 }
-
 
 template<
   typename T>
@@ -212,32 +182,18 @@ H5P_readAttribute(
   const char * dsname,
   T* data)
 {
-  //std::cout<<"Reading Attribute";
-  //char cstep[255];
-  //sprintf(cstep,"/%s",dsname);
+  hid_t type = H5P_getType(data);
+
   hid_t status = 1;
   hid_t att_id = H5Aopen(file_id,dsname,H5P_DEFAULT);
   /*Create property list for collective dataset write.*/
   hid_t plist_id = H5Pcreate(H5P_DATASET_XFER);
   H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
-  /* To write dataset independently use
-  * H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);*/
-  if(typeid(T) == typeid(int)){
-    status = H5Aread(att_id, H5T_NATIVE_INT, data);
-  }else if(typeid(T) == typeid(double)){
-    status = H5Aread(att_id, H5T_NATIVE_DOUBLE, data);
-  }else if (typeid(T) == typeid(int64_t)){
-    status = H5Aread(att_id, H5T_NATIVE_LLONG, data);
-  }else if (typeid(T) == typeid(uint64_t)){
-    status = H5Aread(att_id, H5T_NATIVE_ULLONG, data);
-  } else {
-    MPI_Barrier(MPI_COMM_WORLD);
-    MPI_Finalize();
-  }
+
+  status = H5Aread(att_id, type, data);
 
   H5Aclose(att_id);
   H5Pclose(plist_id);
-  //std::cout<<"done: "<<*data<<std::endl;
   return status;
 }
 
@@ -249,30 +205,18 @@ H5P_readAttributeStep(
   const char * dsname,
   T* data)
 {
-  //std::cout<<"Reading Attribute Step: "<<dsname;
+  hid_t type = H5P_getType(data);
+
   hid_t status = 1;
   hid_t att_id = H5Aopen(IO_group_id,dsname,H5P_DEFAULT);
   /*Create property list for collective dataset write.*/
   hid_t plist_id = H5Pcreate(H5P_DATASET_XFER);
   H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
-  /* To write dataset independently use
-  * H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);*/
-  if(typeid(T) == typeid(int)){
-    status = H5Aread(att_id, H5T_NATIVE_INT, data);
-  }else if(typeid(T) == typeid(double)){
-    status = H5Aread(att_id, H5T_NATIVE_DOUBLE, data);
-  }else if (typeid(T) == typeid(int64_t)){
-    status = H5Aread(att_id, H5T_NATIVE_LLONG, data);
-  }else if (typeid(T) == typeid(uint64_t)){
-    status = H5Aread(att_id, H5T_NATIVE_ULLONG, data);
-  } else {
-    MPI_Barrier(MPI_COMM_WORLD);
-    MPI_Finalize();
-  }
+
+  status = H5Aread(att_id, type, data);
 
   H5Aclose(att_id);
   H5Pclose(plist_id);
-  //std::cout<<"done: "<<*data<<std::endl;
   return status;
 }
 
@@ -284,39 +228,21 @@ H5P_writeAttribute(
   const char * dsname,
   T* data)
 {
-  //std::cout<<"Writing Attribute";
-  hid_t status = 1;
+  hid_t type = H5P_getType(data);
 
+  hid_t status = 1;
   hsize_t hdim = 1;
   /* Create the dataspace for the dataset.*/
   hid_t filespace = H5Screate_simple(1, &hdim, NULL);
   /*Create the dataset with default properties and close filespace.*/
   hid_t att_id = 1;
 
-  if(typeid(T) == typeid(int)){
-    att_id = H5Acreate(file_id, dsname, H5T_NATIVE_INT, filespace,
+  att_id = H5Acreate(file_id, dsname, type, filespace,
       H5P_DEFAULT, H5P_DEFAULT);
-    status = H5Awrite(att_id, H5T_NATIVE_INT, data);
-  }else if(typeid(T) == typeid(double)){
-    att_id = H5Acreate(file_id, dsname, H5T_NATIVE_DOUBLE, filespace,
-      H5P_DEFAULT, H5P_DEFAULT);
-    status = H5Awrite(att_id, H5T_NATIVE_DOUBLE, data);
-  }else if (typeid(T) == typeid(int64_t)){
-    att_id = H5Acreate(file_id, dsname, H5T_NATIVE_LLONG, filespace,
-      H5P_DEFAULT, H5P_DEFAULT);
-    status = H5Awrite(att_id, H5T_NATIVE_LLONG, data);
-  }else if (typeid(T) == typeid(uint64_t)){
-    att_id = H5Acreate(file_id, dsname, H5T_NATIVE_ULLONG, filespace,
-      H5P_DEFAULT, H5P_DEFAULT);
-    status = H5Awrite(att_id, H5T_NATIVE_ULLONG, data);
-  } else {
-    MPI_Barrier(MPI_COMM_WORLD);
-    MPI_Finalize();
-  }
+  status = H5Awrite(att_id, type, data);
 
   H5Sclose(filespace);
   H5Aclose(att_id);
-  //std::cout<<"done"<<std::endl;
   return status;
 }
 
@@ -328,40 +254,20 @@ H5P_writeAttributeStep(
   const char * dsname,
   T* data)
 {
-  //std::cout<<"Writing Attribute Step";
+  hid_t type = H5P_getType(data);
+
   hid_t status = 1;
   hsize_t hdim = 1;
-  //char cstep[255];
-  //sprintf(cstep,"/#Step%lu/%s",step,dsname);
-  /* Create the dataspace for the dataset.*/
   hid_t filespace = H5Screate_simple(1, &hdim, NULL);
   /*Create the dataset with default properties and close filespace.*/
   hid_t att_id = 1;
 
-  if(typeid(T) == typeid(int)){
-    att_id = H5Acreate(IO_group_id, dsname, H5T_NATIVE_INT, filespace,
+  att_id = H5Acreate(IO_group_id, dsname, type, filespace,
       H5P_DEFAULT, H5P_DEFAULT);
-    status = H5Awrite(att_id, H5T_NATIVE_INT, data);
-  }else if(typeid(T) == typeid(double)){
-    att_id = H5Acreate(IO_group_id, dsname, H5T_NATIVE_DOUBLE, filespace,
-      H5P_DEFAULT, H5P_DEFAULT);
-    status = H5Awrite(att_id, H5T_NATIVE_DOUBLE, data);
-  }else if (typeid(T) == typeid(int64_t)){
-    att_id = H5Acreate(IO_group_id, dsname, H5T_NATIVE_LLONG, filespace,
-      H5P_DEFAULT, H5P_DEFAULT);
-    status = H5Awrite(att_id, H5T_NATIVE_LLONG, data);
-  }else if (typeid(T) == typeid(uint64_t)){
-    att_id = H5Acreate(IO_group_id, dsname, H5T_NATIVE_ULLONG, filespace,
-      H5P_DEFAULT, H5P_DEFAULT);
-    status = H5Awrite(att_id, H5T_NATIVE_ULLONG, data);
-  } else {
-    MPI_Barrier(MPI_COMM_WORLD);
-    MPI_Finalize();
-  }
+  status = H5Awrite(att_id, type, data);
 
   H5Sclose(filespace);
   H5Aclose(att_id);
-  //std::cout<<"done"<<std::endl;
   return status;
 }
 
@@ -374,9 +280,10 @@ H5P_readDataset(
   T* data,
   size_t dim = IO_nparticlesproc)
 {
+  hid_t type = H5P_getType(data);
+
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  //std::cout<<"Reading Dataset: "<<dsname<<std::flush;
   hid_t status = 1;
   /* Open the dataset*/
   hid_t dset_id = H5Dopen (IO_group_id, dsname, H5P_DEFAULT);
@@ -395,30 +302,14 @@ H5P_readDataset(
   // Select the hyperslab
   hid_t dataspace = H5Dget_space(dset_id);
   H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &IO_offset, NULL, &IO_count, NULL);
-  /* To write dataset independently use
-  * H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);*/
-  if(typeid(T) == typeid(int)){
-      status = H5Dread(dset_id, H5T_NATIVE_INT, memspace, dataspace,
+
+  status = H5Dread(dset_id, type, memspace, dataspace,
         plist_id, data);
-  }else if(typeid(T) == typeid(double)){
-      status = H5Dread(dset_id, H5T_NATIVE_DOUBLE, memspace, dataspace,
-        plist_id, data);
-  }else if (typeid(T) == typeid(int64_t)){
-    status = H5Dread(dset_id, H5T_NATIVE_LLONG, memspace, dataspace,
-      plist_id, data);
-  }else if (typeid(T) == typeid(uint64_t)){
-    status = H5Dread(dset_id, H5T_NATIVE_ULLONG, memspace, dataspace,
-      plist_id, data);
-  } else {
-    MPI_Barrier(MPI_COMM_WORLD);
-    MPI_Finalize();
-  }
 
   H5Sclose(memspace);
   H5Sclose(dataspace);
   H5Dclose(dset_id);
   H5Pclose(plist_id);
-  //std::cout<<"done"<<std::endl<<std::flush;
   return status;
 }
 
@@ -443,7 +334,6 @@ H5P_setNumParticles(const int64_t& nparticlesproc)
   IO_offset = offcount[rank];
   IO_count = nparticlesproc;
 
-  //std::cout<<"nparticles: "<<IO_nparticles<<" nparticlesproc: "<<IO_nparticlesproc<<std::endl;
   return IO_nparticlesproc;
 }
 

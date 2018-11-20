@@ -294,10 +294,10 @@ public:
 #endif
 
 // Sort the bodies
-#if 1
-    std::sort(
-#else
+#ifdef BOOST_PARALLEL
     boost::sort::block_indirect_sort(
+#else
+    std::sort(
 #endif
       localbodies_.begin(),localbodies_.end(),
         [](auto& left, auto &right){

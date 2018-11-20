@@ -42,6 +42,7 @@
 
 using namespace mpi_utils;
 
+#define BOOST_PARALLEL 1
 // Output the data regarding the distribution for debug
 #define OUTPUT_TREE_INFO 1
 
@@ -203,10 +204,10 @@ public:
 
     // Sort the keys
     // Use boost parallel sort
-#if 1
-    std::sort(
-#else
+#ifdef BOOST_PARALLEL
     boost::sort::block_indirect_sort(
+#else
+    std::sort(
 #endif
         rbodies.begin(),rbodies.end(),
         [](auto& left, auto& right){
@@ -255,22 +256,6 @@ public:
 
     rbodies.clear();
     rbodies = recvbuffer;
-
-    // Sort the incoming buffer
-#if 0
-    sort(rbodies.begin(),rbodies.end(),
-    boost::sort::block_indirect_sort(
-     rbodies.begin(),rbodies.end(),
-      [](auto& left, auto &right){
-        if(left.first<right.first){
-          return true;
-        }
-        if(left.first == right.first){
-          return left.second.getId()<right.second.getId();
-        }
-        return false;
-      }); // sort
-#endif
 
 #ifdef OUTPUT
     std::vector<int> totalprocbodies;
