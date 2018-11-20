@@ -42,7 +42,7 @@
 
 using namespace mpi_utils;
 
-#define BOOST_PARALLEL 1
+//#define BOOST_PARALLEL 1
 // Output the data regarding the distribution for debug
 #define OUTPUT_TREE_INFO 1
 
