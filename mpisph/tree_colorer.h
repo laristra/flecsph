@@ -36,6 +36,7 @@
 
 #include "tree.h"
 #include "utils.h"
+#include "default_physics.h"
 
 #include "params.h" // For the variable smoothing length
 
@@ -346,6 +347,10 @@ public:
     std::vector<range_t> recv_branches;
     std::vector<int> count;
     mpi_allgatherv(send_branches,recv_branches,count);
+
+    // Output branches
+    if(rank == 0)
+      output_branches_VTK(recv_branches,count,physics::iteration);
 
     rank|| clog(trace) << "2. Received:"<<recv_branches.size() << std::endl << std::flush;
     MPI_Barrier(MPI_COMM_WORLD);
