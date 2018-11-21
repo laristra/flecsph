@@ -28,13 +28,13 @@ include_directories(${CMAKE_SOURCE_DIR}/mpisph/)
 # tree topology tests
 #------------------------------------------------------------------------------#
 
-cinch_add_unit(tree3d
-  SOURCES
-    test/tree3d.cc
-    ${FleCSI_RUNTIME}/runtime_driver.cc  
-  LIBRARIES 
-    ${FleCSPH_LIBRARIES}
-)
+#cinch_add_unit(tree3d
+#  SOURCES
+#    test/tree3d.cc
+#    ${FleCSI_RUNTIME}/runtime_driver.cc  
+#  LIBRARIES 
+#    ${FleCSPH_LIBRARIES}
+#)
 
 cinch_add_unit(mpi_qsort
   SOURCES
