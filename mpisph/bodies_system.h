@@ -314,8 +314,9 @@ public:
     // Clear the bodies_ vector
     //bodies_.clear();
     for(auto& bi:  localbodies_){
-      auto id = tree_->make_entity(bi.second.getPosition(),&(bi.second),rank,
-          bi.second.getMass(),bi.second.getId(),bi.second.getSmoothinglength());
+      auto id = tree_->make_entity(bi.first,bi.second.getPosition(),
+        &(bi.second),rank,bi.second.getMass(),bi.second.getId(),
+        bi.second.getSmoothinglength());
       tree_->insert(id);
       auto nbi = tree_->get(id);
       //bodies_.push_back(nbi);

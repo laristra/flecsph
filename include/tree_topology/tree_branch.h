@@ -43,19 +43,18 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/topology/index_space.h"
 
-#include "morton_id.h"
-#include "hilbert_id.h"
+#include "key_id.h"
 
 namespace flecsi {
 namespace topology {
 
 
-/*! When an entoty is added or removed from a branch, the user-level tree 
- * may trigger one of these actions. 
+/*! When an entoty is added or removed from a branch, the user-level tree
+ * may trigger one of these actions.
  */
 enum class action: uint8_t{
-  none=0b00, 
-  refine = 0b01, 
+  none=0b00,
+  refine = 0b01,
   coarsen = 0b10
 };
 
@@ -73,14 +72,13 @@ class tree_branch
 
 public:
   enum b_locality: size_t{
-    LOCAL=0,NONLOCAL=1 
+    LOCAL=0,NONLOCAL=1
   };
 
 public:
   using branch_int_t = T;
   static const size_t dimension = D;
-  using branch_id_t = hilbert_id<T,D>; 
-  //  using branch_id_t = morton_id<T, D>;
+  using branch_id_t = key_id__<T,D>;
   using id_t = branch_id_t;
   static constexpr size_t num_children = 1 << dimension;
   using point_t = point__<E,D>;
@@ -131,11 +129,11 @@ public:
     return leaf_;
   }
 
-  void 
+  void
   set_leaf(
       bool leaf)
   {
-    leaf_ = leaf; 
+    leaf_ = leaf;
   }
 
   bool
@@ -144,13 +142,13 @@ public:
     return true;
   }
 
-  uint64_t 
+  uint64_t
   sub_entities() const
   {
     return sub_entities_;
   }
 
-  void 
+  void
   set_sub_entities(
       uint64_t sub_entities)
   {
@@ -161,19 +159,19 @@ public:
   set_locality(
       b_locality locality)
   {
-    locality_ = locality; 
+    locality_ = locality;
   }
 
-  b_locality 
+  b_locality
   locality()
   {
-    return locality_; 
+    return locality_;
   }
 
-  bool 
-  is_local() const 
+  bool
+  is_local() const
   {
-    return locality_ == LOCAL; 
+    return locality_ == LOCAL;
   }
 
 
@@ -194,12 +192,12 @@ protected:
   {
     return action_;
   }
- 
+
   action action_;
   branch_id_t id_;
   uint64_t sub_entities_ = 0; // Subentities in this subtree
-  bool leaf_ = true; 
-  b_locality locality_ = LOCAL; 
+  bool leaf_ = true;
+  b_locality locality_ = LOCAL;
 
 };
 

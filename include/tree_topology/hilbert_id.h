@@ -42,7 +42,6 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/topology/index_space.h"
 
-
 namespace flecsi{
 namespace topology{
 

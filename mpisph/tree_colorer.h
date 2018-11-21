@@ -42,7 +42,7 @@
 
 using namespace mpi_utils;
 
-#define BOOST_PARALLEL 1
+//#define BOOST_PARALLEL 1
 // Output the data regarding the distribution for debug
 #define OUTPUT_TREE_INFO 1
 
@@ -73,6 +73,7 @@ struct body_holder_mpi_t{
   double mass;
   flecsi::topology::entity_id_t id;
   double h;
+  entity_key_t key;
 };
 
 /**
@@ -154,7 +155,7 @@ public:
     body_holder_mpi_t tmp;
     MPI_Datatype type[5] =
       {MPI_DOUBLE,MPI_INT,MPI_DOUBLE,MPI_INT64_T,MPI_DOUBLE};
-    int blocklen[5] = { gdimension, 2, 1, 1, 1};
+    int blocklen[5] = { gdimension, 2, 1, 1, 2};
     MPI_Aint disp[5];
     disp[0] = 0;
     disp[1] = sizeof(double)*gdimension;
@@ -385,7 +386,7 @@ public:
             assert(ent != nullptr);
             tmpsendset.insert(body_holder_mpi_t{
               ent->coordinates(),rank,ent->mass(),ent->getBody()->getId(),
-              ent->getBody()->getSmoothinglength()});
+              ent->getBody()->getSmoothinglength(),ent->get_entity_key()});
           }
         } // for
         // Merge the sets
@@ -450,8 +451,8 @@ public:
             auto* bi = &(recvbuffer[j]);
             assert(bi->owner!=rank);
             assert(bi->mass!=0.);
-            auto id = tree.make_entity(bi->position,nullptr,bi->owner,bi->mass,
-              bi->id,bi->h);
+            auto id = tree.make_entity(bi->key,bi->position,nullptr,bi->owner,
+              bi->mass,bi->id,bi->h);
             tree.insert(id);
             auto nbi = tree.get(id);
             assert(!nbi->is_local());
@@ -883,7 +884,7 @@ void mpi_refresh_ghosts(
     // Number of elements for sampling
     // In this implementation we share up to 256KB to
     // the master.
-    size_t maxnsamples = 1024;
+    size_t maxnsamples = noct/sizeof(std::pair<entity_key_t,int64_t>);
     int64_t nvalues = rbodies.size();
     size_t nsample = maxnsamples*((double)nvalues/(double)totalnbodies);
 

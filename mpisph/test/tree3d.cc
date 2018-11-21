@@ -15,8 +15,8 @@ operator<<(
   std::ostream& ostr,
   const entity_key_t id)
 {
-  id.output_(ostr); 
-  return ostr; 
+  id.output_(ostr);
+  return ostr;
 }
 
 double uniform(){
@@ -123,7 +123,7 @@ TEST(tree_topology, neighbors_box_NORMAL) {
 
   size_t n = 5000;
   double mass = 1.0;
-  
+
   point_t max;
   point_t min;
 
@@ -132,15 +132,15 @@ TEST(tree_topology, neighbors_box_NORMAL) {
     auto e = t.make_entity(p,nullptr,0,mass,0,0.1);
     t.insert(e);
   }
-  
+
   t.post_order_traversal(t.root(),traversal_t::update_COM,
       0.00001,false);
-  
+
   ASSERT_TRUE(t.root()->mass() == n*mass);
 
   for(size_t i = 0; i < n; ++i){
     auto ent = t.get(i);
-	
+
 	for(size_t d = 0; d < gdimension; ++d ){
 		max[d] = ent->coordinates()[d]+0.1;
 		min[d] = ent->coordinates()[d]-0.1;
@@ -158,11 +158,11 @@ TEST(tree_topology, neighbors_box_NORMAL) {
 	  bool in_box = true;
 	  for(size_t d = 0; d < gdimension; ++d ){
 		if(ej->coordinates()[d] > max[d] || ej->coordinates()[d] < min[d]){
-			in_box = false; 
+			in_box = false;
 			break;
-		}		
+		}
 	  }
-	  
+
       if(in_box){
         s2.insert(ej);
       }
@@ -178,7 +178,7 @@ TEST(tree_topology, neighbors_box_VARIABLE) {
 
   size_t n = 5000;
   double mass = 1.0;
-  
+
   point_t max;
   point_t min;
 
@@ -187,15 +187,15 @@ TEST(tree_topology, neighbors_box_VARIABLE) {
     auto e = t.make_entity(p,nullptr,0,mass,0,uniform(0,.2));
     t.insert(e);
   }
-  
+
   t.post_order_traversal(t.root(),traversal_t::update_COM,
       0.00001,false);
-  
+
   ASSERT_TRUE(t.root()->mass() == n*mass);
 
   for(size_t i = 0; i < n; ++i){
     auto ent = t.get(i);
-	
+
 	  for(size_t d = 0; d < gdimension; ++d ){
 		  max[d] = ent->coordinates()[d]+0.00001+ent->h();
 		  min[d] = ent->coordinates()[d]-0.00001-ent->h();
@@ -218,4 +218,3 @@ TEST(tree_topology, neighbors_box_VARIABLE) {
     ASSERT_TRUE(s1 == s2);
   }
 }
- 

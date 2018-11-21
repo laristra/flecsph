@@ -55,8 +55,8 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/topology/index_space.h"
 
-#include "morton_id.h"
-#include "hilbert_id.h"
+#include "key_id.h"
+
 #include "tree_branch.h"
 #include "tree_entity.h"
 #include "tree_geometry.h"
@@ -69,8 +69,7 @@ namespace topology {
 template<
   typename T,
   size_t D,
-  class IDTYPE=hilbert_id<T,D>
-  //  class IDTYPE=morton_id<T,D>
+  class IDTYPE=key_id__<T,D>
 >
 struct branch_id_hasher__{
   size_t
@@ -98,8 +97,11 @@ public:
   using element_t = typename Policy::element_t;
   using point_t = point__<element_t, dimension>;
   using range_t = std::pair<element_t, element_t>;
-  using branch_int_t = typename Policy::branch_int_t;
-  using branch_id_t = typename Policy::key_t;
+  using key_int_t = typename Policy::key_int_t;
+
+  using key_t = key_id__<key_int_t,dimension>;
+  using branch_id_t = key_t;
+
   using branch_id_vector_t = std::vector<branch_id_t>;
 
   using branch_t = typename Policy::branch_t;
@@ -705,8 +707,6 @@ public:
       entity_id_t id = entities_.size()-1;
       ent->set_id_(id);
       if(!ent->is_local()){
-        //entities_ghosts_.push_back(id);
-        // Map of local-global id
         ghosts_id_.insert(std::make_pair(ent->global_id(),id));
       }
       return id;
@@ -786,7 +786,7 @@ public:
 
   private:
     using branch_map_t = std::unordered_map<branch_id_t, branch_t,
-      branch_id_hasher__<branch_int_t, dimension>>;
+      branch_id_hasher__<key_int_t, dimension>>;
 
       branch_id_t
       to_branch_id(
@@ -811,13 +811,9 @@ public:
         size_t max_depth
       )
       {
-        //std::cout<<"Inserting body "<<id<<std::endl;
         auto ent = &(entities_[id]);
-        branch_id_t bid = to_branch_id(ent->coordinates(), max_depth);
-        //std::cout<<"Searching parent at depth:"<<max_depth<<std::endl;
+        branch_id_t bid = ent->get_entity_key();
         branch_t& b = find_parent(bid, max_depth);
-        //std::cout<<"Parent is: "<<std::endl<<"P: "<<b.id()<<std::endl;
-        ent->set_branch_id_(b.id());
 
         b.insert(id);
 
@@ -874,7 +870,6 @@ public:
     {
       branch_id_t pid = bid;
       pid.truncate(max_depth);
-
       return find_parent_(pid);
     }
 
@@ -957,19 +952,19 @@ public:
     )
     {
       size_t n = pool.num_threads();
-      constexpr size_t rb = branch_int_t(1) << P::dimension;
+      constexpr size_t rb = key_int_t(1) << P::dimension;
       double bn = std::log2(double(rb));
       return std::log2(double(n))/bn + 1;
     }
 
   // Declared before, here for readability
   //using branch_map_t = std::unordered_map<branch_id_t, branch_t,
-  //    branch_id_hasher__<branch_int_t, dimension>>;
+  //    branch_id_hasher__<key_int_t, dimension>>;
 
   branch_map_t branch_map_;
   size_t max_depth_;
   typename std::unordered_map<branch_id_t,branch_t,
-    branch_id_hasher__<branch_int_t, dimension>>::iterator root_;
+    branch_id_hasher__<key_int_t, dimension>>::iterator root_;
   entity_space_t entities_;
   std::array<point__<element_t, dimension>, 2> range_;
   point__<element_t, dimension> scale_;
