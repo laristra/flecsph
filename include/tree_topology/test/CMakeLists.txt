@@ -36,13 +36,13 @@ cinch_add_unit(morton
     ${FleCSPH_LIBRARIES}
 )
 
-cinch_add_unit(tree
-  SOURCES 
-  tree.cc 
-    ${FleCSI_RUNTIME}/runtime_driver.cc
-  LIBRARIES 
-    ${FleCSPH_LIBRARIES}
-)
+#cinch_add_unit(tree
+#  SOURCES 
+#  tree.cc 
+#    ${FleCSI_RUNTIME}/runtime_driver.cc
+#  LIBRARIES 
+#    ${FleCSPH_LIBRARIES}
+#)
 
 #~---------------------------------------------------------------------------~-#
 # Formatting options
