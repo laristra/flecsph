@@ -42,8 +42,8 @@ TEST(morton_2d, range_branch) {
   morton_2d root = morton_2d::root();
   auto root_range = root.range(range_2d);
   ASSERT_TRUE(root_range[0] == range_2d[0] && root_range[1] == range_2d[1]);
-  std::cout<<"rt  "<<"k="<<root<<" ["<<root_range[0]<<";"<<
-    root_range[1]<<"]"<<std::endl;
+  //std::cout<<"rt  "<<"k="<<root<<" ["<<root_range[0]<<";"<<
+  //  root_range[1]<<"]"<<std::endl;
   
   // Check the first children for this dimension
   for(size_t d = 0; d < 1<<dimension; ++d)
@@ -53,7 +53,7 @@ TEST(morton_2d, range_branch) {
     child.push(d);
     // Compute its range 
     auto rg = child.range(range_2d);
-    std::cout<<d<<" "<<"k="<<child<<" ["<<rg[0]<<";"<<rg[1]<<"]"<<std::endl;
+    //std::cout<<d<<" "<<"k="<<child<<" ["<<rg[0]<<";"<<rg[1]<<"]"<<std::endl;
     // entity test, should be inside the range with its key  
     point__<double,2> pt(
           (double)rand()/(double)RAND_MAX*(rg[1][0]-rg[0][0])+rg[0][0],
@@ -75,7 +75,7 @@ TEST(morton_2d, range_branch) {
     child.push(d);
     // Compute its range 
     auto rg = child.range(range_2d);
-    std::cout<<d<<" "<<"k="<<child<<" ["<<rg[0]<<";"<<rg[1]<<"]"<<std::endl;
+    //std::cout<<d<<" "<<"k="<<child<<" ["<<rg[0]<<";"<<rg[1]<<"]"<<std::endl;
     // entity test, should be inside the range with its key  
     for(int t = 0 ; t < 50 ; ++t)
     {
@@ -102,8 +102,8 @@ TEST(morton_3d, range_branch) {
   morton_3d root = morton_3d::root();
   auto root_range = root.range(range_3d);
   ASSERT_TRUE(root_range[0] == range_3d[0] && root_range[1] == range_3d[1]);
-  std::cout<<"rt  "<<"k="<<root<<" ["<<root_range[0]<<";"<<
-    root_range[1]<<"]"<<std::endl;
+  //std::cout<<"rt  "<<"k="<<root<<" ["<<root_range[0]<<";"<<
+  //  root_range[1]<<"]"<<std::endl;
   
   // Check the first children for this dimension
   for(size_t d = 0; d < 1<<dimension; ++d)
@@ -113,7 +113,7 @@ TEST(morton_3d, range_branch) {
     child.push(d);
     // Compute its range 
     auto rg = child.range(range_3d);
-    std::cout<<d<<" "<<"k="<<child<<" ["<<rg[0]<<";"<<rg[1]<<"]"<<std::endl;
+    //std::cout<<d<<" "<<"k="<<child<<" ["<<rg[0]<<";"<<rg[1]<<"]"<<std::endl;
     // entity test, should be inside the range with its key  
     point__<double,3> pt(
           (double)rand()/(double)RAND_MAX*(rg[1][0]-rg[0][0])+rg[0][0],
@@ -136,7 +136,7 @@ TEST(morton_3d, range_branch) {
     child.push(d);
     // Compute its range 
     auto rg = child.range(range_3d);
-    std::cout<<d<<" "<<"k="<<child<<" ["<<rg[0]<<";"<<rg[1]<<"]"<<std::endl;
+    //std::cout<<d<<" "<<"k="<<child<<" ["<<rg[0]<<";"<<rg[1]<<"]"<<std::endl;
     // entity test, should be inside the range with its key  
     for(int t = 0 ; t < 50 ; ++t)
     {
