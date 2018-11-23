@@ -279,16 +279,13 @@ public:
 
     // Generate the tree based on the range
     tree_ = new tree_topology_t(range_[0],range_[1]);
-
-
-    std::cout<<"Computing keys";
+    
     // Compute the keys
 #pragma omp parallel for
     for(size_t i = 0; i < localbodies_.size(); ++i){
       localbodies_[i].first =
           entity_key_t(tree_->range(),localbodies_[i].second.coordinates());
     }
-    std::cout<<".done"<<std::endl;
 
     tcolorer_.mpi_qsort(localbodies_,totalnbodies_);
 

@@ -978,9 +978,9 @@ void mpi_refresh_ghosts(
       } // for
 
       // Print the keys
-      for(auto k: splitters){
-        std::cout<<k.first<<std::endl;
-      }
+      //for(auto k: splitters){
+      //  std::cout<<k.first<<std::endl;
+      //}
     } // if
 
     // Bradcast the splitters
