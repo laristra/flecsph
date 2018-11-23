@@ -61,11 +61,12 @@ public:
 
   static const size_t dimension = D;
   static constexpr size_t bits = sizeof(int_t) * 8;
-  static constexpr size_t max_depth = bits/dimension-1;
+  static constexpr size_t max_depth = (bits-1)/dimension;
 
   hilbert_id()
   : id_(0)
   {}
+
 
   template<
     typename S
@@ -82,7 +83,7 @@ public:
   {}
 
 
-  void rotation(int_t& n,
+  void rotation2d(int_t& n,
       std::array<int_t,dimension>& coords,
       std::array<int_t,dimension>& bits)
   {
@@ -98,6 +99,67 @@ public:
     }
   }
 
+  void rotation3d(int_t& n,
+      std::array<int_t,dimension>& coords,
+      std::array<int_t,dimension>& bits)
+  {
+    if (!bits[0] && !bits[1] && !bits[2]) {
+        // Left front bottom
+        // Rotate 90 x
+        //pos = rotate_90_x(n, pos);
+        coords[0] = coords[0];
+        coords[1] = n - coords[2] - 1;
+        coords[2] = coords[1];
+        // Rotate 90 z
+        //pos = rotate_90_z(n, pos);
+        coords[0] = n - coords[1] - 1;
+        coords[1] = coords[0];
+        coords[2] = coords[2];
+    } else if (!bits[0] && bits[2]) {
+        // Left top
+        // Rotate 270 y
+        //pos = rotate_270_y(n, pos);
+        coords[0] = n - coords[2] - 1;
+        coords[1] = coords[1];
+        coords[2] = coords[0];
+        // Rotate 270 z
+        //pos = rotate_270_z(n, pos);
+        coords[0] = coords[1];
+        coords[1] = n - coords[0] - 1;
+        coords[2] = coords[2];
+    } else if (bits[1] && !bits[2]) {
+        // Back bottom
+        // Rotate 180 x
+        //pos = rotate_180_x(n, pos);
+        coords[0] = coords[0];
+        coords[1] = n - coords[1] - 1;
+        coords[2] = n - coords[2] - 1;
+    } else if (bits[0] && bits[2]) {
+        // Right top
+        // Rotate 90 y
+        //pos = rotate_90_y(n, pos);
+        coords[0] = coords[2];
+        coords[1] = coords[1];
+        coords[2] = n - coords[0] - 1;
+        // Rotate 90 z
+        //pos = rotate_90_z(n, pos);
+        coords[0] = n - coords[1] - 1;
+        coords[1] = coords[0];
+        coords[2] = coords[2];
+    } else if (bits[0] && !bits[2] && !bits[1]) {
+        // Right front bottom
+        // Rotate 270 z
+        //pos = rotate_270_z(n, pos);
+        coords[0] = coords[1];
+        coords[1] = n - coords[0] - 1;
+        coords[2] = coords[2];
+        // Rotate 270 y
+        //pos = rotate_270_y(n, pos);
+        coords[0] = n - coords[2] - 1;
+        coords[1] = coords[1];
+        coords[2] = coords[0];
+    }
+  }
 
   /* 2D Hilbert key
    * Hilbert key is always generated to the max_depth and then truncated
@@ -108,13 +170,11 @@ public:
     const std::array<point__<S, dimension>, 2>& range,
     const point__<S, dimension>& p,
     size_t depth)
-  : id_(int_t(1) << max_depth * dimension + bits%dimension)
+  : id_(int_t(1) << (max_depth * dimension))
   {
     assert(depth <= max_depth);
 
     std::array<int_t, dimension> coords{};
-    //std::fill(coords.begin(),coords.end(),0);
-
     // Convert the position to integer
     for(size_t i = 0; i < dimension; ++i)
     {
@@ -143,8 +203,15 @@ public:
       {
         bits[j] = (s & coords[j]) > 0;
       }
-      id_ += s * s * ((3*bits[0]) ^ bits[1]);
-      rotation(s,coords,bits);
+      if(dimension == 2 )
+      {
+        id_ += s * s * ((3*bits[0]) ^ bits[1]);
+        rotation2d(s,coords,bits);
+      }else if(dimension == 3)
+      {
+        id_ += s * s * s * ((7 * bits[0]) ^ (3 * bits[1]) ^ bits[2]);
+        rotation3d(s,coords,bits);
+      }
     }
     // Then truncate the key to the depth
     id_ >>= (max_depth-depth)*dimension;
@@ -160,7 +227,7 @@ public:
   hilbert_id
   min()
   {
-    int_t id = int_t(1) << max_depth * dimension + bits%dimension;
+    int_t id = int_t(1) << max_depth * dimension;
     return hilbert_id(id);
   }
 
@@ -171,8 +238,8 @@ public:
   {
     // Start with 1 bits
     int_t id = ~static_cast<int_t>(0);
-    int_t remove = int_t(1) << max_depth * dimension + bits%dimension;
-    for(size_t i = max_depth * dimension + bits%dimension +1; i <
+    int_t remove = int_t(1) << max_depth * dimension;
+    for(size_t i = max_depth * dimension +1; i <
       bits; ++i)
       {
         id ^= int_t(1)<<i;

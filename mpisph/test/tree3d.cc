@@ -39,10 +39,11 @@ TEST(tree_topology, neighbors_sphere_NORMAL) {
 
   size_t n = 5000;
   double mass = 1.0;
+  range_t range = {point_t{0,0,0},point_t{1,1,1}};
 
   for(size_t i = 0; i < n; ++i){
     point_t p = {uniform(0, 1), uniform(0, 1), uniform(0, 1)};
-    auto e = t.make_entity(p,nullptr,0,mass,0,0.1);
+    auto e = t.make_entity(entity_key_t(range,p),p,nullptr,0,mass,0,0.1);
     t.insert(e);
   }
 
@@ -82,10 +83,11 @@ TEST(tree_topology, neighbors_sphere_VARIABLE) {
 
   size_t n = 5000;
   double mass = 1.0;
+  range_t range = {point_t{0,0,0},point_t{1,1,1}};
 
   for(size_t i = 0; i < n; ++i){
     point_t p = {uniform(0, 1), uniform(0, 1), uniform(0, 1)};
-    auto e = t.make_entity(p,nullptr,0,mass,0,uniform(0,.2));
+    auto e = t.make_entity(entity_key_t(range,p),p,nullptr,0,mass,0,uniform(0,.2));
     t.insert(e);
   }
 
@@ -123,13 +125,14 @@ TEST(tree_topology, neighbors_box_NORMAL) {
 
   size_t n = 5000;
   double mass = 1.0;
+  range_t range = {point_t{0,0,0},point_t{1,1,1}};
 
   point_t max;
   point_t min;
 
   for(size_t i = 0; i < n; ++i){
     point_t p = {uniform(0, 1), uniform(0, 1), uniform(0, 1)};
-    auto e = t.make_entity(p,nullptr,0,mass,0,0.1);
+    auto e = t.make_entity(entity_key_t(range,p),p,nullptr,0,mass,0,0.1);
     t.insert(e);
   }
 
@@ -181,10 +184,11 @@ TEST(tree_topology, neighbors_box_VARIABLE) {
 
   point_t max;
   point_t min;
+  range_t range = {point_t{0,0,0},point_t{1,1,1}};
 
   for(size_t i = 0; i < n; ++i){
     point_t p = {uniform(0, 1), uniform(0, 1), uniform(0, 1)};
-    auto e = t.make_entity(p,nullptr,0,mass,0,uniform(0,.2));
+    auto e = t.make_entity(entity_key_t(range,p),p,nullptr,0,mass,0,uniform(0,.2));
     t.insert(e);
   }
 
