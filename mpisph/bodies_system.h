@@ -266,7 +266,7 @@ public:
     smoothinglength_ = getSmoothinglength();
 
     if(param::do_periodic_boundary){
-      boundary::pboundary_generate(localbodies_,2.*smoothinglength_);
+      boundary::pboundary_generate(localbodies_,3.*smoothinglength_);
       localnbodies_ = localbodies_.size();
       MPI_Allreduce(&localnbodies_,&totalnbodies_,1,MPI_INT64_T,MPI_SUM,
         MPI_COMM_WORLD);
@@ -280,12 +280,15 @@ public:
     // Generate the tree based on the range
     tree_ = new tree_topology_t(range_[0],range_[1]);
 
+
+    std::cout<<"Computing keys";
     // Compute the keys
 #pragma omp parallel for
     for(size_t i = 0; i < localbodies_.size(); ++i){
       localbodies_[i].first =
           entity_key_t(tree_->range(),localbodies_[i].second.coordinates());
     }
+    std::cout<<".done"<<std::endl;
 
     tcolorer_.mpi_qsort(localbodies_,totalnbodies_);
 

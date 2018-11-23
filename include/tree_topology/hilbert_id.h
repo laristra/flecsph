@@ -67,6 +67,20 @@ public:
   : id_(0)
   {}
 
+  template<
+    typename S
+  >
+  hilbert_id(
+    const std::array<point__<S, dimension>, 2>& range,
+    const point__<S, dimension>& p)
+  : hilbert_id(range,p,max_depth)
+  {}
+
+
+  constexpr hilbert_id(const hilbert_id& bid)
+  : id_(bid.id_)
+  {}
+
 
   void rotation(int_t& n,
       std::array<int_t,dimension>& coords,
@@ -111,11 +125,11 @@ public:
 
     if(dimension == 1)
     {
-      std::cout<<coords[0]<<std::endl;
+    //  std::cout<<coords[0]<<std::endl;
       assert(id_ & 1UL<<max_depth);
       id_ |= coords[0]>>dimension;
       id_ >>= (max_depth-depth);
-      std::cout<<"k: "<<std::bitset<64>(id_)<<std::endl<<std::flush;
+    //  std::cout<<"k: "<<std::bitset<64>(id_)<<std::endl<<std::flush;
       return;
     }
 
@@ -141,23 +155,31 @@ public:
     //assert((id_ & (int_t(1)<<depth*dimension+bits%dimension)) > 0);
   }
 
-  /*!
-    Construct the id from an array of dimensions and range for each
-    dimension. Construct with the max depth available.
-   */
-  template<
-    typename S
-  >
-  hilbert_id(
-    const std::array<point__<S, dimension>, 2>& range,
-    const point__<S, dimension>& p)
-  : hilbert_id(range,p,max_depth)
-  {}
+  static
+  constexpr
+  hilbert_id
+  min()
+  {
+    int_t id = int_t(1) << max_depth * dimension + bits%dimension;
+    return hilbert_id(id);
+  }
 
+  static
+  constexpr
+  hilbert_id
+  max()
+  {
+    // Start with 1 bits
+    int_t id = ~static_cast<int_t>(0);
+    int_t remove = int_t(1) << max_depth * dimension + bits%dimension;
+    for(size_t i = max_depth * dimension + bits%dimension +1; i <
+      bits; ++i)
+      {
+        id ^= int_t(1)<<i;
+      }
+    return hilbert_id(id);
+  }
 
-  constexpr hilbert_id(const hilbert_id& bid)
-  : id_(bid.id_)
-  {}
 
   /*!
     Get the root id (depth 0).
@@ -225,6 +247,43 @@ public:
   {
     return id_ == bid.id_;
   }
+
+  constexpr
+  bool
+  operator<=(
+    const hilbert_id& bid
+  ) const
+  {
+    return id_ <= bid.id_;
+  }
+
+  constexpr
+  bool
+  operator>=(
+    const hilbert_id& bid
+  ) const
+  {
+    return id_ >= bid.id_;
+  }
+
+  constexpr
+  bool
+  operator>(
+    const hilbert_id& bid
+  ) const
+  {
+    return id_ > bid.id_;
+  }
+
+  constexpr
+  bool
+  operator<(
+    const hilbert_id& bid
+  ) const
+  {
+    return id_ < bid.id_;
+  }
+
 
   constexpr
   bool
@@ -308,13 +367,6 @@ public:
     return id_;
   }
 
-  bool
-  operator<(
-    const hilbert_id& bid
-  ) const
-  {
-    return id_ < bid.id_;
-  }
 
   /*!
     Convert this id to coordinates in range.
@@ -421,6 +473,7 @@ private:
   )
   : id_(id)
   {}
+
 };
 
 // output for hilbert id

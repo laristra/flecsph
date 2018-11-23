@@ -932,6 +932,12 @@ void outputDataHDF5(
   std::fill(bi,bi+IO_nparticlesproc,rank);
   H5P_writeDataset(dataFile,"rank",bi);
 
+  pos = 0L;
+  for(auto bid: bodies){
+    bi[pos++] = bid.first.value_();
+  }
+  H5P_writeDataset(dataFile,"key",bi);
+
   H5P_closeFile(dataFile);
 
   delete[] b1;

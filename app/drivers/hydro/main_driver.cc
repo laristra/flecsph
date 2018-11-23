@@ -32,7 +32,7 @@
 #include <mpi.h>
 #ifdef ENABLE_LEGION
 #include <legion.h>
-#endif 
+#endif
 #include <omp.h>
 
 #include "flecsi/execution/execution.h"
@@ -57,7 +57,7 @@ void set_derived_params() {
   // set kernel
   kernels::select(sph_kernel);
 
-  // set viscosity 
+  // set viscosity
   viscosity::select(sph_viscosity);
 
   // filenames (this will change for multiple files output)
@@ -104,7 +104,7 @@ mpi_init_task(const char * parameter_file){
       output_h5data_prefix,initial_iteration);
 
   MPI_Barrier(MPI_COMM_WORLD);
-   
+
   do {
     analysis::screen_output(rank);
     MPI_Barrier(MPI_COMM_WORLD);
@@ -144,9 +144,9 @@ mpi_init_task(const char * parameter_file){
       rank|| clog(trace) << ".done" << std::endl;
 
       rank|| clog(trace) << "leapfrog: drift" << std::flush;
-      bs.apply_all(integration::leapfrog_drift); 
+      bs.apply_all(integration::leapfrog_drift);
       rank|| clog(trace) << ".done" << std::endl;
-      
+
       // sync velocities
       bs.update_iteration();
 
@@ -180,7 +180,7 @@ mpi_init_task(const char * parameter_file){
       bs.get_all(physics::compute_smoothinglength);
       rank || clog(trace) << ".done" << std::endl << std::flush;
     }else if(sph_update_uniform_h){
-      // The particles moved, compute new smoothing length 
+      // The particles moved, compute new smoothing length
       rank || clog(trace) << "updating smoothing length"<<std::flush;
       bs.get_all(physics::compute_average_smoothinglength,bs.getNBodies());
       rank || clog(trace) << ".done" << std::endl << std::flush;
@@ -228,9 +228,9 @@ mpi_init_task(const char * parameter_file){
 
 flecsi_register_mpi_task(mpi_init_task, flecsi::execution);
 
-void 
+void
 usage(int rank) {
-  rank|| clog(warn) << "Usage: ./hydro_" << gdimension << "d " 
+  rank|| clog(warn) << "Usage: ./hydro_" << gdimension << "d "
                     << "<parameter-file.par>" << std::endl << std::flush;
 }
 
@@ -264,5 +264,3 @@ driver(int argc,  char * argv[]){
 
 } // namespace execution
 } // namespace flecsi
-
-

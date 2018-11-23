@@ -53,7 +53,7 @@ namespace analysis{
   {
     linear_momentum = {0};
     for(auto& nbh: bodies) {
-      if(!nbh.is_local()) continue; 
+      if(!nbh.is_local()) continue;
       if(nbh.getBody()->type() == NORMAL){
         linear_momentum += nbh.getBody()->getLinMomentum();
       }
@@ -72,7 +72,7 @@ namespace analysis{
   {
     total_mass = 0.;
     for(auto& nbh: bodies) {
-      if(!nbh.is_local()) continue; 
+      if(!nbh.is_local()) continue;
       if(nbh.getBody()->type() == NORMAL){
         total_mass += nbh.getBody()->getMass();
       }
@@ -94,7 +94,7 @@ namespace analysis{
     total_energy = 0.;
     if (thermokinetic_formulation) {
       for(auto& nbh: bodies){
-        if(!nbh.is_local()) continue; 
+        if(!nbh.is_local()) continue;
         if(nbh.getBody()->type() == NORMAL){
           total_energy += nbh.getBody()->getMass()*nbh.getBody()->getTotalenergy();
         }
@@ -102,9 +102,9 @@ namespace analysis{
     }
     else {
       for(auto& nbh: bodies) {
-        if(!nbh.is_local()) continue; 
+        if(!nbh.is_local()) continue;
         if(nbh.getBody()->type() != NORMAL){
-          continue; 
+          continue;
         }
         total_energy += nbh.getBody()->getMass()*nbh.getBody()->getInternalenergy();
         linear_velocity = nbh.getBody()->getVelocity();
@@ -135,9 +135,9 @@ namespace analysis{
     part_mom = {0};
     part_position = {0};
     for(auto& nbh: bodies) {
-      if(!nbh.is_local()) continue; 
+      if(!nbh.is_local()) continue;
       if(nbh.getBody()->type() != NORMAL){
-        continue; 
+        continue;
       }
       part_mom = nbh.getBody()->getLinMomentum();
       part_position = nbh.getBody()->getPosition();
@@ -209,21 +209,21 @@ namespace analysis{
       std::ostringstream oss_header;
       oss_header
         << "# Scalar reductions: " <<std::endl
-        << "# 1:iteration 2:time 3:timestep 4:total_energy 5:mom_x ";
+        << "# 1:iteration 2:time 3:timestep 4:total_mass 5:total_energy 6:mom_x ";
 
       // The momentum depends on dimension
       if(gdimension > 1){
-        oss_header<<"6:mom_y ";
+        oss_header<<"7:mom_y ";
       }
       if(gdimension == 3){
-        oss_header<<"7:mom_z ";
+        oss_header<<"8:mom_z ";
       }
       // The angular momentum depends on dimension
       if(gdimension == 2){
-        oss_header<<"7:ang_mom_z";
+        oss_header<<"9:ang_mom_z";
       }
       if(gdimension == 3){
-        oss_header<<"8:ang_mom_x 9:ang_mom_y 10:ang_mom_y ";
+        oss_header<<"10:ang_mom_x 11:ang_mom_y 12:ang_mom_y ";
       }
       oss_header<<std::endl;
 
@@ -238,6 +238,7 @@ namespace analysis{
     oss_data << std::setw(14) << physics::iteration
       << std::setw(20) << std::scientific << std::setprecision(12)
       << physics::totaltime << std::setw(20) << physics::dt
+      << std::setw(20) << total_mass
       << std::setw(20) << total_energy;
     for(size_t i = 0 ; i < gdimension ; ++i){
       oss_data

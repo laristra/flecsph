@@ -237,18 +237,38 @@ public:
 
     int cur_proc = 0;
 
-    for(auto bi: rbodies){
-      if(cur_proc == size-1){
+    assert(splitters.size() == size-1+2);
+
+    int64_t nbodies = rbodies.size();
+    for(size_t i = 0L ; i < nbodies; ++i){
+      if(rbodies[i].first >= splitters[cur_proc].first &&
+        rbodies[i].first < splitters[cur_proc+1].first){
+          scount[cur_proc]++;
+        }else{
+          i--;
+          cur_proc++;
+        }
+    }
+
+    // Check that we considered all the bodies
+    assert( std::accumulate(scount.begin(), scount.end(), 0) == rbodies.size());
+
+
+    //for(auto bi: rbodies){
+    //  if(cur_proc >= size-1){
         // Last process reached, just copy
-        scount[cur_proc]++;
-        continue;
-      } // if
-      if(bi.first < splitters[cur_proc].first){
-        scount[cur_proc]++;
-      }else{
-        scount[++cur_proc]++;
-      } // if
-    } // for
+    //    scount[cur_proc]++;
+    //    continue;
+    //  } // if
+    //  if(bi.first < splitters[cur_proc].first){
+    //    scount[cur_proc]++;
+    //  }else{
+    //    while(!(bi.first < splitters[cur_proc].first)){
+    //      cur_proc++;
+    //    }
+    //    scount[cur_proc]++;
+    //  } // if
+    //} // for
 
     std::vector<std::pair<entity_key_t,body>> recvbuffer;
 
@@ -335,8 +355,8 @@ public:
     mpi_allgatherv(send_branches,recv_branches,count);
 
     // Output branches
-    if(rank == 0)
-      output_branches_VTK(recv_branches,count,physics::iteration);
+    //if(rank == 0)
+    //  output_branches_VTK(recv_branches,count,physics::iteration);
 
     rank|| clog(trace) << "2. Received:"<<recv_branches.size() << std::endl << std::flush;
     MPI_Barrier(MPI_COMM_WORLD);
@@ -927,13 +947,12 @@ void mpi_refresh_ghosts(
       master_keys.resize(master_nkeys);
     } // if
 
-
     MPI_Gatherv(&keys_sample[0],nsample*sizeof(std::pair<entity_key_t,int64_t>)
       ,MPI_BYTE,&master_keys[0],&master_recvcounts[0],&master_offsets[0]
       ,MPI_BYTE,0,MPI_COMM_WORLD);
 
-    // Generate the splitters
-    splitters.resize(size-1);
+    // Generate the splitters, add zero and max keys
+    splitters.resize(size-1+2);
     if(rank==0){
       std::sort(master_keys.begin(),master_keys.end(),
         [](auto& left, auto& right){
@@ -946,14 +965,26 @@ void mpi_refresh_ghosts(
           return false;
         });
 
+      splitters[0].first = entity_key_t::min();
+      splitters[0].second = 0L;
+      splitters[size].first = entity_key_t::max();
+      splitters[size].second = LONG_MAX;
+
       for(int i=0;i<size-1;++i){
         int64_t position = (master_nkeys/size)*(i+1);
-        splitters[i] = master_keys[position];
+        splitters[i+1] = master_keys[position];
+        assert(splitters[i+1].first > splitters[0].first &&
+          splitters[i+1].first < splitters[size].first);
       } // for
+
+      // Print the keys
+      for(auto k: splitters){
+        std::cout<<k.first<<std::endl;
+      }
     } // if
 
     // Bradcast the splitters
-    MPI_Bcast(&splitters[0],(size-1)*sizeof(std::pair<entity_key_t,int64_t>)
+    MPI_Bcast(&splitters[0],(size-1+2)*sizeof(std::pair<entity_key_t,int64_t>)
     ,MPI_BYTE,0,MPI_COMM_WORLD);
   }
 
