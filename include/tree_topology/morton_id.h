@@ -41,7 +41,7 @@
 #include "flecsi/data/storage.h"
 #include "flecsi/data/data_client.h"
 #include "flecsi/topology/index_space.h"
- 
+
 
 namespace flecsi{
 namespace topology{
@@ -59,7 +59,7 @@ class morton_id
 public:
 
   using int_t = T;
-  
+
   static const size_t dimension = D;
   static constexpr size_t bits = sizeof(int_t) * 8;
   static constexpr size_t max_depth = (bits - 1)/dimension;
@@ -80,7 +80,7 @@ public:
     const std::array<point__<S, dimension>, 2>& range,
     const point__<S, dimension>& p,
     size_t depth)
-  : id_(int_t(1) << depth * dimension + (bits - 1) % dimension)
+  : id_(int_t(1) << depth * dimension)
   {
     std::array<int_t, dimension> coords;
 
@@ -101,6 +101,8 @@ public:
       }
       ++k;
     }
+    //std::cout<<"k: "<<std::bitset<64>(id_)<<std::endl;
+
   }
 
   /*!
@@ -116,10 +118,39 @@ public:
   : morton_id(range,p,max_depth)
   {}
 
-
   constexpr morton_id(const morton_id& bid)
   : id_(bid.id_)
   {}
+
+  static
+  constexpr
+  morton_id
+  min()
+  {
+    int_t id = int_t(1) << max_depth * dimension;
+    //std::cout<<"k: "<<std::bitset<64>(id)<<std::endl;
+
+    return morton_id(id);
+  }
+
+  static
+  constexpr
+  morton_id
+  max()
+  {
+    // Start with 1 bits
+    int_t id = ~static_cast<int_t>(0);
+    int_t remove = int_t(1) << max_depth * dimension;
+    for(size_t i = max_depth * dimension +1; i <
+      bits; ++i)
+    {
+      id ^= int_t(1)<<i;
+    }
+    //std::cout<<"k: "<<std::bitset<64>(id)<<std::endl;
+
+    return morton_id(id);
+  }
+
 
   /*!
     Get the root id (depth 0).
@@ -129,7 +160,7 @@ public:
   morton_id
   root()
   {
-    return morton_id(int_t(1) << (bits - 1) % dimension);
+    return morton_id(int_t(1));
   }
 
   /*!
@@ -186,6 +217,40 @@ public:
   ) const
   {
     return id_ == bid.id_;
+  }
+
+  constexpr
+  bool
+  operator>=(
+    const morton_id& bid
+  ) const
+  {
+    return id_ >= bid.id_;
+  }
+
+  constexpr
+  bool
+  operator<=(
+    const morton_id& bid
+  ) const
+  {
+    return id_ <= bid.id_;
+  }
+
+  bool
+  operator<(
+    const morton_id& bid
+  ) const
+  {
+    return id_ < bid.id_;
+  }
+
+  bool
+  operator>(
+    const morton_id& bid
+  ) const
+  {
+    return id_ > bid.id_;
   }
 
   constexpr
@@ -296,14 +361,6 @@ public:
     return id_;
   }
 
-  bool
-  operator<(
-    const morton_id& bid
-  ) const
-  {
-    return id_ < bid.id_;
-  }
-
   /*!
     Convert this id to coordinates in range.
    */
@@ -345,8 +402,8 @@ public:
   }
 
   /**
-   * @brief Compute the range of a branch from its key 
-   * The space is recursively decomposed regarding the dimension 
+   * @brief Compute the range of a branch from its key
+   * The space is recursively decomposed regarding the dimension
    */
   template<
     typename S
@@ -354,16 +411,16 @@ public:
   std::array<point__<S,dimension>, 2>
   range(
       const std::array<point__<S,dimension>, 2>& range)
-  { 
-    // The result range 
+  {
+    // The result range
     std::array<point__<S,dimension>, 2> result;
-    result[0] = range[0]; 
-    result[1] = range[1]; 
-    // Copy the key 
-    int_t tmp = id_; 
-    int_t root = morton_id::root().id_; 
-    
-    // Extract x,y and z 
+    result[0] = range[0];
+    result[1] = range[1];
+    // Copy the key
+    int_t tmp = id_;
+    int_t root = morton_id::root().id_;
+
+    // Extract x,y and z
     std::array<int_t, dimension> coords;
     coords.fill(int_t(0));
 
@@ -382,22 +439,22 @@ public:
     }
 
     std::cout<<"depth="<<d<<std::endl;
-   
+
     for(size_t i = 0 ; i < dimension ; ++i)
     {
-      // apply the reduction 
+      // apply the reduction
       for(size_t j = d ; j > 0; --j)
       {
         double nu = (result[0][i]+result[1][i])/2.;
         if(coords[i] & (int_t(1)<<j-1))
         {
-          result[0][i] = nu; 
+          result[0][i] = nu;
         }else{
           result[1][i] = nu;
         }
       }
     }
-    return result; 
+    return result;
   }
 
 private:
@@ -411,10 +468,10 @@ private:
   {}
 };
 
-// output for morton id 
+// output for morton id
 template<
-  typename T, 
-  size_t D> 
+  typename T,
+  size_t D>
 std::ostream&
 operator<<(
   std::ostream& ostr,
@@ -424,7 +481,7 @@ operator<<(
   return ostr;
 }
 
-} // namespace topology 
+} // namespace topology
 } // namespace flecsi
 
 #endif // flecsi_topology_morton_id_h
