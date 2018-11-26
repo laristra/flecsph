@@ -185,17 +185,17 @@ namespace param {
   DECLARE_PARAM(double,sph_sinc_index,4.0)
 #endif
 
-//- if true, recompute (uniform) smoothing length every timestep 
+//- if true, recompute (uniform) smoothing length every timestep
 //  h = average { sph_eta (m/rho)^1/D } (Rosswog'09, eq.51)
 # ifndef sph_update_uniform_h
   DECLARE_PARAM(bool, sph_update_uniform_h,false)
-# endif 
+# endif
 
-//- if true, the smoothing length is variable, not the same among the 
-// particles.  
+//- if true, the smoothing length is variable, not the same among the
+// particles.
 #ifndef sph_variable_h
   DECLARE_PARAM(bool, sph_variable_h,false)
-#endif 
+#endif
 
 //
 // Geometric parameters
@@ -243,7 +243,7 @@ namespace param {
 
 #ifndef do_periodic_boundary
   DECLARE_PARAM(bool,do_periodic_boundary,false)
-#endif 
+#endif
 
 //
 // I/O parameters
@@ -268,10 +268,10 @@ namespace param {
   DECLARE_PARAM(int32_t,out_scalar_every,10)
 #endif
 
-// - diagnostic info output frequency 
+// - diagnostic info output frequency
 #ifndef out_diagnostic_every
   DECLARE_PARAM(int32_t,out_diagnostic_every,10);
-#endif 
+#endif
 
 //- HDF5 output frequency
 #ifndef out_h5data_every
@@ -299,11 +299,11 @@ namespace param {
   DECLARE_PARAM(double,poly_gamma,1.4)
 #endif
 
-// - which viscosity computation to use? 
+// - which viscosity computation to use?
 // * artificial_viscosity
-#ifndef sph_viscosity 
+#ifndef sph_viscosity
   DECLARE_STRING_PARAM(sph_viscosity,"artificial_viscosity")
-#endif 
+#endif
 
 //- artificial viscosity: parameter alpha (Rosswog'09, eq.59)
 #ifndef sph_viscosity_alpha
@@ -336,7 +336,7 @@ namespace param {
 //
 // Drag force parameters
 //
-// HL : These parameters are used to relax star from 
+// HL : These parameters are used to relax star from
 //      initial star in both single and binary system.
 //      Drag force is applied to acceleration computation
 //      during beginning of steps.
@@ -353,7 +353,7 @@ namespace param {
   DECLARE_PARAM(int,relax_steps,10)
 # endif
 
-//- Drag force coefficients. 
+//- Drag force coefficients.
 # ifndef drag_coeff
   DECLARE_PARAM(double,drag_coeff,1.e-6)
 # endif
@@ -382,6 +382,18 @@ namespace param {
 
 # ifndef thermokinetic_formulation
   DECLARE_PARAM(bool,thermokinetic_formulation, true)
+# endif
+
+
+// Apply gravitation on particles
+// On : 1D, x, 2D y, 3D z
+# ifndef do_gravitation
+  DECLARE_PARAM(bool,do_gravitation, true)
+# endif
+
+// Value for the gravitation
+# ifndef gravitation_value
+  DECLARE_PARAM(double,gravitation_value, -9.81)
 # endif
 
 //
@@ -423,7 +435,7 @@ namespace param {
   DECLARE_PARAM(double,sedov_blast_radius,1.0)
 # endif
 
-// initial data lattice type: 
+// initial data lattice type:
 # ifndef lattice_type
   DECLARE_PARAM(int,lattice_type,0)
 # endif
@@ -439,14 +451,14 @@ namespace param {
 # endif
 
 // A value from KH in Price's paper
-# ifndef KH_A 
-  DECLARE_PARAM(double, KH_A, 0.025) 
-#endif 
+# ifndef KH_A
+  DECLARE_PARAM(double, KH_A, 0.025)
+#endif
 
 // Lamdba value for KH in Price's paper
-#ifndef KH_lambda 
-  DECLARE_PARAM(double, KH_lambda, 1./6.) 
-#endif 
+#ifndef KH_lambda
+  DECLARE_PARAM(double, KH_lambda, 1./6.)
+#endif
 
 //
 // Airfoil parameters
@@ -496,10 +508,10 @@ std::string trim(const std::string& str) {
  */
 void set_param(const std::string& param_name,
                const std::string& param_value) {
-  
-  // RANK/SIZE for CLOG output 
+
+  // RANK/SIZE for CLOG output
   int rank = 0;
-  int size = 1; 
+  int size = 1;
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
 
@@ -590,7 +602,7 @@ void set_param(const std::string& param_name,
 
 #ifndef sph_variable_h
   READ_BOOLEAN_PARAM(sph_variable_h)
-#endif  
+#endif
 
   // geometric configuration  -----------------------------------------------
 # ifndef domain_type
@@ -628,7 +640,7 @@ void set_param(const std::string& param_name,
 
 # ifndef do_periodic_boundary
   READ_BOOLEAN_PARAM(do_periodic_boundary)
-# endif 
+# endif
 
   // i/o parameters  --------------------------------------------------------
 # ifndef initial_data_prefix
@@ -668,9 +680,9 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(poly_gamma)
 # endif
 
-# ifndef sph_viscosity 
+# ifndef sph_viscosity
   READ_STRING_PARAM(sph_viscosity)
-# endif 
+# endif
 
 # ifndef sph_viscosity_alpha
   READ_NUMERIC_PARAM(sph_viscosity_alpha)
@@ -727,6 +739,17 @@ void set_param(const std::string& param_name,
   READ_BOOLEAN_PARAM(thermokinetic_formulation)
 # endif
 
+// Apply gravitation on particles
+// On : 1D, x, 2D y, 3D z
+# ifndef do_gravitation
+  READ_BOOLEAN_PARAM(do_gravitation)
+# endif
+
+// Value for the gravitation
+# ifndef gravitation_value
+  READ_NUMERIC_PARAM(gravitation_value)
+# endif
+
   // specific apps  ---------------------------------------------------------
 # ifndef sodtest_num
   READ_NUMERIC_PARAM(sodtest_num)
@@ -768,13 +791,13 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(KH_density_ratio)
 # endif
 
-# ifndef KH_A 
+# ifndef KH_A
   READ_NUMERIC_PARAM(KH_A)
-# endif 
+# endif
 
-# ifndef KH_lambda 
+# ifndef KH_lambda
   READ_NUMERIC_PARAM(KH_lambda)
-# endif  
+# endif
 
   // airfoil parameters  ----------------------------------------------------
 # ifndef airfoil_size

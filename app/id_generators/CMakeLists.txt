@@ -38,6 +38,7 @@ add_executable(collapse_3d_generator    collapse/main.cc)
 add_executable(wtunnel_2d_generator     wtunnel/main.cc)
 add_executable(wtunnel_3d_generator     wtunnel/main.cc)
 add_executable(KH_2d_generator          KH/main.cc)
+add_executable(RT_2d_generator          RT/main.cc)
 
 # Install
 install(TARGETS
@@ -53,6 +54,7 @@ install(TARGETS
     wtunnel_2d_generator
     wtunnel_3d_generator
     KH_2d_generator
+    RT_2d_generator
     RUNTIME
     DESTINATION bin/id_generators)
 
@@ -82,6 +84,8 @@ target_link_libraries(wtunnel_3d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 target_link_libraries(KH_2d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
+target_link_libraries(RT_2d_generator
+  ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 
 target_compile_definitions(sodtube_1d_generator     PUBLIC -DEXT_GDIMENSION=1)
 target_compile_definitions(sodtube_2d_generator     PUBLIC -DEXT_GDIMENSION=2)
@@ -96,3 +100,4 @@ target_compile_definitions(collapse_3d_generator    PUBLIC -DEXT_GDIMENSION=3)
 target_compile_definitions(wtunnel_2d_generator     PUBLIC -DEXT_GDIMENSION=2)
 target_compile_definitions(wtunnel_3d_generator     PUBLIC -DEXT_GDIMENSION=3)
 target_compile_definitions(KH_2d_generator          PUBLIC -DEXT_GDIMENSION=2)
+target_compile_definitions(RT_2d_generator          PUBLIC -DEXT_GDIMENSION=2)

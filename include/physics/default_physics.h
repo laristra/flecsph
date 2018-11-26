@@ -4,7 +4,7 @@
  *~--------------------------------------------------------------------------~*/
 
  /*~--------------------------------------------------------------------------~*
- * 
+ *
  * /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
  * /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
  * /@@       /@@  @@@@@  @@    // /@@       /@@   /@@/@@     /@@
@@ -12,7 +12,7 @@
  * /@@////   /@@/@@@@@@@/@@       ////////@@/@@////  /@@//////@@
  * /@@       /@@/@@//// //@@    @@       /@@/@@      /@@     /@@
  * /@@       @@@//@@@@@@ //@@@@@@  @@@@@@@@ /@@      /@@     /@@
- * //       ///  //////   //////  ////////  //       //      //  
+ * //       ///  //////   //////  ////////  //       //      //
  *
  *~--------------------------------------------------------------------------~*/
 
@@ -28,7 +28,7 @@
 
 #include <vector>
 
-// Basic elements for the physics 
+// Basic elements for the physics
 namespace physics{
   double dt = 0.0;
   double totaltime = 0.0;
@@ -50,14 +50,14 @@ namespace physics{
   using namespace param;
 
   /**
-   * @brief      Compute the density 
+   * @brief      Compute the density
    * Based on Fryer/05 eq(10)
    * @param      srch  The source's body holder
    * @param      nbsh  The neighbors' body holders
    */
-  void 
+  void
   compute_density(
-      body_holder* srch, 
+      body_holder* srch,
       std::vector<body_holder*>& nbsh)
   {
     body* source = srch->getBody();
@@ -80,8 +80,8 @@ namespace physics{
    * @brief      Calculates total energy for every particle
    * @param      srch  The source's body holder
    */
-  void set_total_energy (body_holder* srch) { 
-    assert(srch->is_local()); 
+  void set_total_energy (body_holder* srch) {
+    assert(srch->is_local());
     body* source = srch->getBody();
     const point_t pos = source->getPosition(),
                   vel = source->getVelocity();
@@ -96,11 +96,11 @@ namespace physics{
 
 
   /**
-   * @brief      Subtracts mechanical energy from total energy 
+   * @brief      Subtracts mechanical energy from total energy
    *             to recover internal energy
    * @param      srch  The source's body holder
    */
-  void recover_internal_energy (body_holder* srch) { 
+  void recover_internal_energy (body_holder* srch) {
     body* source = srch->getBody();
     const point_t pos = source->getPosition(),
                   vel = source->getVelocity();
@@ -124,45 +124,45 @@ namespace physics{
 
 
   /**
-   * @brief      Compute the density, EOS and spundspeed in the same function 
+   * @brief      Compute the density, EOS and spundspeed in the same function
    * reduce time to gather the neighbors
    *
    * @param      srch  The source's body holder
    * @param      nbsh  The neighbors' body holders
    */
-  void 
+  void
   compute_density_pressure_soundspeed(
-    body_holder* srch, 
+    body_holder* srch,
     std::vector<body_holder*>& nbsh)
   {
     compute_density(srch,nbsh);
     if (thermokinetic_formulation)
       recover_internal_energy(srch);
     eos::compute_pressure(srch);
-    eos::compute_soundspeed(srch); 
+    eos::compute_soundspeed(srch);
   }
   /**
    * @brief      Calculates the hydro acceleration
-   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics 
+   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics
    *
    * @param      srch  The source's body holder
    * @param      nbsh  The neighbors' body holders
    */
   void
   compute_acceleration(
-    body_holder* srch, 
+    body_holder* srch,
     std::vector<body_holder*>& ngbsh)
-  { 
+  {
     using namespace param;
     body* source = srch->getBody();
 
-    // Reset the accelerastion 
+    // Reset the accelerastion
     // \TODO add a function to reset in main_driver
     point_t acceleration = {};
     point_t hydro = {};
     source->setMumax(0.0);
 
-    for(auto nbh : ngbsh){ 
+    for(auto nbh : ngbsh){
       body* nb = nbh->getBody();
 
       if(nb->getPosition() == source->getPosition())
@@ -170,13 +170,13 @@ namespace physics{
 
       // Compute viscosity
       double visc = viscosity::viscosity(source,nb);
-      
+
       // Hydro force
       point_t vecPosition = source->getPosition() - nb->getPosition();
       double rho_a = source->getDensity();
       double rho_b = nb->getDensity();
-      double pressureDensity 
-          = source->getPressure()/(rho_a*rho_a) 
+      double pressureDensity
+          = source->getPressure()/(rho_a*rho_a)
           + nb->getPressure()/(rho_b*rho_b);
 
       // Kernel computation
@@ -197,13 +197,13 @@ namespace physics{
 
   /**
    * @brief      Calculates the dudt, time derivative of internal energy.
-   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics 
+   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics
    *
    * @param      srch  The source's body holder
    * @param      nbsh  The neighbors' body holders
    */
   void compute_dudt(
-      body_holder* srch, 
+      body_holder* srch,
       std::vector<body_holder*>& ngbsh)
   {
     body* source = srch->getBody();
@@ -221,15 +221,15 @@ namespace physics{
 
       // Artificial viscosity
       double visc = viscosity::viscosity(source,nb);
-    
-      // Compute the gradKernel ij      
+
+      // Compute the gradKernel ij
       point_t vecPosition = source->getPosition()-nb->getPosition();
       point_t sourcekernelgradient = kernels::gradKernel(
           vecPosition,source->getSmoothinglength());
-      space_vector_t resultkernelgradient = 
+      space_vector_t resultkernelgradient =
           flecsi::point_to_vector(sourcekernelgradient);
 
-      // Velocity vector 
+      // Velocity vector
       space_vector_t vecVelocity = flecsi::point_to_vector(
           source->getVelocity() - nb->getVelocity());
 
@@ -238,7 +238,7 @@ namespace physics{
       dudt_visc += visc*nb->getMass()*
         flecsi::dot(vecVelocity,resultkernelgradient);
     }
-    
+
     double P_a = source->getPressure();
     double rho_a = source->getDensity();
     dudt = P_a/(rho_a*rho_a)*dudt_pressure + .5*dudt_visc;
@@ -253,16 +253,16 @@ namespace physics{
 
 
   /**
-   * @brief      Calculates the dedt, time derivative of either 
-   *             thermokinetic (internal + kinetic) or total 
+   * @brief      Calculates the dedt, time derivative of either
+   *             thermokinetic (internal + kinetic) or total
    *             (internal + kinetic + potential) energy.
-   * See e.g. Rosswog (2009) "Astrophysical SPH" eq. (34) 
+   * See e.g. Rosswog (2009) "Astrophysical SPH" eq. (34)
    *
    * @param      srch  The source's body holder
    * @param      nbsh  The neighbors' body holders
    */
   void compute_dedt(
-      body_holder* srch, 
+      body_holder* srch,
       std::vector<body_holder*>& ngbsh)
   {
     body* source = srch->getBody();
@@ -282,10 +282,10 @@ namespace physics{
       if(pos_a == pos_b)
         continue;
 
-      // Compute the \nabla_a W_ab      
+      // Compute the \nabla_a W_ab
       const point_t Da_Wab = kernels::gradKernel(pos_a - pos_b, h_a),
                     vel_b = nb->getVelocity();
-    
+
       // va*DaWab and vb*DaWab
       double va_dot_DaWab = vel_a[0]*Da_Wab[0];
       double vb_dot_DaWab = vel_b[0]*Da_Wab[0];
@@ -301,17 +301,17 @@ namespace physics{
                    Pi_ab = viscosity::viscosity(source,nb);
 
       // add this neighbour's contribution
-      dedt -= m_b*( Prho2_a*vb_dot_DaWab + Prho2_b*va_dot_DaWab 
+      dedt -= m_b*( Prho2_a*vb_dot_DaWab + Prho2_b*va_dot_DaWab
                 + .5*Pi_ab*(va_dot_DaWab + vb_dot_DaWab));
     }
-    
+
     source->setDudt(dedt);
   } // compute_dedt
 
 
   /**
-   * @brief      Compute the timestep from acceleration and mu 
-   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics 
+   * @brief      Compute the timestep from acceleration and mu
+   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics
    *
    * @param      srch   The source's body holder
    */
@@ -319,11 +319,11 @@ namespace physics{
     body* source = srch->getBody();
     const double tiny = 1e-24;
     const double mc   = 0.6; // constant in denominator for viscosity
-    
+
     // particles separation around this particle
-    const double dx = source->getSmoothinglength() 
+    const double dx = source->getSmoothinglength()
                     / (sph_eta*kernels::kernel_width);
-    
+
     // timestep based on particle velocity
     const double vel = norm_point(source->getVelocity());
     const double dt_v = dx/(vel + tiny);
@@ -331,11 +331,11 @@ namespace physics{
     // timestep based on acceleration
     const double acc = norm_point(source->getAcceleration());
     const double dt_a = sqrt(dx/(acc + tiny));
-  
-    // timestep based on sound speed and viscosity 
+
+    // timestep based on sound speed and viscosity
     const double max_mu_ab = source->getMumax();
     const double cs_a = source->getSoundspeed();
-    const double dt_c = dx/ (tiny + cs_a*(1 + mc*sph_viscosity_alpha) 
+    const double dt_c = dx/ (tiny + cs_a*(1 + mc*sph_viscosity_alpha)
                                   + mc*sph_viscosity_beta*max_mu_ab);
 
     // critical OMP to avoid outside synchronizations
@@ -350,15 +350,15 @@ namespace physics{
    */
   void set_adaptive_timestep(
       std::vector<body_holder>& bodies
-      ) 
+      )
   {
     double dtmin = 1e24; // some ludicrous number
     for(auto& nbh: bodies) {
-      if(!nbh.is_local()) continue; 
+      if(!nbh.is_local()) continue;
       dtmin = std::min(dtmin, nbh.getBody()->getDt());
     }
     mpi_utils::reduce_min(dtmin);
-  
+
   #pragma omp critical
     if (dtmin < physics::dt)
       physics::dt = std::min(dtmin, physics::dt/2.0);
@@ -367,64 +367,64 @@ namespace physics{
       physics::dt = physics::dt*2.0;
   }
 
-  void 
+  void
   compute_smoothinglength(
-      std::vector<body_holder>& bodies)  
-  { 
+      std::vector<body_holder>& bodies)
+  {
     if (gdimension == 1) {
       for(auto& b: bodies) {
-        if(!b.is_local()) continue; 
+        if(!b.is_local()) continue;
         auto particle = b.getBody();
         double m_b   = particle->getMass();
         double rho_b = particle->getDensity();
         particle->setSmoothinglength(
-          m_b/rho_b * sph_eta*kernels::kernel_width);  
-      } 
+          m_b/rho_b * sph_eta*kernels::kernel_width);
+      }
     }
     else if (gdimension == 2) {
       for(auto& b: bodies) {
-        if(!b.is_local()) continue; 
+        if(!b.is_local()) continue;
         auto particle = b.getBody();
         double m_b   = particle->getMass();
         double rho_b = particle->getDensity();
         particle->setSmoothinglength(
-          sqrt(m_b/rho_b) * sph_eta*kernels::kernel_width);  
-      } 
+          sqrt(m_b/rho_b) * sph_eta*kernels::kernel_width);
+      }
     }
     else {
       for(auto& b: bodies) {
-        if(!b.is_local()) continue; 
+        if(!b.is_local()) continue;
         auto particle = b.getBody();
         double m_b   = particle->getMass();
         double rho_b = particle->getDensity();
         particle->setSmoothinglength(
-          cbrt(m_b/rho_b) * sph_eta*kernels::kernel_width);  
-      } 
+          cbrt(m_b/rho_b) * sph_eta*kernels::kernel_width);
+      }
     } // if gdimension
   }
 
   /**
    * @brief update smoothing length for particles (Rosswog'09, eq.51)
-   * 
+   *
    * ha = eta/N \sum_b pow(m_b / rho_b,1/dimension)
    */
-  void compute_average_smoothinglength( 
+  void compute_average_smoothinglength(
       std::vector<body_holder>& bodies,
       int64_t nparticles) {
     compute_smoothinglength(bodies);
-    // Compute the total 
+    // Compute the total
     double total = 0.;
     for(auto& b: bodies)
     {
-      if(!b.is_local()) continue; 
+      if(!b.is_local()) continue;
       total += b.getBody()->getSmoothinglength();
     }
-    // Add up with all the processes 
+    // Add up with all the processes
     MPI_Allreduce(MPI_IN_PLACE,&total,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
-    // Compute the new smoothing length 
+    // Compute the new smoothing length
     double new_h = 1./(double)nparticles * total;
-    for(auto& b: bodies) { 
-      if(!b.is_local()) continue; 
+    for(auto& b: bodies) {
+      if(!b.is_local()) continue;
       b.getBody()->setSmoothinglength(new_h);
     }
   }
