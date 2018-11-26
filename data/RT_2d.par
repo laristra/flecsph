@@ -11,7 +11,6 @@
   lattice_type = 1        # 0:rectangular, 1:hcp, 2:fcc  **in 2d both hcp
                           # and fcc are triangular**
   domain_type = 1         # 0:cube, 1:sphere, 2:full box
-  box_length = 1.5
   flow_velocity = 1
 
 # evolution
@@ -26,7 +25,6 @@
   out_h5data_every = 10
   out_diagnostic_every = 1
   output_h5data_prefix = "ev_RT_n200"
-  #do_periodic_boundary = yes
   box_width = 1
   box_length = 1
 
