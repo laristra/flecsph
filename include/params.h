@@ -388,7 +388,7 @@ namespace param {
 // Apply gravitation on particles
 // On : 1D, x, 2D y, 3D z
 # ifndef do_gravitation
-  DECLARE_PARAM(bool,do_gravitation, true)
+  DECLARE_PARAM(bool,do_gravitation, false)
 # endif
 
 // Value for the gravitation

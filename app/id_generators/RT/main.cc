@@ -227,7 +227,7 @@ int main(int argc, char * argv[]){
 
     // Add velocity perturbation a-la Price (2008)
     if(y[part] < 0.025 and y[part] > -0.025)
-      vy[part] = 0.25*sin(-2*M_PI*(x[part]+.5)*2.);
+      vy[part] = 2*sin(-3*M_PI*(x[part]+.5));
 
     // compute internal energy using gamma-law eos
     //u[part] = P[part]/(poly_gamma-1.)/rho[part];
