@@ -31,7 +31,6 @@ void print_usage() {
 //
 // derived parameters
 //
-static double gravity;                // Gravity force from parameter file
 static double pressure_0;             // Initial pressure
 static int64_t nparticlesproc;        // number of particles per proc
 static double rho_1, rho_2;           // densities
@@ -51,7 +50,7 @@ static double pmass = 0;      // particle mass in the middle block
 double pressure_gravity(const double& y, const double& rho)
 {
   using namespace param;
-  double pressure = pressure_0 + rho * gravity * (y - .5*box_width);
+  double pressure = pressure_0 + rho * param::gravitation_value * y;
   return pressure;
 }
 
@@ -71,13 +70,12 @@ void set_derived_params() {
   bbox_max[0] = tbox_max[0] = box_length/2.;
   bbox_min[0] = tbox_min[0] =-box_length/2.;
 
-  bbox_min[1] = -box_width/2.;
+  bbox_min[1] =  -box_width/2.;
   bbox_max[1] =  0.;
   tbox_min[1] =  0.;
   tbox_max[1] =  box_width/2.;
 
   pressure_0 = 2.5;
-  gravity = param::gravitation_value;
 
   // 1 = bottom 2 = top
   rho_1 = rho_initial;  // 2.0 by default
@@ -227,10 +225,7 @@ int main(int argc, char * argv[]){
 
     // Add velocity perturbation a-la Price (2008)
     if(y[part] < 0.025 and y[part] > -0.025)
-      vy[part] = 2*sin(-3*M_PI*(x[part]+.5));
-
-    // compute internal energy using gamma-law eos
-    //u[part] = P[part]/(poly_gamma-1.)/rho[part];
+      vy[part] = 0.2*sin(M_PI*(x[part]+.5));
 
     // particle masses and smoothing length
     m[part] = pmass;

@@ -270,15 +270,8 @@ namespace external_force {
   point_t acceleration_gravitation(body_holder* srch)
   {
     body* source = srch->getBody();
-    point_t acc;
-    acc[0] = 0;
-    if(gdimension == 2){
-      acc[1] = param::gravitation_value;
-    }
-    if(gdimension == 3){
-      acc[1] = 0.;
-      acc[2] = param::gravitation_value;
-    }
+    point_t acc{};
+    acc[gdimension-1] = param::gravitation_value;
     return acc;
   }
 
@@ -286,15 +279,7 @@ namespace external_force {
   {
     body* source = srch->getBody();
     double pot = 0.;
-    double height;
-    if(gdimension == 2){
-      height = srch->coordinates()[1] - .5*param::box_width;
-      pot = srch->mass()*param::gravitation_value*height;
-    }
-    if(gdimension == 3){
-      height = srch->coordinates()[2] - .5*param::box_height;
-      pot = srch->mass()*param::gravitation_value*height;
-    }
+    pot = param::gravitation_value*srch->coordinates()[gdimension-1];
     return pot;
   }
 
