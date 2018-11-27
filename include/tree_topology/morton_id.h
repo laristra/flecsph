@@ -438,7 +438,7 @@ public:
       ++d;
     }
 
-    std::cout<<"depth="<<d<<std::endl;
+    //std::cout<<"depth="<<d<<std::endl;
 
     for(size_t i = 0 ; i < dimension ; ++i)
     {
