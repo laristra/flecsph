@@ -3,7 +3,7 @@
 #
 # initial data
   initial_data_prefix = "RT_n200"
-  lattice_nx = 50        # particle lattice linear dimension
+  lattice_nx = 30        # particle lattice linear dimension
   poly_gamma = 1.4        # polytropic index
   equal_mass = yes        # whether equal mass particles are used
                           #or equal separation
@@ -25,8 +25,8 @@
   out_h5data_every = 10
   out_diagnostic_every = 1
   output_h5data_prefix = "ev_RT_n200"
-  box_width = 2
-  box_length = 1
+  box_width = 1.5
+  box_length = .5
 
   external_force_type = "square xyz-well"
   zero_potential_poison_value = 0.0
@@ -34,4 +34,4 @@
   extforce_wall_powerindex = 5
 
   do_gravitation = yes
-  gravitation_value = 1
+  gravitation_value = 0.1

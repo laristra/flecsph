@@ -50,7 +50,7 @@ static double pmass = 0;      // particle mass in the middle block
 double pressure_gravity(const double& y, const double& rho)
 {
   using namespace param;
-  double pressure = pressure_0 + rho * -param::gravitation_value * y;
+  double pressure = pressure_0 - rho * param::gravitation_value * y;
   return pressure;
 }
 
@@ -108,17 +108,17 @@ void set_derived_params() {
   if (lattice_type == 1 or lattice_type == 2)
     dy *= sqrt(3)/2;
   double dy_tb = dy; // lattice step in y-direction for top and bottom blocks
-  //double bbox_width = bbox_max[1] - bbox_min[1];
-  //bbox_width = (int)(bbox_width/(2*dy))*2*dy;
-  //bbox_min[1] = -bbox_width/2.;
-  //bbox_max[1] =  bbox_width/2.;
+  double bbox_width = bbox_max[1] - bbox_min[1];
+  bbox_width = (int)(bbox_width/(2*dy))*2*dy;
+  bbox_min[1] = -bbox_width/2.;
+  bbox_max[1] =  bbox_width/2.;
 
   sph_sep_t = sph_separation * sqrt(rho_1/rho_2);
 
   dy_tb = dy * sph_sep_t/sph_separation;
 
   // adjust top blocks
-  //tbox_min[1] = bbox_max[1] - dy + 0.5*(dy_tb + dy);
+  tbox_min[1] = bbox_max[1] - dy + 0.5*(dy_tb + dy);
 
   // count the number of particles
   np_bottom = particle_lattice::count(lattice_type,2,bbox_min,bbox_max,
@@ -224,8 +224,9 @@ int main(int argc, char * argv[]){
     vy[part] = 0.;
 
     // Add velocity perturbation a-la Price (2008)
+    //vy[part] = 0.01*(1 + cos(4*M_PI*x[part]))*(1 + cos(3*M_PI*y[part]))/4.;
     if(y[part] < 0.025 and y[part] > -0.025)
-      vy[part] = 1.*sin(M_PI*(x[part]+.5));
+      vy[part] = 2.*cos(M_PI*(x[part]/box_length));
 
     // particle masses and smoothing length
     m[part] = pmass;
