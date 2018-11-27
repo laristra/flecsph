@@ -4,16 +4,16 @@
 #----------------------------------------------------------------------------#
 
 #------------------------------------------------------------------------------#
-# Debug and release flags     
+# Debug and release flags
 #------------------------------------------------------------------------------#
 
 # For vectorization: -fopt-info-vec-missed/optimized/note/all
-set(CMAKE_CXX_FLAGS_DEBUG 
+set(CMAKE_CXX_FLAGS_DEBUG
   "-DPARALLEL_IO -Wno-sign-compare -Wno-reorder -Wno-narrowing -Wno-deprecated-declaration -ftree-vectorize -ffast-math -msse2 -g -O2 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses")
-set(CMAKE_CXX_FLAGS_RELEASE 
-  "-DPARALLEL_IO -Wno-sign-compare -Wno-reorder -Wno-narrowing -Wno-deprecated-declaration -ftree-vectorize -ffast-math -msse2 -O3 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses") 
+set(CMAKE_CXX_FLAGS_RELEASE
+  "-DPARALLEL_IO -Wno-sign-compare -Wno-reorder -Wno-narrowing -Wno-deprecated-declaration -ftree-vectorize -ffast-math -msse2 -O3 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses")
 
-# includes 
+# includes
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/include/physics)
@@ -31,8 +31,8 @@ add_definitions(-DFLECSI_OVERRIDE_DEFAULT_SPECIALIZATION_DRIVER)
 
 # MPILEGION version: 1D
 add_executable(hydro_1d
-  hydro/main.cc 
-  hydro/main_driver.cc 
+  hydro/main.cc
+  hydro/main_driver.cc
   ${FleCSI_RUNTIME}/runtime_driver.cc
 )
 
@@ -43,8 +43,8 @@ install(TARGETS hydro_1d RUNTIME DESTINATION bin/drivers)
 
 # MPILEGION version: 2D
 add_executable(hydro_2d
-  hydro/main.cc 
-  hydro/main_driver.cc 
+  hydro/main.cc
+  hydro/main_driver.cc
   ${FleCSI_RUNTIME}/runtime_driver.cc
 )
 
@@ -55,8 +55,8 @@ install(TARGETS hydro_2d RUNTIME DESTINATION bin/drivers)
 
 # MPILEGION version: 3D
 add_executable(hydro_3d
-  hydro/main.cc 
-  hydro/main_driver.cc 
+  hydro/main.cc
+  hydro/main_driver.cc
   ${FleCSI_RUNTIME}/runtime_driver.cc
 )
 
@@ -70,8 +70,8 @@ install(TARGETS hydro_3d RUNTIME DESTINATION bin/drivers)
 
 # 3D-version
 add_executable(newtonian_3d
-  newtonian/main.cc 
-  newtonian/main_driver.cc 
+  newtonian/main.cc
+  newtonian/main_driver.cc
   ${FleCSI_RUNTIME}/runtime_driver.cc
 )
 target_link_libraries(newtonian_3d ${FleCSPH_LIBRARIES})
@@ -83,17 +83,17 @@ install(TARGETS newtonian_3d RUNTIME DESTINATION bin/drivers)
 
 
 #------------------------------------------------------------------------------#
-# sodtube test, call the default parameter file 
+# sodtube test, call the default parameter file
 #------------------------------------------------------------------------------#
 
 cinch_add_unit(sodtube_test
   SOURCES
     test/sodtube.cc
     hydro/main_driver.cc
-    ${FleCSI_RUNTIME}/runtime_driver.cc 
+    ${FleCSI_RUNTIME}/runtime_driver.cc
   INPUTS
-    ${PROJECT_SOURCE_DIR}/data/sodtube_t1_n100.par 
-  LIBRARIES 
+    ${PROJECT_SOURCE_DIR}/data/sodtube_t1_n100.par
+  LIBRARIES
     ${FleCSPH_LIBRARIES}
   DEFINES
     -DEXT_GDIMENSION=1
@@ -103,7 +103,7 @@ cinch_add_unit(sodtube_test
 if(ENABLE_UNIT_TESTS)
 
 add_custom_target(
-    sodtube_1d_generator_test 
+    sodtube_1d_generator_test
     COMMAND mpirun -n 1 ../id_generators/sodtube_1d_generator ${PROJECT_SOURCE_DIR}/data/sodtube_t1_n100.par
     COMMAND mv sodtube_t1_n100.h5part ../../test/drivers
     DEPENDS ../id_generators/sodtube_1d_generator
@@ -112,17 +112,17 @@ add_dependencies(sodtube_test sodtube_1d_generator_test)
 endif()
 
 #------------------------------------------------------------------------------#
-# sedov test with the default parameter file 
+# sedov test with the default parameter file
 #------------------------------------------------------------------------------#
 
 cinch_add_unit(sedov_test
   SOURCES
     test/sedov.cc
     hydro/main_driver.cc
-    ${FleCSI_RUNTIME}/runtime_driver.cc 
+    ${FleCSI_RUNTIME}/runtime_driver.cc
   INPUTS
-    ${PROJECT_SOURCE_DIR}/data/sedov_nx20.par 
-  LIBRARIES 
+    ${PROJECT_SOURCE_DIR}/data/sedov_nx20.par
+  LIBRARIES
     ${FleCSPH_LIBRARIES}
   DEFINES
     -DEXT_GDIMENSION=2
@@ -140,17 +140,17 @@ add_dependencies(sedov_test sedov_2d_generator_test)
 endif()
 
 #------------------------------------------------------------------------------#
-# noh test, with the default parameter file 
+# noh test, with the default parameter file
 #------------------------------------------------------------------------------#
 
 cinch_add_unit(noh_test
   SOURCES
     test/noh.cc
     hydro/main_driver.cc
-    ${FleCSI_RUNTIME}/runtime_driver.cc 
+    ${FleCSI_RUNTIME}/runtime_driver.cc
   INPUTS
-    ${PROJECT_SOURCE_DIR}/data/noh_nx20.par 
-  LIBRARIES 
+    ${PROJECT_SOURCE_DIR}/data/noh_nx20.par
+  LIBRARIES
     ${FleCSPH_LIBRARIES}
   DEFINES
     -DEXT_GDIMENSION=2
@@ -159,7 +159,7 @@ cinch_add_unit(noh_test
 
 if(ENABLE_UNIT_TESTS)
 add_custom_target(
-    noh_2d_generator_test 
+    noh_2d_generator_test
     COMMAND mpirun -n 1 ../id_generators/noh_2d_generator ${PROJECT_SOURCE_DIR}/data/noh_nx20.par
     COMMAND mv noh_nx20.h5part ../../test/drivers
     DEPENDS ../id_generators/noh_2d_generator
@@ -175,10 +175,10 @@ cinch_add_unit(implosion_test
   SOURCES
     test/implosion.cc
     hydro/main_driver.cc
-    ${FleCSI_RUNTIME}/runtime_driver.cc 
+    ${FleCSI_RUNTIME}/runtime_driver.cc
   INPUTS
-    ${PROJECT_SOURCE_DIR}/data/implosion_nx20.par 
-  LIBRARIES 
+    ${PROJECT_SOURCE_DIR}/data/implosion_nx20.par
+  LIBRARIES
     ${FleCSPH_LIBRARIES}
   DEFINES
     -DEXT_GDIMENSION=2
@@ -187,12 +187,10 @@ cinch_add_unit(implosion_test
 
 if(ENABLE_UNIT_TESTS)
 add_custom_target(
-    implosion_2d_generator_test 
+    implosion_2d_generator_test
     COMMAND mpirun -n 1 ../id_generators/implosion_2d_generator ${PROJECT_SOURCE_DIR}/data/implosion_nx20.par
     COMMAND mv implosion_nx20.h5part ../../test/drivers
     DEPENDS ../id_generators/implosion_2d_generator
 )
 add_dependencies(implosion_test implosion_2d_generator_test)
 endif()
-
-

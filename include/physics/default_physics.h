@@ -353,13 +353,15 @@ namespace physics{
       )
   {
     double dtmin = 1e24; // some ludicrous number
-    for(auto& nbh: bodies) {
-      if(!nbh.is_local()) continue;
-      dtmin = std::min(dtmin, nbh.getBody()->getDt());
+
+    #pragma omp parallel for reduction(min:dtmin)
+    for(size_t i = 0 ; i < bodies.size(); ++i){
+      if(!bodies[i].is_local()) continue;
+      dtmin = std::min(dtmin, bodies[i].getBody()->getDt());
     }
+
     mpi_utils::reduce_min(dtmin);
 
-  #pragma omp critical
     if (dtmin < physics::dt)
       physics::dt = std::min(dtmin, physics::dt/2.0);
 
@@ -372,9 +374,10 @@ namespace physics{
       std::vector<body_holder>& bodies)
   {
     if (gdimension == 1) {
-      for(auto& b: bodies) {
-        if(!b.is_local()) continue;
-        auto particle = b.getBody();
+      #pragma omp parallel for
+      for(size_t i = 0 ; i < bodies.size(); ++i){
+        if(!bodies[i].is_local()) continue;
+        auto particle = bodies[i].getBody();
         double m_b   = particle->getMass();
         double rho_b = particle->getDensity();
         particle->setSmoothinglength(
@@ -382,9 +385,10 @@ namespace physics{
       }
     }
     else if (gdimension == 2) {
-      for(auto& b: bodies) {
-        if(!b.is_local()) continue;
-        auto particle = b.getBody();
+      #pragma omp parallel for
+      for(size_t i = 0 ; i < bodies.size(); ++i){
+        if(!bodies[i].is_local()) continue;
+        auto particle = bodies[i].getBody();
         double m_b   = particle->getMass();
         double rho_b = particle->getDensity();
         particle->setSmoothinglength(
@@ -392,9 +396,10 @@ namespace physics{
       }
     }
     else {
-      for(auto& b: bodies) {
-        if(!b.is_local()) continue;
-        auto particle = b.getBody();
+      #pragma omp parallel for
+      for(size_t i = 0 ; i < bodies.size(); ++i){
+        if(!bodies[i].is_local()) continue;
+        auto particle = bodies[i].getBody();
         double m_b   = particle->getMass();
         double rho_b = particle->getDensity();
         particle->setSmoothinglength(
@@ -414,18 +419,23 @@ namespace physics{
     compute_smoothinglength(bodies);
     // Compute the total
     double total = 0.;
-    for(auto& b: bodies)
+
+    #pragma omp parallel for reduction(+:total)
+    for(size_t i = 0 ; i < bodies.size(); ++i)
     {
-      if(!b.is_local()) continue;
-      total += b.getBody()->getSmoothinglength();
+      if(!bodies[i].is_local()) continue;
+      total += bodies[i].getBody()->getSmoothinglength();
     }
+
     // Add up with all the processes
     MPI_Allreduce(MPI_IN_PLACE,&total,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+
     // Compute the new smoothing length
     double new_h = 1./(double)nparticles * total;
-    for(auto& b: bodies) {
-      if(!b.is_local()) continue;
-      b.getBody()->setSmoothinglength(new_h);
+    #pragma omp parallel for
+    for(size_t i = 0 ; i < bodies.size(); ++i){
+      if(!bodies[i].is_local()) continue;
+      bodies[i].getBody()->setSmoothinglength(new_h);
     }
   }
 }; // physics

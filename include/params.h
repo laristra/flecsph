@@ -393,7 +393,7 @@ namespace param {
 
 // Value for the gravitation
 # ifndef gravitation_value
-  DECLARE_PARAM(double,gravitation_value, -9.81)
+  DECLARE_PARAM(double,gravitation_value, 9.81)
 # endif
 
 //

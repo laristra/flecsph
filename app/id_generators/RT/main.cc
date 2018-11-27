@@ -50,7 +50,7 @@ static double pmass = 0;      // particle mass in the middle block
 double pressure_gravity(const double& y, const double& rho)
 {
   using namespace param;
-  double pressure = pressure_0 + rho * param::gravitation_value * y;
+  double pressure = pressure_0 + rho * -param::gravitation_value * y;
   return pressure;
 }
 
@@ -225,7 +225,7 @@ int main(int argc, char * argv[]){
 
     // Add velocity perturbation a-la Price (2008)
     if(y[part] < 0.025 and y[part] > -0.025)
-      vy[part] = 0.2*sin(M_PI*(x[part]+.5));
+      vy[part] = 1.*sin(M_PI*(x[part]+.5));
 
     // particle masses and smoothing length
     m[part] = pmass;
