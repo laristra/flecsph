@@ -19,7 +19,7 @@
   sph_variable_h = yes
   adaptive_timestep = yes
   timestep_cfl_factor = 0.25
-  final_iteration = 1000
+  final_iteration = 2000
   out_screen_every = 1
   out_scalar_every = 1
   out_h5data_every = 10
@@ -34,4 +34,4 @@
   extforce_wall_powerindex = 5
 
   do_gravitation = yes
-  gravitation_value = -1
+  gravitation_value = 1
