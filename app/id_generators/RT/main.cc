@@ -108,14 +108,14 @@ void set_derived_params() {
   if (lattice_type == 1 or lattice_type == 2)
     dy *= sqrt(3)/2;
   double dy_tb = dy; // lattice step in y-direction for top and bottom blocks
-  double bbox_width = bbox_max[1] - bbox_min[1];
-  bbox_width = (int)(bbox_width/(2*dy))*2*dy;
-  bbox_min[1] = -bbox_width/2.;
-  bbox_max[1] =  bbox_width/2.;
+  //double bbox_width = bbox_max[1] - bbox_min[1];
+  //bbox_width = (int)(bbox_width/(2*dy))*2*dy;
+  //bbox_min[1] = -bbox_width/2.;
+  //bbox_max[1] =  bbox_width/2.;
 
   sph_sep_t = sph_separation * sqrt(rho_1/rho_2);
 
-  dy_tb = dy * sph_sep_t/sph_separation;
+  //dy_tb = dy * sph_sep_t/sph_separation;
 
   // adjust top blocks
   tbox_min[1] = bbox_max[1] - dy + 0.5*(dy_tb + dy);
