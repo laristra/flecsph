@@ -111,6 +111,7 @@ mpi_init_task(const char * parameter_file){
 
     if (physics::iteration == param::initial_iteration){
 
+      rank|| clog(trace)<<"First iteration"<<std::endl << std::flush;
       bs.update_iteration();
 
       if(thermokinetic_formulation) {

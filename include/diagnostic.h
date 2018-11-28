@@ -31,95 +31,97 @@
 
 namespace diagnostic {
 
-  uint64_t N_min, N_max, N_average; 
-  uint64_t N_ghosts; 
-  double h_min, h_max, h_average; 
+  uint64_t N_min, N_max, N_average;
+  uint64_t N_ghosts;
+  double h_min, h_max, h_average;
   double min_dist, average_dist_in_h;
   entity_id_t id_N_min, id_N_max, id_h_min, id_h_max;
   double V_min, V_max, V_average;
 
   /**
    * @brief      Compute the min, max and average number of neighbor
-   * Also compute the minimum distance in smoothing length 
+   * Also compute the minimum distance in smoothing length
    * @param      bodies  Vector of all the local bodies
    */
   void
   compute_neighbors_stats(
-      std::vector<body_holder>& bodies, 
-      tree_topology_t* tree, 
+      std::vector<body_holder>& bodies,
+      tree_topology_t* tree,
       int64_t totalnbodies )
   {
-    min_dist = std::numeric_limits<double>::max(); 
-    int64_t ncritical = 32; 
+    min_dist = std::numeric_limits<double>::max();
+    int64_t ncritical = 32;
     uint64_t N_total = 0;
     N_ghosts = 0;
     average_dist_in_h = 0.;
     N_min = std::numeric_limits<std::uint64_t>::max();
     N_max = 0;
-    // Find in radius the number of neighbors 
+    // Find in radius the number of neighbors
     tree->apply_sub_cells(
         tree->root(),
         0.,
         ncritical,
-        param::sph_variable_h, 
-        [](body_holder * srch, 
+        param::sph_variable_h,
+        [](body_holder * srch,
           std::vector<body_holder*>& nbh,
           double& min_d, double& average_dist, uint64_t& N_ghosts)
         {
-            // \TODO assert all bodies not nullptr and in interaction? 
-            srch->getBody()->set_neighbors(nbh.size()-1); 
-            
+            // \TODO assert all bodies not nullptr and in interaction?
+            srch->getBody()->set_neighbors(nbh.size()-1);
+
             double dist = std::numeric_limits<double>::max();
             double total_distance = 0.;
-            uint64_t g = 0; 
+            uint64_t g = 0;
             for(auto n: nbh)
             {
               double d = distance(srch->coordinates(),
                 n->coordinates());
 
-              total_distance+=d; 
+              total_distance+=d;
 
               if(d!=0.)
                 dist = std::min(dist,d);
 
               if(!n->is_local()) ++n;
             }
-            // Min distance 
+            // Min distance
             #pragma omp critical
             {
-              N_ghosts += g; 
+              N_ghosts += g;
               min_d = std::min(min_d,dist);
               average_dist += total_distance/(nbh.size()-1);
-            } 
+            }
         },min_dist,average_dist_in_h,N_ghosts
     );
+    
     for(auto& b: bodies)
     {
-      if(!b.is_local()) continue; 
-      uint64_t N = b.getBody()->neighbors(); 
-      N_min = std::min(N_min,N); 
+      if(!b.is_local()) continue;
+      uint64_t N = b.getBody()->neighbors();
+      N_min = std::min(N_min,N);
       N_max = std::max(N_max,N);
 
-      N_total += N; 
+      N_total += N;
     }
+
     reduce_sum(N_total);
     reduce_min(N_min);
     reduce_max(N_max);
     reduce_min(min_dist);
     reduce_sum(average_dist_in_h);
-    reduce_max(N_ghosts); 
-    average_dist_in_h /= totalnbodies; 
+    reduce_max(N_ghosts);
+    average_dist_in_h /= totalnbodies;
     N_average = N_total/ totalnbodies;
   }
 
   /**
-   * @brief      Compute the min, max and average smoothing length 
+   * @brief      Compute the min, max and average smoothing length
    *
    * @param      bodies  Vector of all the local bodies
    */
   void
   compute_smoothinglength_stats(
-      std::vector<body_holder>& bodies, 
+      std::vector<body_holder>& bodies,
       int64_t totalnbodies)
   {
     double h_total = 0.;
@@ -127,7 +129,7 @@ namespace diagnostic {
     h_max = std::numeric_limits<double>::min();
     for(auto& b: bodies)
     {
-      if(!b.is_local()) continue; 
+      if(!b.is_local()) continue;
       double h = b.getBody()->getSmoothinglength();
       h_total += h;
       h_min = std::min(h,h_min);
@@ -139,12 +141,12 @@ namespace diagnostic {
     h_average = h_total / totalnbodies;
   }
 
-  /** 
-   * @brief Compute the min, max and average norm of velocity 
+  /**
+   * @brief Compute the min, max and average norm of velocity
    */
-  void 
+  void
   compute_velocity_stats(
-      std::vector<body_holder>& bodies, 
+      std::vector<body_holder>& bodies,
       int64_t totalnbodies)
   {
     V_min = std::numeric_limits<double>::max();
@@ -153,7 +155,7 @@ namespace diagnostic {
     double V_tot = 0.;
     for(auto& b: bodies)
     {
-      if(!b.is_local()) continue; 
+      if(!b.is_local()) continue;
       double V = norm_point(b.getBody()->getVelocity());
       V_max = std::max(V,V_max);
       V_min = std::min(V,V_min);
@@ -195,8 +197,8 @@ namespace diagnostic {
     std::ostringstream oss_data;
     oss_data << std::setw(5) << physics::iteration
       << std::setw(20) << std::scientific << std::setprecision(12)
-      << physics::totaltime << std::setw(20) 
-      << h_min << std::setw(20) << h_max << std::setw(20) 
+      << physics::totaltime << std::setw(20)
+      << h_min << std::setw(20) << h_max << std::setw(20)
       << h_average << std::setw(5) << N_min << std::setw(5)
       << N_max << std::setw(5) << N_average << std::setw(20)
       << min_dist << std::setw(20) << average_dist_in_h << std::setw(20)

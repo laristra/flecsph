@@ -29,6 +29,10 @@
 #include <vector>
 #include "params.h"
 
+// OpenMP point reduction
+#pragma omp declare reduction(add_point : point_t : omp_out += omp_in) \
+initializer(omp_priv=point_t{})
+
 //#include "physics.h"
 
 namespace analysis{
@@ -52,10 +56,12 @@ namespace analysis{
       std::vector<body_holder>& bodies)
   {
     linear_momentum = {0};
-    for(auto& nbh: bodies) {
-      if(!nbh.is_local()) continue;
-      if(nbh.getBody()->type() == NORMAL){
-        linear_momentum += nbh.getBody()->getLinMomentum();
+    #pragma omp parallel for reduction(add_point:linear_momentum)
+    for(size_t i = 0 ; i < bodies.size(); ++i){
+    //for(auto& nbh: bodies) {
+      if(!bodies[i].is_local()) continue;
+      if(bodies[i].getBody()->type() == NORMAL){
+        linear_momentum += bodies[i].getBody()->getLinMomentum();
       }
     }
     reduce_sum(linear_momentum);
@@ -71,10 +77,11 @@ namespace analysis{
       std::vector<body_holder>& bodies)
   {
     total_mass = 0.;
-    for(auto& nbh: bodies) {
-      if(!nbh.is_local()) continue;
-      if(nbh.getBody()->type() == NORMAL){
-        total_mass += nbh.getBody()->getMass();
+    #pragma omp parallel for reduction(+:total_mass)
+    for(size_t i = 0 ; i < bodies.size(); ++i){
+      if(!bodies[i].is_local()) continue;
+      if(bodies[i].getBody()->type() == NORMAL){
+        total_mass += bodies[i].getBody()->getMass();
       }
     }
     reduce_sum(total_mass);
@@ -93,27 +100,31 @@ namespace analysis{
 
     total_energy = 0.;
     if (thermokinetic_formulation) {
-      for(auto& nbh: bodies){
-        if(!nbh.is_local()) continue;
-        if(nbh.getBody()->type() == NORMAL){
-          total_energy += nbh.getBody()->getMass()*nbh.getBody()->getTotalenergy();
+      #pragma omp parallel for reduction(+:total_energy)
+      for(size_t i = 0 ; i < bodies.size(); ++i){
+        if(!bodies[i].is_local()) continue;
+        if(bodies[i].getBody()->type() == NORMAL){
+          total_energy += bodies[i].getBody()->getMass()*
+            bodies[i].getBody()->getTotalenergy();
         }
       }
     }
     else {
-      for(auto& nbh: bodies) {
-        if(!nbh.is_local()) continue;
-        if(nbh.getBody()->type() != NORMAL){
+      #pragma omp parallel for reduction(+:total_energy)
+      for(size_t i = 0 ; i < bodies.size(); ++i){
+        if(!bodies[i].is_local()) continue;
+        if(bodies[i].getBody()->type() != NORMAL){
           continue;
         }
-        total_energy += nbh.getBody()->getMass()*nbh.getBody()->getInternalenergy();
-        linear_velocity = nbh.getBody()->getVelocity();
+        total_energy += bodies[i].getBody()->getMass()*
+          bodies[i].getBody()->getInternalenergy();
+        linear_velocity = bodies[i].getBody()->getVelocity();
         velocity_part = 0.;
         for(size_t i = 0 ; i < gdimension ; ++i){
           velocity_part += pow(linear_velocity[i],2);
-          part_position = nbh.getBody()->getPosition();
+          part_position = bodies[i].getBody()->getPosition();
         }
-        total_energy += 1./2.*velocity_part*nbh.getBody()->getMass();
+        total_energy += 1./2.*velocity_part*bodies[i].getBody()->getMass();
       }
     }
     reduce_sum(total_energy);
@@ -134,13 +145,14 @@ namespace analysis{
     total_ang_mom = {0};
     part_mom = {0};
     part_position = {0};
-    for(auto& nbh: bodies) {
-      if(!nbh.is_local()) continue;
-      if(nbh.getBody()->type() != NORMAL){
+    #pragma omp parallel for reduction(add_point:total_ang_mom)
+    for(size_t i = 0 ; i < bodies.size(); ++i){
+      if(!bodies[i].is_local()) continue;
+      if(bodies[i].getBody()->type() != NORMAL){
         continue;
       }
-      part_mom = nbh.getBody()->getLinMomentum();
-      part_position = nbh.getBody()->getPosition();
+      part_mom = bodies[i].getBody()->getLinMomentum();
+      part_position = bodies[i].getBody()->getPosition();
       if(gdimension==3){
         part_ang_x = part_position[1]*part_mom[2]-part_position[2]*part_mom[1];
         part_ang_y = -part_position[0]*part_mom[2]+part_position[2]*part_mom[0];

@@ -3,7 +3,7 @@
 #
 # initial data
   initial_data_prefix = "noh_nx20"
-  lattice_nx = 20             # particle lattice dimension
+  lattice_nx = 40             # particle lattice dimension
   poly_gamma = 1.6666667      # polytropic index
   rho_initial = 1.0
   pressure_initial = 1.0e-6
@@ -25,4 +25,6 @@
   out_scalar_every = 10
   out_h5data_every = 10
   output_h5data_prefix = "noh_evolution"
-  # sph_update_uniform_h = yes
+  sph_variable_h = yes
+  adaptive_timestep = yes
+  timestep_cfl_factor = 0.25

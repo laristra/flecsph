@@ -98,6 +98,7 @@ cinch_add_unit(sodtube_test
   DEFINES
     -DEXT_GDIMENSION=1
   POLICY MPI
+  THREADS 2
 )
 
 if(ENABLE_UNIT_TESTS)
@@ -127,6 +128,7 @@ cinch_add_unit(sedov_test
   DEFINES
     -DEXT_GDIMENSION=2
   POLICY MPI
+  THREADS 2
 )
 
 if(ENABLE_UNIT_TESTS)
@@ -155,6 +157,7 @@ cinch_add_unit(noh_test
   DEFINES
     -DEXT_GDIMENSION=2
   POLICY MPI
+  THREADS 2
 )
 
 if(ENABLE_UNIT_TESTS)
@@ -183,6 +186,7 @@ cinch_add_unit(implosion_test
   DEFINES
     -DEXT_GDIMENSION=2
   POLICY MPI
+  THREADS 2
 )
 
 if(ENABLE_UNIT_TESTS)
