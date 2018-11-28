@@ -280,7 +280,7 @@ namespace external_force {
     body* source = srch->getBody();
     double pot = 0.;
     double height = srch->coordinates()[gdimension-1] + param::box_width/2.;
-    pot = height*param::gravitation_value*srch->mass();
+    pot = height*param::gravitation_value;
     return pot;
   }
 

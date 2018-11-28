@@ -3,7 +3,7 @@
 #
 # initial data
   initial_data_prefix = "implosion_nx20"
-  lattice_nx = 40          # particle lattice dimension
+  lattice_nx = 20          # particle lattice dimension
   poly_gamma = 1.4         # polytropic index
   rho_initial = 1.0
   pressure_initial = 1.0e-7
@@ -22,4 +22,4 @@
   output_h5data_prefix = "implosion_evolution"
   sph_variable_h = yes
   adaptive_timestep = yes
-  timestep_cfl_factor = 0.01
+  timestep_cfl_factor = 0.001

@@ -94,7 +94,6 @@ namespace physics{
     source->setTotalenergy(eint + epot + ekin);
   } // set_total_energy
 
-
   /**
    * @brief      Subtracts mechanical energy from total energy
    *             to recover internal energy
