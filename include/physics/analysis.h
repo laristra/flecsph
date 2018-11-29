@@ -37,6 +37,9 @@ initializer(omp_priv=point_t{})
 
 namespace analysis{
 
+  enum e_conservation: size_t
+  { MASS = 0 , ENERGY = 1, MOMENTUM = 2, ANG_MOMENTUM = 3 };
+
   point_t linear_momentum;
   point_t linear_velocity;
   point_t total_ang_mom;
@@ -64,7 +67,7 @@ namespace analysis{
         linear_momentum += bodies[i].getBody()->getLinMomentum();
       }
     }
-    reduce_sum(linear_momentum);
+    mpi_utils::reduce_sum(linear_momentum);
   }
 
   /**
@@ -84,7 +87,7 @@ namespace analysis{
         total_mass += bodies[i].getBody()->getMass();
       }
     }
-    reduce_sum(total_mass);
+    mpi_utils::reduce_sum(total_mass);
   }
 
   /**
@@ -127,7 +130,7 @@ namespace analysis{
         total_energy += 1./2.*velocity_part*bodies[i].getBody()->getMass();
       }
     }
-    reduce_sum(total_energy);
+    mpi_utils::reduce_sum(total_energy);
   }
 
   /**
@@ -165,7 +168,7 @@ namespace analysis{
         total_ang_mom += 0.;
       }
     }
-    reduce_sum(total_ang_mom);
+    mpi_utils::reduce_sum(total_ang_mom);
   }
 
   /**
@@ -235,7 +238,7 @@ namespace analysis{
         oss_header<<"9:ang_mom_z";
       }
       if(gdimension == 3){
-        oss_header<<"10:ang_mom_x 11:ang_mom_y 12:ang_mom_y ";
+        oss_header<<"10:ang_mom_x 11:ang_mom_y 12:ang_mom_z ";
       }
       oss_header<<std::endl;
 
@@ -277,6 +280,104 @@ namespace analysis{
     out.close();
 
   } // scalar output
+
+
+  bool
+  check_conservation(
+    const std::vector<e_conservation>& check
+  )
+  {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    rank || clog(info) << "Checking conservation of: ";
+    for(auto c: check){
+      switch(c){
+        case MASS:
+          rank || clog(info) << " MASS ";
+          break;
+        case ENERGY:
+          rank || clog(info) << " ENERGY ";
+          break;
+        case MOMENTUM:
+          rank || clog(info) << " MOMENTUM ";
+          break;
+        case ANG_MOMENTUM:
+          rank || clog(info) << " ANG_MOMENTUM ";
+          break;
+        default:
+          break;
+      } // switch
+    }
+    // Open file and check
+    double tol = 1.0e-16;
+    size_t iteration;
+    double time, timestep, mass, energy, momentum[gdimension], ang_mom[3];
+    double base_energy, base_mass, base_ang_mom[3], base_momentum[gdimension];
+    std::ifstream inFile;
+    inFile.open("scalar_reductions.dat");
+    if (!inFile) {
+      std::cerr << "Unable to open file scalar_reductions.dat";
+      exit(1);   // call system to stop
+    }
+
+    // Read the first line
+    inFile >> iteration >> time >> timestep >> base_mass >> base_energy;
+    for(size_t i = 0 ; i < gdimension ; ++i){
+      inFile >> base_momentum[i];
+    }
+    if(gdimension == 2){
+      inFile >> base_ang_mom[2];
+    }
+    if(gdimension == 3){
+      inFile >> base_ang_mom[0] >> base_ang_mom[1] >> base_ang_mom[2];
+    }
+
+    while (inFile.good()) {
+      inFile >> iteration >> time >> timestep >> mass >> energy;
+      for(size_t i = 0 ; i < gdimension ; ++i){
+        inFile >> momentum[i];
+      }
+      if(gdimension == 2){
+        inFile >> ang_mom[2];
+      }
+      if(gdimension == 3){
+        inFile >> ang_mom[0] >> ang_mom[1] >> ang_mom[2];
+      }
+      // Check the quantities
+      // Check only the required ones
+      for(auto c: check){
+        switch(c){
+          case MASS:
+            if(!(abs(base_mass - mass) < tol)){
+              std::cerr<<"Mass is not conserved"<<std::endl;
+              return false;
+            }
+            break;
+          case ENERGY:
+            if(!(abs(base_energy - energy) < tol)){
+              std::cerr<<"Energy is not conserved"<<std::endl;
+              return false;
+            }
+            break;
+          case MOMENTUM:
+            if(!(abs(base_momentum - momentum) < tol)){
+              std::cerr<<"Momentum is not conserved"<<std::endl;
+              return false;
+            }
+            break;
+          case ANG_MOMENTUM:
+            if(!(abs(base_ang_mom - ang_mom) < tol)){
+              std::cerr<<"Angular Momentum is not conserved"<<std::endl;
+              return false;
+            }
+            break;
+          default:
+            break;
+        } // switch
+      } // for
+    } // while
+    return true;
+  } // conservation check
 
 }; // physics
 

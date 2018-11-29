@@ -98,7 +98,7 @@ cinch_add_unit(sodtube_test
   DEFINES
     -DEXT_GDIMENSION=1
   POLICY MPI
-  THREADS 2
+  #THREADS 2
 )
 
 if(ENABLE_UNIT_TESTS)
@@ -110,6 +110,35 @@ add_custom_target(
     DEPENDS ../id_generators/sodtube_1d_generator
 )
 add_dependencies(sodtube_test sodtube_1d_generator_test)
+endif()
+
+#------------------------------------------------------------------------------#
+# RT test, call the default parameter file
+#------------------------------------------------------------------------------#
+
+cinch_add_unit(RT_test
+  SOURCES
+    test/RT.cc
+    hydro/main_driver.cc
+    ${FleCSI_RUNTIME}/runtime_driver.cc
+  INPUTS
+    ${PROJECT_SOURCE_DIR}/data/RT_2d.par
+  LIBRARIES
+    ${FleCSPH_LIBRARIES}
+  DEFINES
+    -DEXT_GDIMENSION=2
+  POLICY MPI
+)
+
+if(ENABLE_UNIT_TESTS)
+
+add_custom_target(
+    RT_2d_generator_test
+    COMMAND mpirun -n 1 ../id_generators/RT_2d_generator ${PROJECT_SOURCE_DIR}/data/RT_2d.par
+    COMMAND mv RT_n30.h5part ../../test/drivers
+    DEPENDS ../id_generators/RT_2d_generator
+)
+add_dependencies(RT_test RT_2d_generator_test)
 endif()
 
 #------------------------------------------------------------------------------#

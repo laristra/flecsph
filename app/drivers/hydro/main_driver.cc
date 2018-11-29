@@ -235,6 +235,13 @@ usage(int rank) {
                     << "<parameter-file.par>" << std::endl << std::flush;
 }
 
+bool
+check_conservation(
+  const std::vector<analysis::e_conservation>& check
+)
+{
+  return analysis::check_conservation(check);
+}
 
 void
 specialization_tlt_init(int argc, char * argv[]){

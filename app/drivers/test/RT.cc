@@ -23,6 +23,6 @@ using namespace flecsi;
 using namespace execution;
 
 TEST(sodtube, working) {
-  mpi_init_task("sodtube_t1_n100.par");
+  mpi_init_task("RT_2d.par");
   ASSERT_TRUE(check_conservation({MASS,ENERGY,MOMENTUM}));
 }
