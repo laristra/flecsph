@@ -241,8 +241,16 @@ namespace param {
   DECLARE_PARAM(bool,reflect_boundaries,false)
 #endif
 
-#ifndef do_periodic_boundary
-  DECLARE_PARAM(bool,do_periodic_boundary,false)
+#ifndef periodic_boundary_x
+  DECLARE_PARAM(bool,periodic_boundary_x,false)
+#endif
+
+#ifndef periodic_boundary_y
+  DECLARE_PARAM(bool,periodic_boundary_y,false)
+#endif
+
+#ifndef periodic_boundary_z
+  DECLARE_PARAM(bool,periodic_boundary_z,false)
 #endif
 
 //
@@ -371,6 +379,21 @@ namespace param {
 # ifndef zero_potential_poison_value
   DECLARE_PARAM(double,zero_potential_poison_value, 0.0)
 # endif
+
+// Enable squarewell on X axis
+#ifndef squarewell_x
+  DECLARE_PARAM(bool,squarewell_x,false)
+#endif
+
+// Enable squarewell on X axis
+#ifndef squarewell_y
+  DECLARE_PARAM(bool,squarewell_y,false)
+#endif
+
+// Enable squarewell on X axis
+#ifndef squarewell_z
+  DECLARE_PARAM(bool,squarewell_z,false)
+#endif
 
 # ifndef extforce_wall_powerindex
   DECLARE_PARAM(double,extforce_wall_powerindex, 5.0)
@@ -638,8 +661,16 @@ void set_param(const std::string& param_name,
   READ_BOOLEAN_PARAM(reflect_boundaries)
 # endif
 
-# ifndef do_periodic_boundary
-  READ_BOOLEAN_PARAM(do_periodic_boundary)
+# ifndef periodic_boundary_x
+  READ_BOOLEAN_PARAM(periodic_boundary_x)
+# endif
+
+# ifndef periodic_boundary_y
+  READ_BOOLEAN_PARAM(periodic_boundary_y)
+# endif
+
+# ifndef periodic_boundary_z
+  READ_BOOLEAN_PARAM(periodic_boundary_z)
 # endif
 
   // i/o parameters  --------------------------------------------------------
@@ -726,6 +757,21 @@ void set_param(const std::string& param_name,
 # ifndef zero_potential_poison_value
   READ_NUMERIC_PARAM(zero_potential_poison_value)
 # endif
+
+// Enable squarewell on X axis
+#ifndef squarewell_x
+  READ_BOOLEAN_PARAM(squarewell_x)
+#endif
+
+// Enable squarewell on X axis
+#ifndef squarewell_y
+  READ_BOOLEAN_PARAM(squarewell_y)
+#endif
+
+// Enable squarewell on X axis
+#ifndef squarewell_z
+  READ_BOOLEAN_PARAM(squarewell_z)
+#endif
 
 # ifndef extforce_wall_powerindex
   READ_NUMERIC_PARAM(extforce_wall_powerindex)

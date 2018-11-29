@@ -35,7 +35,7 @@
 
 namespace boundary{
   using namespace param;
- 
+
   point_t min_boundary;
   point_t max_boundary;
   double damp;
@@ -81,6 +81,10 @@ namespace boundary{
     MPI_Allreduce(MPI_IN_PLACE,&original_nparticles,1,MPI_INT64_T,
         MPI_SUM,MPI_COMM_WORLD);
 
+    bool periodic[3] = {param::periodic_boundary_x,
+      param::periodic_boundary_y,
+      param::periodic_boundary_z};
+
     // Generate box from dimension
     range_t box;
     point_t min, max;
@@ -94,6 +98,7 @@ namespace boundary{
     }
     box = {min,max};
 
+
     // Step 1, teleport the particles to the other side of the domain
     // Keep the same id
     #pragma omp parallel for
@@ -101,6 +106,9 @@ namespace boundary{
     {
       for(int d = 0 ; d < gdimension ; ++d)
       {
+        // If not in this axis, do not move the particles
+        if(!periodic[d]) continue;
+
         point_t coord = lbodies[i].second.coordinates();
         if(lbodies[i].second.coordinates()[d] > box[1][d])
         {
@@ -123,6 +131,8 @@ namespace boundary{
 
       for(int d = 0; d < gdimension ; ++d)
       {
+        if(!periodic[d]) continue;
+
         if(lbodies[i].second.coordinates()[d]+halo_size> box[1][d] ||
           lbodies[i].second.coordinates()[d]-halo_size< box[0][d])
         {
@@ -146,6 +156,7 @@ namespace boundary{
       if(gdimension == 1)
         continue;
       if(gdimension > 1){
+        // x and y
         if(on_edge[0] && on_edge[1]){
           body nu = lbodies[i].second;
           nu.setType(particle_type_t::WALL);

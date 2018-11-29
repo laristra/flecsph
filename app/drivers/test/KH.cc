@@ -22,7 +22,7 @@ namespace execution{
 using namespace flecsi;
 using namespace execution;
 
-TEST(RT, working) {
+TEST(KH, working) {
   mpi_init_task("RT_2d.par");
   ASSERT_TRUE(check_conservation({MASS,ENERGY,MOMENTUM}));
 }
