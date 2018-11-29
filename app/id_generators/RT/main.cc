@@ -25,29 +25,40 @@ void print_usage() {
   clog(warn)
       << "Initial data generator for KH test in"
       << gdimension << "D" << std::endl
-      << "Usage: ./KD_XD_generator <parameter-file.par>" << std::endl;
+      << "Usage: ./RT_XD_generator <parameter-file.par>" << std::endl;
 }
 
 //
 // derived parameters
 //
+static double pressure_0;             // Initial pressure
 static int64_t nparticlesproc;        // number of particles per proc
 static double rho_1, rho_2;           // densities
 static double vx_1, vx_2;             // velocities
 static double pressure_1, pressure_2; // pressures
 static std::string initial_data_file; // = initial_data_prefix + ".h5part"
 
-// geometric extents of the three regions: top, middle and bottom
+// geometric extents of the two regions: top and bottom
 static point_t tbox_min, tbox_max;
-static point_t mbox_min, mbox_max;
 static point_t bbox_min, bbox_max;
 
-static int64_t np_middle = 0; // number of particles in the middle block
 static int64_t np_top = 0;    // number of particles in the top block
 static int64_t np_bottom = 0; // number of particles in the bottom block
-static double sph_sep_tb = 0; // particle separation in top or bottom blocks
+static double sph_sep_t = 0; // particle separation in top or bottom blocks
 static double pmass = 0;      // particle mass in the middle block
-static double pmass_tb = 0;   // particle mass in top or bottom blocks
+
+double pressure_gravity(const double& y, const double& rho)
+{
+  using namespace param;
+  double pressure = pressure_0 - rho * param::gravitation_value * y;
+  return pressure;
+}
+
+double u_from_eos(const double& rho, const double& p)
+{
+  double u = p / ((param::poly_gamma-1.0)*rho);
+  return u;
+}
 
 void set_derived_params() {
   using namespace std;
@@ -56,26 +67,19 @@ void set_derived_params() {
   // boundary tolerance factor
   const double b_tol = 1e-8;
 
-  mbox_max[0] = bbox_max[0] = tbox_max[0] = box_length/2.;
-  mbox_min[0] = bbox_min[0] = tbox_min[0] =-box_length/2.;
+  bbox_max[0] = tbox_max[0] = box_length/2.;
+  bbox_min[0] = tbox_min[0] =-box_length/2.;
 
-  mbox_max[1] =  box_width/4.;
-  mbox_min[1] = -box_width/4.;
-  bbox_min[1] = -box_width/2.;
-  bbox_max[1] = -box_width/4.;
-  tbox_min[1] =  box_width/4.;
+  bbox_min[1] =  -box_width/2.;
+  bbox_max[1] =  0.;
+  tbox_min[1] =  0.;
   tbox_max[1] =  box_width/2.;
 
+  pressure_0 = 2.5;
 
-  // set physical parameters
-  // --  in the top and bottom boxes (tbox and bbox):
-  rho_2      =  rho_initial;
-  pressure_2 =  pressure_initial;
-  vx_2       = -flow_velocity/2.0;
-  // -- in the middle box
-  rho_1 = rho_2 * KH_density_ratio; // 2.0 by default
-  pressure_1 = pressure_2;          // pressures must be equal in KH test
-  vx_1       =  flow_velocity/2.0;
+  // 1 = bottom 2 = top
+  rho_1 = rho_initial;  // 2.0 by default
+  rho_2 = rho_1 * KH_density_ratio;
 
   // file to be generated
   std::ostringstream oss;
@@ -85,9 +89,6 @@ void set_derived_params() {
   std::cout<<"Boxes: " << std::endl << "up="
     <<"("<<tbox_min[0]<<";"<<tbox_min[1]<<")-"
     <<"("<<tbox_max[0]<<";"<<tbox_max[1]<<")"<<std::endl
-    <<" middle="
-    <<"("<<mbox_min[0]<<";"<<mbox_min[1]<<")"
-    <<"("<<mbox_max[0]<<";"<<mbox_max[1]<<")"<<std::endl
     <<" bottom="
     <<"("<<bbox_min[0]<<";"<<bbox_min[1]<<")"
     <<"("<<bbox_max[0]<<";"<<bbox_max[1]<<")"<< std::endl;
@@ -107,36 +108,26 @@ void set_derived_params() {
   if (lattice_type == 1 or lattice_type == 2)
     dy *= sqrt(3)/2;
   double dy_tb = dy; // lattice step in y-direction for top and bottom blocks
-  double mbox_width = mbox_max[1] - mbox_min[1];
-  mbox_width = (int)(mbox_width/(2*dy))*2*dy;
-  mbox_min[1] = -mbox_width/2.;
-  mbox_max[1] =  mbox_width/2.;
+  //double bbox_width = bbox_max[1] - bbox_min[1];
+  //bbox_width = (int)(bbox_width/(2*dy))*2*dy;
+  //bbox_min[1] = -bbox_width/2.;
+  //bbox_max[1] =  bbox_width/2.;
 
-  if(equal_mass){
-    sph_sep_tb = sph_separation * sqrt(rho_1/rho_2);
-    pmass_tb = pmass;
-  }
-  else {
-    sph_sep_tb = sph_separation;
-    pmass_tb = pmass * rho_2/rho_1;
-  }
-  dy_tb = dy * sph_sep_tb/sph_separation;
+  sph_sep_t = sph_separation * sqrt(rho_1/rho_2);
 
-  // adjust top and bottom blocks
-  tbox_min[1] = mbox_max[1] - dy + 0.5*(dy_tb + dy);
-  double bbox_width = 2*dy_tb * floor((bbox_max[1] - bbox_min[1])/(2*dy_tb));
-  bbox_max[1] = mbox_min[1] - 0.5*(dy_tb + dy) + dy;
-  bbox_min[1] = bbox_max[1] - bbox_width - dy_tb;
+  //dy_tb = dy * sph_sep_t/sph_separation;
+
+  // adjust top blocks
+  tbox_min[1] = bbox_max[1] - dy + 0.5*(dy_tb + dy);
 
   // count the number of particles
-  np_middle = particle_lattice::count(lattice_type,2,mbox_min,mbox_max,
-                                      sph_separation,0);
-  np_top    = particle_lattice::count(lattice_type,2,tbox_min,tbox_max,
-                                      sph_sep_tb, np_middle);
   np_bottom = particle_lattice::count(lattice_type,2,bbox_min,bbox_max,
-                                      sph_sep_tb, np_middle + np_top);
+                                      sph_separation, 0);
+  np_top    = particle_lattice::count(lattice_type,2,tbox_min,tbox_max,
+                                      sph_sep_t, np_bottom);
 
-  SET_PARAM(nparticles, np_middle + np_bottom + np_top);
+
+  SET_PARAM(nparticles, np_bottom + np_top);
 
 }
 
@@ -201,12 +192,10 @@ int main(int argc, char * argv[]){
   double* dt = new double[nparticles]();
 
   // generate the lattice
-  assert (np_middle == particle_lattice::generate( lattice_type,2,
-          mbox_min,mbox_max,sph_separation,0,x,y,z));
-  assert (np_top    == particle_lattice::generate( lattice_type,2,
-          tbox_min,tbox_max,sph_sep_tb,np_middle,x,y,z));
   assert (np_bottom == particle_lattice::generate( lattice_type,2,
-          bbox_min,bbox_max,sph_sep_tb,nparticles-np_bottom,x,y,z));
+          bbox_min,bbox_max,sph_separation,0,x,y,z));
+  assert (np_top    == particle_lattice::generate( lattice_type,2,
+          tbox_min,tbox_max,sph_sep_t,np_bottom,x,y,z));
 
   // max. value for the speed of sound
   double cs = sqrt(poly_gamma*std::max(pressure_1/rho_1,pressure_2/rho_2));
@@ -220,29 +209,24 @@ int main(int argc, char * argv[]){
   for(int64_t part=0; part<nparticles; ++part){
     id[part] = posid++;
     if (particle_lattice::in_domain_1d(y[part],
-        mbox_min[1], mbox_max[1], domain_type)) {
-      P[part] = pressure_1;
+        bbox_min[1], bbox_max[1], domain_type)) {
       rho[part] = rho_1;
-      vx[part] = vx_1;
       m[part] = pmass;
     }
     else {
-      P[part] = pressure_2;
       rho[part] = rho_2;
-      vx[part] = vx_2;
-      m[part] = pmass_tb;
+      m[part] = pmass;
     }
+
+    P[part] = pressure_gravity(y[part],rho[part]);
+    u[part] = u_from_eos(rho[part],P[part]);
 
     vy[part] = 0.;
 
     // Add velocity perturbation a-la Price (2008)
-    if(y[part] < 0.25 and y[part] > 0.25 - 0.025)
-      vy[part] = KH_A*sin(-2*M_PI*(x[part]+.5)/KH_lambda);
-    if(y[part] >-0.25 and y[part] <-0.25 + 0.025)
-      vy[part] = KH_A*sin(2*M_PI*(x[part]+.5)/KH_lambda);
-
-    // compute internal energy using gamma-law eos
-    u[part] = P[part]/(poly_gamma-1.)/rho[part];
+    vy[part] = 0.01*(1 + cos(4*M_PI*x[part]))*(1 + cos(3*M_PI*y[part]))/4.;
+    //if(y[part] < 0.025 and y[part] > -0.025)
+    //  vy[part] = 2.*cos(M_PI*(x[part]/box_length));
 
     // particle masses and smoothing length
     m[part] = pmass;

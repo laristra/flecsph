@@ -8,13 +8,14 @@
 #include <algorithm>
 #include <cassert>
 #include <math.h>
-#include <H5hut.h>
 
 #include "user.h"
 #include "sodtube.h"
 #include "params.h"
 #include "lattice.h"
 #include "kernels.h"
+#include "io.h"
+using namespace io;
 
 //
 // help message
@@ -254,13 +255,13 @@ int main(int argc, char * argv[]){
   if(equal_separation){
     for(int64_t part=0; part<tparticles; ++part){
       id[part] = posid++;
-      if (particle_lattice::in_domain_1d(x[part], 
+      if (particle_lattice::in_domain_1d(x[part],
           cbox_min[0], cbox_max[0], domain_type)) {
         P[part] = pressure_1;
         rho[part] = rho_1;
         vx[part] = vx_1;
         m[part] = rho[part]/(double)parts_mid;
-      } 
+      }
       else {
         P[part] = pressure_2;
         rho[part] = rho_2;
@@ -279,12 +280,12 @@ int main(int argc, char * argv[]){
   if(equal_mass){
     for(int64_t part=0; part<tparticles; ++part){
       id[part] = posid++;
-      if (particle_lattice::in_domain_1d(x[part], 
+      if (particle_lattice::in_domain_1d(x[part],
           cbox_min[0], cbox_max[0], domain_type)) {
         P[part] = pressure_1;
         rho[part] = rho_1;
         vx[part] = vx_1;
-      } 
+      }
       else {
         P[part] = pressure_2;
         rho[part] = rho_2;
@@ -305,34 +306,35 @@ int main(int argc, char * argv[]){
     << std::flush;
   // delete the output file if exists
   remove(initial_data_file.c_str());
+  hid_t dataFile = H5P_openFile(initial_data_file.c_str(),H5F_ACC_RDWR);
 
-  h5_file_t * dataFile = H5OpenFile(initial_data_file.c_str(),
-      H5_O_WRONLY | H5_VFD_MPIIO_IND, MPI_COMM_WORLD);
-    
-  int use_fixed_timestep = 1; 
+  int use_fixed_timestep = 1;
   // add the global attributes
-  H5WriteFileAttribInt64(dataFile,"nparticles",&tparticles,1);
-  H5WriteFileAttribFloat64(dataFile,"timestep",&timestep,1);
-  int dim = gdimension; 
-  H5WriteFileAttribInt32(dataFile,"dimension",&dim,1);
-  H5WriteFileAttribInt32(dataFile,"use_fixed_timestep",&use_fixed_timestep,1);
+  H5P_writeAttribute(dataFile,"nparticles",&tparticles);
+  H5P_writeAttribute(dataFile,"timestep",&timestep);
+  int dim = gdimension;
+  H5P_writeAttribute(dataFile,"dimension",&dim);
+  H5P_writeAttribute(dataFile,"use_fixed_timestep",&use_fixed_timestep);
 
-  H5SetStep(dataFile,0);
-  H5PartSetNumParticles(dataFile,tparticles);
-  H5PartWriteDataFloat64(dataFile,"x",x);
-  H5PartWriteDataFloat64(dataFile,"y",y);
-  H5PartWriteDataFloat64(dataFile,"z",z);
-  H5PartWriteDataFloat64(dataFile,"vx",vx);
-  H5PartWriteDataFloat64(dataFile,"h",h);
-  H5PartWriteDataFloat64(dataFile,"rho",rho);
-  H5PartWriteDataFloat64(dataFile,"u",u);
-  H5PartWriteDataFloat64(dataFile,"P",P);
-  H5PartWriteDataFloat64(dataFile,"m",m);
-  H5PartWriteDataInt64(dataFile,"id",id);
- 
-  H5CloseFile(dataFile);
+  H5P_setNumParticles(tparticles);
+  H5P_setStep(dataFile,0);
 
-  delete[] x, y, z, vx, vy, vz, ax, ay, az, h, rho, u, P, m, id, dt; 
+  //H5PartSetNumParticles(dataFile,nparticles);
+  H5P_writeDataset(dataFile,"x",x,tparticles);
+  H5P_writeDataset(dataFile,"y",y,tparticles);
+  H5P_writeDataset(dataFile,"z",z,tparticles);
+  H5P_writeDataset(dataFile,"vx",vx,tparticles);
+  H5P_writeDataset(dataFile,"vy",vy,tparticles);
+  H5P_writeDataset(dataFile,"h",h,tparticles);
+  H5P_writeDataset(dataFile,"rho",rho,tparticles);
+  H5P_writeDataset(dataFile,"u",u,tparticles);
+  H5P_writeDataset(dataFile,"P",P,tparticles);
+  H5P_writeDataset(dataFile,"m",m,tparticles);
+  H5P_writeDataset(dataFile,"id",id,tparticles);
+
+  H5P_closeFile(dataFile);
+
+  delete[] x, y, z, vx, vy, vz, ax, ay, az, h, rho, u, P, m, id, dt;
 
   MPI_Finalize();
   return 0;

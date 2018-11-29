@@ -5,11 +5,11 @@
 
 /**
  * @file bodies_system.h
- * @author Julien Loiseau 
- * @brief Class and function to handle the system of bodies/particles. 
+ * @author Julien Loiseau
+ * @brief Class and function to handle the system of bodies/particles.
  * Contain the function for user, hidding the IO/distribution and tree search.
  */
- 
+
 #ifndef _mpisph_body_system_h_
 #define _mpisph_body_system_h_
 
@@ -27,8 +27,8 @@
 using namespace mpi_utils;
 
 /**
- * @brief      The bodies/particles system. 
- * This is a wrapper for a simpler use from users. 
+ * @brief      The bodies/particles system.
+ * This is a wrapper for a simpler use from users.
  *
  * @tparam     T     The type of data, usualy double
  * @tparam     D     The dimension of the current simulation
@@ -49,16 +49,16 @@ public:
   body_system():totalnbodies_(0L),localnbodies_(0L),macangle_(0.0),
   maxmasscell_(1.0e-40),tree_(nullptr)
   {
-    int rank = 0; 
+    int rank = 0;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     // Display the number of threads in DEBUG mode
-    
-    #pragma omp parallel 
+
+    #pragma omp parallel
     #pragma omp master
     rank || clog(warn)<<"USING OMP THREADS: "<<
       omp_get_num_threads()<<std::endl;
-    
-    if(param::sph_variable_h){ 
+
+    if(param::sph_variable_h){
       rank || clog(warn) <<"Variable smoothing length ENABLE"<<std::endl;
     }
   };
@@ -72,10 +72,10 @@ public:
     }
   };
 
-  // 
-  
+  //
+
   /**
-   * @brief      Max mass to stop the tree search during 
+   * @brief      Max mass to stop the tree search during
    * the gravitation computation with FMM
    *
    * @param[in]  maxmasscell  The maximum mass for the cells
@@ -85,30 +85,31 @@ public:
   {
     maxmasscell_ = maxmasscell;
   };
-  
+
   /**
    * @brief      Sets the Multipole Acceptance Criterion for FMM
    *
    * @param[in]  macangle  Multipole Acceptance Criterion
    */
-  void 
+  void
   setMacangle(
     double macangle)
   {
     macangle_ = macangle;
   };
 
+#if 0
   /**
    * @brief      Get the value of an attribute from an HDF5 file
-   * @details    \TODO add more types of data 
+   * @details    \TODO add more types of data
    *
    * @param      filename       The file from which we get the attribute
    * @param      attributeName  The attribute name in char
-   * @param      default_value  The default type 
+   * @param      default_value  The default type
    *
-   * @tparam     TL             The attribute value 
+   * @tparam     TL             The attribute value
    *
-   * @return     The value of the attribute 
+   * @return     The value of the attribute
    */
   template<
     typename TL
@@ -130,7 +131,7 @@ public:
     }
     return value;
   }
-
+#endif
   /**
    * @brief      Read the bodies from H5part file Compute also the total to
    *             check for mass lost
@@ -138,39 +139,39 @@ public:
    * @param[in]  filename        The filename
    * @param[in]  startiteration  The iteration from which load the data
    */
-  void 
+  void
   read_bodies(
       const char * filename,
-      const char * output_filename, 
+      const char * output_filename,
       const int startiteration)
   {
 
-    io::inputDataHDF5(localbodies_,filename,output_filename, 
+    io::inputDataHDF5(localbodies_,filename,output_filename,
         totalnbodies_,localnbodies_,startiteration);
-    
+
     #ifdef DEBUG
     minmass_ = 1.0e50;
     totalmass_ = 0.;
     // Also compute the total mass
 #pragma omp parallel for reduction(+:totalmass_) reduction(min:minmass_)
     for(size_t i = 0; i < localbodies_.size() ; ++i){
-      totalmass_ += localbodies_[i].second.getMass(); 
+      totalmass_ += localbodies_[i].second.getMass();
       if(localbodies_[i].second.getMass() < minmass_){
-        minmass_ = localbodies_[i].second.getMass(); 
+        minmass_ = localbodies_[i].second.getMass();
       }
     }
 
     MPI_Allreduce(MPI_IN_PLACE,&minmass_,1,MPI_DOUBLE,
-        MPI_MIN,MPI_COMM_WORLD); 
+        MPI_MIN,MPI_COMM_WORLD);
     MPI_Allreduce(MPI_IN_PLACE,&totalmass_,1,MPI_DOUBLE,
-        MPI_SUM,MPI_COMM_WORLD); 
+        MPI_SUM,MPI_COMM_WORLD);
     #endif
   }
 
   /**
-   * @brief      Write bodies to file in parallel Caution provide the 
+   * @brief      Write bodies to file in parallel Caution provide the
    * file name
-   *             prefix, h5part will be added This is useful in case 
+   *             prefix, h5part will be added This is useful in case
    *             of multiple
    *             files output
    *
@@ -178,9 +179,9 @@ public:
    * @param[in]  iter           The iteration of output
    * @param[in]  do_diff_files  Generate a file for each steps
    */
-  void 
+  void
   write_bodies(
-      const char * filename, 
+      const char * filename,
       int iter,
       double totaltime)
   {
@@ -194,14 +195,14 @@ public:
    *
    * @return     The largest smoothinglength of the system.
    */
-  double 
+  double
   getSmoothinglength()
   {
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
-    // Choose the smoothing length to be the biggest from everyone 
+    // Choose the smoothing length to be the biggest from everyone
     smoothinglength_ = 0;
 #pragma omp parallel for reduction(max:smoothinglength_)
     for(size_t i = 0 ; i < localbodies_.size(); ++i){
@@ -209,7 +210,7 @@ public:
         smoothinglength_ = localbodies_[i].second.getSmoothinglength();
       }
     }
-    
+
     MPI_Allreduce(MPI_IN_PLACE,&smoothinglength_,1,MPI_DOUBLE,MPI_MAX,
         MPI_COMM_WORLD);
 
@@ -218,11 +219,11 @@ public:
   }
 
   /**
-   * @brief      Compute the range of thw whole particle system 
+   * @brief      Compute the range of thw whole particle system
    *
    * @return     The range.
    */
-  std::array<point_t,2>& 
+  std::array<point_t,2>&
   getRange()
   {
     int rank, size;
@@ -245,8 +246,8 @@ public:
    *    - Exchange branches for smoothing length
    *    - Compute and exchange ghosts in real smoothing length
    */
-  void 
-  update_iteration() 
+  void
+  update_iteration()
   {
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -259,26 +260,30 @@ public:
     }
 
     if(param::do_periodic_boundary)
-      boundary::pboundary_clean(localbodies_); 
-     
-    // Choose the smoothing length to be the biggest from everyone 
+      boundary::pboundary_clean(localbodies_);
+
+    // Choose the smoothing length to be the biggest from everyone
     smoothinglength_ = getSmoothinglength();
 
-    if(param::do_periodic_boundary)
-      boundary::pboundary_generate(localbodies_,2.*smoothinglength_);
+    if(param::do_periodic_boundary){
+      boundary::pboundary_generate(localbodies_,3.*smoothinglength_);
+      localnbodies_ = localbodies_.size();
+      MPI_Allreduce(&localnbodies_,&totalnbodies_,1,MPI_INT64_T,MPI_SUM,
+        MPI_COMM_WORLD);
+    }
 
-   // Then compute the range of the system 
+   // Then compute the range of the system
     tcolorer_.mpi_compute_range(localbodies_,range_);
 
-    rank || clog(trace) << "Range="<<range_[0]<<";"<<range_[1]<<std::endl; 
-     
+    rank || clog(trace) << "Range="<<range_[0]<<";"<<range_[1]<<std::endl;
+
     // Generate the tree based on the range
     tree_ = new tree_topology_t(range_[0],range_[1]);
-
+    
     // Compute the keys
-#pragma omp parallel for  
+#pragma omp parallel for
     for(size_t i = 0; i < localbodies_.size(); ++i){
-      localbodies_[i].first = 
+      localbodies_[i].first =
           entity_key_t(tree_->range(),localbodies_[i].second.coordinates());
     }
 
@@ -288,14 +293,32 @@ public:
     rank || clog(trace) << "Construction of the tree"<<std::endl;
 #endif
 
-    // Add my local bodies in my tree 
-    // Clear the bodies_ vector 
+// Sort the bodies
+#ifdef BOOST_PARALLEL
+    boost::sort::block_indirect_sort(
+#else
+    std::sort(
+#endif
+      localbodies_.begin(),localbodies_.end(),
+        [](auto& left, auto &right){
+          if(left.first<right.first){
+            return true;
+          }
+          if(left.first == right.first){
+            return left.second.getId()<right.second.getId();
+          }
+          return false;
+    }); // sort
+
+    // Add my local bodies in my tree
+    // Clear the bodies_ vector
     //bodies_.clear();
     for(auto& bi:  localbodies_){
-      auto id = tree_->make_entity(bi.second.getPosition(),&(bi.second),rank,
-          bi.second.getMass(),bi.second.getId(),bi.second.getSmoothinglength());
+      auto id = tree_->make_entity(bi.first,bi.second.getPosition(),
+        &(bi.second),rank,bi.second.getMass(),bi.second.getId(),
+        bi.second.getSmoothinglength());
       tree_->insert(id);
-      auto nbi = tree_->get(id);  
+      auto nbi = tree_->get(id);
       //bodies_.push_back(nbi);
       assert(nbi->global_id() == bi.second.id());
       assert(nbi->getBody() != nullptr);
@@ -305,13 +328,13 @@ public:
 
 if(!param::do_periodic_boundary)
 {
-#ifdef DEBUG 
-    // Check the total number of bodies 
+#ifdef DEBUG
+    // Check the total number of bodies
     int64_t checknparticles = tree_->entities().size();
     MPI_Allreduce(MPI_IN_PLACE,&checknparticles,1,MPI_INT64_T,
-    MPI_SUM,MPI_COMM_WORLD); 
+    MPI_SUM,MPI_COMM_WORLD);
     assert(checknparticles==totalnbodies_);
-#endif 
+#endif
 }
 
 #ifdef OUTPUT_TREE_INFO
@@ -325,7 +348,7 @@ if(!param::do_periodic_boundary)
 #ifdef OUTPUT_TREE_INFO
     std::vector<int> nentities(size);
     int lentities = tree_->root()->sub_entities();
-    // Get on 0 
+    // Get on 0
     MPI_Gather(
       &lentities,
       1,
@@ -337,7 +360,7 @@ if(!param::do_periodic_boundary)
       MPI_COMM_WORLD
       );
 
-    oss << rank << " sub_entities before="; 
+    oss << rank << " sub_entities before=";
     for(auto v: nentities){
       oss << v << ";";
     }
@@ -351,14 +374,14 @@ if(!param::do_periodic_boundary)
     // Exchnage usefull body_holder from my tree to other processes
     tcolorer_.mpi_branches_exchange(*tree_,localbodies_,rangeposproc_,
         range_);
-    
+
     // update the tree
     tree_->post_order_traversal(tree_->root(),
         traversal_t::update_COM,epsilon_,false);
 
 #ifdef OUTPUT_TREE_INFO
     lentities = tree_->root()->sub_entities();
-    // Get on 0 
+    // Get on 0
     MPI_Gather(
       &lentities,
       1,
@@ -370,28 +393,28 @@ if(!param::do_periodic_boundary)
       MPI_COMM_WORLD
       );
 
-    oss << rank << " sub_entities after="; 
+    oss << rank << " sub_entities after=";
     for(auto v: nentities){
       oss << v << ";";
     }
     oss << std::endl;
     rank|| clog(trace) << oss.str() << std::flush;
 #endif
-    
+
     tcolorer_.mpi_compute_ghosts(*tree_);
     tcolorer_.mpi_refresh_ghosts(*tree_);
 
 #ifdef OUTPUT_TREE_INFO
     // Tree informations
-    rank || clog(trace) << *tree_ << " root range = "<< tree_->root()->bmin() 
-     <<";"<<tree_->root()->bmax()<< std::endl; 
-#endif 
+    rank || clog(trace) << *tree_ << " root range = "<< tree_->root()->bmin()
+     <<";"<<tree_->root()->bmax()<< std::endl;
+#endif
 
   }
 
   /**
    * @brief      Update the neighbors that have beem compute in update_iteration
-   * This function use buffer pre-computed to update the data faster. 
+   * This function use buffer pre-computed to update the data faster.
    */
   void update_neighbors()
   {
@@ -403,16 +426,16 @@ if(!param::do_periodic_boundary)
    * @details    The function is based on Fast Multipole Method. The functions
    *             are defined in the file tree_fmm.h
    */
-  void 
+  void
   gravitation_fmm()
   {
-    int rank, size; 
+    int rank, size;
     MPI_Comm_size(MPI_COMM_WORLD,&size);
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
     rank|| clog(trace)<<"FMM: mmass="<<maxmasscell_<<" angle="<<macangle_<<std::endl;
 
-    // Just consider the local particles in the tree for FMM 
+    // Just consider the local particles in the tree for FMM
     tree_->post_order_traversal(tree_->root(),
         traversal_t::update_COM,epsilon_,true);
 
@@ -423,8 +446,8 @@ if(!param::do_periodic_boundary)
     tfmm_.mpi_exchange_cells(*tree_,maxmasscell_);
     tfmm_.mpi_compute_fmm(*tree_,macangle_,0);
     tfmm_.mpi_gather_cells(*tree_,macangle_,totalnbodies_);
-    
-    
+
+
     tree_->post_order_traversal(tree_->root(),
         traversal_t::update_COM,epsilon_,false);
   }
@@ -436,7 +459,7 @@ if(!param::do_periodic_boundary)
    *             data.
    *
    * @param[in]  ef    The function to apply in the smoothing length
-   * @param[in]  args  Arguments of the physics function applied in the 
+   * @param[in]  args  Arguments of the physics function applied in the
    *                   smoothing length
    *
    * @tparam     EF         The function to apply in the smoothing length
@@ -451,18 +474,18 @@ if(!param::do_periodic_boundary)
       EF&& ef,
       ARGS&&... args)
   {
-    int64_t ncritical = 32; 
+    int64_t ncritical = 32;
     tree_->apply_sub_cells(
         tree_->root(),
         0.,
         ncritical,
         param::sph_variable_h,
         ef,
-        std::forward<ARGS>(args)...); 
+        std::forward<ARGS>(args)...);
   }
 
   /**
-   * @brief      Apply a function to all the particles. 
+   * @brief      Apply a function to all the particles.
    *
    * @param[in]  <unnamed>  { parameter_description }
    * @param[in]  <unnamed>  { parameter_description }
@@ -478,22 +501,22 @@ if(!param::do_periodic_boundary)
       EF&& ef,
       ARGS&&... args)
   {
-    int64_t nelem = tree_->entities().size(); 
-    #pragma omp parallel for 
+    int64_t nelem = tree_->entities().size();
+    #pragma omp parallel for
     for(int64_t i=0; i<nelem; ++i){
-        auto ent = tree_->get(i); 
+        auto ent = tree_->get(i);
         if(ent->is_local())
           ef(ent,std::forward<ARGS>(args)...);
     }
   }
 
   /**
-   * @brief      Apply a function on the vector of local bodies 
+   * @brief      Apply a function on the vector of local bodies
    *
    * @param[in]  <unnamed>  { parameter_description }
    * @param[in]  <unnamed>  { parameter_description }
    *
-   * @tparam     EF         The function to apply to the vector 
+   * @tparam     EF         The function to apply to the vector
    * @tparam     ARGS       Arguments of the function to apply to the vector
    */
   template<
@@ -501,7 +524,7 @@ if(!param::do_periodic_boundary)
     typename... ARGS
   >
   void get_all(
-    EF&& ef, 
+    EF&& ef,
     ARGS&&... args)
   {
     ef(tree_->entities(),std::forward<ARGS>(args)...);
@@ -509,24 +532,24 @@ if(!param::do_periodic_boundary)
 
 
   /**
-   * @brief      Test function using the n^2 algorithm testing 
+   * @brief      Test function using the n^2 algorithm testing
    *
    * @param[in]  <unnamed>  The function to apply
-   * @param[in]  <unnamed>  The arguments of the function   
+   * @param[in]  <unnamed>  The arguments of the function
    *
    * @tparam     EF         The function to apply
-   * @tparam     ARGS       The arguments of the function   
+   * @tparam     ARGS       The arguments of the function
    */
   template<
     typename EF,
     typename... ARGS
   >
   void apply_square(
-    EF&& ef, 
+    EF&& ef,
     ARGS&&... args)
   {
     int64_t nelem = tree_->entities().size();
-    #pragma omp parallel for 
+    #pragma omp parallel for
     for(int64_t i = 0 ; i < nelem; ++i){
       ef(tree_->get(i),tree_->entities(),std::forward<ARGS>(args)...);
     }
@@ -537,15 +560,15 @@ if(!param::do_periodic_boundary)
    *
    * @return     The localbodies.
    */
-  std::vector<std::pair<entity_key_t,body>>& 
+  std::vector<std::pair<entity_key_t,body>>&
     getLocalbodies(
       )
   {
     return localbodies_;
   };
 
-  /** 
-   * @ brief return the number of local bodies 
+  /**
+   * @ brief return the number of local bodies
    */
   int64_t getNLocalBodies()
   {
@@ -571,16 +594,16 @@ private:
   range_t range_;
   std::vector<range_t> rangeposproc_;
   tree_colorer<T,D> tcolorer_;
-  tree_fmm<T,D> tfmm_;        // tree_fmm.h function for FMM 
+  tree_fmm<T,D> tfmm_;        // tree_fmm.h function for FMM
   tree_topology_t* tree_;     // The particle tree data structure
   //std::vector<body_holder*> bodies_;
-  double smoothinglength_;    // Keep track of the biggest smoothing length 
-  double totalmass_;          // Check the total mass of the system 
+  double smoothinglength_;    // Keep track of the biggest smoothing length
+  double totalmass_;          // Check the total mass of the system
   double minmass_;            // Check the minimal mass of the system
   double epsilon_ = 0.;
-  
+
   std::vector<int64_t> neighbors_count_;
-  std::vector<body_holder*> neighbors_; 
+  std::vector<body_holder*> neighbors_;
   //double epsilon_ = 1.0;
 };
 

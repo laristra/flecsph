@@ -4,15 +4,15 @@
 #----------------------------------------------------------------------------#
 
 #------------------------------------------------------------------------------#
-# Debug and release flags     
+# Debug and release flags
 #------------------------------------------------------------------------------#
 
-set(CMAKE_CXX_FLAGS_DEBUG 
-  "-g -O2 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses")
-set(CMAKE_CXX_FLAGS_RELEASE 
-  "-O3 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses") 
+set(CMAKE_CXX_FLAGS_DEBUG
+  "-DPARALLEL_IO -Wno-sign-compare -Wno-reorder -Wno-narrowing -Wno-deprecated-declaration -ftree-vectorize -ffast-math -msse2 -g -O2 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses")
+set(CMAKE_CXX_FLAGS_RELEASE
+  "-DPARALLEL_IO -Wno-sign-compare -Wno-reorder -Wno-narrowing -Wno-deprecated-declaration -ftree-vectorize -ffast-math -msse2 -O3 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses")
 
-# includes 
+# includes
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/include/physics)
@@ -22,7 +22,7 @@ include_directories(${CMAKE_SOURCE_DIR}/mpisph)
 include_directories(${CMAKE_SOURCE_DIR}/third-party-libraries/ScalingFramework/IOTests)
 
 #------------------------------------------------------------------------------#
-# Executables    
+# Executables
 #------------------------------------------------------------------------------#
 
 add_executable(sodtube_1d_generator     sodtube/main.cc)
@@ -38,33 +38,35 @@ add_executable(collapse_3d_generator    collapse/main.cc)
 add_executable(wtunnel_2d_generator     wtunnel/main.cc)
 add_executable(wtunnel_3d_generator     wtunnel/main.cc)
 add_executable(KH_2d_generator          KH/main.cc)
+add_executable(RT_2d_generator          RT/main.cc)
 
 # Install
-install(TARGETS 
-    sodtube_1d_generator 
+install(TARGETS
+    sodtube_1d_generator
     sodtube_2d_generator
     sodtube_3d_generator
-    sedov_2d_generator 
-    sedov_3d_generator 
-    noh_2d_generator 
+    sedov_2d_generator
+    sedov_3d_generator
+    noh_2d_generator
     noh_3d_generator
     implosion_2d_generator
-    implosion_3d_generator 
-    wtunnel_2d_generator 
+    implosion_3d_generator
+    wtunnel_2d_generator
     wtunnel_3d_generator
-    KH_2d_generator 
-    RUNTIME 
-    DESTINATION bin/id_generators) 
+    KH_2d_generator
+    RT_2d_generator
+    RUNTIME
+    DESTINATION bin/id_generators)
 
-target_link_libraries(sodtube_1d_generator 
+target_link_libraries(sodtube_1d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
-target_link_libraries(sodtube_2d_generator 
+target_link_libraries(sodtube_2d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
-target_link_libraries(sodtube_3d_generator 
+target_link_libraries(sodtube_3d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
-target_link_libraries(sedov_2d_generator 
+target_link_libraries(sedov_2d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
-target_link_libraries(sedov_3d_generator 
+target_link_libraries(sedov_3d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 target_link_libraries(noh_2d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
@@ -82,6 +84,8 @@ target_link_libraries(wtunnel_3d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 target_link_libraries(KH_2d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
+target_link_libraries(RT_2d_generator
+  ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
 
 target_compile_definitions(sodtube_1d_generator     PUBLIC -DEXT_GDIMENSION=1)
 target_compile_definitions(sodtube_2d_generator     PUBLIC -DEXT_GDIMENSION=2)
@@ -96,3 +100,4 @@ target_compile_definitions(collapse_3d_generator    PUBLIC -DEXT_GDIMENSION=3)
 target_compile_definitions(wtunnel_2d_generator     PUBLIC -DEXT_GDIMENSION=2)
 target_compile_definitions(wtunnel_3d_generator     PUBLIC -DEXT_GDIMENSION=3)
 target_compile_definitions(KH_2d_generator          PUBLIC -DEXT_GDIMENSION=2)
+target_compile_definitions(RT_2d_generator          PUBLIC -DEXT_GDIMENSION=2)

@@ -80,13 +80,13 @@ include_directories(${Boost_INCLUDE_DIR})
 # H5HUT
 #------------------------------------------------------------------------------#
 # Set by hand right now
-find_package(H5hut REQUIRED)
+#find_package(H5hut REQUIRED)
 #set(HDF5_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/third-party-libraries/local/include")
 #set(HDF5_LIBRARIES "${CMAKE_SOURCE_DIR}/third-party-libraries/local/lib/libH5hut.so")
-message(STATUS ${H5hut_LIBRARIES})
-message(STATUS ${H5hut_INCLUDE_DIRS})
-list(APPEND FleCSPH_LIBRARIES ${H5hut_LIBRARIES})
-include_directories(${H5hut_INCLUDE_DIRS})
+#message(STATUS ${H5hut_LIBRARIES})
+#message(STATUS ${H5hut_INCLUDE_DIRS})
+#list(APPEND FleCSPH_LIBRARIES ${H5hut_LIBRARIES})
+#include_directories(${H5hut_INCLUDE_DIRS})
 
 #------------------------------------------------------------------------------#
 # HDF5

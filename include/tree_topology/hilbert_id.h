@@ -12,13 +12,13 @@
  * All rights reserved
  *~--------------------------------------------------------------------------~*/
 
-#ifndef flecsi_topology_morton_id_h
-#define flecsi_topology_morton_id_h
+#ifndef flecsi_topology_hilbert_id_h
+#define flecsi_topology_hilbert_id_h
 
 /*!
-  \file morton_id.h
+  \file hilbert_id.h
   \authors jloiseau@lanl.gov
-  \date October 9, 2018
+  \date November 16, 2018
  */
 
 #include <map>
@@ -42,7 +42,6 @@
 #include "flecsi/data/data_client.h"
 #include "flecsi/topology/index_space.h"
 
-
 namespace flecsi{
 namespace topology{
 
@@ -54,7 +53,7 @@ template<
   typename T,
   size_t D
 >
-class morton_id
+class hilbert_id
 {
 public:
 
@@ -62,80 +61,179 @@ public:
 
   static const size_t dimension = D;
   static constexpr size_t bits = sizeof(int_t) * 8;
-  static constexpr size_t max_depth = (bits - 1)/dimension;
+  static constexpr size_t max_depth = (bits-1)/dimension;
 
-  morton_id()
+  hilbert_id()
   : id_(0)
   {}
 
-  /*!
-    Construct the id from an array of dimensions and range for each
-    dimension. The specified depth may be less than the max allowed depth for
-    the id.
-   */
+
   template<
     typename S
   >
-  morton_id(
+  hilbert_id(
+    const std::array<point__<S, dimension>, 2>& range,
+    const point__<S, dimension>& p)
+  : hilbert_id(range,p,max_depth)
+  {}
+
+
+  constexpr hilbert_id(const hilbert_id& bid)
+  : id_(bid.id_)
+  {}
+
+
+  void rotation2d(int_t& n,
+      std::array<int_t,dimension>& coords,
+      std::array<int_t,dimension>& bits)
+  {
+    if(bits[1] == 0){
+      if(bits[0] == 1){
+        coords[0] = n-1 - coords[0];
+        coords[1] = n-1 - coords[1];
+      }
+      // Swap X-Y or Z
+      int t = coords[0];
+      coords[0] = coords[1];
+      coords[1] = t;
+    }
+  }
+
+  void rotation3d(int_t& n,
+      std::array<int_t,dimension>& coords,
+      std::array<int_t,dimension>& bits)
+  {
+    if (!bits[0] && !bits[1] && !bits[2]) {
+        // Left front bottom
+        // Rotate 90 x
+        //pos = rotate_90_x(n, pos);
+        coords[0] = coords[0];
+        coords[1] = n - coords[2] - 1;
+        coords[2] = coords[1];
+        // Rotate 90 z
+        //pos = rotate_90_z(n, pos);
+        coords[0] = n - coords[1] - 1;
+        coords[1] = coords[0];
+        coords[2] = coords[2];
+    } else if (!bits[0] && bits[2]) {
+        // Left top
+        // Rotate 270 y
+        //pos = rotate_270_y(n, pos);
+        coords[0] = n - coords[2] - 1;
+        coords[1] = coords[1];
+        coords[2] = coords[0];
+        // Rotate 270 z
+        //pos = rotate_270_z(n, pos);
+        coords[0] = coords[1];
+        coords[1] = n - coords[0] - 1;
+        coords[2] = coords[2];
+    } else if (bits[1] && !bits[2]) {
+        // Back bottom
+        // Rotate 180 x
+        //pos = rotate_180_x(n, pos);
+        coords[0] = coords[0];
+        coords[1] = n - coords[1] - 1;
+        coords[2] = n - coords[2] - 1;
+    } else if (bits[0] && bits[2]) {
+        // Right top
+        // Rotate 90 y
+        //pos = rotate_90_y(n, pos);
+        coords[0] = coords[2];
+        coords[1] = coords[1];
+        coords[2] = n - coords[0] - 1;
+        // Rotate 90 z
+        //pos = rotate_90_z(n, pos);
+        coords[0] = n - coords[1] - 1;
+        coords[1] = coords[0];
+        coords[2] = coords[2];
+    } else if (bits[0] && !bits[2] && !bits[1]) {
+        // Right front bottom
+        // Rotate 270 z
+        //pos = rotate_270_z(n, pos);
+        coords[0] = coords[1];
+        coords[1] = n - coords[0] - 1;
+        coords[2] = coords[2];
+        // Rotate 270 y
+        //pos = rotate_270_y(n, pos);
+        coords[0] = n - coords[2] - 1;
+        coords[1] = coords[1];
+        coords[2] = coords[0];
+    }
+  }
+
+  /* 2D Hilbert key
+   * Hilbert key is always generated to the max_depth and then truncated
+   * */
+  template<
+    typename S>
+  hilbert_id(
     const std::array<point__<S, dimension>, 2>& range,
     const point__<S, dimension>& p,
     size_t depth)
-  : id_(int_t(1) << depth * dimension)
+  : id_(int_t(1) << (max_depth * dimension))
   {
-    std::array<int_t, dimension> coords;
+    assert(depth <= max_depth);
 
+    std::array<int_t, dimension> coords{};
+    // Convert the position to integer
     for(size_t i = 0; i < dimension; ++i)
     {
       S min = range[0][i];
       S scale = range[1][i] - min;
-      coords[i] = (p[i] - min)/scale * (int_t(1) << (bits - 1)/dimension);
+      coords[i] = (p[i] - min)/scale * (int_t(1) << ((bits - 1)/dimension));
     }
 
-    size_t k = 0;
-    for(size_t i = max_depth - depth; i < max_depth; ++i)
+    if(dimension == 1)
     {
-      for(size_t j = 0; j < dimension; ++j)
-      {
-        int_t bit = (coords[j] & int_t(1) << i) >> i;
-        id_ |= bit << (k * dimension + j);
-      }
-      ++k;
+    //  std::cout<<coords[0]<<std::endl;
+      assert(id_ & 1UL<<max_depth);
+      id_ |= coords[0]>>dimension;
+      id_ >>= (max_depth-depth);
+    //  std::cout<<"k: "<<std::bitset<64>(id_)<<std::endl<<std::flush;
+      return;
     }
+
+    //std::cout<<"b: "<<std::bitset<64>(id_)<<std::endl;
+    //std::cout<<"max_depth="<<max_depth<<" depth="<<depth<<std::endl;
+    int_t mask = static_cast<int_t>(1)<<(max_depth);
+    for(int_t s = mask>>1 ; s > 0; s >>= 1)
+    {
+      std::array<int_t,dimension> bits;
+      for(size_t j = 0 ; j < dimension; ++j)
+      {
+        bits[j] = (s & coords[j]) > 0;
+      }
+      if(dimension == 2 )
+      {
+        id_ += s * s * ((3*bits[0]) ^ bits[1]);
+        rotation2d(s,coords,bits);
+      }else if(dimension == 3)
+      {
+        id_ += s * s * s * ((7 * bits[0]) ^ (3 * bits[1]) ^ bits[2]);
+        rotation3d(s,coords,bits);
+      }
+    }
+    // Then truncate the key to the depth
+    id_ >>= (max_depth-depth)*dimension;
+    //std::cout<<"pos: "<<p<<std::endl;
     //std::cout<<"k: "<<std::bitset<64>(id_)<<std::endl;
 
+    // Be sure the head bit is one
+    //assert((id_ & (int_t(1)<<depth*dimension+bits%dimension)) > 0);
   }
-
-  /*!
-    Construct the id from an array of dimensions and range for each
-    dimension. Construct with the max depth available.
-   */
-  template<
-    typename S
-  >
-  morton_id(
-    const std::array<point__<S, dimension>, 2>& range,
-    const point__<S, dimension>& p)
-  : morton_id(range,p,max_depth)
-  {}
-
-  constexpr morton_id(const morton_id& bid)
-  : id_(bid.id_)
-  {}
 
   static
   constexpr
-  morton_id
+  hilbert_id
   min()
   {
     int_t id = int_t(1) << max_depth * dimension;
-    //std::cout<<"k: "<<std::bitset<64>(id)<<std::endl;
-
-    return morton_id(id);
+    return hilbert_id(id);
   }
 
   static
   constexpr
-  morton_id
+  hilbert_id
   max()
   {
     // Start with 1 bits
@@ -143,12 +241,10 @@ public:
     int_t remove = int_t(1) << max_depth * dimension;
     for(size_t i = max_depth * dimension +1; i <
       bits; ++i)
-    {
-      id ^= int_t(1)<<i;
-    }
-    //std::cout<<"k: "<<std::bitset<64>(id)<<std::endl;
-
-    return morton_id(id);
+      {
+        id ^= int_t(1)<<i;
+      }
+    return hilbert_id(id);
   }
 
 
@@ -157,10 +253,10 @@ public:
    */
   static
   constexpr
-  morton_id
+  hilbert_id
   root()
   {
-    return morton_id(int_t(1));
+    return hilbert_id(int_t(1));
   }
 
   /*!
@@ -168,10 +264,10 @@ public:
    */
   static
   constexpr
-  morton_id
+  hilbert_id
   null()
   {
-    return morton_id(0);
+    return hilbert_id(0);
   }
 
   /*!
@@ -201,9 +297,9 @@ public:
     return d;
   }
 
-  morton_id&
+  hilbert_id&
   operator=(
-    const morton_id& bid
+    const hilbert_id& bid
   )
   {
     id_ = bid.id_;
@@ -213,7 +309,7 @@ public:
   constexpr
   bool
   operator==(
-    const morton_id& bid
+    const hilbert_id& bid
   ) const
   {
     return id_ == bid.id_;
@@ -221,8 +317,17 @@ public:
 
   constexpr
   bool
+  operator<=(
+    const hilbert_id& bid
+  ) const
+  {
+    return id_ <= bid.id_;
+  }
+
+  constexpr
+  bool
   operator>=(
-    const morton_id& bid
+    const hilbert_id& bid
   ) const
   {
     return id_ >= bid.id_;
@@ -230,24 +335,8 @@ public:
 
   constexpr
   bool
-  operator<=(
-    const morton_id& bid
-  ) const
-  {
-    return id_ <= bid.id_;
-  }
-
-  bool
-  operator<(
-    const morton_id& bid
-  ) const
-  {
-    return id_ < bid.id_;
-  }
-
-  bool
   operator>(
-    const morton_id& bid
+    const hilbert_id& bid
   ) const
   {
     return id_ > bid.id_;
@@ -255,8 +344,18 @@ public:
 
   constexpr
   bool
+  operator<(
+    const hilbert_id& bid
+  ) const
+  {
+    return id_ < bid.id_;
+  }
+
+
+  constexpr
+  bool
   operator!=(
-    const morton_id& bid
+    const hilbert_id& bid
   ) const
   {
     return id_ != bid.id_;
@@ -297,10 +396,10 @@ public:
     Return the parent of this id (depth - 1)
    */
   constexpr
-  morton_id
+  hilbert_id
   parent() const
   {
-    return morton_id(id_ >> dimension);
+    return hilbert_id(id_ >> dimension);
   }
 
   /*!
@@ -326,33 +425,7 @@ public:
     std::ostream& ostr
   ) const
   {
-    constexpr int_t mask = ((int_t(1) << dimension) - 1) << bits - dimension;
-
-    size_t d = max_depth;
-
-    int_t id = id_;
-
-    while((id & mask) == int_t(0))
-    {
-      --d;
-      id <<= dimension;
-    }
-
-    if(d == 0)
-    {
-      ostr << "1";
-      return;
-    }
-    ostr << "1";
-    //ostr<<std::bitset<64>(id);
-    id <<= 1 + (bits - 1) % dimension;
-
-    for(size_t i = 1; i <= d; ++i)
-    {
-      int_t val = (id & mask) >> (bits - dimension);
-      ostr << std::bitset<D>(val);
-      id <<= dimension;
-    }
+    ostr<<std::bitset<64>(id_);
   }
 
   int_t
@@ -361,10 +434,11 @@ public:
     return id_;
   }
 
+
   /*!
     Convert this id to coordinates in range.
    */
-  template<
+/*  template<
     typename S
   >
   void
@@ -399,13 +473,13 @@ public:
       coords[j] <<= max_depth - d;
       p[j] = min + scale * S(coords[j])/m;
     }
-  }
+  }*/
 
   /**
    * @brief Compute the range of a branch from its key
    * The space is recursively decomposed regarding the dimension
    */
-  template<
+/*  template<
     typename S
   >
   std::array<point__<S,dimension>, 2>
@@ -418,7 +492,7 @@ public:
     result[1] = range[1];
     // Copy the key
     int_t tmp = id_;
-    int_t root = morton_id::root().id_;
+    int_t root = hilbert_id::root().id_;
 
     // Extract x,y and z
     std::array<int_t, dimension> coords;
@@ -438,7 +512,7 @@ public:
       ++d;
     }
 
-    //std::cout<<"depth="<<d<<std::endl;
+    std::cout<<"depth="<<d<<std::endl;
 
     for(size_t i = 0 ; i < dimension ; ++i)
     {
@@ -455,27 +529,28 @@ public:
       }
     }
     return result;
-  }
+  }*/
 
 private:
   int_t id_;
 
   constexpr
-  morton_id(
+  hilbert_id(
     int_t id
   )
   : id_(id)
   {}
+
 };
 
-// output for morton id
+// output for hilbert id
 template<
   typename T,
   size_t D>
 std::ostream&
 operator<<(
   std::ostream& ostr,
-  const morton_id<T,D>& k)
+  const hilbert_id<T,D>& k)
 {
   k.output_(ostr);
   return ostr;
@@ -484,4 +559,4 @@ operator<<(
 } // namespace topology
 } // namespace flecsi
 
-#endif // flecsi_topology_morton_id_h
+#endif // flecsi_topology_hilbert_id_h

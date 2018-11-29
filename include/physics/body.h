@@ -4,7 +4,7 @@
  *~--------------------------------------------------------------------------~*/
 
  /*~--------------------------------------------------------------------------~*
- * 
+ *
  * /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
  * /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
  * /@@       /@@  @@@@@  @@    // /@@       /@@   /@@/@@     /@@
@@ -12,7 +12,7 @@
  * /@@////   /@@/@@@@@@@/@@       ////////@@/@@////  /@@//////@@
  * /@@       /@@/@@//// //@@    @@       /@@/@@      /@@     /@@
  * /@@       @@@//@@@@@@ //@@@@@@  @@@@@@@@ /@@      /@@     /@@
- * //       ///  //////   //////  ////////  //       //      //  
+ * //       ///  //////   //////  ////////  //       //      //
  *
  *~--------------------------------------------------------------------------~*/
 
@@ -20,7 +20,7 @@
  * @file body.h
  * @author Julien Loiseau
  * @date April 2017
- * @brief Representation of a body, a particle for our SPH implementation 
+ * @brief Representation of a body, a particle for our SPH implementation
  */
 
 #ifndef body_h
@@ -39,23 +39,23 @@ enum particle_type_t : int {NORMAL = 0 ,WALL = 1};
 class body{
 
   static const size_t dimension = gdimension;
-  using element_t = type_t; 
+  using element_t = type_t;
   using point_t = flecsi::point__<element_t, dimension>;
- 
+
 
 public:
-  
-  body(const point_t& position, 
-      const point_t& velocity, 
-      const point_t& velocityhalf, 
+
+  body(const point_t& position,
+      const point_t& velocity,
+      const point_t& velocityhalf,
       const point_t& acceleration,
-      const double density, 
-      const double pressure, 
-      const double entropy, 
+      const double density,
+      const double pressure,
+      const double entropy,
       const double electronfraction,
       const double mass,
       const double smoothinglength
-  ):  position_(position), 
+  ):  position_(position),
       velocity_(velocity),
       velocityhalf_(velocityhalf),
       acceleration_(acceleration),
@@ -82,10 +82,10 @@ public:
 
   inline bool operator==(const body& a)
   {
-    return a.id_ == this->id_; 
-  } 
+    return a.id_ == this->id_;
+  }
 
-  const point_t& coordinates() const{return position_;}   
+  const point_t& coordinates() const{return position_;}
   const point_t& getPosition() const{return position_;}
   double getMass() const{return mass_;}
   double getSmoothinglength() const{return smoothinglength_;}
@@ -100,7 +100,7 @@ public:
   const uint64_t neighbors() const {return neighbors_;}
   const particle_type_t type() const {return type_;};
 
-  point_t getLinMomentum() const { 
+  point_t getLinMomentum() const {
     point_t res = {};
     for(size_t i = 0 ; i < dimension; ++i){
       res[i] = velocity_[i] * mass_;
@@ -111,7 +111,7 @@ public:
   flecsi::topology::entity_id_t id(){return id_;};
   double getDt(){return dt_;};
   double getMumax(){return mumax_;}
-  const particle_type_t getType() const {return type_;}; 
+  const particle_type_t getType() const {return type_;};
 
   bool is_wall(){return type_ == 1;};
 
@@ -134,7 +134,7 @@ public:
   void setType(particle_type_t type){type_ = type;};
   void setType(int type){type_= static_cast<particle_type_t>(type);};
 
-  // Dependent of the problem 
+  // Dependent of the problem
     double getInternalenergy() const{return internalenergy_;}
     void setInternalenergy(double internalenergy)
         {internalenergy_=internalenergy;}
@@ -149,25 +149,24 @@ public:
     double getDadt() const{return dadt_;};
     void setDadt(double dadt){dadt_ = dadt;};
 
-
   friend std::ostream& operator<<(std::ostream& os, const body& b){
-    // TODO change regarding to dimension 
-    os << std::setprecision(10); 
-    os << "Particle: Pos: " <<b.position_ << " rho: " << b.density_; 
+    // TODO change regarding to dimension
+    os << std::setprecision(10);
+    os << "Particle: Pos: " <<b.position_ << " rho: " << b.density_;
     os << " h: " << b.smoothinglength_;
     os << " P: " << b.pressure_;
     os << " v: " << b.velocity_ ;//<< " VelH: " << b.velocityhalf_;
     os << " m: " << b.mass_;
     #ifdef INTERNAL_ENERGY
       os << " u: " << b.internalenergy_;
-    #endif 
+    #endif
     os << " cs: " << b.soundspeed_;
     //os << " Force: hyd: " << b.hydroforce_;
     //os << " grav: " << b.gravforce_;
     os << " a: " << b.acceleration_;
-    os << " id: " << b.id_; 
+    os << " id: " << b.id_;
     return os;
-  }      
+  }
 
 private:
   point_t position_;
@@ -175,24 +174,23 @@ private:
   point_t velocityhalf_;
   point_t acceleration_;
   double density_;
-  double pressure_; 
+  double pressure_;
   double entropy_;
   double electronfraction_;
   double mass_;
-  double smoothinglength_; 
+  double smoothinglength_;
   double soundspeed_;
   double internalenergy_;
   double totalenergy_;
   double dudt_;
   double dedt_;
-  double adiabatic_; 
+  double adiabatic_;
   double dadt_;
   double dt_;
   double mumax_;
   flecsi::topology::entity_id_t id_;
   particle_type_t type_;
-  int64_t neighbors_;  
-}; // class body 
-  
-#endif // body_h
+  int64_t neighbors_;
+}; // class body
 
+#endif // body_h

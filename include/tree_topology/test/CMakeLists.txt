@@ -4,7 +4,7 @@
 #~----------------------------------------------------------------------------~#
 
 #~----------------------------------------------------------------------------~#
-# 
+#
 # /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
 # /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
 # /@@       /@@  @@@@@  @@    // /@@       /@@   /@@/@@     /@@
@@ -12,7 +12,7 @@
 # /@@////   /@@/@@@@@@@/@@       ////////@@/@@////  /@@//////@@
 # /@@       /@@/@@//// //@@    @@       /@@/@@      /@@     /@@
 # /@@       @@@//@@@@@@ //@@@@@@  @@@@@@@@ /@@      /@@     /@@
-# //       ///  //////   //////  ////////  //       //      //  
+# //       ///  //////   //////  ////////  //       //      //
 #
 #~---------------------------------------------------------------------------~*#
 
@@ -31,18 +31,18 @@ include_directories(${CMAKE_SOURCE_DIR}/mpisph/)
 cinch_add_unit(morton
   SOURCES
     morton.cc
-    ${FleCSI_RUNTIME}/runtime_driver.cc  
-  LIBRARIES 
+    ${FleCSI_RUNTIME}/runtime_driver.cc
+  LIBRARIES
     ${FleCSPH_LIBRARIES}
 )
 
-#cinch_add_unit(tree
-#  SOURCES 
-#  tree.cc 
-#    ${FleCSI_RUNTIME}/runtime_driver.cc
-#  LIBRARIES 
-#    ${FleCSPH_LIBRARIES}
-#)
+cinch_add_unit(tree
+  SOURCES
+  tree.cc
+    ${FleCSI_RUNTIME}/runtime_driver.cc
+  LIBRARIES
+    ${FleCSPH_LIBRARIES}
+)
 
 #~---------------------------------------------------------------------------~-#
 # Formatting options

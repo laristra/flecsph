@@ -1,0 +1,37 @@
+#
+# KH test #1 for 200 particles in linear dimension
+#
+# initial data
+  initial_data_prefix = "RT_n30"
+  lattice_nx = 30        # particle lattice linear dimension
+  poly_gamma = 1.4        # polytropic index
+  equal_mass = yes        # whether equal mass particles are used
+                          #or equal separation
+  sph_eta = 1.5
+  lattice_type = 1        # 0:rectangular, 1:hcp, 2:fcc  **in 2d both hcp
+                          # and fcc are triangular**
+  domain_type = 1         # 0:cube, 1:sphere, 2:full box
+  flow_velocity = 1
+
+# evolution
+  sph_kernel = "Wendland C6"
+  initial_dt = 1.0
+  sph_variable_h = yes
+  adaptive_timestep = yes
+  timestep_cfl_factor = 0.25
+  final_iteration = 10
+  out_screen_every = 1
+  out_scalar_every = 1
+  out_h5data_every = 10
+  out_diagnostic_every = 1
+  output_h5data_prefix = "ev_RT_n30"
+  box_width = 1.5
+  box_length = .5
+
+  external_force_type = "square xyz-well"
+  zero_potential_poison_value = 0.0
+  extforce_wall_steepness = 1e12
+  extforce_wall_powerindex = 5
+
+  do_gravitation = yes
+  gravitation_value = 0.1

@@ -4,7 +4,7 @@
  *~--------------------------------------------------------------------------~*/
 
  /*~--------------------------------------------------------------------------~*
- * 
+ *
  * /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
  * /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
  * /@@       /@@  @@@@@  @@    // /@@       /@@   /@@/@@     /@@
@@ -12,7 +12,7 @@
  * /@@////   /@@/@@@@@@@/@@       ////////@@/@@////  /@@//////@@
  * /@@       /@@/@@//// //@@    @@       /@@/@@      /@@     /@@
  * /@@       @@@//@@@@@@ //@@@@@@  @@@@@@@@ /@@      /@@     /@@
- * //       ///  //////   //////  ////////  //       //      //  
+ * //       ///  //////   //////  ////////  //       //      //
  *
  *~--------------------------------------------------------------------------~*/
 
@@ -20,7 +20,7 @@
  * @file tree.h
  * @author Julien Loiseau
  * @date April 2017
- * @brief Description of the tree policy used in the tree_topology from FleCSI. 
+ * @brief Description of the tree policy used in the tree_topology from FleCSI.
  */
 
 #ifndef tree_h
@@ -42,87 +42,80 @@ using namespace flecsi;
 namespace flecsi{
 namespace execution{
 void specialization_driver(int argc, char * argv[]);
-void driver(int argc, char*argv[]); 
+void driver(int argc, char*argv[]);
 } // namespace execution
-} // namespace flecsi 
-
-struct body_holder_mpi_t{
-  static const size_t dimension = gdimension;
-  using element_t = type_t; 
-  using point_t = flecsi::point__<element_t, dimension>;
-
-  point_t position; 
-  int owner; 
-  double mass;
-  flecsi::topology::entity_id_t id;
-  double h; 
-};
+} // namespace flecsi
 
 class tree_policy{
 public:
+
   using tree_t = flecsi::topology::tree_topology<tree_policy>;
-  using branch_int_t = uint64_t;
+  using key_int_t = uint64_t;
   static const size_t dimension = gdimension;
-  using element_t = type_t; 
+  using element_t = type_t;
+
+  using key_t = flecsi::topology::key_id__<key_int_t,gdimension>;
+
   using point_t = flecsi::point__<element_t, dimension>;
   using space_vector_t = flecsi::space_vector<element_t,dimension>;
   using geometry_t = flecsi::topology::tree_geometry<element_t, gdimension>;
   using id_t = flecsi::topology::entity_id_t;
-  using key_t = flecsi::topology::morton_id<branch_int_t,dimension>;
 
-
-  /** 
+  /**
    * @brief BODY_HOLDER, entity in the tree. Light representation of a body
-   */ 
-  class body_holder : 
-    public flecsi::topology::tree_entity<branch_int_t,dimension>{
-  
-  public: 
+   */
+  class body_holder :
+    public flecsi::topology::tree_entity<double,key_int_t,dimension>{
+
+  public:
 
     body_holder(
-        point_t coordinates,
+        const key_t& key,
+        const point_t coordinates,
         body * bodyptr,
         size_t owner,
         element_t mass,
 	      id_t id,
         element_t h
         )
-      : coordinates_(coordinates),mass_(mass),h_(h),bodyptr_(bodyptr)
+      : tree_entity(key,coordinates),
+      mass_(mass),
+      h_(h),
+      bodyptr_(bodyptr)
     {
       locality_ = bodyptr_==nullptr?NONLOCAL:EXCL;
-      global_id_ = id; 
+      global_id_ = id;
       owner_ = owner;
     };
 
     body_holder()
-      :coordinates_(point_t{0,0,0}),
+      :tree_entity(key_id_t{},point_t{0,0,0}),
        mass_(0.0),
        h_(0.0),
        bodyptr_(nullptr)
     {
       locality_ = NONLOCAL;
-      owner_ = -1; 
+      owner_ = -1;
       global_id_ = {};
     };
 
     ~body_holder()
     {
-      bodyptr_ = nullptr; 
+      bodyptr_ = nullptr;
     }
-    
-    point_t coordinates() const {return coordinates_;}
+
     body* getBody(){return bodyptr_;};
     element_t mass(){return mass_;};
     element_t h(){return h_;};
-    
+
     void setBody(body * bodyptr){bodyptr_ = bodyptr;};
-    void set_id(id_t& id){id_ = id;}; 
-    void set_coordinates(point_t& coordinates){coordinates_=coordinates;};
+    void set_id(id_t& id){id_ = id;};
     void set_h(element_t h){h_=h;};
+    void set_shared(){locality_ = SHARED;};
 
     friend std::ostream& operator<<(std::ostream& os, const body_holder& b){
       os << std::setprecision(10);
-      os << "Holder. Pos: " <<b.coordinates_ << " Mass: "<< b.mass_ << " "; 
+      os << "Holder. Pos: " <<b.coordinates_ << " Mass: "<< b.mass_ << " ";
       if(b.locality_ == LOCAL || b.locality_ == EXCL || b.locality_ == SHARED)
       {
         os<< "LOCAL";
@@ -130,23 +123,22 @@ public:
         os << "NONLOCAL";
       }
       os << " owner: " << b.owner_;
-      os << " id: " << b.id_; 
+      os << " id: " << b.id_;
       return os;
-    }  
+    }
 
   private:
-    point_t coordinates_;
     element_t mass_;
-    element_t h_; 
-    body * bodyptr_; 
+    element_t h_;
+    body * bodyptr_;
   };
-    
+
   using entity_t = body_holder;
-   
+
   /**
    *  @brief BRANCH structure, a Center of Mass in our case.
-   */ 
-  class branch : public flecsi::topology::tree_branch<branch_int_t,dimension,
+   */
+  class branch : public flecsi::topology::tree_branch<key_int_t,dimension,
   double>{
   public:
     branch(){}
@@ -154,29 +146,29 @@ public:
     branch(const branch_id_t& id):tree_branch(id){}
 
     void insert(const flecsi::topology::entity_id_t& id){
-      ents_.push_back(id); 
+      ents_.push_back(id);
       if(ents_.size() > num_children){
         refine();
       }
     } // insert
 
-    // Copy constructor 
+    // Copy constructor
     branch(const branch& b){
       this->ents_ = b.ents_;
-      this->bmax_ = b.bmax_; 
+      this->bmax_ = b.bmax_;
       this->bmin_ = b.bmin_;
-      this->mass_ = b.mass_; 
+      this->mass_ = b.mass_;
       this->radius_ = b.radius_;
-      this->coordinates_ = b.coordinates_; 
-      this->id_ = b.id_; 
-      this->sub_entities_ = b.sub_entities_; 
-      this->leaf_ = b.leaf_;  
+      this->coordinates_ = b.coordinates_;
+      this->id_ = b.id_;
+      this->sub_entities_ = b.sub_entities_;
+      this->leaf_ = b.leaf_;
     }
 
     ~branch(){
       ents_.clear();
     }
-    
+
     auto begin(){
       return ents_.begin();
     }
@@ -186,26 +178,26 @@ public:
     }
 
     auto clear(){
-      ents_.clear(); 
+      ents_.clear();
     }
 
     void remove(const flecsi::topology::entity_id_t& id){
       auto itr = find(ents_.begin(), ents_.end(), id);
-      ents_.erase(itr);  
+      ents_.erase(itr);
       if(ents_.empty()){
         coarsen();
-      } 
+      }
     }
 
-    point_t 
+/*    point_t
     coordinates(
-        const std::array<flecsi::point__<element_t, dimension>,2>& range) 
+        const std::array<flecsi::point__<element_t, dimension>,2>& range)
     const{
       point_t p;
-      branch_id_t bid = id(); 
+      branch_id_t bid = id();
       bid.coordinates(range,p);
       return p;
-    }
+    }*/
 
     point_t coordinates(){return coordinates_;};
     element_t mass(){return mass_;};
@@ -219,14 +211,14 @@ public:
     void set_bmin(point_t bmin){bmin_ = bmin;};
 
    private:
-    point_t coordinates_; 
-    double mass_; 
+    point_t coordinates_;
+    double mass_;
     double radius_;
-    std::vector<flecsi::topology::entity_id_t> ents_; 
+    std::vector<flecsi::topology::entity_id_t> ents_;
     point_t bmax_;
     point_t bmin_;
 
-  }; // class branch 
+  }; // class branch
 
   bool should_coarsen(branch* parent){
     return true;
@@ -254,67 +246,67 @@ template <
 >
 struct traversal
 {
-  using element_t = T; 
+  using element_t = T;
   const static size_t dimension = D;
 
 
- // Functions for the tree traversal 
+ // Functions for the tree traversal
   static void update_COM(
       tree_topology_t* tree,
       branch_t * b,
       element_t epsilon = element_t(0),
       bool local_only = false)
   {
-    bool local_branch = false; 
-    element_t mass = element_t(0); 
-    point_t bmax{}; 
-    point_t bmin{}; 
-    element_t radius = 0.; 
+    bool local_branch = false;
+    element_t mass = element_t(0);
+    point_t bmax{};
+    point_t bmin{};
+    element_t radius = 0.;
     point_t coordinates = point_t{};
-    uint64_t nchildren = 0; 
+    uint64_t nchildren = 0;
     for(size_t d = 0 ; d < dimension ; ++d){
-      bmax[d] = -DBL_MAX; 
-      bmin[d] = DBL_MAX; 
+      bmax[d] = -DBL_MAX;
+      bmin[d] = DBL_MAX;
     }
     if(b->is_leaf()){
       for(auto child: *b)
       {
-        auto ent = tree->get(child); 
+        auto ent = tree->get(child);
         if(ent->is_local()){
-          local_branch = true; 
+          local_branch = true;
         }
         if(local_only && !ent->is_local()){
-          continue; 
+          continue;
         }
-        nchildren++; 
+        nchildren++;
         element_t childmass = ent->mass();
         for(size_t d = 0 ; d < dimension ; ++d)
         {
           bmax[d] = std::max(bmax[d],ent->coordinates()[d]+epsilon+ent->h());
           bmin[d] = std::min(bmin[d],ent->coordinates()[d]-epsilon-ent->h());
         }
-        coordinates += childmass * ent->coordinates(); 
+        coordinates += childmass * ent->coordinates();
         mass += childmass;
       }
       if(mass > element_t(0))
         coordinates /= mass;
-      // Compute the radius 
+      // Compute the radius
       for(auto child: *b)
       {
-        auto ent = tree->get(child); 
+        auto ent = tree->get(child);
         radius = std::max(
             radius,
             distance(ent->coordinates(),coordinates)  + epsilon + ent->h());
-      } 
+      }
     }else{
       for(int i = 0 ; i < (1<<dimension); ++i)
       {
         auto branch = tree->child(b,i);
         if(branch->is_local()){
-          local_branch=true; 
+          local_branch=true;
         }
         nchildren+=branch->sub_entities();
-        mass += branch->mass(); 
+        mass += branch->mass();
         if(branch->mass() > 0)
         {
           for(size_t d = 0 ; d < dimension ; ++d)
@@ -326,14 +318,14 @@ struct traversal
         coordinates += branch->mass()*branch->coordinates();
       }
       if(mass > element_t(0))
-        coordinates /= mass; 
-      // Compute the radius 
+        coordinates /= mass;
+      // Compute the radius
       for(int i = 0 ; i < (1<<dimension); ++i)
       {
-        auto branch = tree->child(b,i); 
+        auto branch = tree->child(b,i);
         radius = std::max(
             radius,
-            distance(coordinates,branch->coordinates()) + branch->radius()); 
+            distance(coordinates,branch->coordinates()) + branch->radius());
       }
     }
     b->set_radius(radius);
@@ -344,8 +336,8 @@ struct traversal
     b->set_bmax(bmax);
     local_branch?
       b->set_locality(branch_t::LOCAL):
-      b->set_locality(branch_t::NONLOCAL); 
-    if(!b->is_local()) tree->nonlocal_branches_add(); 
+      b->set_locality(branch_t::NONLOCAL);
+    if(!b->is_local()) tree->nonlocal_branches_add();
   }
 
 
@@ -353,10 +345,10 @@ struct traversal
 
 using traversal_t = traversal<double,gdimension>;
 
-inline 
+inline
 bool
 operator==(
-    const point_t& p1, 
+    const point_t& p1,
     const point_t& p2)
 {
   for(size_t i=0;i<gdimension;++i)
@@ -365,10 +357,10 @@ operator==(
   return true;
 }
 
-inline 
+inline
 bool
 operator!=(
-    const point_t& p1, 
+    const point_t& p1,
     const point_t& p2)
 {
   for(size_t i=0;i<gdimension;++i)
@@ -377,10 +369,10 @@ operator!=(
   return false;
 }
 
-inline 
+inline
 point_t
 operator+(
-    const point_t& p, 
+    const point_t& p,
     const double& val)
 {
   point_t pr = p;
@@ -389,10 +381,10 @@ operator+(
   return pr;
 }
 
-inline 
+inline
 point_t
 operator-(
-    const point_t& p, 
+    const point_t& p,
     const double& val)
 {
   point_t pr = p;
@@ -401,32 +393,32 @@ operator-(
   return pr;
 }
 
-inline 
+inline
 bool
 operator<(
-    const point_t& p, 
+    const point_t& p,
     const point_t& q)
-{ 
+{
   for(size_t i=0;i<gdimension;++i)
     if(p[i]>q[i])
       return false;
   return true;
 }
 
-inline 
+inline
 bool
 operator>(
-    const point_t& p, 
+    const point_t& p,
     const point_t& q)
-{  
+{
   for(size_t i=0;i<gdimension;++i)
     if(p[i]<q[i])
       return false;
   return true;
 }
 
-inline 
-point_t 
+inline
+point_t
 operator*(
     const point_t& p,
     const point_t& q)
@@ -439,11 +431,11 @@ operator*(
 
 inline double norm_point( const point_t& p) {
   double res = 0;
-  if constexpr (gdimension == 1) 
+  if constexpr (gdimension == 1)
     res = std::abs(p[0]);
-  else if constexpr (gdimension == 2) 
+  else if constexpr (gdimension == 2)
     res = sqrt(p[0]*p[0] + p[1]*p[1]);
-  else 
+  else
     res = sqrt(p[0]*p[0] + p[1]*p[1] + p[2]*p[2]);
   return res;
 }

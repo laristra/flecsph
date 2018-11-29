@@ -46,18 +46,17 @@
 #include "flecsi/topology/index_space.h"
 
 #include "tree_entity_id.h"
-#include "morton_id.h"
+#include "key_id.h"
 #include "tree_branch.h"
 #include "tree_geometry.h"
 
 namespace flecsi {
 namespace topology {
-
-  
 /*!
   Tree entity base class.
  */
 template<
+  typename TT,
   typename T,
   size_t D
 >
@@ -65,22 +64,33 @@ class tree_entity{
 public:
 
   using id_t = entity_id_t;
-  using branch_id_t = morton_id<T, D>;
-  
+  using key_id_t = key_id__<T,D>;
+  using point_t = point__<TT,D>;
+  //using key_id_t = morton_id<T, D>;
+  using range_t = std::array<point_t,2>;
+
 protected:
-  enum e_locality_ {LOCAL=0,NONLOCAL=1,SHARED=2,EXCL=3,GHOST=4}; 
-  
+  enum e_locality_ {LOCAL=0,NONLOCAL=1,SHARED=2,EXCL=3,GHOST=4};
+
 public:
 
   tree_entity()
-  : branch_id_(branch_id_t::null()),
+  : key_id_(key_id_t::null()),
   locality_(NONLOCAL)
   {}
 
-  branch_id_t
-  get_branch_id() const
+  tree_entity(
+    const key_id_t& key,
+    const point_t& coordinates
+  )
+  : key_id_(key),
+  coordinates_(coordinates),
+  locality_(NONLOCAL){};
+
+  key_id_t
+  get_entity_key() const
   {
-    return branch_id_;
+    return key_id_;
   }
 
   entity_id_t
@@ -89,13 +99,13 @@ public:
     return id_;
   }
 
-  entity_id_t 
-  global_id() const 
+  entity_id_t
+  global_id() const
   {
     return global_id_;
   }
 
-  void 
+  void
   set_global_id(entity_id_t id)
   {
     global_id_ = id;
@@ -113,41 +123,61 @@ public:
   bool
   is_valid() const
   {
-    return branch_id_ != branch_id_t::null();
+    return key_id_ != key_id_t::null();
   }
 
   /*!
    * Return true if the entity is local in this process
    */
   bool
-  is_local() const 
+  is_local() const
   {
-    return (locality_ == LOCAL || locality_ == EXCL || locality_ == SHARED); 
+    return (locality_ == LOCAL || locality_ == EXCL || locality_ == SHARED);
   }
 
-  void 
+  bool
+  is_shared() const
+  {
+    return locality_==SHARED;
+  }
+
+  void
   set_locality(e_locality_ loc)
   {
     locality_ = loc;
   }
-  
-  e_locality_ 
+
+  e_locality_
   locality()
   {
     return locality_;
   }
 
-  void 
+  void
   set_owner(int64_t owner)
   {
     owner_ = owner;
   }
 
-  int64_t 
+  int64_t
   owner()
   {
-    return owner_; 
+    return owner_;
   }
+
+  point_t
+  coordinates() const
+  {
+    return coordinates_;
+  }
+
+  void
+  set_coordinates(
+    point_t& coordinates)
+  {
+    coordinates_=coordinates;
+  };
+
 
 protected:
   template<class P>
@@ -170,20 +200,21 @@ protected:
   }
 
   void
-  set_branch_id_(
-    branch_id_t bid
+  set_entity_key_(
+    key_id_t bid
   )
   {
-    branch_id_ = bid;
+    key_id_ = bid;
   }
 
-  branch_id_t branch_id_;
+  point_t coordinates_;
+  key_id_t key_id_;
   entity_id_t id_;
   entity_id_t global_id_;
   e_locality_ locality_;
   int64_t owner_;
 };
- 
+
 } // namespace topology
 } // namespace flecsi
 
