@@ -588,7 +588,7 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(sph_separation)
 # endif
 
-# ifndef initial_data_prefix
+# ifndef sph_kernel
   READ_STRING_PARAM(sph_kernel)
 # endif
 

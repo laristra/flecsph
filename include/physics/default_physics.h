@@ -94,6 +94,7 @@ namespace physics{
     source->setTotalenergy(eint + epot + ekin);
   } // set_total_energy
 
+
   /**
    * @brief      Subtracts mechanical energy from total energy
    *             to recover internal energy
@@ -159,6 +160,7 @@ namespace physics{
     // \TODO add a function to reset in main_driver
     point_t acceleration = {};
     point_t hydro = {};
+    const double h_s = source->getSmoothinglength();
     source->setMumax(0.0);
 
     for(auto nbh : ngbsh){
@@ -179,8 +181,9 @@ namespace physics{
           + nb->getPressure()/(rho_b*rho_b);
 
       // Kernel computation
+      const double h_n = nb->getSmoothinglength();
       point_t sourcekernelgradient = kernels::gradKernel(
-          vecPosition,source->getSmoothinglength());
+          vecPosition,(h_s+h_n)*.5);
       point_t resultkernelgradient = sourcekernelgradient;
 
       hydro += nb->getMass()*(pressureDensity + visc)
@@ -210,6 +213,7 @@ namespace physics{
     double dudt = 0;
     double dudt_pressure = 0.;
     double dudt_visc = 0.;
+    const double h_s = source->getSmoothinglength();
 
     for(auto nbh: ngbsh){
       body* nb = nbh->getBody();
@@ -222,9 +226,10 @@ namespace physics{
       double visc = viscosity::viscosity(source,nb);
 
       // Compute the gradKernel ij
+      const double h_n = nb->getSmoothinglength();
       point_t vecPosition = source->getPosition()-nb->getPosition();
       point_t sourcekernelgradient = kernels::gradKernel(
-          vecPosition,source->getSmoothinglength());
+          vecPosition,(h_s+h_n)*.5);
       space_vector_t resultkernelgradient =
           flecsi::point_to_vector(sourcekernelgradient);
 
@@ -281,8 +286,9 @@ namespace physics{
       if(pos_a == pos_b)
         continue;
 
+      const double h_b = nb->getSmoothinglength();
       // Compute the \nabla_a W_ab
-      const point_t Da_Wab = kernels::gradKernel(pos_a - pos_b, h_a),
+      const point_t Da_Wab = kernels::gradKernel(pos_a - pos_b, (h_a+h_b)*.5),
                     vel_b = nb->getVelocity();
 
       // va*DaWab and vb*DaWab

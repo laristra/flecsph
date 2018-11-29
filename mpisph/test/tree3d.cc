@@ -87,7 +87,7 @@ TEST(tree_topology, neighbors_sphere_VARIABLE) {
 
   for(size_t i = 0; i < n; ++i){
     point_t p = {uniform(0, 1), uniform(0, 1), uniform(0, 1)};
-    auto e = t.make_entity(entity_key_t(range,p),p,nullptr,0,mass,0,uniform(0,.2));
+    auto e = t.make_entity(entity_key_t(range,p),p,nullptr,0,mass,0,uniform(.1,.2));
     t.insert(e);
   }
 
@@ -188,7 +188,7 @@ TEST(tree_topology, neighbors_box_VARIABLE) {
 
   for(size_t i = 0; i < n; ++i){
     point_t p = {uniform(0, 1), uniform(0, 1), uniform(0, 1)};
-    auto e = t.make_entity(entity_key_t(range,p),p,nullptr,0,mass,0,uniform(0,.2));
+    auto e = t.make_entity(entity_key_t(range,p),p,nullptr,0,mass,0,uniform(.1,.2));
     t.insert(e);
   }
 

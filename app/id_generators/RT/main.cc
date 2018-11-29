@@ -224,9 +224,9 @@ int main(int argc, char * argv[]){
     vy[part] = 0.;
 
     // Add velocity perturbation a-la Price (2008)
-    //vy[part] = 0.01*(1 + cos(4*M_PI*x[part]))*(1 + cos(3*M_PI*y[part]))/4.;
-    if(y[part] < 0.025 and y[part] > -0.025)
-      vy[part] = 2.*cos(M_PI*(x[part]/box_length));
+    vy[part] = 0.01*(1 + cos(4*M_PI*x[part]))*(1 + cos(3*M_PI*y[part]))/4.;
+    //if(y[part] < 0.025 and y[part] > -0.025)
+    //  vy[part] = 2.*cos(M_PI*(x[part]/box_length));
 
     // particle masses and smoothing length
     m[part] = pmass;
