@@ -23,7 +23,8 @@ namespace flecsi{
     template<
       typename T,
       size_t D>
-    using key_id__ = hilbert_id<T,D>;
+    using key_id__ = morton_id<T,D>;
+    //using key_id__ = hilbert_id<T,D>;
   }
 }
 
