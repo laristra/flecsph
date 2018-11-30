@@ -259,7 +259,7 @@ public:
     }
     // Then truncate the key to the depth
     id_ >>= (max_depth-depth)*dimension;
-    //std::cout<<"k: "<<std::bitset<64>(id_)<<std::endl;
+    std::cout<<"k: "<<std::bitset<64>(id_)<<std::endl;
 
     // Be sure the head bit is one
     //assert((id_ & (int_t(1)<<depth*dimension+bits%dimension)) > 0);
@@ -501,6 +501,7 @@ public:
         bits[0] = (key & 4) > 0;
         bits[1] = ((key & 2) ^ bits[0]) > 0;
         bits[2] = ((key & 1) ^ bits[0] ^ bits[1]) > 0;
+        std::cout<<bits[0]<<";"<<bits[1]<<";"<<bits[2]<<std::endl;
         rotation3d(mask, coords, bits);
         coords[0] += bits[0] * mask;
         coords[1] += bits[1] * mask;
@@ -514,9 +515,9 @@ public:
         coords[0] += bits[0] * mask;
         coords[1] += bits[1] * mask;
       }
-
       key >>= dimension;
     }
+    assert(key == int_t(1));
     std::cout<<coords[0]<<";"<<coords[1]<<";"<<coords[2]<<std::endl;
 
     for(size_t j = 0; j < dimension; ++j)
