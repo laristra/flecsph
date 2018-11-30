@@ -75,6 +75,11 @@ void set_derived_params() {
   tbox_min[1] =  0.;
   tbox_max[1] =  box_width/2.;
 
+  if(gdimension == 3){
+    bbox_max[2] = tbox_max[2] = box_height/2.;
+    bbox_min[2] = tbox_min[2] =-box_height/2.;
+  }
+
   pressure_0 = 2.5;
 
   // 1 = bottom 2 = top
@@ -87,11 +92,9 @@ void set_derived_params() {
   initial_data_file = oss.str();
 
   std::cout<<"Boxes: " << std::endl << "up="
-    <<"("<<tbox_min[0]<<";"<<tbox_min[1]<<")-"
-    <<"("<<tbox_max[0]<<";"<<tbox_max[1]<<")"<<std::endl
+    <<tbox_min<<"-"<<tbox_max<<std::endl
     <<" bottom="
-    <<"("<<bbox_min[0]<<";"<<bbox_min[1]<<")"
-    <<"("<<bbox_max[0]<<";"<<bbox_max[1]<<")"<< std::endl;
+    <<bbox_min<<"-"<<bbox_max<< std::endl;
 
   // select particle lattice and kernel function
   particle_lattice::select();
@@ -121,9 +124,9 @@ void set_derived_params() {
   tbox_min[1] = bbox_max[1] - dy + 0.5*(dy_tb + dy);
 
   // count the number of particles
-  np_bottom = particle_lattice::count(lattice_type,2,bbox_min,bbox_max,
+  np_bottom = particle_lattice::count(lattice_type,gdimension,bbox_min,bbox_max,
                                       sph_separation, 0);
-  np_top    = particle_lattice::count(lattice_type,2,tbox_min,tbox_max,
+  np_top    = particle_lattice::count(lattice_type,gdimension,tbox_min,tbox_max,
                                       sph_sep_t, np_bottom);
 
 
@@ -151,7 +154,7 @@ int main(int argc, char * argv[]){
   }
 
   // anything other than 2D is not implemented yet
-  assert (gdimension == 2);
+  //assert (gdimension == 2);
   assert (domain_type == 0);
 
   // set simulation parameters
@@ -192,9 +195,9 @@ int main(int argc, char * argv[]){
   double* dt = new double[nparticles]();
 
   // generate the lattice
-  assert (np_bottom == particle_lattice::generate( lattice_type,2,
+  assert (np_bottom == particle_lattice::generate( lattice_type,gdimension,
           bbox_min,bbox_max,sph_separation,0,x,y,z));
-  assert (np_top    == particle_lattice::generate( lattice_type,2,
+  assert (np_top    == particle_lattice::generate( lattice_type,gdimension,
           tbox_min,tbox_max,sph_sep_t,np_bottom,x,y,z));
 
   // max. value for the speed of sound
