@@ -125,7 +125,7 @@ TEST(tree_topology, neighbors_sphere_VARIABLE) {
     for(size_t j = 0; j < n; ++j){
       auto ej = t.get(j);
       double dist = distance(ent->coordinates(),ej->coordinates());
-      if(dist*dist < (ent->h()+ej->h())*(ent->h()+ej->h())){
+      if(dist*dist < (ent->h()+ej->h())*(ent->h()+ej->h())/4.){
         s2.insert(ej);
       }
     }
