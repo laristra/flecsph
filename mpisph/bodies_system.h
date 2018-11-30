@@ -268,7 +268,7 @@ public:
 
     if(param::periodic_boundary_x || param::periodic_boundary_y ||
       param::periodic_boundary_z){
-      boundary::pboundary_generate(localbodies_,3.*smoothinglength_);
+      boundary::pboundary_generate(localbodies_,2.5*smoothinglength_);
       localnbodies_ = localbodies_.size();
       MPI_Allreduce(&localnbodies_,&totalnbodies_,1,MPI_INT64_T,MPI_SUM,
         MPI_COMM_WORLD);
@@ -292,7 +292,7 @@ public:
     tcolorer_.mpi_qsort(localbodies_,totalnbodies_);
 
 #ifdef OUTPUT_TREE_INFO
-    rank || clog(trace) << "Construction of the tree"<<std::endl;
+    rank || clog(trace) << "Construction of the tree";
 #endif
 
 // Sort the bodies
@@ -327,6 +327,10 @@ public:
       assert(nbi->is_local());
     }
     localnbodies_ = localbodies_.size();
+
+    #ifdef OUTPUT_TREE_INFO
+        rank || clog(trace) << ".done"<<std::endl;
+    #endif
 
 if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
   param::periodic_boundary_z))

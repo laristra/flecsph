@@ -73,6 +73,60 @@ namespace boundary{
     //}
   }
 
+  void
+  add_corner_XX(
+    const std::array<bool,gdimension>& on_edge,
+    const std::array<size_t,2>& d,
+    const std::array<point_t,2>& box,
+    const double& halo_size,
+    const std::pair<entity_key_t,body>& lbody,
+    std::vector<body>& edge
+  )
+  {
+    if(on_edge[d[0]] && on_edge[d[1]]){
+      body nu = lbody.second;
+      nu.setType(particle_type_t::WALL);
+      point_t coord = nu.coordinates();
+      for(size_t i = 0 ; i < 2 ; ++i){
+        if(nu.coordinates()[d[i]]+halo_size>box[1][d[i]]){
+          coord[d[i]] = box[0][d[i]] - abs(nu.coordinates()[d[i]]+box[0][d[i]]);
+        }else{
+          coord[d[i]] = box[1][d[i]] + abs(nu.coordinates()[d[i]]+box[1][d[i]]);
+        }
+      }
+      nu.setPosition(coord);
+      #pragma omp critical
+        edge.push_back(nu);
+    }
+  }
+
+  void
+  add_corner_XXX(
+    const std::array<bool,gdimension>& on_edge,
+    const std::array<size_t,3>& d,
+    const std::array<point_t,2>& box,
+    const double& halo_size,
+    const std::pair<entity_key_t,body>& lbody,
+    std::vector<body>& edge
+  )
+  {
+    if(on_edge[d[0]] && on_edge[d[1]] && on_edge[d[2]]){
+      body nu = lbody.second;
+      nu.setType(particle_type_t::WALL);
+      point_t coord = nu.coordinates();
+      for(size_t i = 0 ; i < 3 ; ++i){
+        if(nu.coordinates()[d[i]]+halo_size>box[1][d[i]]){
+          coord[d[i]] = box[0][d[i]] - abs(nu.coordinates()[d[i]]+box[0][d[i]]);
+        }else{
+          coord[d[i]] = box[1][d[i]] + abs(nu.coordinates()[d[i]]+box[1][d[i]]);
+        }
+      }
+      nu.setPosition(coord);
+      #pragma omp critical
+        edge.push_back(nu);
+    }
+  }
+
   void pboundary_generate(
       std::vector<std::pair<entity_key_t,body>>& lbodies,
       double halo_size)
@@ -155,26 +209,18 @@ namespace boundary{
       // If several dimensions interfere, add in the corners
       if(gdimension == 1)
         continue;
-      if(gdimension > 1){
+      if(gdimension == 2){
         // x and y
-        if(on_edge[0] && on_edge[1]){
-          body nu = lbodies[i].second;
-          nu.setType(particle_type_t::WALL);
-          point_t coord = nu.coordinates();
-          if(nu.coordinates()[0]+halo_size>box[1][0]){
-            coord[0] = box[0][0] - fabs(nu.coordinates()[0]+box[0][0]);
-          }else{
-            coord[0] = box[1][0] + fabs(nu.coordinates()[0]+box[1][0]);
-          }
-           if(nu.coordinates()[1]+halo_size>box[1][1]){
-            coord[1] = box[0][1] - fabs(nu.coordinates()[1]+box[0][1]);
-          }else{
-            coord[1] = box[1][1] + fabs(nu.coordinates()[1]+box[1][1]);
-          }
-          nu.setPosition(coord);
-          #pragma omp critical
-            edge.push_back(nu);
-        }
+        add_corner_XX(on_edge,{0,1},box,halo_size,lbodies[i],edge);
+      }
+      if(gdimension == 3){
+        // Multiple combinations
+        // xy, xz, yz, xyz
+        add_corner_XX(on_edge,{0,1},box,halo_size,lbodies[i],edge);
+        add_corner_XX(on_edge,{0,2},box,halo_size,lbodies[i],edge);
+        add_corner_XX(on_edge,{2,1},box,halo_size,lbodies[i],edge);
+
+        add_corner_XXX(on_edge,{0,1,2},box,halo_size,lbodies[i],edge);
       }
     }
     int rank, size;

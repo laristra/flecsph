@@ -30,6 +30,7 @@
   # boundaries
   box_width = 1.5
   box_length = .5
+
   squarewell_y = yes
   periodic_boundary_x = yes
 

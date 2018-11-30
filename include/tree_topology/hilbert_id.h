@@ -82,15 +82,14 @@ public:
   : id_(bid.id_)
   {}
 
-
-  void rotation2d(int_t& n,
+  void rotation2d(const int_t& n,
       std::array<int_t,dimension>& coords,
-      std::array<int_t,dimension>& bits)
+      const std::array<int_t,dimension>& bits)
   {
     if(bits[1] == 0){
       if(bits[0] == 1){
-        coords[0] = n-1 - coords[0];
-        coords[1] = n-1 - coords[1];
+        coords[0] = n - 1 - coords[0];
+        coords[1] = n - 1 - coords[1];
       }
       // Swap X-Y or Z
       int t = coords[0];
@@ -99,65 +98,107 @@ public:
     }
   }
 
-  void rotation3d(int_t& n,
+  using coord_t = std::array<int_t,dimension>;
+
+  void rotate_90_x(const int_t& n,std::array<int_t,dimension>& coords)
+  {
+    coord_t tmp = coords;
+    coords[0] = tmp[0];
+    coords[1] = n - 1 - tmp[2];
+    coords[2] = tmp[1];
+  }
+  void rotate_90_y(const int_t& n,std::array<int_t,dimension>& coords)
+  {
+    coord_t tmp = coords;
+    coords[0] = tmp[2];
+    coords[1] = tmp[1];
+    coords[2] = n - 1 - tmp[0];
+  }
+  void rotate_90_z(const int_t& n,std::array<int_t,dimension>& coords)
+  {
+    coord_t tmp = coords;
+    coords[0] = n - 1 - tmp[1];
+    coords[1] = tmp[0];
+    coords[2] = tmp[2];
+  }
+  void rotate_180_x(const int_t& n,std::array<int_t,dimension>& coords)
+  {
+    coord_t tmp = coords;
+    coords[0] = tmp[0];
+    coords[1] = n - 1 - tmp[1];
+    coords[2] = n - 1 - tmp[2];
+  }
+  void rotate_270_x(const int_t& n,std::array<int_t,dimension>& coords)
+  {
+    coord_t tmp = coords;
+    coords[0] = tmp[0];
+    coords[1] = tmp[2];
+    coords[2] = n - 1 - tmp[1];
+  }
+  void rotate_270_y(const int_t& n,std::array<int_t,dimension>& coords)
+  {
+    coord_t tmp = coords;
+    coords[0] = n - 1 - tmp[2];
+    coords[1] = tmp[1];
+    coords[2] = tmp[0];
+  }
+  void rotate_270_z(const int_t& n,std::array<int_t,dimension>& coords)
+  {
+    coord_t tmp = coords;
+    coords[0] = tmp[1];
+    coords[1] = n - 1 - tmp[0];
+    coords[2] = tmp[2];
+  }
+
+  void rotation3d(const int_t& n,
       std::array<int_t,dimension>& coords,
-      std::array<int_t,dimension>& bits)
+      const std::array<int_t,dimension>& bits)
+  {
+    if (!bits[0] && !bits[1] && !bits[2]) {
+      // Left front bottom
+      rotate_270_z(n, coords);
+      rotate_270_x(n, coords);
+    } else if (!bits[0] && bits[2]) {
+      // Left top
+      rotate_90_z(n, coords);
+      rotate_90_y(n, coords);
+    } else if (bits[1] && !bits[2]) {
+      // Back bottom
+      rotate_180_x(n, coords);
+    } else if (bits[0] && bits[2]) {
+      // Right top
+      rotate_270_z(n, coords);
+      rotate_270_y(n, coords);
+    } else if (bits[0] && !bits[2] && !bits[1]) {
+      // Right front bottom
+      rotate_90_y(n, coords);
+      rotate_90_z(n, coords);
+    }
+  }
+
+  void unrotation3d(const int_t& n,
+      std::array<int_t,dimension>& coords,
+      const std::array<int_t,dimension>& bits)
   {
     if (!bits[0] && !bits[1] && !bits[2]) {
         // Left front bottom
-        // Rotate 90 x
-        //pos = rotate_90_x(n, pos);
-        coords[0] = coords[0];
-        coords[1] = n - coords[2] - 1;
-        coords[2] = coords[1];
-        // Rotate 90 z
-        //pos = rotate_90_z(n, pos);
-        coords[0] = n - coords[1] - 1;
-        coords[1] = coords[0];
-        coords[2] = coords[2];
+        rotate_90_x(n, coords);
+        rotate_90_z(n, coords);
     } else if (!bits[0] && bits[2]) {
         // Left top
-        // Rotate 270 y
-        //pos = rotate_270_y(n, pos);
-        coords[0] = n - coords[2] - 1;
-        coords[1] = coords[1];
-        coords[2] = coords[0];
-        // Rotate 270 z
-        //pos = rotate_270_z(n, pos);
-        coords[0] = coords[1];
-        coords[1] = n - coords[0] - 1;
-        coords[2] = coords[2];
+        rotate_270_y(n, coords);
+        rotate_270_z(n, coords);
     } else if (bits[1] && !bits[2]) {
         // Back bottom
-        // Rotate 180 x
-        //pos = rotate_180_x(n, pos);
-        coords[0] = coords[0];
-        coords[1] = n - coords[1] - 1;
-        coords[2] = n - coords[2] - 1;
+        rotate_180_x(n, coords);
     } else if (bits[0] && bits[2]) {
         // Right top
-        // Rotate 90 y
-        //pos = rotate_90_y(n, pos);
-        coords[0] = coords[2];
-        coords[1] = coords[1];
-        coords[2] = n - coords[0] - 1;
-        // Rotate 90 z
-        //pos = rotate_90_z(n, pos);
-        coords[0] = n - coords[1] - 1;
-        coords[1] = coords[0];
-        coords[2] = coords[2];
+        rotate_90_y(n, coords);
+        rotate_90_z(n, coords);
     } else if (bits[0] && !bits[2] && !bits[1]) {
         // Right front bottom
-        // Rotate 270 z
-        //pos = rotate_270_z(n, pos);
-        coords[0] = coords[1];
-        coords[1] = n - coords[0] - 1;
-        coords[2] = coords[2];
-        // Rotate 270 y
-        //pos = rotate_270_y(n, pos);
-        coords[0] = n - coords[2] - 1;
-        coords[1] = coords[1];
-        coords[2] = coords[0];
+        rotate_270_z(n, coords);
+        rotate_270_y(n, coords);
     }
   }
 
@@ -174,14 +215,17 @@ public:
   {
     assert(depth <= max_depth);
 
-    std::array<int_t, dimension> coords{};
+    std::array<int_t, dimension> coords;
     // Convert the position to integer
     for(size_t i = 0; i < dimension; ++i)
     {
       S min = range[0][i];
       S scale = range[1][i] - min;
-      coords[i] = (p[i] - min)/scale * (int_t(1) << ((bits - 1)/dimension));
+      coords[i] = (p[i] - min)/scale * (int_t(1) << (max_depth));
     }
+
+    std::cout<<coords[0]<<";"<<coords[1]<<";"<<coords[2]<<std::endl;
+
 
     if(dimension == 1)
     {
@@ -207,15 +251,14 @@ public:
       {
         id_ += s * s * ((3*bits[0]) ^ bits[1]);
         rotation2d(s,coords,bits);
-      }else if(dimension == 3)
-      {
+      }
+      if(dimension == 3){
         id_ += s * s * s * ((7 * bits[0]) ^ (3 * bits[1]) ^ bits[2]);
-        rotation3d(s,coords,bits);
+        unrotation3d(s,coords,bits);
       }
     }
     // Then truncate the key to the depth
     id_ >>= (max_depth-depth)*dimension;
-    //std::cout<<"pos: "<<p<<std::endl;
     //std::cout<<"k: "<<std::bitset<64>(id_)<<std::endl;
 
     // Be sure the head bit is one
@@ -438,42 +481,53 @@ public:
   /*!
     Convert this id to coordinates in range.
    */
-/*  template<
+  template<
     typename S
   >
   void
   coordinates(
     const std::array<point__<S, dimension>, 2>& range,
-    point__<S, dimension>& p) const
+    point__<S, dimension>& p)
   {
+    int_t key = id_;
     std::array<int_t, dimension> coords;
     coords.fill(int_t(0));
 
-    int_t id = id_;
-    size_t d = 0;
+    int_t n = int_t(1) << (max_depth); // Number of cells to an edge.
+    for (int_t mask = int_t(1); mask < n; mask <<= 1) {
+      std::array<int_t,dimension> bits = {};
 
-    while(id >> dimension != int_t(0))
-    {
-      for(size_t j = 0; j < dimension; ++j)
-      {
-        coords[j] |= (((int_t(1) << j) & id) >> j) << d;
+      if(dimension == 3){
+        bits[0] = (key & 4) > 0;
+        bits[1] = ((key & 2) ^ bits[0]) > 0;
+        bits[2] = ((key & 1) ^ bits[0] ^ bits[1]) > 0;
+        rotation3d(mask, coords, bits);
+        coords[0] += bits[0] * mask;
+        coords[1] += bits[1] * mask;
+        coords[2] += bits[2] * mask;
       }
 
-      id >>= dimension;
-      ++d;
-    }
+      if(dimension == 2){
+        bits[0] = (key & 2) > 0;
+        bits[1] = ((key & 1) ^ bits[0]) > 0;
+        rotation2d(mask, coords, bits);
+        coords[0] += bits[0] * mask;
+        coords[1] += bits[1] * mask;
+      }
 
-    constexpr int_t m = (int_t(1) << max_depth) - 1;
+      key >>= dimension;
+    }
+    std::cout<<coords[0]<<";"<<coords[1]<<";"<<coords[2]<<std::endl;
 
     for(size_t j = 0; j < dimension; ++j)
     {
       S min = range[0][j];
       S scale = range[1][j] - min;
 
-      coords[j] <<= max_depth - d;
-      p[j] = min + scale * S(coords[j])/m;
+      //coords[j] <<= max_depth - d;
+      p[j] = min + scale * S(coords[j])/(int_t(1) << max_depth);
     }
-  }*/
+  }
 
   /**
    * @brief Compute the range of a branch from its key
