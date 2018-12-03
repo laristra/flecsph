@@ -18,8 +18,8 @@
   initial_dt = 1.0
   sph_variable_h = yes
   adaptive_timestep = yes
-  timestep_cfl_factor = 0.25
-  final_iteration = 1000
+  timestep_cfl_factor = 0.2
+  final_iteration = 10000
   out_screen_every = 1
   out_scalar_every = 1
   out_h5data_every = 10

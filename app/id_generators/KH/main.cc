@@ -115,6 +115,16 @@ void set_derived_params() {
   mbox_max[1] =  mbox_width/2.;
 
   if(equal_mass){
+    if(gdimension == 3){
+      pmass = rho_1*sph_separation*sph_separation*sph_separation;
+      if (lattice_type == 1 or lattice_type == 2)
+        pmass *= 1./sqrt(2.);
+    }
+    if(gdimension == 2){
+      pmass = rho_1*sph_separation*sph_separation;
+      if (lattice_type == 1 or lattice_type == 2)
+        pmass *= sqrt(3)/2;
+    }
     sph_sep_tb = sph_separation * sqrt(rho_1/rho_2);
     pmass_tb = pmass;
   }

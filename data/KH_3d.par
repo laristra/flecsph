@@ -3,10 +3,11 @@
 #
 # initial data
   initial_data_prefix = "KH_3D_n200"
-  lattice_nx = 10        # particle lattice linear dimension
+  lattice_nx = 30        # particle lattice linear dimension
   poly_gamma = 1.4        # polytropic index
   KH_A = 0.025
   KH_lambda = 0.1666
+  KH_density_ratio = 2.
   equal_mass = yes        # determines whether equal mass particles are used
                           #or equal separation
   sph_eta = 1.5
@@ -21,7 +22,7 @@
   sph_variable_h = yes
   adaptive_timestep = yes
   timestep_cfl_factor = 0.25
-  final_iteration = 1
+  final_iteration = 10
   out_screen_every = 1
   out_scalar_every = 1
   out_h5data_every = 1
@@ -32,6 +33,6 @@
   box_width = 1.
   box_length = 1.
   box_height = 1.
-  periodic_boundary_y = yes
   periodic_boundary_x = yes
+  periodic_boundary_y = yes
   periodic_boundary_z = yes
