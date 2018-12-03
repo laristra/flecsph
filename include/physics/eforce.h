@@ -243,7 +243,9 @@ namespace external_force {
   {
     body* source = srch->getBody();
     point_t acc{};
-    acc[gdimension-1] = -param::gravitation_value;
+    acc[0] = -param::gravitation_value;
+    if(gdimension > 1)
+      acc[1] = -param::gravitation_value;
     return acc;
   }
 
@@ -251,13 +253,9 @@ namespace external_force {
   {
     body* source = srch->getBody();
     double pot = 0.;
-    double height = srch->coordinates()[gdimension-1];
-    if(gdimension == 1)
-      height += param::box_length/2.;
-    if(gdimension == 2)
-      height += param::box_width/2.;
-    if(gdimension == 3)
-      height += param::box_height/2.;
+    double height = srch->coordinates()[0];
+    if(gdimension > 1)
+      height = srch->coordinates()[1];
     pot = height*param::gravitation_value;
     return pot;
   }
