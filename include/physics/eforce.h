@@ -46,7 +46,6 @@ namespace external_force {
     return param::zero_potential_poison_value; // POISON IT
   }
 
-
   /**
    * @brief      Square well in y- and z-dimension
    * @param      srch  The source's body holder
@@ -55,16 +54,23 @@ namespace external_force {
     using namespace param;
     point_t a = 0.0;
     point_t rp =  srch->getBody()->getPosition();
-    double box[3];
-    box[0] = 0.5*box_length;
-    box[1] = 0.5*box_width;
-    box[2] = 0.5*box_height;
+    double box[3] = {0.,0.,0.};
+    bool do_squarewell[3] = {squarewell_x,squarewell_y,squarewell_z};
+    if(param::squarewell_x){
+      box[0] = 0.5*box_length;
+    }
+    if(param::squarewell_y){
+      box[1] = 0.5*box_width;
+    }
+    if(param::squarewell_z){
+      box[2] = 0.5*box_height;
+    }
     const double pw_n = extforce_wall_powerindex;
     const double pw_a = extforce_wall_steepness;
     for (unsigned short i=0; i<gdimension; ++i) {
       a[i]  = (((rp[i] <- box[i]) ? pow(-rp[i]- box[i], pw_n - 1) : 0.0)
               -((rp[i] >  box[i]) ? pow(rp[i] - box[i], pw_n - 1) : 0.0))
-            * pw_n*pw_a;
+            *pw_n*pw_a*do_squarewell[i];
     }
     return a;
   }
@@ -73,60 +79,26 @@ namespace external_force {
     using namespace param;
     double phi = 0.0;
     point_t rp =  srch->getBody()->getPosition();
-    double box[3];
-    box[0] = 0.5*box_length;
-    box[1] = 0.5*box_width;
-    box[2] = 0.5*box_height;
+    double box[3] = {0.,0.,0.};
+    bool do_squarewell[3] = {squarewell_x,squarewell_y,squarewell_z};
+    if(param::squarewell_x){
+      box[0] = 0.5*box_length;
+    }
+    if(param::squarewell_y){
+      box[1] = 0.5*box_width;
+    }
+    if(param::squarewell_z){
+      box[2] = 0.5*box_height;
+    }
     const double pw_n = extforce_wall_powerindex;
     const double pw_a = extforce_wall_steepness;
     for (unsigned short i=0; i<gdimension; ++i) {
-      phi += (((rp[i] <- box[i]) ? pow(-rp[i]- box[i], pw_n) : 0.0)
+      phi += (((rp[i] < -box[i]) ? pow(-rp[i]- box[i], pw_n) : 0.0)
              +((rp[i] >  box[i]) ? pow(rp[i] - box[i], pw_n) : 0.0))
-            *pw_a;
+            *pw_a*do_squarewell[i];
     }
     return phi;
   }
-
-  /**
-   * @brief      Square well in y- and z-dimension
-   * @param      srch  The source's body holder
-   */
-  point_t acceleration_squarewell_yz(body_holder* srch) {
-    using namespace param;
-    point_t a = 0.0;
-    point_t rp =  srch->getBody()->getPosition();
-    double box[3];
-    box[0] = 0.0;
-    box[1] = 0.5*box_width;
-    box[2] = 0.5*box_height;
-    const double pw_n = extforce_wall_powerindex;
-    const double pw_a = extforce_wall_steepness;
-    for (unsigned short i=1; i<gdimension; ++i) {
-      a[i]  = (((rp[i] <- box[i]) ? pow(-rp[i]- box[i], pw_n - 1) : 0.0)
-              -((rp[i] >  box[i]) ? pow(rp[i] - box[i], pw_n - 1) : 0.0))
-            * pw_n*pw_a;
-    }
-    return a;
-  }
-
-  double potential_squarewell_yz(body_holder* srch) {
-    using namespace param;
-    double phi = 0.0;
-    point_t rp =  srch->getBody()->getPosition();
-    double box[3];
-    box[0] = 0.0;
-    box[1] = 0.5*box_width;
-    box[2] = 0.5*box_height;
-    const double pw_n = extforce_wall_powerindex;
-    const double pw_a = extforce_wall_steepness;
-    for (unsigned short i=1; i<gdimension; ++i) {
-      phi += (((rp[i] <- box[i]) ? pow(-rp[i]- box[i], pw_n) : 0.0)
-             +((rp[i] >  box[i]) ? pow(rp[i] - box[i], pw_n) : 0.0))
-            *pw_a;
-    }
-    return phi;
-  }
-
 
   /**
    * @brief      Round or spherical boundary wall
@@ -214,7 +186,7 @@ namespace external_force {
       a[0] = a0*cos(alpha) - a1*sin(alpha);
       a[1] = a0*sin(alpha) + a1*cos(alpha);
     }
-    return a + acceleration_squarewell_yz(srch);
+    return a + acceleration_squarewell_xyz(srch);
   }
 
   double potential_airfoil (body_holder* srch)
@@ -240,7 +212,7 @@ namespace external_force {
     double aux = SQ(upper_surface) - SQ(y-camber_line) + 0.002;
     if (inside_bounding_box && aux>0.0)
       phi = pw_a*pow(aux,pw_n);
-    return phi + potential_squarewell_yz(srch);
+    return phi + potential_squarewell_xyz(srch);
   }
 
   /**
@@ -271,7 +243,9 @@ namespace external_force {
   {
     body* source = srch->getBody();
     point_t acc{};
-    acc[gdimension-1] = -param::gravitation_value;
+    acc[0] = -param::gravitation_value;
+    if(gdimension > 1)
+      acc[1] = -param::gravitation_value;
     return acc;
   }
 
@@ -279,7 +253,9 @@ namespace external_force {
   {
     body* source = srch->getBody();
     double pot = 0.;
-    double height = srch->coordinates()[gdimension-1] + param::box_width/2.;
+    double height = srch->coordinates()[0];
+    if(gdimension > 1)
+      height = srch->coordinates()[1];
     pot = height*param::gravitation_value;
     return pot;
   }
@@ -290,10 +266,11 @@ namespace external_force {
   potential_t    potential_boundaries = potential_zero;
   acceleration_t acceleration_boundaries = acceleration_zero;
 
-
   point_t acceleration(body_holder* srch)
   {
     point_t acc = acceleration_boundaries(srch);
+    if(param::squarewell_x||param::squarewell_y||param::squarewell_z)
+      acc += acceleration_squarewell_xyz(srch);
     if(param::do_gravitation)
       acc += acceleration_gravitation(srch);
     return acc;
@@ -302,6 +279,8 @@ namespace external_force {
   double potential(body_holder* srch)
   {
     double pot = potential_boundaries(srch);
+    if(param::squarewell_x||param::squarewell_y||param::squarewell_z)
+      pot += potential_squarewell_xyz(srch);
     if(param::do_gravitation)
       pot += potential_gravitation(srch);
     return pot;
@@ -315,14 +294,6 @@ namespace external_force {
     if (boost::iequals(efstr,"zero") or boost::iequals(efstr,"none")) {
       potential_boundaries = potential_zero;
       acceleration_boundaries = acceleration_zero;
-    }
-    else if (boost::iequals(efstr,"square xyz-well")) {
-      potential_boundaries = potential_squarewell_xyz;
-      acceleration_boundaries = acceleration_squarewell_xyz;
-    }
-    else if (boost::iequals(efstr,"square yz-well")) {
-      potential_boundaries = potential_squarewell_yz;
-      acceleration_boundaries = acceleration_squarewell_yz;
     }
     else if (boost::iequals(efstr,"spherical wall")) {
       potential_boundaries = potential_spherical_wall;

@@ -8,7 +8,6 @@
 #include <algorithm>
 #include <cassert>
 #include <math.h>
-//#include <H5hut.h>
 
 #include "user.h"
 #include "sodtube.h"
@@ -66,6 +65,11 @@ void set_derived_params() {
   tbox_min[1] =  box_width/4.;
   tbox_max[1] =  box_width/2.;
 
+  if(gdimension == 3){
+    mbox_max[2] = bbox_max[2] = tbox_max[2] = box_height/2.;
+    mbox_min[2] = bbox_min[2] = tbox_min[2] =-box_height/2.;
+  }
+
 
   // set physical parameters
   // --  in the top and bottom boxes (tbox and bbox):
@@ -83,14 +87,12 @@ void set_derived_params() {
   initial_data_file = oss.str();
 
   std::cout<<"Boxes: " << std::endl << "up="
-    <<"("<<tbox_min[0]<<";"<<tbox_min[1]<<")-"
-    <<"("<<tbox_max[0]<<";"<<tbox_max[1]<<")"<<std::endl
+    <<tbox_min<<"-"<<tbox_max<<std::endl
     <<" middle="
-    <<"("<<mbox_min[0]<<";"<<mbox_min[1]<<")"
-    <<"("<<mbox_max[0]<<";"<<mbox_max[1]<<")"<<std::endl
+    <<mbox_min<<"-"<<mbox_max<<std::endl
     <<" bottom="
-    <<"("<<bbox_min[0]<<";"<<bbox_min[1]<<")"
-    <<"("<<bbox_max[0]<<";"<<bbox_max[1]<<")"<< std::endl;
+    <<bbox_min<<"-"<<bbox_max<< std::endl;
+
 
   // select particle lattice and kernel function
   particle_lattice::select();
@@ -113,6 +115,16 @@ void set_derived_params() {
   mbox_max[1] =  mbox_width/2.;
 
   if(equal_mass){
+    if(gdimension == 3){
+      pmass = rho_1*sph_separation*sph_separation*sph_separation;
+      if (lattice_type == 1 or lattice_type == 2)
+        pmass *= 1./sqrt(2.);
+    }
+    if(gdimension == 2){
+      pmass = rho_1*sph_separation*sph_separation;
+      if (lattice_type == 1 or lattice_type == 2)
+        pmass *= sqrt(3)/2;
+    }
     sph_sep_tb = sph_separation * sqrt(rho_1/rho_2);
     pmass_tb = pmass;
   }
@@ -129,11 +141,11 @@ void set_derived_params() {
   bbox_min[1] = bbox_max[1] - bbox_width - dy_tb;
 
   // count the number of particles
-  np_middle = particle_lattice::count(lattice_type,2,mbox_min,mbox_max,
+  np_middle = particle_lattice::count(lattice_type,gdimension,mbox_min,mbox_max,
                                       sph_separation,0);
-  np_top    = particle_lattice::count(lattice_type,2,tbox_min,tbox_max,
+  np_top    = particle_lattice::count(lattice_type,gdimension,tbox_min,tbox_max,
                                       sph_sep_tb, np_middle);
-  np_bottom = particle_lattice::count(lattice_type,2,bbox_min,bbox_max,
+  np_bottom = particle_lattice::count(lattice_type,gdimension,bbox_min,bbox_max,
                                       sph_sep_tb, np_middle + np_top);
 
   SET_PARAM(nparticles, np_middle + np_bottom + np_top);
@@ -160,7 +172,7 @@ int main(int argc, char * argv[]){
   }
 
   // anything other than 2D is not implemented yet
-  assert (gdimension == 2);
+  assert (gdimension == 2 || gdimension == 3);
   assert (domain_type == 0);
 
   // set simulation parameters
@@ -201,11 +213,11 @@ int main(int argc, char * argv[]){
   double* dt = new double[nparticles]();
 
   // generate the lattice
-  assert (np_middle == particle_lattice::generate( lattice_type,2,
+  assert (np_middle == particle_lattice::generate( lattice_type,gdimension,
           mbox_min,mbox_max,sph_separation,0,x,y,z));
-  assert (np_top    == particle_lattice::generate( lattice_type,2,
+  assert (np_top    == particle_lattice::generate( lattice_type,gdimension,
           tbox_min,tbox_max,sph_sep_tb,np_middle,x,y,z));
-  assert (np_bottom == particle_lattice::generate( lattice_type,2,
+  assert (np_bottom == particle_lattice::generate( lattice_type,gdimension,
           bbox_min,bbox_max,sph_sep_tb,nparticles-np_bottom,x,y,z));
 
   // max. value for the speed of sound

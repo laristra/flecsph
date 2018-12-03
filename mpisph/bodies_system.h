@@ -259,14 +259,16 @@ public:
       delete tree_;
     }
 
-    if(param::do_periodic_boundary)
+    if(param::periodic_boundary_x || param::periodic_boundary_y ||
+      param::periodic_boundary_z)
       boundary::pboundary_clean(localbodies_);
 
     // Choose the smoothing length to be the biggest from everyone
     smoothinglength_ = getSmoothinglength();
 
-    if(param::do_periodic_boundary){
-      boundary::pboundary_generate(localbodies_,3.*smoothinglength_);
+    if(param::periodic_boundary_x || param::periodic_boundary_y ||
+      param::periodic_boundary_z){
+      boundary::pboundary_generate(localbodies_,2.5*smoothinglength_);
       localnbodies_ = localbodies_.size();
       MPI_Allreduce(&localnbodies_,&totalnbodies_,1,MPI_INT64_T,MPI_SUM,
         MPI_COMM_WORLD);
@@ -279,7 +281,7 @@ public:
 
     // Generate the tree based on the range
     tree_ = new tree_topology_t(range_[0],range_[1]);
-    
+
     // Compute the keys
 #pragma omp parallel for
     for(size_t i = 0; i < localbodies_.size(); ++i){
@@ -290,7 +292,7 @@ public:
     tcolorer_.mpi_qsort(localbodies_,totalnbodies_);
 
 #ifdef OUTPUT_TREE_INFO
-    rank || clog(trace) << "Construction of the tree"<<std::endl;
+    rank || clog(trace) << "Construction of the tree";
 #endif
 
 // Sort the bodies
@@ -326,7 +328,12 @@ public:
     }
     localnbodies_ = localbodies_.size();
 
-if(!param::do_periodic_boundary)
+    #ifdef OUTPUT_TREE_INFO
+        rank || clog(trace) << ".done"<<std::endl;
+    #endif
+
+if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
+  param::periodic_boundary_z))
 {
 #ifdef DEBUG
     // Check the total number of bodies

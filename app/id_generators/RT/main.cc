@@ -75,6 +75,11 @@ void set_derived_params() {
   tbox_min[1] =  0.;
   tbox_max[1] =  box_width/2.;
 
+  if(gdimension == 3){
+    bbox_max[2] = tbox_max[2] = box_height/2.;
+    bbox_min[2] = tbox_min[2] =-box_height/2.;
+  }
+
   pressure_0 = 2.5;
 
   // 1 = bottom 2 = top
@@ -87,11 +92,9 @@ void set_derived_params() {
   initial_data_file = oss.str();
 
   std::cout<<"Boxes: " << std::endl << "up="
-    <<"("<<tbox_min[0]<<";"<<tbox_min[1]<<")-"
-    <<"("<<tbox_max[0]<<";"<<tbox_max[1]<<")"<<std::endl
+    <<tbox_min<<"-"<<tbox_max<<std::endl
     <<" bottom="
-    <<"("<<bbox_min[0]<<";"<<bbox_min[1]<<")"
-    <<"("<<bbox_max[0]<<";"<<bbox_max[1]<<")"<< std::endl;
+    <<bbox_min<<"-"<<bbox_max<< std::endl;
 
   // select particle lattice and kernel function
   particle_lattice::select();
@@ -99,9 +102,16 @@ void set_derived_params() {
 
   // particle mass and spacing
   SET_PARAM(sph_separation, (box_length*(1.0-b_tol)/(double)(lattice_nx-1)));
-  pmass = rho_1*sph_separation*sph_separation;
-  if (lattice_type == 1 or lattice_type == 2)
-    pmass *= sqrt(3)/2;
+  if(gdimension == 3){
+    pmass = rho_1*sph_separation*sph_separation*sph_separation;
+    if (lattice_type == 1 or lattice_type == 2)
+      pmass *= 1./sqrt(2.);
+  }
+  if(gdimension == 2){
+    pmass = rho_1*sph_separation*sph_separation;
+    if (lattice_type == 1 or lattice_type == 2)
+      pmass *= sqrt(3)/2;
+  }
 
   // adjust width of the middle block for symmetry
   double dy = sph_separation;
@@ -121,9 +131,9 @@ void set_derived_params() {
   tbox_min[1] = bbox_max[1] - dy + 0.5*(dy_tb + dy);
 
   // count the number of particles
-  np_bottom = particle_lattice::count(lattice_type,2,bbox_min,bbox_max,
+  np_bottom = particle_lattice::count(lattice_type,gdimension,bbox_min,bbox_max,
                                       sph_separation, 0);
-  np_top    = particle_lattice::count(lattice_type,2,tbox_min,tbox_max,
+  np_top    = particle_lattice::count(lattice_type,gdimension,tbox_min,tbox_max,
                                       sph_sep_t, np_bottom);
 
 
@@ -151,7 +161,7 @@ int main(int argc, char * argv[]){
   }
 
   // anything other than 2D is not implemented yet
-  assert (gdimension == 2);
+  //assert (gdimension == 2);
   assert (domain_type == 0);
 
   // set simulation parameters
@@ -192,9 +202,9 @@ int main(int argc, char * argv[]){
   double* dt = new double[nparticles]();
 
   // generate the lattice
-  assert (np_bottom == particle_lattice::generate( lattice_type,2,
+  assert (np_bottom == particle_lattice::generate( lattice_type,gdimension,
           bbox_min,bbox_max,sph_separation,0,x,y,z));
-  assert (np_top    == particle_lattice::generate( lattice_type,2,
+  assert (np_top    == particle_lattice::generate( lattice_type,gdimension,
           tbox_min,tbox_max,sph_sep_t,np_bottom,x,y,z));
 
   // max. value for the speed of sound
@@ -224,9 +234,9 @@ int main(int argc, char * argv[]){
     vy[part] = 0.;
 
     // Add velocity perturbation a-la Price (2008)
-    vy[part] = 0.01*(1 + cos(4*M_PI*x[part]))*(1 + cos(3*M_PI*y[part]))/4.;
-    //if(y[part] < 0.025 and y[part] > -0.025)
-    //  vy[part] = 2.*cos(M_PI*(x[part]/box_length));
+    //vy[part] = 0.01*(1 + cos(4*M_PI*x[part]))*(1 + cos(3*M_PI*y[part]))/4.;
+    if(y[part] < 0.025 and y[part] > -0.025)
+      vy[part] = 0.01*cos(M_PI*(x[part]/box_length));
 
     // particle masses and smoothing length
     m[part] = pmass;

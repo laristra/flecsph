@@ -101,8 +101,6 @@ public:
       }
       ++k;
     }
-    //std::cout<<"k: "<<std::bitset<64>(id_)<<std::endl;
-
   }
 
   /*!

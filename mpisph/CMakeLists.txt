@@ -34,6 +34,8 @@ cinch_add_unit(tree3d
     ${FleCSI_RUNTIME}/runtime_driver.cc
   LIBRARIES
     ${FleCSPH_LIBRARIES}
+  DEFINES
+    -DEXT_GDIMENSION=2
 )
 
 cinch_add_unit(mpi_qsort
