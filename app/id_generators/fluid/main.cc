@@ -8,7 +8,6 @@
 #include <algorithm>
 #include <cassert>
 #include <math.h>
-//#include <H5hut.h>
 
 #include "user.h"
 #include "sodtube.h"
@@ -79,7 +78,7 @@ void set_derived_params() {
   pressure_0 = 2.5;
 
   // 1 = bottom 2 = top
-  rho_1 = rho_initial*0.1;  // 2.0 by default
+  rho_1 = rho_initial;  // 2.0 by default
 
   // file to be generated
   std::ostringstream oss;

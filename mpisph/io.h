@@ -170,7 +170,6 @@ H5P_writeDataset(
   H5Dclose(dset_id);
   H5Pclose(plist_id);
 
-  H5Fflush(file_id, H5F_SCOPE_GLOBAL);
   return status;
 }
 
