@@ -26,21 +26,15 @@ We provide several examples of physics problems in 1D, 2D and 3D:
 
 FleCSPH can be installed anywhere in your system; to be particular, below we
 assume that all repositories are downloaded in FLECSPH root directory `${HOME}/FLECSPH`.
-The code requires:
-
-- FleCSI
-- shared local directory
 
 ## Suggested directory structure
 
-We recommend to use and isolated installation of FleCSPH, FleCSI and all their 
+We recommend to use an isolated installation of FleCSPH and FleCSI, such that the software and all their
 dependencies in a separate directory, with the following directory structure:
 
 ```{engine=sh}
   ${HOME}/FLECSPH
   ├── flecsi
-  │   └── build
-  ├── flecsi-third-party
   │   └── build
   ├── flecsph
   │   ├── build
@@ -55,8 +49,8 @@ dependencies in a separate directory, with the following directory structure:
       └── share
 ```
 
-In this configuration, all dependencies are installed in `${HOME}/FLECSPH/local`.
-Set your CMAKE prefix to this location:
+Below we use `${HOME}/FLECSPH/local` for an installation directory.
+Make sure to set your CMAKE prefix to this location:
 
     % export CMAKE_PREFIX_PATH=${HOME}/FLECSPH/local
 
@@ -79,13 +73,13 @@ Clone FleCSI repo and change to the `feature/flecsph` branch.
 Checkout submodules recursively, then configure as below:
 
 ```{engine=sh}    
+   export CMAKE_PREFIX_PATH=${HOME}/FLECSPH/local
    cd $HOME/FLECSPH
    git clone --recursive git@github.com:laristra/flecsi.git
    cd flecsi
    git checkout feature/flecsph
    git submodule update --recursive
    mkdir build ; cd build
-   export CMAKE_PREFIX_PATH=${HOME}/FLECSPH/local
    cmake .. \
        -DCMAKE_INSTALL_PREFIX=$CMAKE_PREFIX_PATH  \
        -DENABLE_MPI=ON                            \
@@ -98,15 +92,12 @@ Checkout submodules recursively, then configure as below:
        -DENABLE_FLECSI_TUTORIAL=OFF               
 ```    
 
-In this configuration, Legion is used as FleCSI backend.
-If no errors appeared, build and install:
+In this configuration, MPI is used as FleCSI backend.
+If you want to use other FleCSI backends (Legion, HPX), you will need to install them separately: see https://github.com/laristra/flecsi-third-party for further info.
 
-    % make -j
-    % make install 
+In a final step, build and install:
 
-In case of errors: if you are rebuilding everything from scratch, 
-make sure that your installation directory (`$HOME/FLECSPH/local` 
-in our example) is empty.
+    % make -j install
 
 ## FleCSPH
 
@@ -116,23 +107,9 @@ Clone the master branch from the FleCSPH git repo:
    git clone --recursive git@github.com:laristra/flecsph.git
 ```    
 
-### FleCSPH/third-party-libraries: some more dependencies
-
-FleCSPH has specific HDF5 dependencies which need to be built; they 
-are located in `flecsph/third-party-libraries/` directory.
-Use the following scripts to install HDF5 and H5Hut from within 
-your build/ directory:
-
-```{engine=sh}
-   cd ~/FLECSPH/flecsph
-   mkdir build; cd build
-   ../third-party-libraries/install_hdf5_parallel.sh
-   ../third-party-libraries/install_h5hut.sh
-```    
-
 ### Building FleCSPH
 
-Configure and build FleCSPH:
+Configure command:
 
 ```{engine=sh}
    # in ${HOME}/FLECSPH/build:
@@ -147,10 +124,9 @@ Configure and build FleCSPH:
        -DHDF5_IS_PARALLEL=ON
 ```
 
-Configure, build and install:
+Build and install:
 
-    % make -j
-    % make install
+    % make -j install
 
 
 ### Building FleCSPH on various architectures
@@ -168,6 +144,7 @@ drivers: `hydro` and `newtonian`. Initial data generators are located in
 - `sodtube`: 1D/2D/3D sodtube shock test;
 - `sedov`: 2D and 3D Sedov blast wave;
 - `noh`: 2D and 3D Noh implosion test.
+- etc.
 
 Evolution drivers are located in `app/drivers`:
 
