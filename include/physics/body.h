@@ -28,9 +28,7 @@
 
 #define OUTPUT
 
-#include "tree_topology/tree_topology.h" // CHANGE TO FLECSI ONE!!!
 #include "flecsi/geometry/point.h"
-#include "flecsi/geometry/space_vector.h"
 #include "tree_topology/entity.h"
 #include "user.h"
 
@@ -44,7 +42,7 @@ class body : public flecsi::topology::entity<type_t,uint64_t,gdimension> {
 
 public:
 
-   body(): type_(NORMAL)
+   body(): entity(), type_(NORMAL)
    {};
 
   double getPressure() const{return pressure_;}
@@ -105,14 +103,10 @@ public:
     os << "Particle: Pos: " <<b.coordinates_ << " rho: " << b.density_;
     os << " h: " << b.radius_;
     os << " P: " << b.pressure_;
-    os << " v: " << b.velocity_ ;//<< " VelH: " << b.velocityhalf_;
+    os << " v: " << b.velocity_ ;
     os << " m: " << b.mass_;
-    #ifdef INTERNAL_ENERGY
-      os << " u: " << b.internalenergy_;
-    #endif
+    os << " u: " << b.internalenergy_;
     os << " cs: " << b.soundspeed_;
-    //os << " Force: hyd: " << b.hydroforce_;
-    //os << " grav: " << b.gravforce_;
     os << " a: " << b.acceleration_;
     os << " id: " << b.id_;
     os << " key: "<<b.key_;

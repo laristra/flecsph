@@ -114,7 +114,6 @@ public:
 
     io::inputDataHDF5(localbodies_,filename,output_filename,
         totalnbodies_,localnbodies_,startiteration);
-    std::cout<<"Read: "<<localbodies_.size()<<std::endl;
   }
 
   /**
@@ -223,9 +222,10 @@ public:
         MPI_COMM_WORLD);
     }
 
+
    // Then compute the range of the system
     tcolorer_.mpi_compute_range(localbodies_,range_);
-
+    assert(range_[0] != range_[1]);
     rank || clog(trace) << "Range="<<range_[0]<<";"<<range_[1]<<std::endl;
 
     // Generate the tree based on the range
@@ -236,7 +236,6 @@ public:
     for(size_t i = 0; i < localbodies_.size(); ++i){
       localbodies_[i].set_key(
           entity_key_t(tree_->range(),localbodies_[i].coordinates()));
-      std::cout<<entity_key_t(tree_->range(),localbodies_[i].coordinates())<<std::endl;
     }
 
     tcolorer_.mpi_qsort(localbodies_,totalnbodies_);
@@ -266,7 +265,6 @@ public:
     // Clear the bodies_ vector
     //bodies_.clear();
     for(auto& bi:  localbodies_){
-      std::cout<<bi<<std::endl;
       auto id = tree_->make_entity(bi.key(),bi.coordinates(),
         &(bi),rank,bi.mass(),bi.id(),bi.radius());
       tree_->insert(id);

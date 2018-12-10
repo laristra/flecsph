@@ -833,7 +833,7 @@ void mpi_refresh_ghosts(
    */
   void
   mpi_compute_range(
-    std::vector<body>& bodies,
+    const std::vector<body>& bodies,
     std::array<point_t,2>& range)
   {
     int rank, size;

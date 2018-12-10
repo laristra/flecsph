@@ -224,8 +224,8 @@ public:
       coords[i] = (p[i] - min)/scale * (int_t(1) << (max_depth));
     }
 
-    //std::cout<<coords[0]<<";"<<coords[1]<<";"<<coords[2]<<std::endl;
-
+    //std::cout<<coords[0]<<";"<<coords[1]<<std::endl;
+    //std::cout<<p[0]<<";"<<p[1]<<std::endl;
 
     if(dimension == 1)
     {

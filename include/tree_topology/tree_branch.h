@@ -38,10 +38,6 @@
 #include <float.h>
 
 #include "flecsi/geometry/point.h"
-#include "flecsi/concurrency/thread_pool.h"
-#include "flecsi/data/storage.h"
-#include "flecsi/data/data_client.h"
-#include "flecsi/topology/index_space.h"
 
 #include "key_id.h"
 

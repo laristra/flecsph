@@ -60,6 +60,7 @@
 #include "tree_branch.h"
 #include "tree_entity.h"
 #include "tree_geometry.h"
+#include "entity.h"
 
 namespace flecsi {
 namespace topology {
