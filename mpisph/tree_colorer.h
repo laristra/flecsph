@@ -653,7 +653,7 @@ void mpi_refresh_ghosts(
     std::fill(ghosts_data.nsbodies.begin(),ghosts_data.nsbodies.end(),0);
     std::fill(ghosts_data.nrbodies.begin(),ghosts_data.nrbodies.end(),0);
 
-    int64_t nelem = tree.entities().size();
+    int64_t nelem = tree.tree_entities().size();
 
     // Count send
 #pragma omp parallel for

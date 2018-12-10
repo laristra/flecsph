@@ -97,7 +97,7 @@ public:
   static const size_t dimension = Policy::dimension;
   using element_t = typename Policy::element_t;
   using point_t = point__<element_t, dimension>;
-  using range_t = std::array<point_t, dimension>;
+  using range_t = std::array<point_t, 2>;
   using key_int_t = typename Policy::key_int_t;
   using key_t = key_id__<key_int_t,dimension>;
   using branch_id_t = key_t;
@@ -105,7 +105,7 @@ public:
   using branch_t = typename Policy::branch_t;
   using branch_vector_t = std::vector<branch_t*>;
   using tree_entity_t = typename Policy::tree_entity_t;
-  //using entity_t = typename Policy::entity_t;
+  using entity_t = typename Policy::entity_t;
   using entity_vector_t = std::vector<tree_entity_t*>;
   using apply_function = std::function<void(branch_t&)>;
   using entity_id_vector_t = std::vector<entity_id_t>;
@@ -210,7 +210,7 @@ public:
     Return an index space containing all entities (including those removed).
    */
   std::vector<tree_entity_t>&
-  all_entities() const
+  all_tree_entities() const
   {
     return tree_entities_;
   }
@@ -219,7 +219,7 @@ public:
     Return an index space containing all non-removed entities.
    */
   std::vector<tree_entity_t>&
-  entities()
+  tree_entities()
   {
     return tree_entities_;
   }
@@ -962,17 +962,15 @@ public:
   branch_map_t branch_map_;
   size_t max_depth_;
   typename std::unordered_map<branch_id_t,branch_t,
-    branch_id_hasher__<key_int_t, dimension>>::iterator root_;
+      branch_id_hasher__<key_int_t, dimension>>::iterator root_;
   entity_space_t tree_entities_;
   range_t range_;
   point__<element_t, dimension> scale_;
   element_t max_scale_;
   std::vector<tree_entity_t> tree_entities_vector_;
-  //std::vector<entity_id_t> tree_entities_ghosts_;
   int64_t tree_entities_vector_current_;
-
   std::map<entity_id_t,entity_id_t> ghosts_id_;
-  //std::vector<entity_t> entities_;
+  std::vector<entity_t> entities_;
 
   int64_t nonlocal_branches_;
 };

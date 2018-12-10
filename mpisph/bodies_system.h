@@ -285,7 +285,7 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
 {
 #ifdef DEBUG
     // Check the total number of bodies
-    int64_t checknparticles = tree_->entities().size();
+    int64_t checknparticles = tree_->tree_entities().size();
     MPI_Allreduce(MPI_IN_PLACE,&checknparticles,1,MPI_INT64_T,
     MPI_SUM,MPI_COMM_WORLD);
     assert(checknparticles==totalnbodies_);
@@ -456,7 +456,7 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
       EF&& ef,
       ARGS&&... args)
   {
-    int64_t nelem = tree_->entities().size();
+    int64_t nelem = tree_->tree_entities().size();
     #pragma omp parallel for
     for(int64_t i=0; i<nelem; ++i){
         auto ent = tree_->get(i);
@@ -482,7 +482,7 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
     EF&& ef,
     ARGS&&... args)
   {
-    ef(tree_->entities(),std::forward<ARGS>(args)...);
+    ef(tree_->tree_entities(),std::forward<ARGS>(args)...);
   }
 
 
@@ -503,10 +503,10 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
     EF&& ef,
     ARGS&&... args)
   {
-    int64_t nelem = tree_->entities().size();
+    int64_t nelem = tree_->tree_entities().size();
     #pragma omp parallel for
     for(int64_t i = 0 ; i < nelem; ++i){
-      ef(tree_->get(i),tree_->entities(),std::forward<ARGS>(args)...);
+      ef(tree_->get(i),tree_->tree_entities(),std::forward<ARGS>(args)...);
     }
   }
 
