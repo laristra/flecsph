@@ -91,6 +91,9 @@ template<
 >
 class tree_topology : public P, public data::data_client_t
 {
+  enum mpi_comm: int {LOCAL_REQUEST = 1, SOURCE_REQUEST = 2, MPI_DONE =3};
+
+
 public:
   using Policy = P;
 
@@ -504,7 +507,56 @@ public:
       }
     }
 
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+
+    // Get original number of thread
+    int num_threads = 0;
+    #pragma omp parallel
+    #pragma omp master
+    num_threads = omp_get_num_threads();
+    // Set minimal number of threads to 2
+    if(num_threads < 2){
+      omp_set_num_threads(2);
+    }
+
     // Start the threads on the branches
+    #pragma omp parallel
+    {
+      #pragma omp sections
+      {
+        #pragma omp section
+        {
+          handle_requests();
+        }
+
+        #pragma omp section
+        {
+          traverse_branches(MAC,do_square,work_branch,ef,
+            std::forward<ARGS>(args)...);
+          // Send end to waiting process
+          void * buf = NULL;
+          MPI_Request request;
+          MPI_Isend(buf, 0, MPI_INT, rank, MPI_DONE,MPI_COMM_WORLD,&request);
+        }
+      }
+    }// pragma parallel
+    // Reset the number of threads
+    omp_set_num_threads(num_threads);
+  } // apply_sub_cells
+
+  template<
+    typename EF,
+    typename... ARGS
+  >
+  void
+  traverse_branches(
+    element_t& MAC,
+    bool do_square,
+    std::vector<branch_t*>& work_branch,
+    EF&& ef,
+    ARGS&&... args)
+  {
     #pragma omp parallel for
     for(size_t i = 0; i < work_branch.size(); ++i){
       std::vector<branch_t*> inter_list;
@@ -512,7 +564,36 @@ public:
       force_calc(work_branch[i],inter_list,do_square,
                ef,std::forward<ARGS>(args)...);
     }
+  }
 
+
+  void
+  handle_requests()
+  {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    bool done = false;
+    // Put thread waiting on MPI_Recv
+    while(!done)
+    {
+      MPI_Status status;
+      // Wait on probe
+      MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+      int source = status.MPI_SOURCE;
+      int tag = status.MPI_TAG;
+      if(tag == SOURCE_REQUEST){
+        // Receive the request from source and send bodies
+      }
+      if(tag == LOCAL_REQUEST){
+        // Create a request to the neighbors to ask for bodies
+      }
+      if(tag == MPI_DONE){
+        MPI_Recv(NULL, 0, MPI_INT, rank, MPI_DONE,MPI_COMM_WORLD,
+          MPI_STATUS_IGNORE);
+        done = true;
+      }
+    }
+    // Check the remaining requests from other ranks
   }
 
   void
@@ -755,6 +836,44 @@ public:
         ghosts_id_.insert(std::make_pair(ent->global_id(),id));
       }
       return id;
+    }
+
+    /**
+    * Insert directly a branch (certainly remote) in the tree
+    */
+    void
+    insert_branch(
+      const point_t& coordinates,
+      const element_t& mass,
+      const point_t& bmin,
+      const point_t& bmax,
+      const key_t& key,
+      const int& owner
+    ){
+      int rank;
+      MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+      branch_t parent = find_parent_(key);
+      // This key exists in this tree, insert shared information
+      if(parent.id() == key){
+        parent.set_locality(branch_t::SHARED);
+        // Change the bmin, bmax of this branch to the distant value
+        // Need to insert this branch in the tree
+      }else{
+        // Insert in the hash table and mark as NON_LOCAL
+        branch_map_.emplace(key,branch_t(key,coordinates,mass,bmin,bmax,
+          branch_t::NONLOCAL));
+      }
+      // Add this branch if does not exists
+    }
+
+    void
+    compute_keys()
+    {
+      #pragma omp parallel for
+      for(size_t i = 0; i < entities_.size(); ++i){
+        entities_[i].set_key(
+            key_t(range_,entities_[i].coordinates()));
+      }
     }
 
     /*!

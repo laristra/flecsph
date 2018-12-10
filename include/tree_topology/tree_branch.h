@@ -39,6 +39,7 @@
 
 #include "flecsi/geometry/point.h"
 
+#include "tree_entity_id.h"
 #include "key_id.h"
 
 namespace flecsi {
@@ -68,7 +69,7 @@ class tree_branch
 
 public:
   enum b_locality: size_t{
-    LOCAL=0,NONLOCAL=1
+    LOCAL=0,EMPTY=1,NONLOCAL=2,SHARED=3
   };
 
 public:
@@ -89,11 +90,57 @@ public:
   id_(id)
   {}
 
-  branch_id_t
-  id() const
-  {
-    return id_;
+  tree_branch(
+    const branch_id_t& id,
+    const point_t& coordinates,
+    const element_t& mass,
+    const point_t& bmin,
+    const point_t& bmax,
+    const b_locality& locality)
+  : action_(action::none), id_(id), coordinates_(coordinates), mass_(mass),
+   bmin_(bmin),bmax_(bmax), locality_(locality)
+  {}
+
+  branch_id_t id() const {return id_;}
+  point_t coordinates(){return coordinates_;};
+  element_t mass(){return mass_;};
+  element_t radius(){return radius_;};
+  point_t bmin(){return bmin_;};
+  point_t bmax(){return bmax_;};
+  void set_coordinates(point_t& coordinates){coordinates_=coordinates;};
+  void set_mass(element_t mass){mass_ = mass;};
+  void set_radius(element_t radius){radius_ = radius;};
+  void set_bmax(point_t bmax){bmax_ = bmax;};
+  void set_bmin(point_t bmin){bmin_ = bmin;};
+  bool is_leaf() const {return leaf_;}
+  void set_leaf(bool leaf){leaf_ = leaf;}
+  bool is_valid() const { return true; }
+  uint64_t sub_entities() const { return sub_entities_; }
+  void set_sub_entities(uint64_t sub_entities){sub_entities_ = sub_entities;}
+  void set_locality( b_locality locality){locality_ = locality;}
+  b_locality locality() {return locality_;}
+  bool is_local() const {return locality_ == LOCAL || locality_ == EMPTY; }
+
+
+  void insert(const flecsi::topology::entity_id_t& id){
+    ents_.push_back(id);
+    if(ents_.size() > num_children){
+      refine();
+    }
+  } // insert
+
+  void remove(const flecsi::topology::entity_id_t& id){
+    auto itr = find(ents_.begin(), ents_.end(), id);
+    ents_.erase(itr);
+    if(ents_.empty()){
+      coarsen();
+    }
   }
+
+  ~tree_branch(){ents_.clear();}
+  auto begin(){return ents_.begin();}
+  auto end(){return ents_.end();}
+  auto clear(){ents_.clear();}
 
   /*!
     Called to trigger a refinement at this branch.
@@ -119,58 +166,6 @@ public:
     action_ = action::none;
   }
 
-  bool
-  is_leaf() const
-  {
-    return leaf_;
-  }
-
-  void
-  set_leaf(
-      bool leaf)
-  {
-    leaf_ = leaf;
-  }
-
-  bool
-  is_valid() const
-  {
-    return true;
-  }
-
-  uint64_t
-  sub_entities() const
-  {
-    return sub_entities_;
-  }
-
-  void
-  set_sub_entities(
-      uint64_t sub_entities)
-  {
-    sub_entities_ = sub_entities;
-  }
-
-  void
-  set_locality(
-      b_locality locality)
-  {
-    locality_ = locality;
-  }
-
-  b_locality
-  locality()
-  {
-    return locality_;
-  }
-
-  bool
-  is_local() const
-  {
-    return locality_ == LOCAL;
-  }
-
-
 protected:
   template<class P>
   friend class tree_topology;
@@ -190,10 +185,17 @@ protected:
   }
 
   action action_;
-  branch_id_t id_;
+  branch_id_t id_; // Key of this branch
   uint64_t sub_entities_ = 0; // Subentities in this subtree
   bool leaf_ = true;
-  b_locality locality_ = LOCAL;
+  b_locality locality_ = EMPTY;
+  point_t bmin_;
+  point_t bmax_;
+  int owner_;
+  point_t coordinates_;
+  element_t mass_;
+  std::vector<flecsi::topology::entity_id_t> ents_;
+  element_t radius_;
 
 };
 

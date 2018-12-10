@@ -216,6 +216,7 @@ public:
         MPI_COMM_WORLD);
     }
 
+    rank || clog(trace)<<"#particles: "<<totalnbodies_<<std::endl;
 
    // Then compute the range of the system
     tcolorer_.mpi_compute_range(tree_.entities(),range_);
@@ -227,11 +228,7 @@ public:
     tree_.set_range(range_);
 
     // Compute the keys
-//#pragma omp parallel for
-    for(size_t i = 0; i < tree_.entities().size(); ++i){
-      tree_.entity(i).set_key(
-          entity_key_t(tree_.range(),tree_.entity(i).coordinates()));
-    }
+    tree_.compute_keys();
 
     tcolorer_.mpi_qsort(tree_.entities(),totalnbodies_);
 
@@ -351,9 +348,6 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
     rank|| clog(trace) << oss.str() << std::flush;
 #endif
 
-    tcolorer_.mpi_compute_ghosts(tree_);
-    tcolorer_.mpi_refresh_ghosts(tree_);
-
 #ifdef OUTPUT_TREE_INFO
     // Tree informations
     rank || clog(trace) << tree_ << " root range = "<< tree_.root()->bmin()
@@ -363,13 +357,14 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
   }
 
   /**
-   * @brief      Update the neighbors that have beem compute in update_iteration
-   * This function use buffer pre-computed to update the data faster.
-   */
-  void update_neighbors()
+  * Reset the ghosts of the tree to start in the next tree traversal
+  */
+  void
+  reset_ghosts()
   {
-    tcolorer_.mpi_refresh_ghosts(tree_);
+
   }
+
 
   /**
    * @brief      Compute the gravition interction between all the particles

@@ -123,7 +123,7 @@ mpi_init_task(const char * parameter_file){
       bs.apply_all(integration::save_velocityhalf);
 
       // necessary for computing dv/dt and du/dt in the next step
-      bs.update_neighbors();
+      bs.reset_ghosts();
 
       rank|| clog(trace) << "compute rhs of evolution equations" << std::flush;
       bs.apply_in_smoothinglength(physics::compute_acceleration);
@@ -154,7 +154,7 @@ mpi_init_task(const char * parameter_file){
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
 
       // Sync density/pressure/cs
-      bs.update_neighbors();
+      bs.reset_ghosts();
 
       rank|| clog(trace) << "leapfrog: kick two (velocity)" << std::flush;
       bs.apply_in_smoothinglength(physics::compute_acceleration);
@@ -162,7 +162,7 @@ mpi_init_task(const char * parameter_file){
       rank|| clog(trace) << ".done" << std::endl;
 
       // sync velocities
-      bs.update_neighbors();
+      bs.reset_ghosts();
 
       rank|| clog(trace) << "leapfrog: kick two (energy)" << std::flush;
       if (thermokinetic_formulation) {

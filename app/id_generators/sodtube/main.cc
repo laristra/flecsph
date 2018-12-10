@@ -150,9 +150,8 @@ int main(int argc, char * argv[]){
 
   // screen output
   std::cout << "Sod test #" << sodtest_num << " in " << gdimension
-       << "D:" << std::endl << " - number of particles: " << nparticles
-       << std::endl << " - particles per core:  " << nparticlesproc << std::endl
-       << " - generated initial data file: " << initial_data_file << std::endl;
+       << "D:" << std::endl <<
+       " - generated initial data file: " << initial_data_file << std::endl;
 
   // allocate arrays
   int64_t tparticles = 0;
@@ -302,7 +301,7 @@ int main(int argc, char * argv[]){
 
     } // for part=0..nparticles
   }
-  clog_one(info) << "Actual number of particles: " << tparticles << std::endl
+  std::cout << "Actual number of particles: " << tparticles << std::endl
     << std::flush;
   // delete the output file if exists
   remove(initial_data_file.c_str());
