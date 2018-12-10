@@ -331,20 +331,10 @@ public:
     #endif
 #endif
 
-    // 1. Send my border particles to my neighbors
-    // 0 -> 1 ... size-2 -> size-11
-  /*  if(rank % 2){
-      MPI_Send();
-    }else{
-      MPI_Recv();
-    }
+  // Gather all the branches at lowest level
 
-    // 0 <- 1 ... size-2 <- size-1
-    if(!(rank % 2)){
-      MPI_Send();
-    }else{
-      MPI_Recv();
-    }*/
+  // Send them 2 by 2
+  // Use hypercube communication 
 
     // Add these particles in my tree
     // Do a tree search up to a branch

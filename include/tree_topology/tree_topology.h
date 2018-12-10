@@ -178,6 +178,40 @@ public:
   }
 
   /**
+  * Clean the tree topology but not the local bodies
+  */
+  void
+  clean()
+  {
+    branch_map_.clear();
+    tree_entities_.clear();
+    ghosts_id_.clear();
+
+    branch_map_.emplace(branch_id_t::root(),branch_id_t::root());
+    root_ = branch_map_.find(branch_id_t::root());
+    assert(root_ != branch_map_.end());
+
+    max_depth_ = 0;
+  }
+
+  /**
+  * \brief Change the range of the tree topology
+  */
+  void
+  set_range(
+    const range_t& range)
+  {
+    range_ = range;
+    max_scale_ = range_[1][0] - range_[0][0];
+
+    for(size_t d = 0; d < dimension; ++d)
+    {
+      scale_[d] = range_[1][d] - range_[0][d];
+      max_scale_ = std::max(max_scale_, scale_[d]);
+    }
+  }
+
+  /**
    * @brief Get the range of the current
    */
   const std::array<point__<element_t,dimension>,2>& range()
@@ -222,6 +256,19 @@ public:
   tree_entities()
   {
     return tree_entities_;
+  }
+
+  std::vector<entity_t>&
+  entities()
+  {
+    return entities_;
+  }
+
+  template<
+    typename E>
+  entity_t&
+  entity(E e){
+    return entities_[static_cast<int>(e)];
   }
 
   //std::vector<entity_id_t>&
@@ -970,6 +1017,7 @@ public:
   std::vector<tree_entity_t> tree_entities_vector_;
   int64_t tree_entities_vector_current_;
   std::map<entity_id_t,entity_id_t> ghosts_id_;
+
   std::vector<entity_t> entities_;
 
   int64_t nonlocal_branches_;
