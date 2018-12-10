@@ -84,7 +84,7 @@ namespace analysis{
     for(size_t i = 0 ; i < bodies.size(); ++i){
       if(!bodies[i].is_local()) continue;
       if(bodies[i].getBody()->type() == NORMAL){
-        total_mass += bodies[i].getBody()->getMass();
+        total_mass += bodies[i].getBody()->mass();
       }
     }
     mpi_utils::reduce_sum(total_mass);
@@ -107,7 +107,7 @@ namespace analysis{
       for(size_t i = 0 ; i < bodies.size(); ++i){
         if(!bodies[i].is_local()) continue;
         if(bodies[i].getBody()->type() == NORMAL){
-          total_energy += bodies[i].getBody()->getMass()*
+          total_energy += bodies[i].getBody()->mass()*
             bodies[i].getBody()->getTotalenergy();
         }
       }
@@ -119,15 +119,15 @@ namespace analysis{
         if(bodies[i].getBody()->type() != NORMAL){
           continue;
         }
-        total_energy += bodies[i].getBody()->getMass()*
+        total_energy += bodies[i].getBody()->mass()*
           bodies[i].getBody()->getInternalenergy();
         linear_velocity = bodies[i].getBody()->getVelocity();
         velocity_part = 0.;
         for(size_t i = 0 ; i < gdimension ; ++i){
           velocity_part += pow(linear_velocity[i],2);
-          part_position = bodies[i].getBody()->getPosition();
+          part_position = bodies[i].getBody()->coordinates();
         }
-        total_energy += 1./2.*velocity_part*bodies[i].getBody()->getMass();
+        total_energy += 1./2.*velocity_part*bodies[i].getBody()->mass();
       }
     }
     mpi_utils::reduce_sum(total_energy);
@@ -155,7 +155,7 @@ namespace analysis{
         continue;
       }
       part_mom = bodies[i].getBody()->getLinMomentum();
-      part_position = bodies[i].getBody()->getPosition();
+      part_position = bodies[i].getBody()->coordinates();
       if(gdimension==3){
         part_ang_x = part_position[1]*part_mom[2]-part_position[2]*part_mom[1];
         part_ang_y = -part_position[0]*part_mom[2]+part_position[2]*part_mom[0];

@@ -133,7 +133,7 @@ public:
     body * bodyptr_;
   };
 
-  using entity_t = body_holder;
+  using tree_entity_t = body_holder;
 
   /**
    *  @brief BRANCH structure, a Center of Mass in our case.
@@ -225,6 +225,7 @@ public:
   }
 
   using branch_t = branch;
+  using entity_t = body;
 
 }; // class tree_policy
 

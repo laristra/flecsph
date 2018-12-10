@@ -196,7 +196,7 @@ public:
   * @param[in]  totalnbodies  The totalnbodies on the overall simulation.
   */
   void mpi_qsort(
-    std::vector<std::pair<entity_key_t,body>>& rbodies,
+    std::vector<body>& rbodies,
     int totalnbodies)
   {
     int size, rank;
@@ -212,11 +212,11 @@ public:
 #endif
         rbodies.begin(),rbodies.end(),
         [](auto& left, auto& right){
-        if(left.first < right.first){
+        if(left.key() < right.key()){
           return true;
         }
-        if(left.first == right.first){
-          return left.second.getId() < right.second.getId();
+        if(left.key() == right.key()){
+          return left.id() < right.id();
         }
         return false;
       }); // sort
@@ -241,8 +241,8 @@ public:
 
     int64_t nbodies = rbodies.size();
     for(size_t i = 0L ; i < nbodies; ++i){
-      if(rbodies[i].first >= splitters[cur_proc].first &&
-        rbodies[i].first < splitters[cur_proc+1].first){
+      if(rbodies[i].key() >= splitters[cur_proc].first &&
+        rbodies[i].key() < splitters[cur_proc+1].first){
           scount[cur_proc]++;
         }else{
           i--;
@@ -270,7 +270,7 @@ public:
     //  } // if
     //} // for
 
-    std::vector<std::pair<entity_key_t,body>> recvbuffer;
+    std::vector<body> recvbuffer;
 
     // Direct exchange using point to point
     mpi_alltoallv_p2p(scount,rbodies,recvbuffer);
@@ -314,11 +314,12 @@ public:
   void
   mpi_branches_exchange(
     tree_topology_t& tree,
-    std::vector<std::pair<entity_key_t,body>>& rbodies,
+    std::vector<body>& rbodies,
     std::vector<std::array<point_t,2>>& ranges,
     std::array<point_t,2>& range_total
   )
   {
+
     int rank,size;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
@@ -330,6 +331,22 @@ public:
     #endif
 #endif
 
+    // 1. Send my border particles to my neighbors
+    // 0 -> 1 ... size-2 -> size-11
+  /*  if(rank % 2){
+      MPI_Send();
+    }else{
+      MPI_Recv();
+    }
+
+    // 0 <- 1 ... size-2 <- size-1
+    if(!(rank % 2)){
+      MPI_Send();
+    }else{
+      MPI_Recv();
+    }*/
+
+    // Add these particles in my tree
     // Do a tree search up to a branch
     // Keep those branches in a list
     std::vector<branch_t*> search_branches;
@@ -405,8 +422,8 @@ public:
             ent->set_shared();
             assert(ent != nullptr);
             tmpsendset.insert(body_holder_mpi_t{
-              ent->coordinates(),rank,ent->mass(),ent->getBody()->getId(),
-              ent->getBody()->getSmoothinglength(),ent->get_entity_key()});
+              ent->coordinates(),rank,ent->mass(),ent->getBody()->id(),
+              ent->getBody()->radius(),ent->get_entity_key()});
           }
         } // for
         // Merge the sets
@@ -655,13 +672,13 @@ void mpi_refresh_ghosts(
       if(param::sph_variable_h){
         nbs = tree.find_in_radius(
             bi->coordinates(),
-            bi->getBody()->getSmoothinglength(),
+            bi->getBody()->radius(),
             tree_geometry_t::within_square
         );
       }else{
         nbs = tree.find_in_radius(
             bi->coordinates(),
-            bi->getBody()->getSmoothinglength(),
+            bi->getBody()->radius(),
             tree_geometry_t::within
         );
       }
@@ -712,13 +729,13 @@ void mpi_refresh_ghosts(
       if(param::sph_variable_h){
         nbs = tree.find_in_radius(
             bi->coordinates(),
-            bi->getBody()->getSmoothinglength(),
+            bi->getBody()->radius(),
             tree_geometry_t::within_square
         );
       }else{
         nbs = tree.find_in_radius(
             bi->coordinates(),
-            bi->getBody()->getSmoothinglength(),
+            bi->getBody()->radius(),
             tree_geometry_t::within
         );
       }
@@ -816,7 +833,7 @@ void mpi_refresh_ghosts(
    */
   void
   mpi_compute_range(
-    std::vector<std::pair<entity_key_t,body>>& bodies,
+    std::vector<body>& bodies,
     std::array<point_t,2>& range)
   {
     int rank, size;
@@ -826,28 +843,28 @@ void mpi_refresh_ghosts(
     // Compute the local range
     range_t lrange;
 
-    lrange[1] = bodies.back().second.coordinates();
-    lrange[0] = bodies.back().second.coordinates();
+    lrange[1] = bodies.back().coordinates();
+    lrange[0] = bodies.back().coordinates();
 
 #pragma omp parallel
 {
   range_t trange;
-  trange[1] = bodies.back().second.coordinates();
-  trange[0] = bodies.back().second.coordinates();
+  trange[1] = bodies.back().coordinates();
+  trange[0] = bodies.back().coordinates();
 
 #pragma omp parallel for
     for(size_t i = 0 ; i < bodies.size(); ++i){
       for(size_t d = 0; d < gdimension; ++d){
 
-        if(bodies[i].second.coordinates()[d]+
-            bodies[i].second.getSmoothinglength()>trange[1][d])
-          trange[1][d] = bodies[i].second.coordinates()[d]+
-                        bodies[i].second.getSmoothinglength();
+        if(bodies[i].coordinates()[d]+
+            bodies[i].radius()>trange[1][d])
+          trange[1][d] = bodies[i].coordinates()[d]+
+                        bodies[i].radius();
 
-        if(bodies[i].second.coordinates()[d]-
-            bodies[i].second.getSmoothinglength()<trange[0][d])
-          trange[0][d] = bodies[i].second.coordinates()[d]-
-                        bodies[i].second.getSmoothinglength();
+        if(bodies[i].coordinates()[d]-
+            bodies[i].radius()<trange[0][d])
+          trange[0][d] = bodies[i].coordinates()[d]-
+                        bodies[i].radius();
       }
     }
 #pragma omp critical
@@ -892,7 +909,7 @@ void mpi_refresh_ghosts(
   void
   generate_splitters_samples(
     std::vector<std::pair<entity_key_t,int64_t>>& splitters,
-    std::vector<std::pair<entity_key_t,body>>& rbodies,
+    std::vector<body>& rbodies,
     const int64_t totalnbodies
   ){
     int rank, size;
@@ -912,8 +929,8 @@ void mpi_refresh_ghosts(
 
     for(size_t i=0;i<nsample;++i){
       int64_t position = (nvalues/(nsample+1.))*(i+1.);
-      keys_sample.push_back(std::make_pair(rbodies[position].first,
-      rbodies[position].second.getId()));
+      keys_sample.push_back(std::make_pair(rbodies[position].key(),
+      rbodies[position].id()));
     } // for
     assert(keys_sample.size()==(size_t)nsample);
 

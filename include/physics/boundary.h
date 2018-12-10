@@ -42,21 +42,21 @@ namespace boundary{
 
 
   void pboundary_clean(
-      std::vector<std::pair<entity_key_t,body>>& lbodies)
+      std::vector<body>& lbodies)
   {
     // Sort items based on type, all the walls at the end
     auto start = std::stable_partition(
         lbodies.begin(),lbodies.end(),
         [](const auto& left)
         {
-          return left.second.getType() != particle_type_t::WALL;
+          return left.getType() != particle_type_t::WALL;
         });
 
     assert(start != lbodies.begin());
 
 #ifdef DEBUG
     for(auto it = start; it != lbodies.end(); ++it)
-      assert(it->second.getType() == particle_type_t::WALL);
+      assert(it->getType() == particle_type_t::WALL);
 #endif
 
     lbodies.erase(start,lbodies.end());
@@ -79,12 +79,12 @@ namespace boundary{
     const std::array<size_t,2>& d,
     const std::array<point_t,2>& box,
     const double& halo_size,
-    const std::pair<entity_key_t,body>& lbody,
+    const body& lbody,
     std::vector<body>& edge
   )
   {
     if(on_edge[d[0]] && on_edge[d[1]]){
-      body nu = lbody.second;
+      body nu = lbody;
       nu.setType(particle_type_t::WALL);
       point_t coord = nu.coordinates();
       for(size_t i = 0 ; i < 2 ; ++i){
@@ -94,7 +94,7 @@ namespace boundary{
           coord[d[i]] = box[1][d[i]] + abs(nu.coordinates()[d[i]]+box[1][d[i]]);
         }
       }
-      nu.setPosition(coord);
+      nu.set_coordinates(coord);
       #pragma omp critical
         edge.push_back(nu);
     }
@@ -106,12 +106,12 @@ namespace boundary{
     const std::array<size_t,3>& d,
     const std::array<point_t,2>& box,
     const double& halo_size,
-    const std::pair<entity_key_t,body>& lbody,
+    const body& lbody,
     std::vector<body>& edge
   )
   {
     if(on_edge[d[0]] && on_edge[d[1]] && on_edge[d[2]]){
-      body nu = lbody.second;
+      body nu = lbody;
       nu.setType(particle_type_t::WALL);
       point_t coord = nu.coordinates();
       for(size_t i = 0 ; i < 3 ; ++i){
@@ -121,14 +121,14 @@ namespace boundary{
           coord[d[i]] = box[1][d[i]] + abs(nu.coordinates()[d[i]]+box[1][d[i]]);
         }
       }
-      nu.setPosition(coord);
+      nu.set_coordinates(coord);
       #pragma omp critical
         edge.push_back(nu);
     }
   }
 
   void pboundary_generate(
-      std::vector<std::pair<entity_key_t,body>>& lbodies,
+      std::vector<body>& lbodies,
       double halo_size)
   {
     int64_t original_nparticles = lbodies.size();
@@ -163,15 +163,15 @@ namespace boundary{
         // If not in this axis, do not move the particles
         if(!periodic[d]) continue;
 
-        point_t coord = lbodies[i].second.coordinates();
-        if(lbodies[i].second.coordinates()[d] > box[1][d])
+        point_t coord = lbodies[i].coordinates();
+        if(lbodies[i].coordinates()[d] > box[1][d])
         {
           coord[d] = box[0][d] + (coord[d]-box[1][d]);
-        }else if(lbodies[i].second.coordinates()[d] < box[0][d])
+        }else if(lbodies[i].coordinates()[d] < box[0][d])
         {
           coord[d] = box[1][d] - (box[0][d]-coord[d]);
         }
-        lbodies[i].second.setPosition(coord);
+        lbodies[i].set_coordinates(coord);
       }
     }
 
@@ -187,13 +187,13 @@ namespace boundary{
       {
         if(!periodic[d]) continue;
 
-        if(lbodies[i].second.coordinates()[d]+halo_size> box[1][d] ||
-          lbodies[i].second.coordinates()[d]-halo_size< box[0][d])
+        if(lbodies[i].coordinates()[d]+halo_size> box[1][d] ||
+          lbodies[i].coordinates()[d]-halo_size< box[0][d])
         {
           on_edge[d] = true;
 
           // New on this axis
-          body nu = lbodies[i].second;
+          body nu = lbodies[i];
           nu.setType(particle_type_t::WALL);
           point_t coord = nu.coordinates();
           if(nu.coordinates()[d]+halo_size>box[1][d]){
@@ -201,7 +201,7 @@ namespace boundary{
           }else{
             coord[d] = box[1][d] + fabs((nu.coordinates()[d]+box[1][d]));
           }
-          nu.setPosition(coord);
+          nu.set_coordinates(coord);
           #pragma omp critical
             edge.push_back(nu);
         }
@@ -232,7 +232,7 @@ namespace boundary{
 
     // Add them in the body array
     for(auto b: edge)
-      lbodies.push_back(std::make_pair(entity_key_t{},b));
+      lbodies.push_back(b);
 
     std::vector<int64_t> nparticles_wall(size);
     int64_t local_wall = edge.size();
@@ -252,9 +252,9 @@ namespace boundary{
     int64_t total_part = original_nparticles+nparticles_wall[size];
     for(auto& b: lbodies)
     {
-      if(b.second.getType() == WALL)
-        b.second.setId((i++));
-      total_check += b.second.id();
+      if(b.getType() == WALL)
+        b.set_id((i++));
+      total_check += b.id();
     }
     MPI_Allreduce(MPI_IN_PLACE,&total_check,1,MPI_INT64_T,MPI_SUM,
         MPI_COMM_WORLD);
@@ -276,7 +276,7 @@ namespace boundary{
   {
     body* source = srch->getBody();
     point_t velocity = source->getVelocity();
-    point_t position = source->getPosition();
+    point_t position = source->coordinates();
     point_t velocityHalf = source->getVelocityhalf();
 
     bool considered = false;
@@ -318,7 +318,7 @@ namespace boundary{
         }
       }
     }
-    source->setPosition(position);
+    source->set_coordinates(position);
     source->setVelocity(velocity);
     source->setVelocityhalf(velocityHalf);
     return considered;

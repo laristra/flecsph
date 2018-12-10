@@ -98,40 +98,6 @@ public:
     macangle_ = macangle;
   };
 
-#if 0
-  /**
-   * @brief      Get the value of an attribute from an HDF5 file
-   * @details    \TODO add more types of data
-   *
-   * @param      filename       The file from which we get the attribute
-   * @param      attributeName  The attribute name in char
-   * @param      default_value  The default type
-   *
-   * @tparam     TL             The attribute value
-   *
-   * @return     The value of the attribute
-   */
-  template<
-    typename TL
-  >
-  TL
-  get_attribute(
-      const char * filename,
-      const char * attributeName,
-      TL default_value = TL(0))
-  {
-    TL value = TL{};
-    if(typeid(TL)==typeid(double)){
-      value = io::input_parameter_double(filename,attributeName);
-    }else if(typeid(TL) == typeid(int)){
-      value = io::input_parameter_int(filename,attributeName);
-    }
-    if(value == TL{}){
-      value = default_value;
-    }
-    return value;
-  }
-#endif
   /**
    * @brief      Read the bodies from H5part file Compute also the total to
    *             check for mass lost
@@ -148,24 +114,7 @@ public:
 
     io::inputDataHDF5(localbodies_,filename,output_filename,
         totalnbodies_,localnbodies_,startiteration);
-
-    #ifdef DEBUG
-    minmass_ = 1.0e50;
-    totalmass_ = 0.;
-    // Also compute the total mass
-#pragma omp parallel for reduction(+:totalmass_) reduction(min:minmass_)
-    for(size_t i = 0; i < localbodies_.size() ; ++i){
-      totalmass_ += localbodies_[i].second.getMass();
-      if(localbodies_[i].second.getMass() < minmass_){
-        minmass_ = localbodies_[i].second.getMass();
-      }
-    }
-
-    MPI_Allreduce(MPI_IN_PLACE,&minmass_,1,MPI_DOUBLE,
-        MPI_MIN,MPI_COMM_WORLD);
-    MPI_Allreduce(MPI_IN_PLACE,&totalmass_,1,MPI_DOUBLE,
-        MPI_SUM,MPI_COMM_WORLD);
-    #endif
+    std::cout<<"Read: "<<localbodies_.size()<<std::endl;
   }
 
   /**
@@ -206,8 +155,8 @@ public:
     smoothinglength_ = 0;
 #pragma omp parallel for reduction(max:smoothinglength_)
     for(size_t i = 0 ; i < localbodies_.size(); ++i){
-      if(smoothinglength_ < localbodies_[i].second.getSmoothinglength()){
-        smoothinglength_ = localbodies_[i].second.getSmoothinglength();
+      if(smoothinglength_ < localbodies_[i].radius()){
+        smoothinglength_ = localbodies_[i].radius();
       }
     }
 
@@ -283,10 +232,11 @@ public:
     tree_ = new tree_topology_t(range_[0],range_[1]);
 
     // Compute the keys
-#pragma omp parallel for
+//#pragma omp parallel for
     for(size_t i = 0; i < localbodies_.size(); ++i){
-      localbodies_[i].first =
-          entity_key_t(tree_->range(),localbodies_[i].second.coordinates());
+      localbodies_[i].set_key(
+          entity_key_t(tree_->range(),localbodies_[i].coordinates()));
+      std::cout<<entity_key_t(tree_->range(),localbodies_[i].coordinates())<<std::endl;
     }
 
     tcolorer_.mpi_qsort(localbodies_,totalnbodies_);
@@ -303,11 +253,11 @@ public:
 #endif
       localbodies_.begin(),localbodies_.end(),
         [](auto& left, auto &right){
-          if(left.first<right.first){
+          if(left.key()<right.key()){
             return true;
           }
-          if(left.first == right.first){
-            return left.second.getId()<right.second.getId();
+          if(left.key() == right.key()){
+            return left.id()<right.id();
           }
           return false;
     }); // sort
@@ -316,13 +266,13 @@ public:
     // Clear the bodies_ vector
     //bodies_.clear();
     for(auto& bi:  localbodies_){
-      auto id = tree_->make_entity(bi.first,bi.second.getPosition(),
-        &(bi.second),rank,bi.second.getMass(),bi.second.getId(),
-        bi.second.getSmoothinglength());
+      std::cout<<bi<<std::endl;
+      auto id = tree_->make_entity(bi.key(),bi.coordinates(),
+        &(bi),rank,bi.mass(),bi.id(),bi.radius());
       tree_->insert(id);
       auto nbi = tree_->get(id);
       //bodies_.push_back(nbi);
-      assert(nbi->global_id() == bi.second.id());
+      assert(nbi->global_id() == bi.id());
       assert(nbi->getBody() != nullptr);
       assert(nbi->is_local());
     }
@@ -567,9 +517,8 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
    *
    * @return     The localbodies.
    */
-  std::vector<std::pair<entity_key_t,body>>&
-    getLocalbodies(
-      )
+  std::vector<body>&
+    getLocalbodies()
   {
     return localbodies_;
   };
@@ -597,21 +546,14 @@ private:
   int64_t localnbodies_;        // Local number of particles
   double macangle_;             // Macangle for FMM
   double maxmasscell_;          // Mass criterion for FMM
-  std::vector<std::pair<entity_key_t,body>> localbodies_;
+  std::vector<body> localbodies_;
   range_t range_;
   std::vector<range_t> rangeposproc_;
   tree_colorer<T,D> tcolorer_;
   tree_fmm<T,D> tfmm_;        // tree_fmm.h function for FMM
   tree_topology_t* tree_;     // The particle tree data structure
-  //std::vector<body_holder*> bodies_;
   double smoothinglength_;    // Keep track of the biggest smoothing length
-  double totalmass_;          // Check the total mass of the system
-  double minmass_;            // Check the minimal mass of the system
   double epsilon_ = 0.;
-
-  std::vector<int64_t> neighbors_count_;
-  std::vector<body_holder*> neighbors_;
-  //double epsilon_ = 1.0;
 };
 
 #endif

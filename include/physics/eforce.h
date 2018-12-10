@@ -53,7 +53,7 @@ namespace external_force {
   point_t acceleration_squarewell_xyz(body_holder* srch) {
     using namespace param;
     point_t a = 0.0;
-    point_t rp =  srch->getBody()->getPosition();
+    point_t rp =  srch->getBody()->coordinates();
     double box[3] = {0.,0.,0.};
     bool do_squarewell[3] = {squarewell_x,squarewell_y,squarewell_z};
     if(param::squarewell_x){
@@ -78,7 +78,7 @@ namespace external_force {
   double potential_squarewell_xyz(body_holder* srch) {
     using namespace param;
     double phi = 0.0;
-    point_t rp =  srch->getBody()->getPosition();
+    point_t rp =  srch->getBody()->coordinates();
     double box[3] = {0.,0.,0.};
     bool do_squarewell[3] = {squarewell_x,squarewell_y,squarewell_z};
     if(param::squarewell_x){
@@ -107,7 +107,7 @@ namespace external_force {
   point_t acceleration_spherical_wall(body_holder* srch) {
     using namespace param;
     point_t a = 0.0;
-    point_t rp =  srch->getBody()->getPosition();
+    point_t rp =  srch->getBody()->coordinates();
     const double pw_n = extforce_wall_powerindex;
     const double pw_a = extforce_wall_steepness;
     double r = rp[0]*rp[0];
@@ -125,7 +125,7 @@ namespace external_force {
   double potential_spherical_wall(body_holder* srch) {
     using namespace param;
     double phi = 0.0;
-    point_t rp =  srch->getBody()->getPosition();
+    point_t rp =  srch->getBody()->coordinates();
     const double pw_n = extforce_wall_powerindex;
     const double pw_a = extforce_wall_steepness;
     double r = rp[0]*rp[0];
@@ -161,7 +161,7 @@ namespace external_force {
     point_t a = 0.0;
     assert (gdimension > 1);
 
-    point_t rp =  srch->getBody()->getPosition();
+    point_t rp =  srch->getBody()->coordinates();
     const double x1 = rp[0] - airfoil_anchor_x,
                  y1 = rp[1] - airfoil_anchor_y,
                  alpha = airfoil_attack_angle*M_PI/180.0,
@@ -195,7 +195,7 @@ namespace external_force {
     double phi = 0.0;
     assert (gdimension > 1);
 
-    point_t rp =  srch->getBody()->getPosition();
+    point_t rp =  srch->getBody()->coordinates();
     const double x1 = rp[0] - airfoil_anchor_x,
                  y1 = rp[1] - airfoil_anchor_y,
                  alpha = airfoil_attack_angle*M_PI/180.0,

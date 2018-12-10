@@ -93,7 +93,7 @@ namespace diagnostic {
             }
         },min_dist,average_dist_in_h,N_ghosts
     );
-    
+
     for(auto& b: bodies)
     {
       if(!b.is_local()) continue;
@@ -130,7 +130,7 @@ namespace diagnostic {
     for(auto& b: bodies)
     {
       if(!b.is_local()) continue;
-      double h = b.getBody()->getSmoothinglength();
+      double h = b.getBody()->radius();
       h_total += h;
       h_min = std::min(h,h_min);
       h_max = std::max(h,h_max);

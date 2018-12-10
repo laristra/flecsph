@@ -96,27 +96,24 @@ public:
   static const size_t dimension = Policy::dimension;
   using element_t = typename Policy::element_t;
   using point_t = point__<element_t, dimension>;
-  using range_t = std::pair<element_t, element_t>;
+  using range_t = std::array<point_t, dimension>;
   using key_int_t = typename Policy::key_int_t;
-
   using key_t = key_id__<key_int_t,dimension>;
   using branch_id_t = key_t;
-
   using branch_id_vector_t = std::vector<branch_id_t>;
-
   using branch_t = typename Policy::branch_t;
   using branch_vector_t = std::vector<branch_t*>;
-
-  using entity_t = typename Policy::entity_t;
-  using entity_vector_t = std::vector<entity_t*>;
+  using tree_entity_t = typename Policy::tree_entity_t;
+  //using entity_t = typename Policy::entity_t;
+  using entity_vector_t = std::vector<tree_entity_t*>;
   using apply_function = std::function<void(branch_t&)>;
   using entity_id_vector_t = std::vector<entity_id_t>;
   using geometry_t = tree_geometry<element_t, dimension>;
-  using entity_space_t = std::vector<entity_t>;
-  using entity_space_ptr_t = std::vector<entity_t*>;
+  using entity_space_t = std::vector<tree_entity_t>;
+  using entity_space_ptr_t = std::vector<tree_entity_t*>;
 
   struct filter_valid{
-    bool operator()(entity_t* ent) const{
+    bool operator()(tree_entity_t* ent) const{
       return ent->is_valid();
     }
   };
@@ -174,8 +171,8 @@ public:
   ~tree_topology()
   {
     branch_map_.clear();
-    entities_.clear();
-    //entities_ghosts_.clear();
+    tree_entities_.clear();
+    //tree_entities_ghosts_.clear();
     ghosts_id_.clear();
   }
 
@@ -211,35 +208,35 @@ public:
   /*!
     Return an index space containing all entities (including those removed).
    */
-  std::vector<entity_t>&
+  std::vector<tree_entity_t>&
   all_entities() const
   {
-    return entities_;
+    return tree_entities_;
   }
 
   /*!
     Return an index space containing all non-removed entities.
    */
-  std::vector<entity_t>&
+  std::vector<tree_entity_t>&
   entities()
   {
-    return entities_;
+    return tree_entities_;
   }
 
   //std::vector<entity_id_t>&
-  //entities_ghosts()
+  //tree_entities_ghosts()
   //{
-  //  return entities_ghosts_;
+  //  return tree_entities_ghosts_;
   //}
 
-  entity_t*
+  tree_entity_t*
   get_ghost(
       const size_t& global_id)
   {
     auto local_id_itr = ghosts_id_.find(global_id);
     assert(local_id_itr != ghosts_id_.end());
     auto local_id = local_id_itr->second;
-    return &(entities_[local_id]);
+    return &(tree_entities_[local_id]);
   }
 
   /*!
@@ -331,7 +328,7 @@ public:
   void
   get_sub_entities_local(
     branch_t * start,
-    std::vector<entity_t*>& search_list)
+    std::vector<tree_entity_t*>& search_list)
   {
     std::stack<branch_t*> stk;
     stk.push(start);
@@ -546,12 +543,12 @@ public:
   >
   void
   apply_sub_entity(
-      entity_t* ent,
+      tree_entity_t* ent,
       std::vector<branch_t*>& inter_list,
       EF&& ef,
       ARGS&&... args)
   {
-    std::vector<entity_t*> neighbors;
+    std::vector<tree_entity_t*> neighbors;
     for(auto b: inter_list){
       for(auto id: *b){
         auto nb = this->get(id);
@@ -573,12 +570,12 @@ public:
   >
   void
   apply_sub_entity_sq(
-      entity_t* ent,
+      tree_entity_t* ent,
       std::vector<branch_t*>& inter_list,
       EF&& ef,
       ARGS&&... args)
   {
-    std::vector<entity_t*> neighbors;
+    std::vector<tree_entity_t*> neighbors;
     for(auto b: inter_list){
       for(auto id: *b){
         auto nb = this->get(id);
@@ -619,7 +616,7 @@ public:
       stk.pop();
       if(b->is_leaf()){
         for(auto id: *b){
-          auto child = &(entities_[id]);
+          auto child = &(tree_entities_[id]);
           // Check if in radius
           if(ef(center,child->coordinates(),radius,child->h())){
             ents.push_back(child);
@@ -668,7 +665,7 @@ public:
       stk.pop();
       if(b->is_leaf()){
         for(auto id: *b){
-          auto child = &(entities_[id]);
+          auto child = &(tree_entities_[id]);
           // Check if in box
           if(ef(min,max,child->coordinates(),child->h())){
             ents.push_back(child);
@@ -701,10 +698,10 @@ public:
       Args&&... args
     )
     {
-      entities_.emplace_back(std::forward<Args>(args)...);
-      auto ent = &(entities_.back());
+      tree_entities_.emplace_back(std::forward<Args>(args)...);
+      auto ent = &(tree_entities_.back());
       // Size -1 to start at 0
-      entity_id_t id = entities_.size()-1;
+      entity_id_t id = tree_entities_.size()-1;
       ent->set_id_(id);
       if(!ent->is_local()){
         ghosts_id_.insert(std::make_pair(ent->global_id(),id));
@@ -724,21 +721,21 @@ public:
     /*!
       Get an entity by entity id.
      */
-    entity_t*
+    tree_entity_t*
     get(
       entity_id_t id
     )
     {
-      assert(id < entities_.size());
-      return &(entities_[id]);
+      assert(id < tree_entities_.size());
+      return &(tree_entities_[id]);
     }
 
-    entity_t*
+    tree_entity_t*
     get(
         size_t id)
     {
-      assert(id < entities_.size());
-      return &(entities_[id]);
+      assert(id < tree_entities_.size());
+      return &(tree_entities_[id]);
     }
 
     branch_t*
@@ -778,7 +775,7 @@ public:
    friend std::ostream& operator<<(std::ostream& os,tree_topology& t )
    {
      os<<"Tree topology: "<<"#branches: "<<t.branch_map_.size()<<
-       " #entities: "<<t.entities_.size();
+       " #entities: "<<t.tree_entities_.size();
      os <<" #root_subentities: "<<t.root()->sub_entities();
      os <<" #nonlocal_branches: "<<t.nonlocal_branches();
      return os;
@@ -811,7 +808,7 @@ public:
         size_t max_depth
       )
       {
-        auto ent = &(entities_[id]);
+        auto ent = &(tree_entities_[id]);
         branch_id_t bid = ent->get_entity_key();
         branch_t& b = find_parent(bid, max_depth);
 
@@ -965,15 +962,16 @@ public:
   size_t max_depth_;
   typename std::unordered_map<branch_id_t,branch_t,
     branch_id_hasher__<key_int_t, dimension>>::iterator root_;
-  entity_space_t entities_;
-  std::array<point__<element_t, dimension>, 2> range_;
+  entity_space_t tree_entities_;
+  range_t range_;
   point__<element_t, dimension> scale_;
   element_t max_scale_;
-  std::vector<entity_t> entities_vector_;
-  //std::vector<entity_id_t> entities_ghosts_;
-  int64_t entities_vector_current_;
+  std::vector<tree_entity_t> tree_entities_vector_;
+  //std::vector<entity_id_t> tree_entities_ghosts_;
+  int64_t tree_entities_vector_current_;
 
   std::map<entity_id_t,entity_id_t> ghosts_id_;
+  //std::vector<entity_t> entities_;
 
   int64_t nonlocal_branches_;
 };

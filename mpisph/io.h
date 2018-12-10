@@ -358,7 +358,7 @@ H5P_getNumParticles(hid_t file_id)
 
 // Input data fro HDF5 File
 void inputDataHDF5(
-  std::vector<std::pair<entity_key_t,body>>& bodies,
+  std::vector<body>& bodies,
   const char * filename,
   const char * output_file_prefix,
   int64_t& totalnbodies,
@@ -598,7 +598,7 @@ void inputDataHDF5(
     if(gdimension>2){
       position[2] = dataZ[i];
     }
-    bodies[i].second.setPosition(position);
+    bodies[i].set_coordinates(position);
   }
 
   // Reset buffer to 0, if next value not present
@@ -629,7 +629,7 @@ void inputDataHDF5(
     if(gdimension>2){
       velocity[2] = dataZ[i];
     }
-    bodies[i].second.setVelocity(velocity);
+    bodies[i].setVelocity(velocity);
   }
 
   // Reset buffer to 0, if next value not present
@@ -660,7 +660,7 @@ void inputDataHDF5(
     if(gdimension>2){
       acceleration[2] = dataZ[i];
     }
-    bodies[i].second.setAcceleration(acceleration);
+    bodies[i].setAcceleration(acceleration);
   }
 
   // Reset buffer to 0, if next value not present
@@ -680,9 +680,9 @@ void inputDataHDF5(
     rank || clog(warn) << "Unable to read h" << std::endl;
 
   for(int64_t i=0; i<IO_nparticlesproc; ++i){
-    bodies[i].second.setMass(dataX[i]);
-    bodies[i].second.setDensity(dataY[i]);
-    bodies[i].second.setSmoothinglength(dataZ[i]);
+    bodies[i].set_mass(dataX[i]);
+    bodies[i].setDensity(dataY[i]);
+    bodies[i].set_radius(dataZ[i]);
   }
 
   // Reset buffer to 0, if next value not present
@@ -695,7 +695,7 @@ void inputDataHDF5(
   if(errX != 0)
     rank || clog(warn) << "Unable to read P" <<std::endl;
   for(int64_t i=0; i<IO_nparticlesproc; ++i){
-    bodies[i].second.setPressure(dataX[i]);
+    bodies[i].setPressure(dataX[i]);
   }
 
   // Internal Energy
@@ -706,7 +706,7 @@ void inputDataHDF5(
   if(errX != 0)
     rank || clog(warn) << "Unable to read u"<<std::endl;
   for(int64_t i=0; i<IO_nparticlesproc; ++i){
-    bodies[i].second.setInternalenergy(dataX[i]);
+    bodies[i].setInternalenergy(dataX[i]);
   }
   #endif
 
@@ -718,17 +718,17 @@ void inputDataHDF5(
   H5P_readDataset(dataFile,"id",dataInt);
   if(b_index){
     for(int64_t i=0; i<IO_nparticlesproc; ++i){
-      bodies[i].second.setId(dataInt[i]);
+      bodies[i].set_id(dataInt[i]);
     }
   }else{
     rank|| clog(trace)<<"Setting ID for particles"<<std::endl;
     // Otherwise generate the id
     int64_t start = (totalnbodies/size)*rank+1;
     for(int64_t i=0; i<IO_nparticlesproc; ++i){
-      bodies[i].second.setId(start+i);
+      bodies[i].set_id(start+i);
     }
     if(size == rank + 1){
-      assert(totalnbodies==bodies.back().second.getId());
+      assert(totalnbodies==bodies.back().id());
     }
   }
 
@@ -740,7 +740,7 @@ void inputDataHDF5(
   if(errX != 0)
     rank || clog(warn) << "Unable to read dt" << std::endl;
   for(int64_t i=0; i<IO_nparticlesproc; ++i){
-    bodies[i].second.setDt(dataX[i]);
+    bodies[i].setDt(dataX[i]);
   }
 
   // Reset buffer to 0, if next value not present
@@ -751,7 +751,7 @@ void inputDataHDF5(
   if(errX != 0)
     rank || clog(warn) << "Unable to read type"<< std::endl;
   for(int64_t i=0; i<IO_nparticlesproc; ++i){
-    bodies[i].second.setType(dataInt32[i]);
+    bodies[i].setType(dataInt32[i]);
   }
 
   delete[] dataX;
@@ -772,7 +772,7 @@ void inputDataHDF5(
 // Output data in HDF5 format
 // Generate the associate XDMF file
 void outputDataHDF5(
-    std::vector<std::pair<entity_key_t,body>>& bodies,
+    std::vector<body>& bodies,
     const char* fileprefix,
     int64_t iteration,
     double totaltime)
@@ -837,14 +837,14 @@ void outputDataHDF5(
   int64_t pos = 0L;
   // Extract data from bodies
   for(auto bi: bodies){
-    b1[pos] = bi.second.getPosition()[0];
+    b1[pos] = bi.coordinates()[0];
     if(gdimension>1){
-      b2[pos] = bi.second.getPosition()[1];
+      b2[pos] = bi.coordinates()[1];
     }else{
       b2[pos] = 0.;
     }
     if(gdimension>2){
-      b3[pos++] = bi.second.getPosition()[2];
+      b3[pos++] = bi.coordinates()[2];
     }else{
       b3[pos++] = 0.;
     }
@@ -858,14 +858,14 @@ void outputDataHDF5(
   pos = 0L;
   // Extract data from bodies
   for(auto bi: bodies){
-    b1[pos] = bi.second.getVelocity()[0];
+    b1[pos] = bi.getVelocity()[0];
     if(gdimension>1){
-      b2[pos] = bi.second.getVelocity()[1];
+      b2[pos] = bi.getVelocity()[1];
     }else{
       b2[pos] = 0;
     }
     if(gdimension>2){
-      b3[pos++] = bi.second.getVelocity()[2];
+      b3[pos++] = bi.getVelocity()[2];
     }else{
       b3[pos++] = 0.;
     }
@@ -878,14 +878,14 @@ void outputDataHDF5(
   pos = 0L;
   // Extract data from bodies
   for(auto bi: bodies){
-    b1[pos] = bi.second.getAcceleration()[0];
+    b1[pos] = bi.getAcceleration()[0];
     if(gdimension>1){
-      b2[pos] = bi.second.getAcceleration()[1];
+      b2[pos] = bi.getAcceleration()[1];
     }else{
       b2[pos] = 0.;
     }
     if(gdimension>2){
-      b3[pos++] = bi.second.getAcceleration()[2];
+      b3[pos++] = bi.getAcceleration()[2];
     }else{
       b3[pos++] = 0.;
     }
@@ -898,10 +898,10 @@ void outputDataHDF5(
   pos = 0L;
   // Extract data from bodies
   for(auto bi: bodies){
-    b1[pos] = bi.second.getSmoothinglength();
-    b2[pos] = bi.second.getDensity();
+    b1[pos] = bi.radius();
+    b2[pos] = bi.getDensity();
     #ifdef INTERNAL_ENERGY
-    b3[pos] = bi.second.getInternalenergy();
+    b3[pos] = bi.getInternalenergy();
     #endif
     pos++;
   }
@@ -915,11 +915,11 @@ void outputDataHDF5(
   pos = 0L;
   // Extract data from bodies
   for(auto bid: bodies){
-    b1[pos] = bid.second.getPressure();
-    b2[pos] = bid.second.getMass();
-    b3[pos] = bid.second.getDt();
-    bi[pos] = bid.second.getId();
-    bint[pos++] = bid.second.getType();
+    b1[pos] = bid.getPressure();
+    b2[pos] = bid.mass();
+    b3[pos] = bid.getDt();
+    bi[pos] = bid.id();
+    bint[pos++] = bid.getType();
   }
   H5P_writeDataset(dataFile,"P",b1);
   H5P_writeDataset(dataFile,"m",b2);
@@ -933,7 +933,7 @@ void outputDataHDF5(
 
   pos = 0L;
   for(auto bid: bodies){
-    bi[pos++] = bid.first.value_();
+    bi[pos++] = bid.key().value_();
   }
   H5P_writeDataset(dataFile,"key",bi);
 

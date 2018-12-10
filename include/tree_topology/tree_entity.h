@@ -40,10 +40,6 @@
 #include <float.h>
 
 #include "flecsi/geometry/point.h"
-#include "flecsi/concurrency/thread_pool.h"
-#include "flecsi/data/storage.h"
-#include "flecsi/data/data_client.h"
-#include "flecsi/topology/index_space.h"
 
 #include "tree_entity_id.h"
 #include "key_id.h"
@@ -66,7 +62,6 @@ public:
   using id_t = entity_id_t;
   using key_id_t = key_id__<T,D>;
   using point_t = point__<TT,D>;
-  //using key_id_t = morton_id<T, D>;
   using range_t = std::array<point_t,2>;
 
 protected:

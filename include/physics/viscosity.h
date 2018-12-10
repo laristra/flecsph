@@ -4,7 +4,7 @@
  *~--------------------------------------------------------------------------~*/
 
  /*~--------------------------------------------------------------------------~*
- * 
+ *
  * /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
  * /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
  * /@@       /@@  @@@@@  @@    // /@@       /@@   /@@/@@     /@@
@@ -12,7 +12,7 @@
  * /@@////   /@@/@@@@@@@/@@       ////////@@/@@////  /@@//////@@
  * /@@       /@@/@@//// //@@    @@       /@@/@@      /@@     /@@
  * /@@       @@@//@@@@@@ //@@@@@@  @@@@@@@@ /@@      /@@     /@@
- * //       ///  //////   //////  ////////  //       //      //  
+ * //       ///  //////   //////  ////////  //       //      //
  *
  *~--------------------------------------------------------------------------~*/
 
@@ -36,9 +36,9 @@ namespace viscosity{
 
 
   /**
-   * @brief      mu_ij for the artificial viscosity 
-   * From Rosswog'09 (arXiv:0903.5075) - 
-   * Astrophysical Smoothed Particle Hydrodynamics, eq.(60) 
+   * @brief      mu_ij for the artificial viscosity
+   * From Rosswog'09 (arXiv:0903.5075) -
+   * Astrophysical Smoothed Particle Hydrodynamics, eq.(60)
    *
    * @param      srch     The source particle
    * @param      nbsh     The neighbor particle
@@ -47,44 +47,44 @@ namespace viscosity{
    *
    * @uses       epsilon  global parameter
    */
-  double 
+  double
   mu(
-      const body* source, 
+      const body* source,
       const body* nb)
-  {  
+  {
 
     using namespace param;
     double result = 0.0;
-    double h_ij = .5*(source->getSmoothinglength()+nb->getSmoothinglength()); 
+    double h_ij = .5*(source->radius()+nb->radius());
     space_vector_t vecVelocity = flecsi::point_to_vector(
         source->getVelocityhalf() - nb->getVelocityhalf());
     space_vector_t vecPosition = flecsi::point_to_vector(
-        source->getPosition() - nb->getPosition());
+        source->coordinates() - nb->coordinates());
     double dotproduct = flecsi::dot(vecVelocity,vecPosition);
 
     if(dotproduct >= 0.0)
       return result;
-    double dist = flecsi::distance(source->getPosition(),nb->getPosition());
+    double dist = flecsi::distance(source->coordinates(),nb->coordinates());
     result = h_ij*dotproduct / (dist*dist + sph_viscosity_epsilon*h_ij*h_ij);
-    
+
     mpi_assert(result < 0.0);
-    return result; 
+    return result;
   } // mu
 
 
   /**
    * @brief      Artificial viscosity term, Pi_ab
-   * From Rosswog'09 (arXiv:0903.5075) - 
-   * Astrophysical Smoothed Particle Hydrodynamics, eq.(59) 
+   * From Rosswog'09 (arXiv:0903.5075) -
+   * Astrophysical Smoothed Particle Hydrodynamics, eq.(59)
    *
    * @param      srch  The source particle
    * @param      nbsh  The neighbor particle
    *
-   * @return     The artificial viscosity contribution 
+   * @return     The artificial viscosity contribution
    */
-  double 
+  double
   artificial_viscosity(
-    const body* source, 
+    const body* source,
     const body* nb)
   {
     using namespace param;
@@ -98,17 +98,17 @@ namespace viscosity{
     return res;
   }
 
-  typedef double (*viscosity_function_t)(const body*, const body *); 
+  typedef double (*viscosity_function_t)(const body*, const body *);
   viscosity_function_t viscosity = artificial_viscosity;
 
   /**
    * @brief Viscosity selector
-   * @param kstr Viscosity string descriptor 
+   * @param kstr Viscosity string descriptor
    */
   void select(const std::string& kstr)
   {
     if (boost::iequals(kstr,"artificial_viscosity")){
-      viscosity = artificial_viscosity; 
+      viscosity = artificial_viscosity;
     }else{
       clog_one(fatal) << "Bad viscosity parameter"<<std::endl;
     }
