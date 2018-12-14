@@ -60,6 +60,7 @@ public:
     os << " h: " << b.radius_;
     os << " id: " << b.id_;
     os << "key: "<< b.key_;
+    os << " owner: "<< b.owner_; 
     return os;
   }
 

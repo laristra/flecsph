@@ -360,7 +360,6 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
     rank || clog(trace) << tree_ << " root range = "<< tree_.root()->bmin()
      <<";"<<tree_.root()->bmax()<< std::endl;
 #endif
-
   }
 
   /**

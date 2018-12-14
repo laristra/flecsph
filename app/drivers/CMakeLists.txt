@@ -9,9 +9,9 @@
 
 # For vectorization: -fopt-info-vec-missed/optimized/note/all
 set(CMAKE_CXX_FLAGS_DEBUG
-  "-DPARALLEL_IO -Wno-sign-compare -Wno-reorder -Wno-narrowing -Wno-deprecated-declarations -ftree-vectorize -ffast-math -msse2 -g -O2 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses")
+  "-pthread -lpthread -DPARALLEL_IO -Wno-sign-compare -Wno-reorder -Wno-narrowing -Wno-deprecated-declarations -ftree-vectorize -ffast-math -msse2 -g -O2 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses")
 set(CMAKE_CXX_FLAGS_RELEASE
-  "-DPARALLEL_IO -Wno-sign-compare -Wno-reorder -Wno-narrowing -Wno-deprecated-declarations -ftree-vectorize -ffast-math -msse2 -O3 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses")
+  "-pthread -lpthread -DPARALLEL_IO -Wno-sign-compare -Wno-reorder -Wno-narrowing -Wno-deprecated-declarations -ftree-vectorize -ffast-math -msse2 -O3 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses")
 
 # includes
 

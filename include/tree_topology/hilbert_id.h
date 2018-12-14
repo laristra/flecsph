@@ -429,6 +429,17 @@ public:
     id_ >>= dimension;
   }
 
+  // Pop and return the digits popped
+  int pop_value()
+  {
+    assert(depth() > 0);
+    int poped = 0;
+    poped = id_ & ((1<<(dimension))-1);
+    assert(poped < (1<<dimension));
+    id_ >>= dimension;
+    return poped;
+  }
+
   /*!
     Pop the depth d bits from the end of this this id.
    */
@@ -476,6 +487,17 @@ public:
     if(dimension == 3)
     {
       ostr<<std::oct<<id_<<std::dec;
+    }else if(dimension == 2){
+      std::string output;
+      hilbert_id id = *this;
+      int poped;
+      while(id != root())
+      {
+        poped = id.pop_value();
+        output.insert(0,std::to_string(poped));
+      }
+      output.insert(output.begin(),'1');
+      ostr<<output.c_str();
     }else{
       ostr<<std::bitset<64>(id_);
     }

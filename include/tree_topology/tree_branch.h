@@ -110,6 +110,7 @@ public:
   {}
 
   branch_id_t id() const {return id_;}
+  branch_id_t key() const {return id_;}
   point_t coordinates(){return coordinates_;};
   element_t mass(){return mass_;};
   element_t radius(){return radius_;};
@@ -141,10 +142,6 @@ public:
 
   void insert(const flecsi::topology::entity_id_t& id){
     ents_.push_back(id);
-    // Check if conflict at this level and then refine
-    //if(ents_.size() > num_children){
-    //  refine();
-    //}
   } // insert
 
   void remove(const flecsi::topology::entity_id_t& id){
@@ -209,6 +206,7 @@ protected:
     os << " id: " << b.id_;
     os << " sub_entities: "<< b.sub_entities_;
     os << " owner: "<<b.owner_;
+    os << " children: "<<std::bitset<8>(b.children_);
     return os;
   }
 
@@ -226,6 +224,8 @@ protected:
   element_t radius_;
   bool ghosts_local_ = true;
   bool requested_ = false;
+
+  char children_ = 0;
 
 };
 
