@@ -47,7 +47,7 @@ using namespace mpi_utils;
 #define OUTPUT_TREE_INFO 1
 
 /**
-* Structrue for branch distribution 
+* Structrue for branch distribution
 */
 struct mpi_branch_t{
   point_t coordinates;
@@ -56,6 +56,7 @@ struct mpi_branch_t{
   point_t max;
   entity_key_t key;
   int owner;
+  size_t sub_entities;
 };
 
 
@@ -265,23 +266,6 @@ public:
     // Check that we considered all the bodies
     assert( std::accumulate(scount.begin(), scount.end(), 0) == rbodies.size());
 
-
-    //for(auto bi: rbodies){
-    //  if(cur_proc >= size-1){
-        // Last process reached, just copy
-    //    scount[cur_proc]++;
-    //    continue;
-    //  } // if
-    //  if(bi.first < splitters[cur_proc].first){
-    //    scount[cur_proc]++;
-    //  }else{
-    //    while(!(bi.first < splitters[cur_proc].first)){
-    //      cur_proc++;
-    //    }
-    //    scount[cur_proc]++;
-    //  } // if
-    //} // for
-
     std::vector<body> recvbuffer;
 
     // Direct exchange using point to point
@@ -307,6 +291,7 @@ public:
     #endif
 #endif // OUTPUT
   } // mpi_qsort
+
 
   /**
    * @brief      Exchange the useful branches of the current tree of the procs.
@@ -343,8 +328,6 @@ public:
     #endif
 #endif
 
-  // Gather all the branches at lowest level
-
   // Send them 2 by 2
   // Use hypercube communication
   std::vector<branch_t*> search_branches;
@@ -356,8 +339,9 @@ public:
   // Copy them localy
   std::vector<mpi_branch_t> branches;
   for(auto b: search_branches){
+    assert(b->sub_entities() > 0);
     branches.push_back(mpi_branch_t{b->coordinates(),b->mass(),b->bmin(),b->bmax(),
-      b->id(),rank});
+      b->id(),b->owner(),b->sub_entities()});
   }
 
   // Do the hypercube communciation to share the branches
@@ -401,7 +385,6 @@ public:
         MPI_Status status;
         // Read the size of the message
         MPI_Probe(partner,1,MPI_COMM_WORLD,&status);
-
         // Get the size
         int nrecv = 0;
         MPI_Get_count(&status, MPI_BYTE, &nrecv);
@@ -432,7 +415,8 @@ public:
   // Add these branches informations in the tree
   for(auto b: branches){
     if(b.owner != rank){
-      tree.insert_branch(b.coordinates,b.mass,b.min,b.max,b.key,b.owner);
+      tree.insert_branch(b.coordinates,b.mass,b.min,b.max,b.key,
+        b.owner,b.sub_entities);
     }
   }
 

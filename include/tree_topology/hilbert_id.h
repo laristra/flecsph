@@ -61,7 +61,7 @@ public:
 
   static const size_t dimension = D;
   static constexpr size_t bits = sizeof(int_t) * 8;
-  static constexpr size_t max_depth = (bits-1)/dimension;
+  static constexpr size_t max_depth_ = (bits-1)/dimension;
 
   hilbert_id()
   : id_(0)
@@ -74,7 +74,7 @@ public:
   hilbert_id(
     const std::array<point__<S, dimension>, 2>& range,
     const point__<S, dimension>& p)
-  : hilbert_id(range,p,max_depth)
+  : hilbert_id(range,p,max_depth_)
   {}
 
 
@@ -203,7 +203,7 @@ public:
   }
 
   /* 2D Hilbert key
-   * Hilbert key is always generated to the max_depth and then truncated
+   * Hilbert key is always generated to the max_depth_ and then truncated
    * */
   template<
     typename S>
@@ -211,9 +211,9 @@ public:
     const std::array<point__<S, dimension>, 2>& range,
     const point__<S, dimension>& p,
     size_t depth)
-  : id_(int_t(1) << (max_depth * dimension))
+  : id_(int_t(1) << (max_depth_ * dimension))
   {
-    assert(depth <= max_depth);
+    assert(depth <= max_depth_);
 
     std::array<int_t, dimension> coords;
     // Convert the position to integer
@@ -221,7 +221,7 @@ public:
     {
       S min = range[0][i];
       S scale = range[1][i] - min;
-      coords[i] = (p[i] - min)/scale * (int_t(1) << (max_depth));
+      coords[i] = (p[i] - min)/scale * (int_t(1) << (max_depth_));
     }
 
     //std::cout<<coords[0]<<";"<<coords[1]<<std::endl;
@@ -230,16 +230,16 @@ public:
     if(dimension == 1)
     {
     //  std::cout<<coords[0]<<std::endl;
-      assert(id_ & 1UL<<max_depth);
+      assert(id_ & 1UL<<max_depth_);
       id_ |= coords[0]>>dimension;
-      id_ >>= (max_depth-depth);
+      id_ >>= (max_depth_-depth);
     //  std::cout<<"k: "<<std::bitset<64>(id_)<<std::endl<<std::flush;
       return;
     }
 
     //std::cout<<"b: "<<std::bitset<64>(id_)<<std::endl;
-    //std::cout<<"max_depth="<<max_depth<<" depth="<<depth<<std::endl;
-    int_t mask = static_cast<int_t>(1)<<(max_depth);
+    //std::cout<<"max_depth_="<<max_depth_<<" depth="<<depth<<std::endl;
+    int_t mask = static_cast<int_t>(1)<<(max_depth_);
     for(int_t s = mask>>1 ; s > 0; s >>= 1)
     {
       std::array<int_t,dimension> bits;
@@ -258,7 +258,7 @@ public:
       }
     }
     // Then truncate the key to the depth
-    id_ >>= (max_depth-depth)*dimension;
+    id_ >>= (max_depth_-depth)*dimension;
     //std::cout<<"k: "<<std::bitset<64>(id_)<<std::endl;
 
     // Be sure the head bit is one
@@ -266,11 +266,16 @@ public:
   }
 
   static
+  size_t
+  max_depth()
+  { return max_depth_;}
+
+  static
   constexpr
   hilbert_id
   min()
   {
-    int_t id = int_t(1) << max_depth * dimension;
+    int_t id = int_t(1) << max_depth_ * dimension;
     return hilbert_id(id);
   }
 
@@ -281,8 +286,8 @@ public:
   {
     // Start with 1 bits
     int_t id = ~static_cast<int_t>(0);
-    int_t remove = int_t(1) << max_depth * dimension;
-    for(size_t i = max_depth * dimension +1; i <
+    int_t remove = int_t(1) << max_depth_ * dimension;
+    for(size_t i = max_depth_ * dimension +1; i <
       bits; ++i)
       {
         id ^= int_t(1)<<i;
@@ -468,7 +473,12 @@ public:
     std::ostream& ostr
   ) const
   {
-    ostr<<std::bitset<64>(id_);
+    if(dimension == 3)
+    {
+      ostr<<std::oct<<id_<<std::dec;
+    }else{
+      ostr<<std::bitset<64>(id_);
+    }
   }
 
   int_t
@@ -493,7 +503,7 @@ public:
     std::array<int_t, dimension> coords;
     coords.fill(int_t(0));
 
-    int_t n = int_t(1) << (max_depth); // Number of cells to an edge.
+    int_t n = int_t(1) << (max_depth_); // Number of cells to an edge.
     for (int_t mask = int_t(1); mask < n; mask <<= 1) {
       std::array<int_t,dimension> bits = {};
 
@@ -526,8 +536,8 @@ public:
       S min = range[0][j];
       S scale = range[1][j] - min;
 
-      //coords[j] <<= max_depth - d;
-      p[j] = min + scale * S(coords[j])/(int_t(1) << max_depth);
+      //coords[j] <<= max_depth_ - d;
+      p[j] = min + scale * S(coords[j])/(int_t(1) << max_depth_);
     }
   }
 

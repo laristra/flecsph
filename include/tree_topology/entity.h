@@ -43,12 +43,14 @@ public:
   key_t key() const {return key_;};
   element_t radius() const {return radius_;};
   entity_id_t id() const {return id_;};
+  int owner(){return owner_;}
 
   void set_coordinates(const point_t& coordinates){coordinates_ = coordinates;};
   void set_mass(const element_t& mass){mass_ = mass;};
   void set_radius(const element_t& radius){radius_ = radius;};
   void set_key(const key_t& key){key_ = key;};
   void set_id(const entity_id_t& id){id_ = id;};
+  void set_owner(const int& owner){owner_=owner;};
 
   friend std::ostream& operator<<(std::ostream& os, const entity& b){
     // TODO change regarding to dimension
@@ -67,6 +69,7 @@ protected:
   entity_id_t id_;
   element_t radius_;
   key_t key_;
+  int owner_;
 
 }; // class entity
 

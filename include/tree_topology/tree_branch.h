@@ -83,12 +83,19 @@ public:
 
   tree_branch()
   : action_(action::none)
-  {}
+  {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    owner_ = rank;
+  }
 
   tree_branch(const branch_id_t& id)
-  : action_(action::none),
-  id_(id)
-  {}
+  : action_(action::none), id_(id)
+  {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    owner_ = rank;
+  }
 
   tree_branch(
     const branch_id_t& id,
@@ -96,9 +103,10 @@ public:
     const element_t& mass,
     const point_t& bmin,
     const point_t& bmax,
-    const b_locality& locality)
+    const b_locality& locality,
+    const int& owner)
   : action_(action::none), id_(id), coordinates_(coordinates), mass_(mass),
-   bmin_(bmin),bmax_(bmax), locality_(locality)
+   bmin_(bmin),bmax_(bmax), locality_(locality), owner_(owner)
   {}
 
   branch_id_t id() const {return id_;}
@@ -107,11 +115,11 @@ public:
   element_t radius(){return radius_;};
   point_t bmin(){return bmin_;};
   point_t bmax(){return bmax_;};
-  void set_coordinates(point_t& coordinates){coordinates_=coordinates;};
-  void set_mass(element_t mass){mass_ = mass;};
-  void set_radius(element_t radius){radius_ = radius;};
-  void set_bmax(point_t bmax){bmax_ = bmax;};
-  void set_bmin(point_t bmin){bmin_ = bmin;};
+  void set_coordinates(const point_t& coordinates){coordinates_=coordinates;};
+  void set_mass(const element_t& mass){mass_ = mass;};
+  void set_radius(const element_t& radius){radius_ = radius;};
+  void set_bmax(const point_t& bmax){bmax_ = bmax;};
+  void set_bmin(const point_t& bmin){bmin_ = bmin;};
   bool is_leaf() const {return leaf_;}
   void set_leaf(bool leaf){leaf_ = leaf;}
   bool is_valid() const { return true; }
@@ -119,22 +127,30 @@ public:
   void set_sub_entities(uint64_t sub_entities){sub_entities_ = sub_entities;}
   void set_locality( b_locality locality){locality_ = locality;}
   b_locality locality() {return locality_;}
-  bool is_local() const {return locality_ == LOCAL || locality_ == EMPTY; }
-
+  bool is_local() const {
+    return locality_ == LOCAL || locality_ == EMPTY || locality_ == SHARED; }
+  bool is_shared() const{
+    return locality_ == SHARED;
+  }
+  int owner() {return  owner_;};
+  void set_owner(int owner){owner_ = owner;};
+  void set_ghosts_local(const bool ghosts_local){ghosts_local_ = ghosts_local;};
+  bool ghosts_local(){return ghosts_local_;};
+  bool requested(){return requested_;};
+  void set_requested(bool requested){requested_ = requested; };
 
   void insert(const flecsi::topology::entity_id_t& id){
     ents_.push_back(id);
-    if(ents_.size() > num_children){
-      refine();
-    }
+    // Check if conflict at this level and then refine
+    //if(ents_.size() > num_children){
+    //  refine();
+    //}
   } // insert
 
   void remove(const flecsi::topology::entity_id_t& id){
     auto itr = find(ents_.begin(), ents_.end(), id);
+    assert(itr != ents_.end());
     ents_.erase(itr);
-    if(ents_.empty()){
-      coarsen();
-    }
   }
 
   ~tree_branch(){ents_.clear();}
@@ -184,6 +200,18 @@ protected:
     return action_;
   }
 
+  friend std::ostream& operator<<(std::ostream& os, const tree_branch& b){
+    // TODO change regarding to dimension
+    os << std::setprecision(10);
+    os << "Branch: coord: " <<b.coordinates_;
+    os << " mass: " <<b.mass_;
+    os << " loc: " << b.locality_;
+    os << " id: " << b.id_;
+    os << " sub_entities: "<< b.sub_entities_;
+    os << " owner: "<<b.owner_;
+    return os;
+  }
+
   action action_;
   branch_id_t id_; // Key of this branch
   uint64_t sub_entities_ = 0; // Subentities in this subtree
@@ -196,6 +224,8 @@ protected:
   element_t mass_;
   std::vector<flecsi::topology::entity_id_t> ents_;
   element_t radius_;
+  bool ghosts_local_ = true;
+  bool requested_ = false;
 
 };
 

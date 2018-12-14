@@ -257,6 +257,7 @@ public:
     // Clear the bodies_ vector
     //bodies_.clear();
     for(auto& bi:  tree_.entities()){
+      bi.set_owner(rank);
       auto id = tree_.make_entity(bi.key(),bi.coordinates(),
         &(bi),rank,bi.mass(),bi.id(),bi.radius());
       tree_.insert(id);
@@ -284,13 +285,19 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
 #endif
 }
 
+    // Add edge bodies from my direct neighbor
+    tree_.share_edge();
+    tree_.mpi_tree_traversal_graphviz(0);
+
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //MPI_Finalize();
+
 #ifdef OUTPUT_TREE_INFO
     rank || clog(trace) << "Computing branches"<<std::endl;
 #endif
 
-    tree_.post_order_traversal(tree_.root(),
-        traversal_t::update_COM,epsilon_,false);
-    assert(tree_.root()->sub_entities() == localnbodies_);
+    tree_.cofm(tree_.root(),epsilon_,false);
+    tree_.mpi_tree_traversal_graphviz(1);
 
 #ifdef OUTPUT_TREE_INFO
     std::vector<int> nentities(size);
@@ -320,11 +327,11 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
 
     // Exchnage usefull body_holder from my tree to other processes
     tcolorer_.mpi_branches_exchange(tree_,tree_.entities(),rangeposproc_,
-        range_);
+      range_);
 
     // update the tree
-    tree_.post_order_traversal(tree_.root(),
-        traversal_t::update_COM,epsilon_,false);
+    tree_.cofm(tree_.root(),epsilon_,false);
+    tree_.mpi_tree_traversal_graphviz(2);
 
 #ifdef OUTPUT_TREE_INFO
     lentities = tree_.root()->sub_entities();
@@ -362,7 +369,7 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
   void
   reset_ghosts()
   {
-
+    tree_.reset_ghosts();
   }
 
 
@@ -381,8 +388,7 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
     rank|| clog(trace)<<"FMM: mmass="<<maxmasscell_<<" angle="<<macangle_<<std::endl;
 
     // Just consider the local particles in the tree for FMM
-    tree_.post_order_traversal(tree_.root(),
-        traversal_t::update_COM,epsilon_,true);
+    tree_.cofm(tree_.root(),epsilon_,true);
 
 
     //tree_->update_branches(smoothinglength_,true);
@@ -393,8 +399,7 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
     tfmm_.mpi_gather_cells(tree_,macangle_,totalnbodies_);
 
 
-    tree_.post_order_traversal(tree_.root(),
-        traversal_t::update_COM,epsilon_,false);
+    tree_.cofm(tree_.root(),epsilon_,false);
   }
 
   /**
@@ -419,7 +424,7 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
       EF&& ef,
       ARGS&&... args)
   {
-    int64_t ncritical = 32;
+    int64_t ncritical = 1;
     tree_.apply_sub_cells(
         tree_.root(),
         0.,

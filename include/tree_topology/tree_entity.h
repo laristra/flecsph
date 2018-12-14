@@ -38,6 +38,7 @@
 #include <stack>
 #include <math.h>
 #include <float.h>
+#include <mpi.h>
 
 #include "flecsi/geometry/point.h"
 
@@ -88,6 +89,12 @@ public:
     return key_id_;
   }
 
+  key_id_t
+  key() const
+  {
+    return key_id_;
+  }
+
   entity_id_t
   id() const
   {
@@ -127,13 +134,9 @@ public:
   bool
   is_local() const
   {
-    return (locality_ == LOCAL || locality_ == EXCL || locality_ == SHARED);
-  }
-
-  bool
-  is_shared() const
-  {
-    return locality_==SHARED;
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    return owner_ == rank;
   }
 
   void

@@ -32,7 +32,7 @@
 #include <mpi.h>
 #ifdef ENABLE_LEGION
 #include <legion.h>
-#endif 
+#endif
 #include <omp.h>
 
 #include "flecsi/execution/execution.h"
@@ -57,7 +57,7 @@ void set_derived_params() {
   // set kernel
   kernels::select(sph_kernel);
 
-  // set viscosity 
+  // set viscosity
   viscosity::select(sph_viscosity);
 
   // filenames (this will change for multiple files output)
@@ -104,9 +104,9 @@ mpi_init_task(const char * parameter_file){
       output_h5data_prefix,initial_iteration);
   bs.setMacangle(param::fmm_macangle);
   bs.setMaxmasscell(param::fmm_max_cell_mass);
-  
+
   MPI_Barrier(MPI_COMM_WORLD);
-   
+
   do {
     analysis::screen_output(rank);
     MPI_Barrier(MPI_COMM_WORLD);
@@ -124,7 +124,7 @@ mpi_init_task(const char * parameter_file){
       bs.apply_all(integration::save_velocityhalf);
 
       // necessary for computing dv/dt and du/dt in the next step
-      bs.update_neighbors();
+      bs.reset_ghosts();
 
       rank|| clog(trace) << "compute rhs of evolution equations" << std::flush;
       bs.apply_in_smoothinglength(physics::compute_acceleration);
@@ -147,25 +147,25 @@ mpi_init_task(const char * parameter_file){
       rank|| clog(trace) << ".done" << std::endl;
 
       rank|| clog(trace) << "leapfrog: drift" << std::flush;
-      bs.apply_all(integration::leapfrog_drift); 
+      bs.apply_all(integration::leapfrog_drift);
       rank|| clog(trace) << ".done" << std::endl;
-      
+
       // sync velocities
       bs.update_iteration();
 
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
 
       // Sync density/pressure/cs
-      bs.update_neighbors();
+      bs.reset_ghosts();
 
       rank|| clog(trace) << "leapfrog: kick two (velocity)" << std::flush;
       bs.apply_in_smoothinglength(physics::compute_acceleration);
-      bs.gravitation_fmm(); 
+      bs.gravitation_fmm();
       bs.apply_all(integration::leapfrog_kick_v);
       rank|| clog(trace) << ".done" << std::endl;
 
       // sync velocities
-      bs.update_neighbors();
+      bs.reset_ghosts();
 
       rank|| clog(trace) << "leapfrog: kick two (energy)" << std::flush;
       if (thermokinetic_formulation) {
@@ -184,7 +184,7 @@ mpi_init_task(const char * parameter_file){
       bs.get_all(physics::compute_smoothinglength);
       rank || clog(trace) << ".done" << std::endl << std::flush;
     }else if(sph_update_uniform_h){
-      // The particles moved, compute new smoothing length 
+      // The particles moved, compute new smoothing length
       rank || clog(trace) << "updating smoothing length"<<std::flush;
       bs.get_all(physics::compute_average_smoothinglength,bs.getNBodies());
       rank || clog(trace) << ".done" << std::endl << std::flush;
@@ -232,9 +232,9 @@ mpi_init_task(const char * parameter_file){
 
 flecsi_register_mpi_task(mpi_init_task, flecsi::execution);
 
-void 
+void
 usage(int rank) {
-  rank|| clog(warn) << "Usage: ./hydro_" << gdimension << "d " 
+  rank|| clog(warn) << "Usage: ./hydro_" << gdimension << "d "
                     << "<parameter-file.par>" << std::endl << std::flush;
 }
 
@@ -268,5 +268,3 @@ driver(int argc,  char * argv[]){
 
 } // namespace execution
 } // namespace flecsi
-
-
