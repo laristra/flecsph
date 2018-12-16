@@ -211,7 +211,7 @@ public:
   {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    clog(trace)<<"Reset the ghosts: "<<ghosts_entities_.size()<<std::endl;
+    //clog(trace)<<"Reset the ghosts: "<<ghosts_entities_.size()<<std::endl;
     // Remove the ghosts from the tree branches
     for(auto& g: ghosts_entities_)
     {
@@ -243,7 +243,7 @@ public:
       //b.clear();
     }
     // Reset all branches for sharing
-    clog(trace)<<"Clearing the vector: "<<tree_entities_.size()<<std::endl<<std::flush;
+    //clog(trace)<<"Clearing the vector: "<<tree_entities_.size()<<std::endl<<std::flush;
 
     if(tree_entities_.size() != 0)
     {
@@ -255,16 +255,17 @@ public:
       }
       // Remove all the associate tree branches
       tree_entities_.erase(start_ghosts,tree_entities_.end());
-      clog(trace)<<"Vector cleaned: "<<tree_entities_.size()<<std::endl<<std::flush;
+      //clog(trace)<<"Vector cleaned: "<<tree_entities_.size()<<std::endl<<std::flush;
       // Clear ghosts informations
       ghosts_id_.clear();
       ghosts_entities_.clear();
       // Recompute the cofm
-      clog(trace)<<"Computing the cofm"<<std::endl<<std::flush;
+      //clog(trace)<<"Computing the cofm"<<std::endl<<std::flush;
       // share local with neighbor
-      //mpi_tree_traversal_graphviz(7);
+      mpi_tree_traversal_graphviz(11);
       share_edge();
       cofm(root(),0,false);
+      mpi_tree_traversal_graphviz(12);
     }
     //mpi_tree_traversal_graphviz(8);
     // Do the local branch sharing
@@ -283,8 +284,10 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
     // First rank%2 == 0 send to rank%2 == 1
-    key_t neighbor_key;
-    key_t my_key;
+    std::array<key_t,2> my_keys;
+    std::array<key_t,2> neighbor_keys;
+    size_t byte_size = sizeof(std::array<key_t,2>);
+
     std::vector<entity_t> received_ghosts;
 
     int partner = rank;
@@ -295,67 +298,83 @@ public:
         partner = rank+1;
         if(partner < size)
         {
-          my_key = entities().back().key();
-          MPI_Send(&my_key,sizeof(key_t),MPI_BYTE,partner,1,
+          // Get my last key
+          my_keys[0] = entities_.back().key();
+          // Get the parent of this entity
+          my_keys[1] = find_parent_(my_keys[0]).key();
+          MPI_Send(&(my_keys[0]),byte_size,MPI_BYTE,partner,1,
             MPI_COMM_WORLD);
-          MPI_Recv(&neighbor_key,sizeof(key_t),MPI_BYTE,partner,1,
+          MPI_Recv(&(neighbor_keys[0]),byte_size,MPI_BYTE,partner,1,
             MPI_COMM_WORLD,MPI_STATUS_IGNORE);
         }
       }else{
         partner = rank-1;
         if(partner >= 0)
         {
-          my_key = entities().front().key();
-          MPI_Recv(&neighbor_key,sizeof(key_t),MPI_BYTE,partner,1,
+          // Get my last key
+          my_keys[0] = entities_.front().key();
+          // Get the parent of this entity
+          my_keys[1] = find_parent_(my_keys[0]).key();
+          MPI_Recv(&(neighbor_keys[0]),byte_size,MPI_BYTE,partner,1,
             MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-          MPI_Send(&my_key,sizeof(key_t),MPI_BYTE,partner,1,
+          MPI_Send(&(my_keys[0]),byte_size,MPI_BYTE,partner,1,
             MPI_COMM_WORLD);
         }
       }
-      //clog(trace)<<rank<<" <-> "<<partner<<std::endl;
-      // From this key, determine how many particles to send
-      // 1. Find the conflicting depth
-      int conflict_depth = key_t::max_depth();
-      //clog(trace)<<"Comparing: "<<neighbor_key<<" "<<my_key<<std::endl;
-      // Get the branch, if same, send as conflict
-      auto parent = find_parent_(my_key);
-      while(my_key != neighbor_key)
-      {
-        conflict_depth--;
-        my_key.pop();
-        neighbor_key.pop();
-      }
-      //clog(trace)<<"Conflict at: "<<conflict_depth<<" key= "<<my_key<<std::endl;
+      // Entities to send to other rank
       std::vector<entity_t> edge_entities;
-      if(parent.key().value_() == my_key.value_())
-      {
-        // 2. Find the particles to share
-        for(auto b: entities())
+      if(partner >= 0 && partner < size){
+        clog(trace)<<rank<<" <-> "<<partner<<std::endl;
+        // From this key, determine how many particles to send
+        // 1. Find the conflicting depth
+        int conflict_depth = key_t::max_depth();
+        clog(trace)<<"Comparing: "<<neighbor_keys[0]<<" "<<my_keys[0]<<std::endl<<std::flush;
+        clog(trace)<<"Parents: "<<neighbor_keys[1]<<" "<<my_keys[1]<<std::endl<<std::flush;
+
+        // Get the branch, if same, send as conflict
+        while(my_keys[0] != neighbor_keys[0])
         {
-          key_t key = b.key();
-          key.truncate(conflict_depth);
-          if(key.value_() == my_key.value_())
+          conflict_depth--;
+          my_keys[0].pop();
+          neighbor_keys[0].pop();
+        }
+        clog(trace)<<"Conflict at: "<<conflict_depth<<" key= "<<my_keys[0]<<std::endl;
+        // Parent depth
+        size_t neighbor_parent_depth = neighbor_keys[1].depth();
+        if(neighbor_parent_depth <= conflict_depth){
+          // 2. Find the particles to share
+          key_t research_key = my_keys[0];
+          research_key.truncate(conflict_depth);
+          for(auto b: entities())
           {
-            edge_entities.push_back(b);
+            key_t key = b.key();
+            key.truncate(conflict_depth);
+            if(key == research_key)
+            {
+              edge_entities.push_back(b);
+              clog(trace)<<"sending : "<<b.key()<<std::endl;
+            }
           }
         }
+        //}
+        //assert(edge_entities.size() <= (1<<dimension));
       }
-
       // 3. Send them
       if(rank%2 == i)
       {
         partner = rank+1;
         if(partner < size)
         {
-          MPI_Send(&(edge_entities[0]),sizeof(entity_t)*edge_entities.size(),MPI_BYTE,
-            partner,1,MPI_COMM_WORLD);
+          MPI_Send(&(edge_entities[0]),sizeof(entity_t)*edge_entities.size(),
+            MPI_BYTE,partner,1,MPI_COMM_WORLD);
           MPI_Status status;
           MPI_Probe(partner,1,MPI_COMM_WORLD,&status);
           // Get the count
           int nrecv = 0;
           MPI_Get_count(&status,MPI_BYTE,&nrecv);
-          received_ghosts.resize(nrecv/sizeof(entity_t));
-          MPI_Recv(&(received_ghosts[0]),nrecv,MPI_BYTE,partner,1,
+          int offset = received_ghosts.size();
+          received_ghosts.resize(offset+nrecv/sizeof(entity_t));
+          MPI_Recv(&(received_ghosts[offset]),nrecv,MPI_BYTE,partner,1,
             MPI_COMM_WORLD,MPI_STATUS_IGNORE);
         }
       }else{
@@ -367,8 +386,9 @@ public:
           // Get the count
           int nrecv = 0;
           MPI_Get_count(&status,MPI_BYTE,&nrecv);
-          received_ghosts.resize(nrecv/sizeof(entity_t));
-          MPI_Recv(&(received_ghosts[0]),nrecv,MPI_BYTE,partner,1,
+          int offset = received_ghosts.size();
+          received_ghosts.resize(offset+nrecv/sizeof(entity_t));
+          MPI_Recv(&(received_ghosts[offset]),nrecv,MPI_BYTE,partner,1,
             MPI_COMM_WORLD,MPI_STATUS_IGNORE);
           MPI_Send(&(edge_entities[0]),sizeof(entity_t)*edge_entities.size(),MPI_BYTE,
             partner,1,MPI_COMM_WORLD);
@@ -383,6 +403,7 @@ public:
     }
     for(auto& g : ghosts_entities())
     {
+      //clog(trace)<<"Inserting in the tree "<<g.key()<<std::endl;
       auto* bi = &(g);
       assert(bi->mass()!=0.);
       assert(bi->key().value_() != 0);
@@ -395,6 +416,11 @@ public:
         bi->mass(),bi->id(),bi->radius());
       insert(id);
       get(id)->setBody(bi);
+      // Set the ghosts local in this case
+    }
+    for(auto& g : ghosts_entities())
+    {
+      find_parent_(g.key()).set_ghosts_local(true);
     }
   }
 
@@ -726,11 +752,11 @@ public:
     // Start the threads on the branches
     std::thread handler(&tree_topology::handle_requests,this);
 
-    clog(trace)<<rank<<" tree traversal"<<std::endl;
+    //clog(trace)<<rank<<" tree traversal"<<std::endl;
     traverse_branches(MAC,do_square,work_branch,remaining_branches,false,ef,
         std::forward<ARGS>(args)...);
-    clog(trace)<<rank<<" tree traversal done "<<std::endl;
-    clog(trace)<<rank<<" sending done to thread"<<std::endl;
+    //clog(trace)<<rank<<" tree traversal done "<<std::endl;
+    //clog(trace)<<rank<<" sending done to thread"<<std::endl;
 
     void * buf = NULL;
     MPI_Request request;
@@ -750,7 +776,7 @@ public:
 
     mpi_tree_traversal_graphviz(4);
     // Finish the branches when other section done
-    clog(trace)<<rank<<" #non_local_branches: "<<remaining_branches.size()<< " ghosts: "<<ghosts_entities_.size()<<std::endl;
+    rank || clog(trace)<<rank<<" #non_local_branches: "<<remaining_branches.size()<< " ghosts: "<<ghosts_entities_.size()<<std::endl;
 
     // If the tree was completly local, do not add the ghosts
     if(remaining_branches.size() > 0){
@@ -758,7 +784,7 @@ public:
       for(size_t i = current_ghosts; i < ghosts_entities_.size(); ++i)
       {
         entity_t& g = ghosts_entities_[i];
-        //clog(trace)<<rank<<" inserting: "<<g<<std::endl<<std::flush;
+        //clog(trace)<<rank<<" inserting: "<<g.key()<<std::endl<<std::flush;
         auto id = make_entity(g.key(),g.coordinates(),
           nullptr,g.owner(),g.mass(),g.id(),g.radius());
         insert(id);
@@ -767,9 +793,7 @@ public:
         assert(nbi->global_id() == g.id());
         assert(nbi->getBody() != nullptr);
         // Set the parent to local for the search
-        auto& b = find_parent_(g.key());
-        b.set_ghosts_local(true);
-        assert(find_parent_(g.key()).ghosts_local());
+        find_parent_(g.key()).set_ghosts_local(true);
       }
       mpi_tree_traversal_graphviz(5);
       // Recompute the COM in the tree
@@ -781,7 +805,7 @@ public:
     //clog(trace)<<rank<<" Traversal for remaning branches"<<std::endl;
     traverse_branches(MAC,do_square,remaining_branches,remaining_branches,true,
       ef,std::forward<ARGS>(args)...);
-
+    //clog(trace)<<rank<<"done"<<std::endl;
     // Reset the number of threads
   } // apply_sub_cells
 
@@ -822,9 +846,10 @@ public:
           for(auto b: requests_branches){
             assert(b->owner() < size && b->owner() >= 0);
             assert(b->owner() != rank);
-            if(!b->requested())
+            if(!b->requested()){
               send.push_back(b->id());
-            b->set_requested(true);
+              b->set_requested(true);
+            }
           }
         }
         //clog(trace)<<rank<<" thread find non local branch: "<<send.size()<<std::endl;
@@ -918,7 +943,7 @@ public:
           //std::cerr<<"size: "<< reply[source].size()<<" = "<<std::flush;
           //for(int i = pres; i < reply[source].size(); ++i)
           //{
-          //  std::cerr<<reply[source][i].key()<<" "<<std::flush;
+            //std::cerr<<reply[source][i].key()<<" "<<std::flush;
           //  assert(reply[source][i].key().value_()!=0);
           //}
           //std::cerr<<std::endl;
@@ -1652,6 +1677,7 @@ public:
    {
      int rank = 0;
      MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+     //clog(trace)<<rank<<" outputing tree file #"<<num<<std::endl;
 
      char fname[64];
      sprintf(fname,"output_graphviz_%02d_%02d.gv",rank,num);
@@ -1660,7 +1686,8 @@ public:
      output<<"digraph G {"<<std::endl<<"forcelabels=true;"<<std::endl;
 
      // Add the legend
-     output<<"branch [label=\"branch\" xlabel=\"sub_entities,owner,requested\"]"<<std::endl;
+     output<<"branch [label=\"branch\" xlabel=\"sub_entities,owner,requested,"
+      "ghosts_local\"]"<<std::endl;
 
      std::stack<branch_t*> stk;
      // Get root
@@ -1673,7 +1700,7 @@ public:
        if(!cur->is_leaf()){
            output<<cur->id()<<" [label=\""<<cur->id()<< "\", xlabel=\"" <<
            cur->sub_entities()<<" - "<< cur->owner() <<" - "<< cur->requested()
-           <<"\"];"<<std::endl;
+           <<" - "<<cur->ghosts_local()<<"\"];"<<std::endl;
          switch (cur->locality())
          {
            case 1:
@@ -1701,7 +1728,7 @@ public:
        }else{
          output<<cur->id()<<" [label=\""<<cur->id()<< "\", xlabel=\"" <<
            cur->sub_entities()<< " - "<< cur->owner() <<" - "<< cur->requested()
-           <<"\"];"<<std::endl;
+           <<" - "<<cur->ghosts_local()<<"\"];"<<std::endl;
          switch (cur->locality())
          {
            case 1:

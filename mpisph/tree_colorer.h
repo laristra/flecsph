@@ -59,36 +59,6 @@ struct mpi_branch_t{
   size_t sub_entities;
 };
 
-
-/**
- * @brief       Structure to keep the data during the ghosts sharing.
- * Fill the structure during compute_ghosts and then exchange during
- * refresh_ghosts ''
- */
-struct mpi_ghosts_t{
-  std::vector<body> sbodies;
-  std::vector<body> rbodies;
-  std::vector<int>  nsbodies;
-  std::vector<int>  soffsets;
-  std::vector<int>  nrbodies;
-  std::vector<int>  roffsets;
-  std::vector<body_holder*> sholders;
-  std::vector<body_holder*> rholders;
-};
-
-struct body_holder_mpi_t{
-  static const size_t dimension = gdimension;
-  using element_t = type_t;
-  using point_t = flecsi::point__<element_t, dimension>;
-
-  point_t position;
-  int owner;
-  double mass;
-  flecsi::topology::entity_id_t id;
-  double h;
-  entity_key_t key;
-};
-
 /**
  * @brief      All the function and buffers for the tree_colorer.
  *
@@ -103,85 +73,16 @@ template<
 class tree_colorer
 {
 private:
-  // For all the MPI_Alltoallv communications
-  std::vector<int> rcount;
-  std::vector<int> scount;
-  std::vector<int> roffset;
-  std::vector<int> soffset;
-
-  // Communication of body_holders
-  MPI_Datatype MPI_BH_T;
-
-  // To share the ghosts data within the radius
-  mpi_ghosts_t ghosts_data;
 
   const int criterion_branches = 1; // Number of sub-entities in the branches
   const size_t noct = 256*1024;        // Number of octets used for quicksort
-
-  void reset_buffers()
-  {
-    int rank, size;
-    MPI_Comm_size(MPI_COMM_WORLD,&size);
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-
-    rcount.resize(size);
-    scount.resize(size);
-    roffset.resize(size);
-    soffset.resize(size);
-
-    ghosts_data.sbodies.resize(size);
-    ghosts_data.rbodies.resize(size);
-    ghosts_data.nsbodies.resize(size);
-    ghosts_data.nrbodies.resize(size);
-    ghosts_data.roffsets.resize(size);
-    ghosts_data.soffsets.resize(size);
-
-    std::fill(rcount.begin(),rcount.end(),0);
-    std::fill(scount.begin(),scount.end(),0);
-    std::fill(roffset.begin(),roffset.end(),0);
-    std::fill(soffset.begin(),soffset.end(),0);
-  }
 
 public:
   static const size_t dimension = D;
   using point_t = flecsi::point__<T,dimension>;
 
 
-  tree_colorer(){
-    int rank, size;
-    MPI_Comm_size(MPI_COMM_WORLD,&size);
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    rcount.resize(size);
-    scount.resize(size);
-    roffset.resize(size);
-    soffset.resize(size);
-
-    ghosts_data.sbodies.resize(size);
-    ghosts_data.rbodies.resize(size);
-    ghosts_data.nsbodies.resize(size);
-    ghosts_data.nrbodies.resize(size);
-    ghosts_data.roffsets.resize(size);
-    ghosts_data.soffsets.resize(size);
-
-    // Create the types for communications
-    // Create datatype
-    body_holder_mpi_t tmp;
-    MPI_Datatype type[5] =
-      {MPI_DOUBLE,MPI_INT,MPI_DOUBLE,MPI_INT64_T,MPI_DOUBLE};
-    int blocklen[5] = { gdimension, 2, 1, 1, 2};
-    MPI_Aint disp[5];
-    disp[0] = 0;
-    disp[1] = sizeof(double)*gdimension;
-    disp[2] = disp[1] + sizeof(int)*2; // Times 2 due to alignement
-    disp[3] = disp[2] + sizeof(double);
-    disp[4] = disp[3] + sizeof(int64_t);
-    MPI_Type_create_struct(5, blocklen, disp, type, &MPI_BH_T);
-    MPI_Type_commit(&MPI_BH_T);
-
-    int size_BH;
-    MPI_Type_size(MPI_BH_T,&size_BH);
-    rank|| clog(trace) << "Size of MPI_BH_T: "<<size_BH<< " BH: "<<sizeof(body_holder_mpi_t)<<std::endl;
-  }
+  tree_colorer(){}
 
   ~tree_colorer(){}
 
@@ -241,12 +142,8 @@ public:
     } // if
 
     std::vector<std::pair<entity_key_t,int64_t>> splitters;
+    std::vector<int> scount(size);
     generate_splitters_samples(splitters,rbodies,totalnbodies);
-
-    // The rbodies array is already sorted. We just need to determine the
-    // limits for each process
-    // Reset the class buffer
-    reset_buffers();
 
     int cur_proc = 0;
 
@@ -321,6 +218,8 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
+    assert(size == (1<<(int)log2(size)) && "Current implementation impose power 2");
+
 #ifdef OUTPUT
     MPI_Barrier(MPI_COMM_WORLD);
     #ifdef OUTPUT_TREE_INFO
@@ -337,25 +236,35 @@ public:
     search_branches);
 
   // Copy them localy
-  std::vector<mpi_branch_t> branches;
-  for(auto b: search_branches){
-    assert(b->sub_entities() > 0);
-    branches.push_back(mpi_branch_t{b->coordinates(),b->mass(),b->bmin(),b->bmax(),
-      b->id(),b->owner(),b->sub_entities()});
+  std::vector<mpi_branch_t> branches(search_branches.size());
+  #pragma omp parallel for
+  for(int i = 0 ; i < search_branches.size(); ++i){
+    assert(search_branches[i]->sub_entities() > 0);
+    branches[i] = mpi_branch_t
+      {
+        search_branches[i]->coordinates(),
+        search_branches[i]->mass(),
+        search_branches[i]->bmin(),
+        search_branches[i]->bmax(),
+        search_branches[i]->id(),
+        search_branches[i]->owner(),
+        search_branches[i]->sub_entities()
+      };
   }
 
   // Do the hypercube communciation to share the branches
   // Add them in the tree in the same time
   int dim = log2(size);
   // In case of non power two, consider dim + 1
-  if(1<<dim < size)
-    dim++;
+  //if(1<<dim < size)
+  //  dim++;
   int nsend;
   int last = branches.size();
   for(int i = 0; i < dim; ++i){
     nsend = branches.size();
     int partner = rank ^ (1<<i);
     assert(partner != rank);
+    //clog(trace)<<rank<<" partner -> "<<partner<<std::endl;
     // In case of non power 2
     MPI_Request request;
     if(partner < size){

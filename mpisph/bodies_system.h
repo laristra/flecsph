@@ -198,7 +198,7 @@ public:
     MPI_Comm_size(MPI_COMM_WORLD,&size);
     std::ostringstream oss;
 
-    // Destroy the previous tree
+    // Clean the previous tree
     tree_.clean();
 
     if(param::periodic_boundary_x || param::periodic_boundary_y ||
@@ -229,7 +229,7 @@ public:
 
     // Compute the keys
     tree_.compute_keys();
-
+    // Distributed sample sort
     tcolorer_.mpi_qsort(tree_.entities(),totalnbodies_);
 
 #ifdef OUTPUT_TREE_INFO
@@ -255,14 +255,12 @@ public:
 
     // Add my local bodies in my tree
     // Clear the bodies_ vector
-    //bodies_.clear();
     for(auto& bi:  tree_.entities()){
       bi.set_owner(rank);
       auto id = tree_.make_entity(bi.key(),bi.coordinates(),
         &(bi),rank,bi.mass(),bi.id(),bi.radius());
       tree_.insert(id);
       auto nbi = tree_.get(id);
-      //bodies_.push_back(nbi);
       assert(nbi->global_id() == bi.id());
       assert(nbi->getBody() != nullptr);
       assert(nbi->is_local());
@@ -284,13 +282,9 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
     assert(checknparticles==totalnbodies_);
 #endif
 }
-
+    tree_.mpi_tree_traversal_graphviz(0);
     // Add edge bodies from my direct neighbor
     tree_.share_edge();
-    tree_.mpi_tree_traversal_graphviz(0);
-
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //MPI_Finalize();
 
 #ifdef OUTPUT_TREE_INFO
     rank || clog(trace) << "Computing branches"<<std::endl;
@@ -333,6 +327,8 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
     tree_.cofm(tree_.root(),epsilon_,false);
     tree_.mpi_tree_traversal_graphviz(2);
 
+    MPI_Barrier(MPI_COMM_WORLD);
+
 #ifdef OUTPUT_TREE_INFO
     lentities = tree_.root()->sub_entities();
     // Get on 0
@@ -347,12 +343,16 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
       MPI_COMM_WORLD
       );
 
-    oss << rank << " sub_entities after=";
-    for(auto v: nentities){
-      oss << v << ";";
+    if(rank == 0){
+      oss << rank << " sub_entities after=";
+      for(auto v: nentities){
+        oss << v << ";";
+        assert(v == lentities);
+        assert(v == totalnbodies_); 
+      }
+      oss << std::endl;
+      rank|| clog(trace) << oss.str() << std::flush;
     }
-    oss << std::endl;
-    rank|| clog(trace) << oss.str() << std::flush;
 #endif
 
 #ifdef OUTPUT_TREE_INFO

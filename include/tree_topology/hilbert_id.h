@@ -644,6 +644,18 @@ operator<<(
   return ostr;
 }
 
+template<
+  typename T,
+  size_t D>
+bool
+operator==(
+  const hilbert_id<T,D>& bid_a,
+  const hilbert_id<T,D>& bid_b
+)
+{
+  return bid_b.id_ == bid_a.id_;
+}
+
 } // namespace topology
 } // namespace flecsi
 
