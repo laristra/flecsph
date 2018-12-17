@@ -36,6 +36,7 @@ cinch_add_unit(tree3d
     ${FleCSPH_LIBRARIES}
   DEFINES
     -DEXT_GDIMENSION=2
+  POLICY MPI
 )
 
 cinch_add_unit(mpi_qsort

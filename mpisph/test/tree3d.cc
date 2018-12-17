@@ -59,9 +59,7 @@ TEST(tree_topology, neighbors_sphere_NORMAL) {
     t.insert(e);
   }
 
-
-  t.post_order_traversal(t.root(),traversal_t::update_COM,
-      0.00001,false);
+  t.cofm(t.root(),0,false);
 
   ASSERT_TRUE(t.root()->mass() == n*mass);
 
@@ -106,8 +104,7 @@ TEST(tree_topology, neighbors_sphere_VARIABLE) {
   }
 
 
-  t.post_order_traversal(t.root(),traversal_t::update_COM,
-      0.00001,false);
+  t.cofm(t.root(),0,false);
 
   ASSERT_TRUE(t.root()->mass() == n*mass);
 
@@ -152,8 +149,7 @@ TEST(tree_topology, neighbors_box_NORMAL) {
     t.insert(e);
   }
 
-  t.post_order_traversal(t.root(),traversal_t::update_COM,
-      0.00001,false);
+  t.cofm(t.root(),0,false);
 
   ASSERT_TRUE(t.root()->mass() == n*mass);
 
@@ -210,8 +206,7 @@ TEST(tree_topology, neighbors_box_VARIABLE) {
     t.insert(e);
   }
 
-  t.post_order_traversal(t.root(),traversal_t::update_COM,
-      0.00001,false);
+  t.cofm(t.root(),0,false);
 
   ASSERT_TRUE(t.root()->mass() == n*mass);
 
