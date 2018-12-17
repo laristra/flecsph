@@ -101,7 +101,7 @@ public:
 
     ~body_holder()
     {
-      bodyptr_ = nullptr;
+      //bodyptr_ = nullptr;
     }
 
     body* getBody(){return bodyptr_;};

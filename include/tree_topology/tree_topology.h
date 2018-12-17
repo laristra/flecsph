@@ -181,7 +181,6 @@ public:
     reset_ghosts();
     branch_map_.clear();
     tree_entities_.clear();
-    //tree_entities_ghosts_.clear();
     ghosts_id_.clear();
   }
 
@@ -209,8 +208,10 @@ public:
   void
   reset_ghosts()
   {
-    int rank;
+    int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Comm_size(MPI_COMM_WORLD,&size);
+    if(size == 1) return;
     //clog(trace)<<"Reset the ghosts: "<<ghosts_entities_.size()<<std::endl;
     // Remove the ghosts from the tree branches
     for(auto& g: ghosts_entities_)
@@ -254,6 +255,7 @@ public:
         start_ghosts++;
       }
       // Remove all the associate tree branches
+
       tree_entities_.erase(start_ghosts,tree_entities_.end());
       //clog(trace)<<"Vector cleaned: "<<tree_entities_.size()<<std::endl<<std::flush;
       // Clear ghosts informations
