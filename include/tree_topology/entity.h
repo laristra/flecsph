@@ -52,6 +52,15 @@ public:
   void set_id(const entity_id_t& id){id_ = id;};
   void set_owner(const int& owner){owner_=owner;};
 
+  constexpr
+  bool
+  operator<(
+    const entity& ent
+  ) const
+  {
+    return key_ <= ent.key_;
+  }
+
   friend std::ostream& operator<<(std::ostream& os, const entity& b){
     // TODO change regarding to dimension
     os << std::setprecision(10);
@@ -60,7 +69,7 @@ public:
     os << " h: " << b.radius_;
     os << " id: " << b.id_;
     os << "key: "<< b.key_;
-    os << " owner: "<< b.owner_; 
+    os << " owner: "<< b.owner_;
     return os;
   }
 

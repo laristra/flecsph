@@ -6,6 +6,7 @@
 
 #include "tree.h"
 
+// Number of particles
 #define N 2000
 #define RMINX 0.
 #define RMINY 0.
@@ -102,13 +103,13 @@ TEST(tree_topology, neighbors_sphere_VARIABLE) {
   range_t range = {point_t{RMINX,RMINY,RMINZ},point_t{RMAXX,RMAXY,RMAXZ}};
   std::cout<<"Range: "<<range[0]<<"-"<<range[1]<<std::endl;
 
+
   for(size_t i = 0; i < n; ++i){
     point_t p = {uniform(RMINX, RMAXX), uniform(RMINY, RMAXY),
         uniform(RMINZ, RMAXZ)};
     auto e = t.make_entity(entity_key_t(range,p),p,nullptr,0,mass,0,uniform(HMIN,HMAX));
     t.insert(e);
   }
-
 
   t.cofm(t.root(),0,false);
 

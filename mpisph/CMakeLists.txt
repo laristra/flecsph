@@ -37,6 +37,18 @@ cinch_add_unit(tree3d
   DEFINES
     -DEXT_GDIMENSION=2
   POLICY MPI
+  THREADS 4
+)
+
+cinch_add_unit(tree_distributed
+  SOURCES
+    test/tree_distributed.cc
+    ${FleCSI_RUNTIME}/runtime_driver.cc
+  LIBRARIES
+    ${FleCSPH_LIBRARIES}
+  DEFINES
+    -DEXT_GDIMENSION=2
+  POLICY MPI
 )
 
 cinch_add_unit(mpi_qsort

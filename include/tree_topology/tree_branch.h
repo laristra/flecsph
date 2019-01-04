@@ -141,6 +141,7 @@ public:
   void set_requested(bool requested){requested_ = requested; };
 
   void insert(const flecsi::topology::entity_id_t& id){
+    assert(find(ents_.begin(), ents_.end(), id) == ents_.end());
     ents_.push_back(id);
   } // insert
 

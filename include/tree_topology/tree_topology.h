@@ -64,6 +64,17 @@
 namespace flecsi {
 namespace topology {
 
+#ifdef DEBUG
+template <class T>
+bool is_unique(std::vector<T> X) {
+  std::sort(X.begin(), X.end());
+  auto last = std::unique(X.begin(), X.end());
+  if(last != X.end()){
+    clog(trace)<<*last<<std::endl;
+  }
+  return last == X.end();
+}
+#endif
 
 // Hasher for the branch id used in the unordered_map data structure
 template<
@@ -178,7 +189,7 @@ public:
    */
   ~tree_topology()
   {
-    reset_ghosts();
+    //reset_ghosts();
     branch_map_.clear();
     tree_entities_.clear();
     ghosts_id_.clear();
@@ -255,7 +266,7 @@ public:
         start_ghosts++;
       }
       // Remove all the associate tree branches
-
+      if(start_ghosts != tree_entities_.end())
       tree_entities_.erase(start_ghosts,tree_entities_.end());
       //clog(trace)<<"Vector cleaned: "<<tree_entities_.size()<<std::endl<<std::flush;
       // Clear ghosts informations
@@ -326,40 +337,178 @@ public:
       // Entities to send to other rank
       std::vector<entity_t> edge_entities;
       if(partner >= 0 && partner < size){
-        clog(trace)<<rank<<" <-> "<<partner<<std::endl;
-        // From this key, determine how many particles to send
-        // 1. Find the conflicting depth
-        int conflict_depth = key_t::max_depth();
-        clog(trace)<<"Comparing: "<<neighbor_keys[0]<<" "<<my_keys[0]<<std::endl<<std::flush;
-        clog(trace)<<"Parents: "<<neighbor_keys[1]<<" "<<my_keys[1]<<std::endl<<std::flush;
-
-        // Get the branch, if same, send as conflict
-        while(my_keys[0] != neighbor_keys[0])
+        //clog(trace)<<rank<<" <-> "<<partner<<std::endl;
+        // Compute the conflict
+        //clog(trace)<<"Comparing: "<<neighbor_keys[0]<<" "<<my_keys[0]<<std::endl<<std::flush;
+        //clog(trace)<<"Parents: "<<neighbor_keys[1]<<" "<<my_keys[1]<<std::endl<<std::flush;
+        int neighbor_parent_depth = neighbor_keys[1].depth();
+        int my_parent_depth = my_keys[1].depth();
+        // Handle the cases
+        // The keys of the parents are the same
+        if(neighbor_keys[1] == my_keys[1] )
         {
-          conflict_depth--;
-          my_keys[0].pop();
-          neighbor_keys[0].pop();
-        }
-        clog(trace)<<"Conflict at: "<<conflict_depth<<" key= "<<my_keys[0]<<std::endl;
-        // Parent depth
-        size_t neighbor_parent_depth = neighbor_keys[1].depth();
-        if(neighbor_parent_depth <= conflict_depth){
-          // 2. Find the particles to share
-          key_t research_key = my_keys[0];
-          research_key.truncate(conflict_depth);
-          for(auto b: entities())
-          {
-            key_t key = b.key();
-            key.truncate(conflict_depth);
-            if(key == research_key)
+            // Send the bodies with this header
+            // If this rank is the small one, go from back of vector
+            int max_entities = 1<<dimension;
+            if(rank < partner)
             {
-              edge_entities.push_back(b);
-              clog(trace)<<"sending : "<<b.key()<<std::endl;
+              auto cur = entities_.rbegin();
+              auto end = entities_.rend();
+              for(;cur!=end && max_entities>0; ++cur,--max_entities)
+              {
+                auto b = cur;
+                key_t key = cur->key();
+                key.truncate(neighbor_parent_depth);
+                if(key == neighbor_keys[1])
+                {
+                  edge_entities.push_back(*b);
+                }
+              }
+            // If this rank is the highest, go from the front of the vector
+            }else{
+              auto cur = entities_.begin();
+              auto end = entities_.end();
+              for(;cur!=end && max_entities>0; ++cur,--max_entities)
+              {
+                auto b = cur;
+                key_t key = cur->key();
+                key.truncate(neighbor_parent_depth);
+                if(key == neighbor_keys[1])
+                {
+                  edge_entities.push_back(*b);
+                }
+              }
+            }
+        }else{
+          // Send nothing if the parent are not the same, other branch
+        }
+        // If I am the highest branch
+        // In this case I just look if my body go in the neighbor branch
+        if(neighbor_parent_depth < my_parent_depth)
+        {
+          // Is there a conflict: in this case compare the bodies
+          key_t nb_key = neighbor_keys[0]; nb_key.truncate(my_parent_depth);
+          key_t my_key = my_keys[0]; my_key.truncate(my_parent_depth);
+          // I send the bodies that go in conflict with its body
+          if(nb_key == my_key)
+          {
+            int max_entities = 1<<dimension;
+            if(rank < partner)
+            {
+              auto cur = entities_.rbegin();
+              auto end = entities_.rend();
+              for(;cur!=end && max_entities>0; ++cur,--max_entities)
+              {
+                auto b = cur;
+                key_t key = cur->key();
+                key.truncate(my_parent_depth);
+                if(key == my_keys[1])
+                {
+                  edge_entities.push_back(*b);
+                }
+              }
+            // If this rank is the highest, go from the front of the vector
+            }else{
+              auto cur = entities_.begin();
+              auto end = entities_.end();
+              for(;cur!=end && max_entities>0; ++cur,--max_entities)
+              {
+                auto b = cur;
+                key_t key = cur->key();
+                key.truncate(my_parent_depth);
+                if(key == my_keys[1])
+                {
+                  edge_entities.push_back(*b);
+                }
+              }
+            }
+          }else{
+            // I send my last element to refine my neighbors tree
+            /*int max_entities = 1<<dimension;
+            if(rank < partner)
+            {
+              auto cur = entities_.rbegin();
+              auto end = entities_.rend();
+              for(;cur!=end && max_entities>0; ++cur,--max_entities)
+              {
+                auto b = cur;
+                key_t key = cur->key();
+                key.truncate(my_parent_depth);
+                if(key == my_keys[1])
+                {
+                  edge_entities.push_back(*b);
+                }
+              }
+            // If this rank is the highest, go from the front of the vector
+            }else{
+              auto cur = entities_.begin();
+              auto end = entities_.end();
+              for(;cur!=end && max_entities>0; ++cur,--max_entities)
+              {
+                auto b = cur;
+                key_t key = cur->key();
+                key.truncate(my_parent_depth);
+                if(key == my_keys[1])
+                {
+                  edge_entities.push_back(*b);
+                }
+              }
+            }*/
+          }
+        }
+        // If my neighbor have the highest branch
+        if(neighbor_parent_depth > my_parent_depth)
+        {
+          key_t my_key = my_keys[0]; my_key.truncate(neighbor_parent_depth);
+          if(my_key == neighbor_keys[1])
+          {
+            // Send my branch entities
+            int max_entities = 1<<dimension;
+            if(rank < partner)
+            {
+              auto cur = entities_.rbegin();
+              auto end = entities_.rend();
+              for(;cur!=end && max_entities>0; ++cur,--max_entities)
+              {
+                auto b = cur;
+                key_t key = cur->key();
+                key.truncate(neighbor_parent_depth);
+                if(key == neighbor_keys[1])
+                {
+                  edge_entities.push_back(*b);
+                }
+              }
+            // If this rank is the highest, go from the front of the vector
+            }else{
+              auto cur = entities_.begin();
+              auto end = entities_.end();
+              for(;cur!=end && max_entities>0; ++cur,--max_entities)
+              {
+                auto b = cur;
+                key_t key = cur->key();
+                key.truncate(neighbor_parent_depth);
+                if(key == neighbor_keys[1])
+                {
+                  edge_entities.push_back(*b);
+                }
+              }
+            }
+          }else{
+            // Nothing to share but be prepare to receive
+            // the other bodies at the right depth
+            int nrefine = neighbor_parent_depth - my_parent_depth;
+            int depth = my_parent_depth;
+            for(int i = 0 ; i < nrefine ; ++i)
+            {
+              // Find my branch
+              key_t branch_key = my_keys[0];
+              branch_key.truncate(my_parent_depth);
+              auto& b = branch_map_.find(branch_key)->second;
+              refine_(b);
+              ++my_parent_depth;
             }
           }
         }
-        //}
-        //assert(edge_entities.size() <= (1<<dimension));
       }
       // 3. Send them
       if(rank%2 == i)
@@ -645,18 +794,16 @@ public:
     while(!stk.empty()){
       branch_t* c = stk.top();
       stk.pop();
-      if(c->is_leaf() && c->sub_entities() > 0){
+      if(c->is_leaf()){
         search_list.push_back(c);
       }else{
-        if(c->sub_entities() <= criterion && c->sub_entities() > 0){
+        if(c->sub_entities() < criterion){
           search_list.push_back(c);
         }else{
           for(int i=0; i<(1<<dimension);++i){
             branch_t * next = child(c,i);
             if(next == nullptr) continue;
-            if(next->sub_entities() > 0){
-              stk.push(next);
-            }
+            stk.push(next);
           }
         }
       }
@@ -713,6 +860,7 @@ public:
       ARGS&&... args)
   {
     MPI_Barrier(MPI_COMM_WORLD);
+    clog(trace)<<"Tree traversal "<<std::endl;
     std::stack<branch_t*> stk;
     stk.push(b);
 
@@ -782,11 +930,12 @@ public:
 
     // If the tree was completly local, do not add the ghosts
     if(remaining_branches.size() > 0){
+      assert(is_unique(ghosts_entities_));
       //clog(trace)<<rank<<" done, adding ghosts in tree"<<std::endl<<std::endl<<std::endl;
       for(size_t i = current_ghosts; i < ghosts_entities_.size(); ++i)
       {
         entity_t& g = ghosts_entities_[i];
-        //clog(trace)<<rank<<" inserting: "<<g.key()<<std::endl<<std::flush;
+        //clog(trace)<<rank<<" inserting: "<<g.key()<<" Owner "<<g.owner()<<" id: "<<g.id()<< " i = "<<i<<std::endl<<std::flush;
         auto id = make_entity(g.key(),g.coordinates(),
           nullptr,g.owner(),g.mass(),g.id(),g.radius());
         insert(id);
@@ -842,7 +991,6 @@ public:
         #pragma omp critical
         {
           //clog(trace)<<"Find non local branch: "<<work_branch[i]->key()<<std::endl;
-
           non_local_branches.push_back(work_branch[i]);
           // Send branch key to request handler
           for(auto b: requests_branches){
@@ -856,10 +1004,7 @@ public:
         }
         //clog(trace)<<rank<<" thread find non local branch: "<<send.size()<<std::endl;
         MPI_Request request;
-        MPI_Isend(&(send[0]),send.size()*sizeof(key_t),MPI_BYTE,rank,
-          LOCAL_REQUEST,MPI_COMM_WORLD,&request);
-        // Wait to be received
-        MPI_Wait(&request,MPI_STATUS_IGNORE);
+        MPI_Send(&(send[0]),send.size()*sizeof(key_t),MPI_BYTE,rank,LOCAL_REQUEST,MPI_COMM_WORLD);
       }
     }
   }
@@ -868,7 +1013,8 @@ public:
   void
   handle_requests()
   {
-    int max_size = 100;
+    int max_size = 5;
+    int max_requests = 100;
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
@@ -878,15 +1024,17 @@ public:
     // Maintain a request array for all neighbors
     std::vector<std::vector<key_t>> requests(size);
     std::vector<int> current_requests(size,0);
-    std::vector<MPI_Request> mpi_requests(max_size);
+    std::vector<MPI_Request> mpi_requests(max_requests);
     int current_mpi_requests = 0;
-    std::vector<MPI_Request> mpi_replies(max_size);
+    std::vector<MPI_Request> mpi_replies(max_requests);
     int current_mpi_replies = 0;
     std::vector<std::vector<entity_t>> reply(size);
     int request_counter = 0;
     std::vector<int> current_reply(size,0);
     std::vector<bool> rank_done(size,false);
     bool done_rank = false;
+
+    std::vector<entity_t> new_ghosts;
 
     int rq_ct = 0;
     // Put thread waiting on MPI_Recv
@@ -917,12 +1065,22 @@ public:
           std::vector<entity_t> received(nrecv/sizeof(entity_t));
           MPI_Recv(&(received[0]),nrecv,MPI_BYTE,source,
             SOURCE_REPLY,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+          assert(is_unique(received));
+          new_ghosts.insert(new_ghosts.end(),received.begin(),received.end());
           ghosts_entities_.insert(ghosts_entities_.end(),received.begin(),received.end());
+          // display rexeived
+          std::cerr<<"Received:"<<std::endl;
+          for(auto rcv: received){
+            std::cerr<<rcv.key()<<" from: "<<rcv.owner()<<std::endl;
+          }
+          std::cerr<<std::endl;
+          received.clear();
         }else{
           MPI_Recv(NULL,nrecv,MPI_BYTE,source,SOURCE_REPLY,MPI_COMM_WORLD,
             MPI_STATUS_IGNORE);
         }
-        //current_ghosts = ghosts_entities_.size();
+        assert(is_unique(new_ghosts));
+        assert(is_unique(ghosts_entities_));
         --rq_ct;
       }
       // A rank requested the sub entities of a branch
@@ -932,32 +1090,35 @@ public:
         std::vector<key_t> received(nrecv/sizeof(key_t));
         MPI_Recv(&(received[0]), nrecv, MPI_BYTE, source, SOURCE_REQUEST,
           MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        assert(is_unique(received));
         int reply_count = current_reply[source];
-        int ncount = 0;
+        //int ncount = 0;
         for(auto k: received)
         {
-          //std::cerr<<k<<" sending: ";
+          std::cerr<<k<<" sending: "<<std::endl;
           // Find the branch
           auto branch = branch_map_.find(k);
           assert(branch != branch_map_.end());
           int pres = reply[source].size();
           get_sub_entities(&(branch->second),reply[source]);
-          //std::cerr<<"size: "<< reply[source].size()<<" = "<<std::flush;
-          //for(int i = pres; i < reply[source].size(); ++i)
-          //{
-            //std::cerr<<reply[source][i].key()<<" "<<std::flush;
+          //std::cerr<<"size: "<< reply[source].size()<<" = "<<std::endl<<std::flush;
+          for(int i = pres; i < reply[source].size(); ++i)
+          {
+            std::cerr<<reply[source][i].key()<<" from: "<<reply[source][i].owner()<<std::endl<<std::flush;
           //  assert(reply[source][i].key().value_()!=0);
-          //}
+          }
           //std::cerr<<std::endl;
         }
-        ncount = reply[source].size() - reply_count;
+        assert(is_unique(reply[source]));
+        // Assert I dont send duplicates
+        int ncount = reply[source].size() - reply_count;
         // Send reply
         //clog(trace)<<rank<<" sending bodies to "<<source<<" size: "<<ncount<<std::endl;
         MPI_Isend(&(reply[source][current_reply[source]]),
           ncount*sizeof(entity_t),MPI_BYTE,source,SOURCE_REPLY,MPI_COMM_WORLD,
           &(mpi_replies[current_mpi_replies]));
         ++current_mpi_replies;
-        if(current_mpi_replies > max_size)
+        if(current_mpi_replies > max_requests)
         {
             clog(error)<<rank<<": Exceeding number of replies requests"<<std::endl;
         }
@@ -970,10 +1131,13 @@ public:
         std::vector<key_t> keys(nrecv/sizeof(key_t));
         MPI_Recv(&(keys[0]), nrecv, MPI_BYTE, rank, LOCAL_REQUEST,MPI_COMM_WORLD,
           MPI_STATUS_IGNORE);
+        // Check no duplicate keys
         for(auto k: keys){
           auto itr = branch_map_.find(k);
           assert(itr != branch_map_.end());
           branch_t* branch = &(itr->second);
+          assert(branch->requested());
+          //clog(trace)<<branch->key()<<std::endl;
           int owner = branch->owner();
           // Add this request to vector
           requests[owner].push_back(k);
@@ -984,7 +1148,7 @@ public:
               max_size*sizeof(key_t),MPI_BYTE,owner,SOURCE_REQUEST,
               MPI_COMM_WORLD,&(mpi_requests[current_mpi_requests]));
             ++current_mpi_requests;
-            if(current_mpi_requests > max_size)
+            if(current_mpi_requests > max_requests)
             {
                 clog(error)<<rank<<": Exceeding number of requests requests"<<std::endl;
             }
@@ -1007,7 +1171,7 @@ public:
               nsend*sizeof(key_t),MPI_BYTE,i,SOURCE_REQUEST,
               MPI_COMM_WORLD,&(mpi_requests[current_mpi_requests]));
             ++current_mpi_requests;
-            if(current_mpi_requests > max_size)
+            if(current_mpi_requests > max_requests)
             {
                 clog(error)<<rank<<": Exceeding number of requests requests"<<std::endl;
             }
@@ -1057,7 +1221,7 @@ public:
             MPI_Isend(NULL,0,MPI_INT,i,MPI_RANK_DONE,MPI_COMM_WORLD,
                 &(mpi_requests[current_mpi_requests]));
             ++current_mpi_requests;
-            if(current_mpi_requests > max_size)
+            if(current_mpi_requests > max_requests)
             {
                 clog(error)<<rank<<": Exceeding number of requests requests"<<std::endl;
             }
@@ -1543,6 +1707,7 @@ public:
         }
         // Set upper level not to leave
         branch_map_.find(pk)->second.set_leaf(false);
+
         branch_map_.emplace(key,key);
         itr = branch_map_.find(key);
         itr->second.set_ghosts_local(false);
@@ -1570,6 +1735,11 @@ public:
           itr->second.set_leaf(true);
           //clog(trace) <<rank<< " "<< branch_map_.find(key)->second << std::endl;
         }else{
+          clog(trace)<<"Children exists for: "<<key<<std::endl;
+          if(itr->second.owner() == rank)
+            assert(itr->second.is_shared());
+          else
+            assert(!itr->second.is_shared());
           // Check if same children exists
         }
       }
@@ -1679,7 +1849,7 @@ public:
    {
      int rank = 0;
      MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-     //clog(trace)<<rank<<" outputing tree file #"<<num<<std::endl;
+     clog(trace)<<rank<<" outputing tree file #"<<num<<std::endl;
 
      char fname[64];
      sprintf(fname,"output_graphviz_%02d_%02d.gv",rank,num);
@@ -1811,9 +1981,6 @@ public:
         auto ent = &(tree_entities_[id]);
         branch_id_t bid = ent->get_entity_key();
         branch_t& b = find_parent(bid, max_depth);
-        //clog(trace)<<"Inserting: "<<id<<" key: "<<bid<<std::endl;
-        //clog(trace)<<" parent "<<b.key()<<std::endl;
-
         // Check if it is a leaf
         if(!b.is_leaf())
         {

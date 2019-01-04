@@ -171,6 +171,23 @@ public:
     rbodies.clear();
     rbodies = recvbuffer;
 
+    // Sort the bodies after reception
+    #ifdef BOOST_PARALLEL
+        boost::sort::block_indirect_sort(
+    #else
+        std::sort(
+    #endif
+            rbodies.begin(),rbodies.end(),
+            [](auto& left, auto& right){
+            if(left.key() < right.key()){
+              return true;
+            }
+            if(left.key() == right.key()){
+              return left.id() < right.id();
+            }
+            return false;
+          }); // sort
+
 #ifdef OUTPUT
     std::vector<int> totalprocbodies;
     totalprocbodies.resize(size);
@@ -323,6 +340,7 @@ public:
 
   // Add these branches informations in the tree
   for(auto b: branches){
+    //clog(trace)<<rank<<" owner: "<<b.owner<<" insert "<<b.key<<std::endl;
     if(b.owner != rank){
       tree.insert_branch(b.coordinates,b.mass,b.min,b.max,b.key,
         b.owner,b.sub_entities);

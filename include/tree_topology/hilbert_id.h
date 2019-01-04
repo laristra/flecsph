@@ -429,6 +429,17 @@ public:
     id_ >>= dimension;
   }
 
+  int conflict_depth(hilbert_id key_a, hilbert_id key_b)
+  {
+    int conflict = max_depth;
+    while(key_a != key_b){
+      key_a.pop();
+      key_b.pop();
+      --conflict;
+    }
+    return conflict;
+  }
+
   // Pop and return the digits popped
   int pop_value()
   {
