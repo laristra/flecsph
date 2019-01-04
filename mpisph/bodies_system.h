@@ -205,11 +205,10 @@ public:
       param::periodic_boundary_z)
       boundary::pboundary_clean(tree_.entities());
 
-    // Choose the smoothing length to be the biggest from everyone
-    smoothinglength_ = getSmoothinglength();
-
     if(param::periodic_boundary_x || param::periodic_boundary_y ||
       param::periodic_boundary_z){
+      // Choose the smoothing length to be the biggest from everyone
+      smoothinglength_ = getSmoothinglength();
       boundary::pboundary_generate(tree_.entities(),2.5*smoothinglength_);
       localnbodies_ = tree_.entities().size();
       MPI_Allreduce(&localnbodies_,&totalnbodies_,1,MPI_INT64_T,MPI_SUM,
@@ -224,7 +223,9 @@ public:
     rank || clog(trace) << "Range="<<range_[0]<<";"<<range_[1]<<std::endl;
 
     // Generate the tree based on the range
+    //tree_ = new tree_topology_t(range_[0],range_[1]);
     tree_.set_range(range_);
+
     // Compute the keys
     tree_.compute_keys();
     // Distributed sample sort
@@ -233,6 +234,23 @@ public:
 #ifdef OUTPUT_TREE_INFO
     rank || clog(trace) << "Construction of the tree";
 #endif
+
+// Sort the bodies
+#ifdef BOOST_PARALLEL
+    boost::sort::block_indirect_sort(
+#else
+    std::sort(
+#endif
+      tree_.entities().begin(),tree_.entities().end(),
+        [](auto& left, auto &right){
+          if(left.key()<right.key()){
+            return true;
+          }
+          if(left.key() == right.key()){
+            return left.id()<right.id();
+          }
+          return false;
+    }); // sort
 
     // Add my local bodies in my tree
     // Clear the bodies_ vector
@@ -336,9 +354,7 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
     }
 #endif
 
-
 #ifdef OUTPUT_TREE_INFO
-    MPI_Barrier(MPI_COMM_WORLD);
     // Tree informations
     rank || clog(trace) << tree_ << " root range = "<< tree_.root()->bmin()
      <<";"<<tree_.root()->bmax()<< std::endl;

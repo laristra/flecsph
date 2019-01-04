@@ -145,7 +145,7 @@ namespace mpi_utils{
     typename M>
   void
   mpi_alltoallv_p2p(
-      std::vector<int> sendcount,
+      std::vector<int>& sendcount,
       std::vector<M>& sendbuffer,
       std::vector<M>& recvbuffer
     )

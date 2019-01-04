@@ -164,29 +164,28 @@ public:
     assert( std::accumulate(scount.begin(), scount.end(), 0) == rbodies.size());
 
     std::vector<body> recvbuffer;
-
     // Direct exchange using point to point
     mpi_alltoallv_p2p(scount,rbodies,recvbuffer);
 
     rbodies.clear();
     rbodies = recvbuffer;
 
-    // Sort the bodies after reception
-    #ifdef BOOST_PARALLEL
-        boost::sort::block_indirect_sort(
-    #else
-        std::sort(
-    #endif
-            rbodies.begin(),rbodies.end(),
-            [](auto& left, auto& right){
-            if(left.key() < right.key()){
-              return true;
-            }
-            if(left.key() == right.key()){
-              return left.id() < right.id();
-            }
-            return false;
-          }); // sort
+// Sort the bodies after reception
+#ifdef BOOST_PARALLEL
+    boost::sort::block_indirect_sort(
+#else
+    std::sort(
+#endif
+        rbodies.begin(),rbodies.end(),
+        [](auto& left, auto& right){
+        if(left.key() < right.key()){
+          return true;
+        }
+        if(left.key() == right.key()){
+          return left.id() < right.id();
+        }
+        return false;
+      }); // sort
 
 #ifdef OUTPUT
     std::vector<int> totalprocbodies;

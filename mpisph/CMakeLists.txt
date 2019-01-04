@@ -47,8 +47,11 @@ cinch_add_unit(tree_distributed
   LIBRARIES
     ${FleCSPH_LIBRARIES}
   DEFINES
-    -DEXT_GDIMENSION=2
-  POLICY MPI
+    -DEXT_GDIMENSION=3
+  INPUTS
+    test/tree_distributed_data.h5part
+  #POLICY MPI
+  #THREADS 4
 )
 
 cinch_add_unit(mpi_qsort

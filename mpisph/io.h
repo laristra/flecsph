@@ -48,6 +48,8 @@ hsize_t IO_count;
 int64_t IO_nparticlesproc;
 int64_t IO_nparticles;
 
+MPI_Comm comm_ = MPI_COMM_WORLD;
+
 template<
   typename T>
 hid_t
@@ -63,7 +65,7 @@ H5P_getType(T* data)
     type = H5T_NATIVE_ULLONG;
   } else {
     std::cout<<"Unknown type: "<<typeid(T).name()<<std::endl;
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(comm_);
     MPI_Finalize();
   }
   return type;
@@ -72,7 +74,7 @@ H5P_getType(T* data)
 hid_t
 H5P_openFile(const char * filename,	unsigned int flags )
 {
-  MPI_Comm comm  = MPI_COMM_WORLD;
+  MPI_Comm comm  = comm_;
   MPI_Info info  = MPI_INFO_NULL;
   /* Set up file access property list with parallel I/O access */
   hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
@@ -282,7 +284,7 @@ H5P_readDataset(
   hid_t type = H5P_getType(data);
 
   int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  MPI_Comm_rank(comm_,&rank);
   hid_t status = 1;
   /* Open the dataset*/
   hid_t dset_id = H5Dopen (IO_group_id, dsname, H5P_DEFAULT);
@@ -316,14 +318,14 @@ size_t
 H5P_setNumParticles(const int64_t& nparticlesproc)
 {
   int rank, size;
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  MPI_Comm_size(MPI_COMM_WORLD,&size);
+  MPI_Comm_rank(comm_,&rank);
+  MPI_Comm_size(comm_,&size);
   // Compute arrays for hyperslab
 
   IO_nparticlesproc = nparticlesproc;
   std::vector<int64_t> offcount(size+1);
   MPI_Allgather(&nparticlesproc,1,MPI_INT64_T,
-    &offcount[0],1,MPI_INT64_T,MPI_COMM_WORLD);
+    &offcount[0],1,MPI_INT64_T,comm_);
 
   for(int i = 1 ; i < size; ++i)
     offcount[i] += offcount[i-1];
@@ -363,9 +365,11 @@ void inputDataHDF5(
   const char * output_file_prefix,
   int64_t& totalnbodies,
   int64_t& nbodies,
-  int startIteration)
+  int startIteration,
+  MPI_Comm comm = MPI_COMM_WORLD)
 {
 
+  comm_ = comm;
   char output_filename[128];
   sprintf(output_filename,"%s.h5part",output_file_prefix);
 
@@ -376,8 +380,8 @@ void inputDataHDF5(
   //H5SetVerbosityLevel  (0);
 
   int rank, size;
-  MPI_Comm_size(MPI_COMM_WORLD,&size);
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  MPI_Comm_size(comm_,&size);
+  MPI_Comm_rank(comm_,&rank);
 
   rank|| clog(trace)<<"Input particles" << std::endl;
 
@@ -388,7 +392,7 @@ void inputDataHDF5(
   //if(startIteration == 0){
   //  dataFile = H5OpenFile(filename,H5_O_RDONLY
   //    | H5_VFD_MPIIO_IND,// Flag to be not use mpiposix
-  //    MPI_COMM_WORLD);
+  //    comm_);
   //}
 
   // ------------- CHECK IF THE SEARCHED ITERATION EXISTS ---------------------
@@ -408,7 +412,7 @@ void inputDataHDF5(
         if(0 != H5P_readAttributeStep(dataFile,"iteration",&iteration)){
           rank || clog(error) << "Cannot read iteration in step "
             <<step<<std::endl;
-          MPI_Barrier(MPI_COMM_WORLD);
+          MPI_Barrier(comm_);
           MPI_Finalize();
         }
         if(iteration == startIteration){
@@ -423,7 +427,7 @@ void inputDataHDF5(
     if(!found){
       rank || clog(error) << "Cannot find iteration "<<startIteration<<" in "
         <<filename<<std::endl;
-      MPI_Barrier(MPI_COMM_WORLD);
+      MPI_Barrier(comm_);
       MPI_Finalize();
     }
     startStep = step-1;
@@ -442,12 +446,12 @@ void inputDataHDF5(
       sprintf(step_filename,"%s_%05d.h5part",output_file_prefix,step);
       rank || clog(trace) <<"Checking if file "<<step_filename<<" exists"
         <<std::endl<<std::flush;
-      MPI_Barrier(MPI_COMM_WORLD);
+      MPI_Barrier(comm_);
       // Check if files exists
       if(access(step_filename,F_OK)==-1){
         rank || clog(error)<<"Cannot find file "<< step_filename<<
           " unable to find file with iteration "<<startIteration<<std::endl;
-        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Barrier(comm_);
         MPI_Finalize();
       }
       // File exists, check the iteration
@@ -457,7 +461,7 @@ void inputDataHDF5(
       if(0 != H5P_readAttributeStep(stepFile,"iteration",&iteration)){
           rank || clog(error) << "Cannot read iteration in file "
             <<step_filename<<std::endl;
-          MPI_Barrier(MPI_COMM_WORLD);
+          MPI_Barrier(comm_);
           MPI_Finalize();
       }
       if(iteration == startIteration){
@@ -496,7 +500,7 @@ void inputDataHDF5(
         <<lastStep<<std::endl;
       if(startStep != lastStep){
         rank || clog(error) << "First step not last step in output"<<std::endl;
-        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Barrier(comm_);
         MPI_Finalize();
       }
       H5P_closeFile(outputFile);
@@ -506,7 +510,7 @@ void inputDataHDF5(
 
   if(dataFile == 0){
     rank || clog(error) << "Cannot find data file"<<std::endl;
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(comm_);
     MPI_Finalize();
   }
 
@@ -760,7 +764,7 @@ void inputDataHDF5(
   delete[] dataInt;
   delete[] dataInt32;
 
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(comm_);
   H5Fclose(dataFile);
   //H5CloseFile(dataFile);
 
@@ -775,17 +779,20 @@ void outputDataHDF5(
     std::vector<body>& bodies,
     const char* fileprefix,
     int64_t iteration,
-    double totaltime)
+    double totaltime,
+    MPI_Comm comm = MPI_COMM_WORLD)
 {
+
+  comm_ = comm;
 
   int step = iteration/param::out_h5data_every;
 
   bool do_diff_files = param::out_h5data_separate_iterations;
   int size, rank;
-  MPI_Comm_size(MPI_COMM_WORLD,&size);
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  MPI_Comm_size(comm_,&size);
+  MPI_Comm_rank(comm_,&rank);
 
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(comm_);
   rank|| clog(trace)<<"Output particles"<<std::flush;
 
   char filename[128];
@@ -805,7 +812,7 @@ void outputDataHDF5(
   }
 
   // Wait for removing the file before writing in
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(comm_);
   // Check if file exists
   hid_t dataFile = H5P_openFile(filename,H5F_ACC_RDWR);
 
@@ -947,7 +954,9 @@ void outputDataHDF5(
 
   rank|| clog(trace)<<".done"<<std::endl;
 
+
 }// outputDataHDF5
+
 } // namespace io
 
 #endif // _mpisph_io_h_

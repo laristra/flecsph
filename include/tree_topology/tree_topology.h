@@ -64,7 +64,6 @@
 namespace flecsi {
 namespace topology {
 
-#ifdef DEBUG
 template <class T>
 bool is_unique(std::vector<T> X) {
   std::sort(X.begin(), X.end());
@@ -74,7 +73,6 @@ bool is_unique(std::vector<T> X) {
   }
   return last == X.end();
 }
-#endif
 
 // Hasher for the branch id used in the unordered_map data structure
 template<
@@ -548,9 +546,11 @@ public:
       //clog(trace)<<rank<<" received "<<received_ghosts.size()<<std::endl;
     }
 
+    std::cerr<<"Adding ghosts: "<<std::endl;
     for(auto g: received_ghosts)
     {
       ghosts_entities().push_back(g);
+      std::cerr<<g.key()<<std::endl;
     }
     for(auto& g : ghosts_entities())
     {
@@ -1013,7 +1013,7 @@ public:
   void
   handle_requests()
   {
-    int max_size = 5;
+    int max_size = 100;
     int max_requests = 100;
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -1095,7 +1095,7 @@ public:
         //int ncount = 0;
         for(auto k: received)
         {
-          std::cerr<<k<<" sending: "<<std::endl;
+          std::cerr<<k<<" sending to "<<source<<std::endl;
           // Find the branch
           auto branch = branch_map_.find(k);
           assert(branch != branch_map_.end());
@@ -1104,12 +1104,12 @@ public:
           //std::cerr<<"size: "<< reply[source].size()<<" = "<<std::endl<<std::flush;
           for(int i = pres; i < reply[source].size(); ++i)
           {
-            std::cerr<<reply[source][i].key()<<" from: "<<reply[source][i].owner()<<std::endl<<std::flush;
+            std::cerr<<"   " << reply[source][i].key()<<std::endl<<std::flush;
           //  assert(reply[source][i].key().value_()!=0);
           }
           //std::cerr<<std::endl;
         }
-        assert(is_unique(reply[source]));
+        //assert(is_unique(reply[source]));
         // Assert I dont send duplicates
         int ncount = reply[source].size() - reply_count;
         // Send reply
