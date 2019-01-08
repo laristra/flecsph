@@ -252,8 +252,6 @@ public:
       // set ghosts_local to 0
       //b.clear();
     }
-    // Reset all branches for sharing
-    //clog(trace)<<"Clearing the vector: "<<tree_entities_.size()<<std::endl<<std::flush;
 
     if(tree_entities_.size() != 0)
     {
@@ -266,7 +264,6 @@ public:
       // Remove all the associate tree branches
       if(start_ghosts != tree_entities_.end())
       tree_entities_.erase(start_ghosts,tree_entities_.end());
-      //clog(trace)<<"Vector cleaned: "<<tree_entities_.size()<<std::endl<<std::flush;
       // Clear ghosts informations
       ghosts_id_.clear();
       ghosts_entities_.clear();
@@ -337,8 +334,6 @@ public:
       if(partner >= 0 && partner < size){
         //clog(trace)<<rank<<" <-> "<<partner<<std::endl;
         // Compute the conflict
-        //clog(trace)<<"Comparing: "<<neighbor_keys[0]<<" "<<my_keys[0]<<std::endl<<std::flush;
-        //clog(trace)<<"Parents: "<<neighbor_keys[1]<<" "<<my_keys[1]<<std::endl<<std::flush;
         int neighbor_parent_depth = neighbor_keys[1].depth();
         int my_parent_depth = my_keys[1].depth();
         // Handle the cases
@@ -539,18 +534,15 @@ public:
           received_ghosts.resize(offset+nrecv/sizeof(entity_t));
           MPI_Recv(&(received_ghosts[offset]),nrecv,MPI_BYTE,partner,1,
             MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-          MPI_Send(&(edge_entities[0]),sizeof(entity_t)*edge_entities.size(),MPI_BYTE,
-            partner,1,MPI_COMM_WORLD);
+          MPI_Send(&(edge_entities[0]),sizeof(entity_t)*edge_entities.size(),
+            MPI_BYTE,partner,1,MPI_COMM_WORLD);
         }
       }
       //clog(trace)<<rank<<" received "<<received_ghosts.size()<<std::endl;
     }
 
-    std::cerr<<"Adding ghosts: "<<std::endl;
-    for(auto g: received_ghosts)
-    {
+    for(auto g: received_ghosts){
       ghosts_entities().push_back(g);
-      std::cerr<<g.key()<<std::endl;
     }
     for(auto& g : ghosts_entities())
     {
@@ -619,15 +611,6 @@ public:
       return nullptr;
     }
     return &child->second;
-  }
-
-  /*!
-    Return an index space containing all entities (including those removed).
-   */
-  std::vector<tree_entity_t>&
-  all_tree_entities() const
-  {
-    return tree_entities_;
   }
 
   /*!
@@ -892,21 +875,12 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     size_t current_ghosts = ghosts_entities_.size();
 
-    //clog(trace)<<rank<<"branches:"<<std::endl;
-    //for(auto b: work_branch)
-    //{
-    //  clog(trace)<<rank<<" working:"<<b->id()<<std::endl;
-    //}
-
     std::vector<branch_t*> remaining_branches;
     // Start the threads on the branches
-    std::thread handler(&tree_topology::handle_requests,this);
+    std::thread handler([this]{handle_requests();});
 
-    //clog(trace)<<rank<<" tree traversal"<<std::endl;
     traverse_branches(MAC,do_square,work_branch,remaining_branches,false,ef,
         std::forward<ARGS>(args)...);
-    //clog(trace)<<rank<<" tree traversal done "<<std::endl;
-    //clog(trace)<<rank<<" sending done to thread"<<std::endl;
 
     void * buf = NULL;
     MPI_Request request;
@@ -925,19 +899,17 @@ public:
 #endif
 
     mpi_tree_traversal_graphviz(4);
-    // Finish the branches when other section done
-    rank || clog(trace)<<rank<<" #non_local_branches: "<<remaining_branches.size()<< " ghosts: "<<ghosts_entities_.size()<<std::endl;
 
     // If the tree was completly local, do not add the ghosts
     if(remaining_branches.size() > 0){
       assert(is_unique(ghosts_entities_));
-      //clog(trace)<<rank<<" done, adding ghosts in tree"<<std::endl<<std::endl<<std::endl;
       for(size_t i = current_ghosts; i < ghosts_entities_.size(); ++i)
       {
         entity_t& g = ghosts_entities_[i];
-        //clog(trace)<<rank<<" inserting: "<<g.key()<<" Owner "<<g.owner()<<" id: "<<g.id()<< " i = "<<i<<std::endl<<std::flush;
         auto id = make_entity(g.key(),g.coordinates(),
           nullptr,g.owner(),g.mass(),g.id(),g.radius());
+        // Assert the parent exists and is non local
+        assert(!find_parent_(g.key()).is_local());
         insert(id);
         auto nbi = get(id);
         nbi->setBody(&g);
@@ -956,8 +928,6 @@ public:
     //clog(trace)<<rank<<" Traversal for remaning branches"<<std::endl;
     traverse_branches(MAC,do_square,remaining_branches,remaining_branches,true,
       ef,std::forward<ARGS>(args)...);
-    //clog(trace)<<rank<<"done"<<std::endl;
-    // Reset the number of threads
   } // apply_sub_cells
 
   template<
@@ -990,7 +960,6 @@ public:
         std::vector<key_t> send;
         #pragma omp critical
         {
-          //clog(trace)<<"Find non local branch: "<<work_branch[i]->key()<<std::endl;
           non_local_branches.push_back(work_branch[i]);
           // Send branch key to request handler
           for(auto b: requests_branches){
@@ -1002,9 +971,9 @@ public:
             }
           }
         }
-        //clog(trace)<<rank<<" thread find non local branch: "<<send.size()<<std::endl;
         MPI_Request request;
-        MPI_Send(&(send[0]),send.size()*sizeof(key_t),MPI_BYTE,rank,LOCAL_REQUEST,MPI_COMM_WORLD);
+        MPI_Send(&(send[0]),send.size()*sizeof(key_t),MPI_BYTE,rank,
+          LOCAL_REQUEST,MPI_COMM_WORLD);
       }
     }
   }
@@ -1020,17 +989,22 @@ public:
     MPI_Comm_size(MPI_COMM_WORLD,&size);
     bool done_traversal = false;
     bool done = false;
-    //clog(trace)<<rank<<" thread waiting object: "<<entities_.size()<<std::endl;
+
     // Maintain a request array for all neighbors
-    std::vector<std::vector<key_t>> requests(size);
+    std::vector<std::vector<std::vector<key_t>>> requests(size);
+    std::vector<std::vector<std::vector<entity_t>>> reply(size);
     std::vector<int> current_requests(size,0);
+    std::vector<int> current_reply(size,0);
+    for(int i = 0 ; i < size; ++i){
+      requests[i].resize(max_requests);
+      reply[i].resize(max_requests);
+    }
+
     std::vector<MPI_Request> mpi_requests(max_requests);
     int current_mpi_requests = 0;
     std::vector<MPI_Request> mpi_replies(max_requests);
     int current_mpi_replies = 0;
-    std::vector<std::vector<entity_t>> reply(size);
     int request_counter = 0;
-    std::vector<int> current_reply(size,0);
     std::vector<bool> rank_done(size,false);
     bool done_rank = false;
 
@@ -1047,200 +1021,163 @@ public:
       int tag = status.MPI_TAG;
       int nrecv = 0;
       MPI_Get_count(&status, MPI_BYTE, &nrecv);
-      //if(tag != LOCAL_REQUEST){
-      //clog(trace)<<rank<<" received tag: "<<tag<<std::endl;
-      //}
-      // Another rank finished his traversal
-      if(tag == MPI_RANK_DONE){
-        //clog(trace)<<rank<<" received rank done from "<<source<<std::endl;
-        MPI_Recv(NULL,0,MPI_INT,source,MPI_RANK_DONE,MPI_COMM_WORLD,
-          MPI_STATUS_IGNORE);
-        rank_done[source] = true;
-      }
-      // Another rank replies to my requests with particles
-      if(tag == SOURCE_REPLY){
-        //clog(trace)<<rank<<" receive reply from "<<source<<" size: "<<nrecv/sizeof(entity_t)<<std::endl<<std::flush;
-        if(nrecv != 0)
+
+      switch(tag)
+      {
+        case MPI_RANK_DONE:
         {
-          std::vector<entity_t> received(nrecv/sizeof(entity_t));
-          MPI_Recv(&(received[0]),nrecv,MPI_BYTE,source,
-            SOURCE_REPLY,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-          assert(is_unique(received));
-          new_ghosts.insert(new_ghosts.end(),received.begin(),received.end());
-          ghosts_entities_.insert(ghosts_entities_.end(),received.begin(),received.end());
-          // display rexeived
-          std::cerr<<"Received:"<<std::endl;
-          for(auto rcv: received){
-            std::cerr<<rcv.key()<<" from: "<<rcv.owner()<<std::endl;
-          }
-          std::cerr<<std::endl;
-          received.clear();
-        }else{
-          MPI_Recv(NULL,nrecv,MPI_BYTE,source,SOURCE_REPLY,MPI_COMM_WORLD,
+          MPI_Recv(NULL,0,MPI_INT,source,MPI_RANK_DONE,MPI_COMM_WORLD,
             MPI_STATUS_IGNORE);
+          rank_done[source] = true;
         }
-        assert(is_unique(new_ghosts));
-        assert(is_unique(ghosts_entities_));
-        --rq_ct;
-      }
-      // A rank requested the sub entities of a branch
-      // Find them in the tree and send the reply
-      if(tag == SOURCE_REQUEST){
-        //clog(trace)<<rank<<" receive request from: "<<source<<" size: "<<nrecv<<" #key: "<<nrecv/sizeof(key_t)<<std::endl<<std::flush;
-        std::vector<key_t> received(nrecv/sizeof(key_t));
-        MPI_Recv(&(received[0]), nrecv, MPI_BYTE, source, SOURCE_REQUEST,
-          MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        assert(is_unique(received));
-        int reply_count = current_reply[source];
-        //int ncount = 0;
-        for(auto k: received)
+        break;
+        // ------------------------------------------------------------------ //
+        //     Another rank replied to my entities request                    //
+        // ------------------------------------------------------------------ //
+        case SOURCE_REPLY:
         {
-          std::cerr<<k<<" sending to "<<source<<std::endl;
-          // Find the branch
-          auto branch = branch_map_.find(k);
-          assert(branch != branch_map_.end());
-          int pres = reply[source].size();
-          get_sub_entities(&(branch->second),reply[source]);
-          //std::cerr<<"size: "<< reply[source].size()<<" = "<<std::endl<<std::flush;
-          for(int i = pres; i < reply[source].size(); ++i)
+          if(nrecv != 0)
           {
-            std::cerr<<"   " << reply[source][i].key()<<std::endl<<std::flush;
-          //  assert(reply[source][i].key().value_()!=0);
+            std::vector<entity_t> received(nrecv/sizeof(entity_t));
+            MPI_Recv(&(received[0]),nrecv,MPI_BYTE,source,
+              SOURCE_REPLY,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+            assert(is_unique(received));
+            new_ghosts.insert(new_ghosts.end(),received.begin(),received.end());
+            ghosts_entities_.insert(
+              ghosts_entities_.end(),received.begin(),received.end());
+          }else{
+            MPI_Recv(NULL,nrecv,MPI_BYTE,source,SOURCE_REPLY,MPI_COMM_WORLD,
+              MPI_STATUS_IGNORE);
           }
-          //std::cerr<<std::endl;
+          assert(is_unique(new_ghosts));
+          assert(is_unique(ghosts_entities_));
+          --rq_ct;
         }
-        //assert(is_unique(reply[source]));
-        // Assert I dont send duplicates
-        int ncount = reply[source].size() - reply_count;
-        // Send reply
-        //clog(trace)<<rank<<" sending bodies to "<<source<<" size: "<<ncount<<std::endl;
-        MPI_Isend(&(reply[source][current_reply[source]]),
-          ncount*sizeof(entity_t),MPI_BYTE,source,SOURCE_REPLY,MPI_COMM_WORLD,
-          &(mpi_replies[current_mpi_replies]));
-        ++current_mpi_replies;
-        if(current_mpi_replies > max_requests)
+        break;
+        // ------------------------------------------------------------------ //
+        //    Another rank request information for entities                   //
+        // ------------------------------------------------------------------ //
+        case SOURCE_REQUEST:
         {
-            clog(error)<<rank<<": Exceeding number of replies requests"<<std::endl;
-        }
-        current_reply[source] = reply[source].size();
-      }
-      // A local thread ask to request NONLOCAL particles
-      // Find the branch and add its
-      if(tag == LOCAL_REQUEST){
-        //clog(trace)<<rank<<" local request"<<std::endl;
-        std::vector<key_t> keys(nrecv/sizeof(key_t));
-        MPI_Recv(&(keys[0]), nrecv, MPI_BYTE, rank, LOCAL_REQUEST,MPI_COMM_WORLD,
-          MPI_STATUS_IGNORE);
-        // Check no duplicate keys
-        for(auto k: keys){
-          auto itr = branch_map_.find(k);
-          assert(itr != branch_map_.end());
-          branch_t* branch = &(itr->second);
-          assert(branch->requested());
-          //clog(trace)<<branch->key()<<std::endl;
-          int owner = branch->owner();
-          // Add this request to vector
-          requests[owner].push_back(k);
-          if(requests[owner].size() >= current_requests[owner]+max_size)
-          {
-            //clog(trace)<<rank<<" sending request to "<<owner<<std::endl<<std::flush;
-            MPI_Isend(&(requests[owner][current_requests[owner]]),
-              max_size*sizeof(key_t),MPI_BYTE,owner,SOURCE_REQUEST,
-              MPI_COMM_WORLD,&(mpi_requests[current_mpi_requests]));
-            ++current_mpi_requests;
-            if(current_mpi_requests > max_requests)
-            {
-                clog(error)<<rank<<": Exceeding number of requests requests"<<std::endl;
-            }
-            current_requests[owner]+=max_size;
-            rq_ct++;
+          std::vector<key_t> received(nrecv/sizeof(key_t));
+          MPI_Recv(&(received[0]), nrecv, MPI_BYTE, source, SOURCE_REQUEST,
+            MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+          assert(is_unique(received));
+          for(auto k: received){
+            auto branch = branch_map_.find(k);
+            assert(branch != branch_map_.end());
+            get_sub_entities(&(branch->second),
+              reply[source][current_reply[source]]);
+          }
+          int ncount = reply[source][current_reply[source]].size();
+          MPI_Isend(&(reply[source][current_reply[source]++][0]),
+            ncount*sizeof(entity_t),MPI_BYTE,source,SOURCE_REPLY,MPI_COMM_WORLD,
+            &(mpi_replies[current_mpi_replies++]));
+          if(current_mpi_replies > max_requests){
+              clog(error)<<rank<<
+                ": Exceeding number of replies requests"<<std::endl;
           }
         }
-      }
-      if(tag == MPI_DONE){
-        // First time, send remaining requests
-        MPI_Recv(NULL,0,MPI_INT,source,MPI_DONE,MPI_COMM_WORLD,
-          MPI_STATUS_IGNORE);
-        for(int i = 0 ; i < size ; ++i){
-          if(i == rank ) continue;
-          if(requests[i].size() > current_requests[i])
-          {
-            int nsend = requests[i].size() - current_requests[i];
-            //clog(trace)<<rank<<" finishing request for "<<i<<" with: "<<nsend<<std::endl;
-            MPI_Isend(&(requests[i][current_requests[i]]),
-              nsend*sizeof(key_t),MPI_BYTE,i,SOURCE_REQUEST,
-              MPI_COMM_WORLD,&(mpi_requests[current_mpi_requests]));
-            ++current_mpi_requests;
-            if(current_mpi_requests > max_requests)
-            {
-                clog(error)<<rank<<": Exceeding number of requests requests"<<std::endl;
+        break;
+        // ------------------------------------------------------------------ //
+        //        A local thread requested a distant particles                //
+        // ------------------------------------------------------------------ //
+        case LOCAL_REQUEST:
+        {
+          std::vector<key_t> keys(nrecv/sizeof(key_t));
+          MPI_Recv(&(keys[0]), nrecv, MPI_BYTE, rank, LOCAL_REQUEST,
+            MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+          for(auto k: keys){
+            auto itr = branch_map_.find(k); assert(itr != branch_map_.end());
+            branch_t* branch = &(itr->second); assert(branch->requested());
+            int owner = branch->owner();
+            // Add this request to vector
+            requests[owner][current_requests[owner]].push_back(k);
+            if(requests[owner][current_requests[owner]].size() >= max_size){
+              MPI_Isend(&(requests[owner][current_requests[owner]++][0]),
+                max_size*sizeof(key_t),MPI_BYTE,owner,SOURCE_REQUEST,
+                MPI_COMM_WORLD,&(mpi_requests[current_mpi_requests++]));
+              if(current_mpi_requests > max_requests){
+                  clog(error)<<rank<<
+                    ": Exceeding number of requests requests"<<std::endl;
+              }
+              ++rq_ct;
             }
-            rq_ct++;
           }
         }
-        done_traversal = true;
+        break;
+        // ------------------------------------------------------------------ //
+        //        The OpenMP threads are done, send the last requests         //
+        // ------------------------------------------------------------------ //
+        case MPI_DONE:
+        {
+          // First time, send remaining requests
+          MPI_Recv(NULL,0,MPI_INT,source,MPI_DONE,MPI_COMM_WORLD,
+            MPI_STATUS_IGNORE);
+          for(int i = 0 ; i < size ; ++i){
+            if(i == rank ) continue;
+            if(requests[i][current_requests[i]].size() > 0)
+            {
+              int nsend = requests[i][current_requests[i]].size();
+              MPI_Isend(&(requests[i][current_requests[i]][0]),
+                nsend*sizeof(key_t),MPI_BYTE,i,SOURCE_REQUEST,MPI_COMM_WORLD,
+                &(mpi_requests[current_mpi_requests++]));
+              if(current_mpi_requests > max_requests)
+              {
+                  clog(error)<<rank<<
+                    ": Exceeding number of requests requests"<<std::endl;
+              }
+              ++rq_ct;
+            }
+          }
+          done_traversal = true;
+        }
+        break;
+
+        default:
+          {assert(false);}
+        break;
       }
+
       if(done_traversal)
       {
         // Check if all requests have been answered
         done = rq_ct==0?true:false;
-        //if(!done)
-        //  clog(trace)<<rank<<": rq counter: "<<rq_ct<<std::endl;
         bool done_requests = true;
+        int flag;
         for(size_t i = 0 ; i < current_mpi_requests; ++i){
-          int flag;
           MPI_Test(&(mpi_requests[i]),&flag,MPI_STATUS_IGNORE);
-          if(flag == false){
-            done_requests = false;
-          }
+          done_requests = flag==false?false:done_requests;
         }
         done = done && done_requests;
-        //if(!done_requests){
-        //  clog(trace)<<rank<<" mpi_requests not completed"<<std::endl;
-        //}
         bool done_replies = true;
         for(size_t i = 0 ; i < current_mpi_replies; ++i){
-          int flag;
           MPI_Test(&(mpi_replies[i]),&flag,MPI_STATUS_IGNORE);
-          if(flag == false){
-            done_replies = false;
-          }
+          done_replies = flag==false?false:done_replies;
         }
-        //if(!done_replies){
-        //  clog(trace)<<rank<<" mpi_reply not completed"<<std::endl;
-        //}
         done = done && done_replies;
 
         if(done_replies && done_requests && (rq_ct == 0) && (!done_rank))
         {
           done_rank = true;
-          //clog(trace)<<rank<<" sending done rank"<<std::endl;
           // Send rank done
           for(int i = 0 ; i < size; ++i){
             if(i == rank) continue;
             MPI_Isend(NULL,0,MPI_INT,i,MPI_RANK_DONE,MPI_COMM_WORLD,
-                &(mpi_requests[current_mpi_requests]));
-            ++current_mpi_requests;
+                &(mpi_requests[current_mpi_requests++]));
             if(current_mpi_requests > max_requests)
             {
-                clog(error)<<rank<<": Exceeding number of requests requests"<<std::endl;
+                clog(error)<<rank<<
+                  ": Exceeding number of requests requests"<<std::endl;
             }
           }
           rank_done[rank] = true;
         }
-
         for(size_t i = 0 ; i < size; ++i){
-          if(rank_done[i] == false)
-          {
-            done = false;
-          }
+          done = rank_done[i]==false?false:done;
         }
-        //if(done){
-        //  clog(trace)<<rank<<" all requests handled and all rank done, done"<<std::endl;
-        //}
       }
     }
-    //clog(trace)<<rank<<" thread exited the loop"<<std::endl;
   }
 
   void
@@ -1733,9 +1670,7 @@ public:
           itr->second.set_sub_entities(sub_entities);
           itr->second.set_locality(branch_t::NONLOCAL);
           itr->second.set_leaf(true);
-          //clog(trace) <<rank<< " "<< branch_map_.find(key)->second << std::endl;
         }else{
-          clog(trace)<<"Children exists for: "<<key<<std::endl;
           if(itr->second.owner() == rank)
             assert(itr->second.is_shared());
           else
@@ -1841,7 +1776,7 @@ public:
     * This is useful for small number of particles to help representing the tree
     *
     * @param      tree   The tree to output
-    * @param      range  The range of the particles, use to construct entity_keys
+    * @param      range  The range of the particles, use to construct entity_key
     */
    void
    mpi_tree_traversal_graphviz(
@@ -1849,7 +1784,7 @@ public:
    {
      int rank = 0;
      MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-     clog(trace)<<rank<<" outputing tree file #"<<num<<std::endl;
+     //clog(trace)<<rank<<" outputing tree file #"<<num<<std::endl;
 
      char fname[64];
      sprintf(fname,"output_graphviz_%02d_%02d.gv",rank,num);

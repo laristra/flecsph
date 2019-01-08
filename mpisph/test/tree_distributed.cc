@@ -43,7 +43,10 @@ TEST(tree_distribution, distribution) {
   int provided;
   MPI_Init_thread(NULL, NULL, MPI_THREAD_MULTIPLE, &provided);
 
-  // Perform the computation on one process to compute the neighbors
+  //--------------------------------------------------------------------------//
+  //     Perform the computation on one process to compute the neighbors      //
+  //--------------------------------------------------------------------------//
+
   std::vector<body> bodies_check;
   int64_t totalnbodies_check,  localnbodies_check;
   io::inputDataHDF5(bodies_check,"tree_distributed_data.h5part","",
@@ -106,7 +109,11 @@ TEST(tree_distribution, distribution) {
     b1.set_neighbors(neighbors);
   }
 
-  assert(localnbodies_check == totalnbodies_check);
+  ASSERT_TRUE(localnbodies_check == totalnbodies_check);
+
+  //--------------------------------------------------------------------------//
+  //     Perform the computation on all process to compute the neighbors      //
+  //--------------------------------------------------------------------------//
 
   tree_colorer<double,gdimension> tc;
   tree_topology_t t;
@@ -125,12 +132,13 @@ TEST(tree_distribution, distribution) {
   int64_t checknparticles = t.entities().size();
   MPI_Allreduce(MPI_IN_PLACE,&checknparticles,1,MPI_INT64_T,
     MPI_SUM,MPI_COMM_WORLD);
-  assert(checknparticles==totalnbodies);
+  ASSERT_TRUE(checknparticles==totalnbodies);
 
   // Compute the range
   rank || clog(trace)<<"Computing range"<<std::endl;
   range_t range;
   tc.mpi_compute_range(t.entities(),range);
+  ASSERT_TRUE(range[0] == range_check[0] && range[1] == range_check[1]);
   rank || clog(trace)<<"range: "<<range[0]<<";"<<range[1]<<std::endl;
 
   // Set the tree range
@@ -153,9 +161,9 @@ TEST(tree_distribution, distribution) {
     t.insert(id);
     auto nbi = t.get(id);
 
-    assert(nbi->global_id() == bi.id());
-    assert(nbi->getBody() != nullptr);
-    assert(nbi->is_local());
+    ASSERT_TRUE(nbi->global_id() == bi.id());
+    ASSERT_TRUE(nbi->getBody() != nullptr);
+    ASSERT_TRUE(nbi->is_local());
   }
 
   rank || clog(trace)<<"Sharing edge"<<std::endl;
@@ -169,18 +177,34 @@ TEST(tree_distribution, distribution) {
   tc.mpi_branches_exchange(t,t.entities(),rangeposproc,range);
   t.cofm(t.root(),0.,false);
 
+  // ------------------------------------------------------------------------ //
+  //                    Control the tree datastructure                        //
+  // ------------------------------------------------------------------------ //
+
+  // Assert that the number of tree_entities is the number of local paerticles
+  // plus the number of ghosts added in this step
+  size_t check_tree_entities = t.tree_entities().size();
+  size_t check_ghosts_entities = t.ghosts_entities().size();
+  ASSERT_TRUE(localnbodies == check_tree_entities - check_ghosts_entities);
+
   // Check the range of all the processes
   std::vector<range_t> root_ranges(size);
   range_t root_range = {t.root()->bmin(),t.root()->bmax()};
   MPI_Allgather(&root_range,sizeof(range_t),MPI_BYTE,
     &(root_ranges[0]),sizeof(range_t),MPI_BYTE,MPI_COMM_WORLD);
-
   int rk = 0 ;
   for(auto r: root_ranges)
   {
-    assert(r[0] == root_range[0]);
-    assert(r[1] == root_range[1]);
+    ASSERT_TRUE(r[0] == root_range[0]);
+    ASSERT_TRUE(r[1] == root_range[1]);
   }
+  // Check the number of sub-entities
+  std::vector<int64_t> subentities(size);
+  int64_t local_subentities = t.root()->sub_entities();
+  MPI_Allgather(&local_subentities,1,MPI_INT64_T,&(subentities[0]),1,
+    MPI_INT64_T,MPI_COMM_WORLD);
+  for(auto sub: subentities)
+    assert(subentities[0] == local_subentities);
 
   // Reduction on the local particles
   std::vector<int64_t> nparticles(size);
@@ -205,13 +229,13 @@ TEST(tree_distribution, distribution) {
   size_t i = nparticles_offset[rank];
   for(auto bi: t.entities())
   {
-    assert(bi.id() == bodies_check[i].id());
+    ASSERT_TRUE(bi.id() == bodies_check[i].id());
     if(bi.neighbors() != bodies_check[i].neighbors())
     {
       std::cerr<<bi<<" N = "<<bi.neighbors()<<std::endl;
       std::cerr<<bodies_check[i]<<" N = "<<bodies_check[i].neighbors()<<std::endl;
     }
-    assert(bi.neighbors() == bodies_check[i].neighbors());
+    ASSERT_TRUE(bi.neighbors() == bodies_check[i].neighbors());
     ++i;
   }
 
