@@ -281,7 +281,7 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
     assert(checknparticles==totalnbodies_);
 #endif
 }
-    tree_.mpi_tree_traversal_graphviz(0);
+    //tree_.mpi_tree_traversal_graphviz(0);
     // Add edge bodies from my direct neighbor
     tree_.share_edge();
 
@@ -290,7 +290,7 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
 #endif
 
     tree_.cofm(tree_.root(),epsilon_,false);
-    tree_.mpi_tree_traversal_graphviz(1);
+    //tree_.mpi_tree_traversal_graphviz(1);
 
 #ifdef OUTPUT_TREE_INFO
     std::vector<int> nentities(size);
@@ -324,7 +324,7 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
 
     // update the tree
     tree_.cofm(tree_.root(),epsilon_,false);
-    tree_.mpi_tree_traversal_graphviz(2);
+    //tree_.mpi_tree_traversal_graphviz(2);
 
     MPI_Barrier(MPI_COMM_WORLD);
 
