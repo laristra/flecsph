@@ -199,7 +199,6 @@ public:
     oss<<"Repartition: ";
     for(auto num: totalprocbodies)
       oss<<num<<";";
-    double end = omp_get_wtime();
     rank|| clog(trace)<<oss.str()<<std::endl;
     #endif
 #endif // OUTPUT

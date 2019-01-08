@@ -184,8 +184,8 @@ TEST(tree_distribution, distribution) {
   // Assert that the number of tree_entities is the number of local paerticles
   // plus the number of ghosts added in this step
   size_t check_tree_entities = t.tree_entities().size();
-  size_t check_ghosts_entities = t.ghosts_entities().size();
-  ASSERT_TRUE(localnbodies == check_tree_entities - check_ghosts_entities);
+  size_t check_shared_entities = t.shared_entities().size();
+  ASSERT_TRUE(localnbodies == check_tree_entities - check_shared_entities);
 
   // Check the range of all the processes
   std::vector<range_t> root_ranges(size);
