@@ -128,115 +128,153 @@ TEST(tree_distribution, distribution) {
   io::inputDataHDF5(t.entities(),"tree_distributed_data.h5part","",
       totalnbodies,localnbodies,0);
 
-  // Check the total number of bodies
-  int64_t checknparticles = t.entities().size();
-  MPI_Allreduce(MPI_IN_PLACE,&checknparticles,1,MPI_INT64_T,
-    MPI_SUM,MPI_COMM_WORLD);
-  ASSERT_TRUE(checknparticles==totalnbodies);
+  // Check on two iterations with cleaning the tree
+  for(int i = 0 ; i < 2 ; ++i){
 
-  // Compute the range
-  rank || clog(trace)<<"Computing range"<<std::endl;
-  range_t range;
-  tc.mpi_compute_range(t.entities(),range);
-  ASSERT_TRUE(range[0] == range_check[0] && range[1] == range_check[1]);
-  rank || clog(trace)<<"range: "<<range[0]<<";"<<range[1]<<std::endl;
+    // Check the total number of bodies
+    int64_t checknparticles = t.entities().size();
+    MPI_Allreduce(MPI_IN_PLACE,&checknparticles,1,MPI_INT64_T,
+      MPI_SUM,MPI_COMM_WORLD);
+    ASSERT_TRUE(checknparticles==totalnbodies);
 
-  // Set the tree range
-  rank || clog(trace)<<"Setting tree range"<<std::endl;
-  t.set_range(range);
-  // Compute the keys
-  rank || clog(trace)<<"Compute keys"<<std::endl;
-  t.compute_keys();
-  // 2. Distribution
-  rank || clog(trace)<<"Distributing "<<totalnbodies<<" particles"<<std::endl;
-  tc.mpi_qsort(t.entities(),totalnbodies);
+    // Compute the range
+    rank || clog(trace)<<"Computing range"<<std::endl;
+    range_t range;
+    tc.mpi_compute_range(t.entities(),range);
+    ASSERT_TRUE(range[0] == range_check[0] && range[1] == range_check[1]);
+    rank || clog(trace)<<"range: "<<range[0]<<";"<<range[1]<<std::endl;
 
-  rank || clog(trace)<<"Building tree "<<std::endl;
+    // Set the tree range
+    rank || clog(trace)<<"Setting tree range"<<std::endl;
+    t.set_range(range);
+    // Compute the keys
+    rank || clog(trace)<<"Compute keys"<<std::endl;
+    t.compute_keys();
+    // 2. Distribution
+    rank || clog(trace)<<"Distributing "<<totalnbodies<<" particles"<<std::endl;
+    tc.mpi_qsort(t.entities(),totalnbodies);
 
-  // 3. Compute the local tree
-  for(auto& bi:  t.entities()){
-    bi.set_owner(rank);
-    auto id = t.make_entity(bi.key(),bi.coordinates(),
-      &(bi),rank,bi.mass(),bi.id(),bi.radius());
-    t.insert(id);
-    auto nbi = t.get(id);
+    rank || clog(trace)<<"Building tree "<<std::endl;
 
-    ASSERT_TRUE(nbi->global_id() == bi.id());
-    ASSERT_TRUE(nbi->getBody() != nullptr);
-    ASSERT_TRUE(nbi->is_local());
-  }
+    // 3. Compute the local tree
+    for(auto& bi:  t.entities()){
+      bi.set_owner(rank);
+      auto id = t.make_entity(bi.key(),bi.coordinates(),
+        &(bi),rank,bi.mass(),bi.id(),bi.radius());
+      t.insert(id);
+      auto nbi = t.get(id);
 
-  rank || clog(trace)<<"Sharing edge"<<std::endl;
-  // 4. Share the edge particles and compute COFM
-  t.share_edge();
-  t.cofm(t.root(),0.,false);
-
-  rank || clog(trace)<<"Sharing branches"<<std::endl;
-  // 5. Exchange the branches and recompute cofm
-  std::vector<range_t> rangeposproc;
-  tc.mpi_branches_exchange(t,t.entities(),rangeposproc,range);
-  t.cofm(t.root(),0.,false);
-
-  // ------------------------------------------------------------------------ //
-  //                    Control the tree datastructure                        //
-  // ------------------------------------------------------------------------ //
-
-  // Assert that the number of tree_entities is the number of local paerticles
-  // plus the number of ghosts added in this step
-  size_t check_tree_entities = t.tree_entities().size();
-  size_t check_shared_entities = t.shared_entities().size();
-  ASSERT_TRUE(localnbodies == check_tree_entities - check_shared_entities);
-
-  // Check the range of all the processes
-  std::vector<range_t> root_ranges(size);
-  range_t root_range = {t.root()->bmin(),t.root()->bmax()};
-  MPI_Allgather(&root_range,sizeof(range_t),MPI_BYTE,
-    &(root_ranges[0]),sizeof(range_t),MPI_BYTE,MPI_COMM_WORLD);
-  int rk = 0 ;
-  for(auto r: root_ranges)
-  {
-    ASSERT_TRUE(r[0] == root_range[0]);
-    ASSERT_TRUE(r[1] == root_range[1]);
-  }
-  // Check the number of sub-entities
-  std::vector<int64_t> subentities(size);
-  int64_t local_subentities = t.root()->sub_entities();
-  MPI_Allgather(&local_subentities,1,MPI_INT64_T,&(subentities[0]),1,
-    MPI_INT64_T,MPI_COMM_WORLD);
-  for(auto sub: subentities)
-    assert(subentities[0] == local_subentities);
-
-  // Reduction on the local particles
-  std::vector<int64_t> nparticles(size);
-  MPI_Allgather(&localnbodies,1,MPI_INT64_T,&(nparticles[0]),1,MPI_INT64_T,
-    MPI_COMM_WORLD);
-  // Prefix scan
-  std::vector<int64_t> nparticles_offset(size);
-  std::partial_sum(nparticles.begin(),nparticles.end(),&nparticles_offset[0]);
-  nparticles_offset.insert(nparticles_offset.begin(),0);
-
-  // 6. Perform a several traversal and compute the neighbors
-  int64_t ncritical = 1;
-  bool variable_sph = true;
-  t.apply_sub_cells(t.root(),0.,ncritical,variable_sph,
-    [](body_holder * srch,std::vector<body_holder*>& nbh)
-    {
-      srch->getBody()->set_neighbors(nbh.size());
-    });
-
-  // Compare the neighbors with the result on one process
-  // Find my start in the global particles for comparison
-  size_t i = nparticles_offset[rank];
-  for(auto bi: t.entities())
-  {
-    ASSERT_TRUE(bi.id() == bodies_check[i].id());
-    if(bi.neighbors() != bodies_check[i].neighbors())
-    {
-      std::cerr<<bi<<" N = "<<bi.neighbors()<<std::endl;
-      std::cerr<<bodies_check[i]<<" N = "<<bodies_check[i].neighbors()<<std::endl;
+      ASSERT_TRUE(nbi->global_id() == bi.id());
+      ASSERT_TRUE(nbi->getBody() != nullptr);
+      ASSERT_TRUE(nbi->is_local());
     }
-    ASSERT_TRUE(bi.neighbors() == bodies_check[i].neighbors());
-    ++i;
+
+    t.mpi_tree_traversal_graphviz(18+i);
+
+    rank || clog(trace)<<"Sharing edge"<<std::endl;
+    // 4. Share the edge particles and compute COFM
+    t.share_edge();
+    t.cofm(t.root(),0.,false);
+    t.mpi_tree_traversal_graphviz(20+i);
+
+    rank || clog(trace)<<"Sharing branches"<<std::endl;
+    // 5. Exchange the branches and recompute cofm
+    std::vector<range_t> rangeposproc;
+    tc.mpi_branches_exchange(t,t.entities(),rangeposproc,range);
+    t.cofm(t.root(),0.,false);
+
+    // ---------------------------------------------------------------------- //
+    //                    Control the tree datastructure                      //
+    // ---------------------------------------------------------------------- //
+
+    // Assert that the number of tree_entities is the number of local paerticles
+    // plus the number of ghosts added in this step
+    size_t check_tree_entities = t.tree_entities().size();
+    size_t check_shared_entities = t.shared_entities().size();
+    ASSERT_TRUE(localnbodies == check_tree_entities - check_shared_entities);
+
+    // Check the range of all the processes
+    std::vector<range_t> root_ranges(size);
+    range_t root_range = {t.root()->bmin(),t.root()->bmax()};
+    MPI_Allgather(&root_range,sizeof(range_t),MPI_BYTE,
+      &(root_ranges[0]),sizeof(range_t),MPI_BYTE,MPI_COMM_WORLD);
+    int rk = 0 ;
+    for(auto r: root_ranges)
+    {
+      ASSERT_TRUE(r[0] == root_range[0]);
+      ASSERT_TRUE(r[1] == root_range[1]);
+    }
+    // Check the number of sub-entities
+    std::vector<int64_t> subentities(size);
+    int64_t local_subentities = t.root()->sub_entities();
+    MPI_Allgather(&local_subentities,1,MPI_INT64_T,&(subentities[0]),1,
+      MPI_INT64_T,MPI_COMM_WORLD);
+    for(auto sub: subentities)
+      assert(subentities[0] == local_subentities);
+
+    // Reduction on the local particles
+    std::vector<int64_t> nparticles(size);
+    MPI_Allgather(&localnbodies,1,MPI_INT64_T,&(nparticles[0]),1,MPI_INT64_T,
+      MPI_COMM_WORLD);
+    // Prefix scan
+    std::vector<int64_t> nparticles_offset(size);
+    std::partial_sum(nparticles.begin(),nparticles.end(),&nparticles_offset[0]);
+    nparticles_offset.insert(nparticles_offset.begin(),0);
+
+    // 6. Perform a several traversal and compute the neighbors
+    int64_t ncritical = 1;
+    bool variable_sph = true;
+    t.apply_sub_cells(t.root(),0.,ncritical,variable_sph,
+      [](body_holder * srch,std::vector<body_holder*>& nbh)
+      {
+        srch->getBody()->set_neighbors(nbh.size());
+      });
+
+    // Compare the neighbors with the result on one process
+    // Find my start in the global particles for comparison
+    size_t pos = nparticles_offset[rank];
+    for(auto bi: t.entities())
+    {
+      ASSERT_TRUE(bi.id() == bodies_check[pos].id());
+      if(bi.neighbors() != bodies_check[pos].neighbors())
+      {
+        std::cerr<<bi<<" N = "<<bi.neighbors()<<std::endl;
+        std::cerr<<bodies_check[pos]<<" N = "<<bodies_check[pos].neighbors()<<std::endl;
+      }
+      ASSERT_TRUE(bi.neighbors() == bodies_check[pos].neighbors());
+      ++pos;
+    }
+
+    // Reset the ghosts and compute again
+    t.reset_ghosts();
+
+    // 6. Perform a several traversal and compute the neighbors
+    ncritical = 1;
+    variable_sph = true;
+    t.apply_sub_cells(t.root(),0.,ncritical,variable_sph,
+      [](body_holder * srch,std::vector<body_holder*>& nbh)
+      {
+        srch->getBody()->set_neighbors(nbh.size());
+      });
+
+    // Compare the neighbors with the result on one process
+    // Find my start in the global particles for comparison
+    pos = nparticles_offset[rank];
+    for(auto bi: t.entities())
+    {
+      ASSERT_TRUE(bi.id() == bodies_check[pos].id());
+      if(bi.neighbors() != bodies_check[pos].neighbors())
+      {
+        std::cerr<<bi<<" N = "<<bi.neighbors()<<std::endl;
+        std::cerr<<bodies_check[pos]<<" N = "<<bodies_check[pos].neighbors()<<std::endl;
+      }
+      ASSERT_TRUE(bi.neighbors() == bodies_check[pos].neighbors());
+      ++pos;
+    }
+
+    rank || clog(trace)<<"Cleaning tree datastructure"<<std::endl;
+    t.clean();
+
   }
 
   MPI_Finalize();

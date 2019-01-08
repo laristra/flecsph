@@ -191,6 +191,9 @@ public:
     branch_map_.clear();
     tree_entities_.clear();
     ghosts_id_.clear();
+    ghosts_entities_.clear();
+    shared_entities_.clear();
+    nonlocal_branches_ = 0;
   }
 
   /**
@@ -199,11 +202,13 @@ public:
   void
   clean()
   {
-    reset_ghosts();
     branch_map_.clear();
     tree_entities_.clear();
     ghosts_id_.clear();
+    ghosts_entities_.clear();
+    shared_entities_.clear();
     nonlocal_branches_ = 0;
+
     branch_map_.emplace(branch_id_t::root(),branch_id_t::root());
     root_ = branch_map_.find(branch_id_t::root());
     assert(root_ != branch_map_.end());
