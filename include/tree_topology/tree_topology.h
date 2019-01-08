@@ -284,10 +284,10 @@ public:
       ghosts_entities_.clear();
       shared_entities_.clear();
 
-      mpi_tree_traversal_graphviz(11);
+      //mpi_tree_traversal_graphviz(11);
       share_edge();
       cofm(root(),0,false);
-      mpi_tree_traversal_graphviz(12);
+      //mpi_tree_traversal_graphviz(12);
     }
     //mpi_tree_traversal_graphviz(8);
     // Do the local branch sharing
@@ -854,7 +854,7 @@ public:
       }
     }
 
-    mpi_tree_traversal_graphviz(3);
+    //mpi_tree_traversal_graphviz(3);
 
     size_t current_ghosts = ghosts_entities_.size();
 
@@ -883,7 +883,7 @@ public:
     assert(flag == 0);
 #endif
 
-    mpi_tree_traversal_graphviz(4);
+    //mpi_tree_traversal_graphviz(4);
 
     // If the tree was completly local, do not add the ghosts
     if(remaining_branches.size() > 0){
@@ -903,11 +903,11 @@ public:
         // Set the parent to local for the search
         find_parent_(g.key()).set_ghosts_local(true);
       }
-      mpi_tree_traversal_graphviz(5);
+      //mpi_tree_traversal_graphviz(5);
       // Recompute the COM in the tree
       cofm(root(), 0, false);
       //clog(trace)<<rank<<" done"<<std::endl;
-      mpi_tree_traversal_graphviz(6);
+      //mpi_tree_traversal_graphviz(6);
     }
     MPI_Barrier(MPI_COMM_WORLD);
     //clog(trace)<<rank<<" Traversal for remaning branches"<<std::endl;
