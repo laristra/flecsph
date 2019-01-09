@@ -119,6 +119,7 @@ mpi_init_task(const char * parameter_file){
         bs.apply_all(physics::set_total_energy);
       }
 
+      rank|| clog(trace) << "compute density pressure cs" << std::flush;
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
       bs.apply_all(integration::save_velocityhalf);
 
@@ -127,10 +128,13 @@ mpi_init_task(const char * parameter_file){
 
       rank|| clog(trace) << "compute rhs of evolution equations" << std::flush;
       bs.apply_in_smoothinglength(physics::compute_acceleration);
-      if (thermokinetic_formulation)
+      if (thermokinetic_formulation){
+        rank|| clog(trace) << "compute dedt" << std::flush;
         bs.apply_in_smoothinglength(physics::compute_dedt);
-      else
+      }else{
+        rank|| clog(trace) << "compute dudt" << std::flush;
         bs.apply_in_smoothinglength(physics::compute_dudt);
+      }
       rank|| clog(trace) << ".done" << std::endl;
 
     }
@@ -150,7 +154,7 @@ mpi_init_task(const char * parameter_file){
 
       // sync velocities
       bs.update_iteration();
-
+      rank|| clog(trace) << "compute density pressure cs" << std::flush;
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
 
       // Sync density/pressure/cs
@@ -166,10 +170,12 @@ mpi_init_task(const char * parameter_file){
 
       rank|| clog(trace) << "leapfrog: kick two (energy)" << std::flush;
       if (thermokinetic_formulation) {
+        rank|| clog(trace) << "compute dedt" << std::flush;
         bs.apply_in_smoothinglength(physics::compute_dedt);
         bs.apply_all(integration::leapfrog_kick_e);
       }
       else {
+        rank|| clog(trace) << "compute dudt" << std::flush;
         bs.apply_in_smoothinglength(physics::compute_dudt);
         bs.apply_all(integration::leapfrog_kick_u);
       }
@@ -208,7 +214,6 @@ mpi_init_task(const char * parameter_file){
 
     // Output the diagnostic
     if(out_diagnostic_every > 0 && physics::iteration%out_diagnostic_every==0){
-      bs.get_all(diagnostic::compute_neighbors_stats,bs.tree(),bs.getNBodies());
       bs.get_all(diagnostic::compute_smoothinglength_stats,bs.getNBodies());
       bs.get_all(diagnostic::compute_velocity_stats,bs.getNBodies());
       diagnostic::output("diagnostic.dat");

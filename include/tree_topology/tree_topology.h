@@ -828,9 +828,6 @@ public:
     MPI_Barrier(MPI_COMM_WORLD);
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    MPI_Barrier(MPI_COMM_WORLD);
-    rank ||clog(trace)<<"Tree traversal "<<std::endl<<std::flush;
-    MPI_Barrier(MPI_COMM_WORLD);
     std::stack<branch_t*> stk;
     stk.push(b);
 
@@ -856,52 +853,30 @@ public:
       }
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    rank ||clog(trace)<<"Done branches: "<<work_branch.size()<<std::endl<<std::flush;
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    //mpi_tree_traversal_graphviz(3);
-
-    size_t current_ghosts = ghosts_entities_.size();
     std::vector<branch_t*> remaining_branches;
-    // Start the threads on the branches
-    // std::thread handler([this]{handle_requests();});
-    int omp_max =  omp_get_max_threads();
-    std::cerr<<"Max = "<<omp_max<<std::endl;
-    int nthreads = omp_max + 1 ;
-    omp_set_num_threads(nthreads);
-    std::cerr<<"Max = "<<nthreads<<std::endl;
-    #pragma omp parallel default(shared)
+    int done = omp_get_max_threads();
+    omp_lock_t tree_lock;
+    omp_init_lock(&tree_lock);
+    #pragma omp parallel num_threads(omp_get_max_threads()+1)
     {
-      #pragma omp single
-      std::cerr<<"OMP="<<omp_get_num_threads()<<std::endl;
-      std::cout<<"Thread: "<<omp_get_thread_num()<<std::endl;
+      int nthreads = omp_get_num_threads();
+      int tid = omp_get_thread_num();
 
-      if(omp_get_thread_num() == nthreads-1){
-        std::cerr<<"Starting handler: "<< omp_get_thread_num()<<std::endl;
-        handle_requests();
-        std::cerr<<"Done hlander"<<std::endl;
-      }
-
-      if(omp_get_thread_num() < nthreads-1){
-        traverse_branches(MAC,do_square,work_branch,remaining_branches,false,ef,
-          std::forward<ARGS>(args)...);
+      if(tid == nthreads-1){
+        handle_requests(tree_lock);
+      }else{
+        traverse_branches(MAC,do_square,work_branch,remaining_branches,false,
+          tree_lock,ef,std::forward<ARGS>(args)...);
         // Wait for other threads
-
-        if(omp_get_thread_num() == 0){
-          rank ||clog(trace)<<"Done traversal "<<std::endl;
+        #pragma omp atomic
+          --done;
+        if(done == 0){
           MPI_Send(NULL, 0, MPI_INT, rank, MPI_DONE,MPI_COMM_WORLD);
-          rank ||clog(trace)<<"Waiting done"<<std::endl<<std::flush;
         }
       }
     }
-    rank ||clog(trace)<<"Merged done"<<std::endl<<std::flush;
-    omp_set_num_threads(omp_max);
-    #pragma omp parallel
-    {
-      #pragma omp single
-      std::cerr<<"OMP="<<omp_get_num_threads()<<std::endl;
-    }
+    omp_destroy_lock(&tree_lock);
+  //  clog(trace)<<"Merged done"<<std::endl<<std::flush;
 
     // Check if no message remainig
 #ifdef DEBUG
@@ -910,13 +885,9 @@ public:
       MPI_STATUS_IGNORE);
     assert(flag == 0);
 #endif
-
-    //mpi_tree_traversal_graphviz(4);
-
-    // If the tree was completly local, do not add the ghosts
-    if(remaining_branches.size() > 0){
+    if(remaining_branches.size() > 0 ){
       assert(is_unique(ghosts_entities_));
-      for(size_t i = current_ghosts; i < ghosts_entities_.size(); ++i)
+      for(size_t i = 0; i < ghosts_entities_.size(); ++i)
       {
         entity_t& g = ghosts_entities_[i];
         auto id = make_entity(g.key(),g.coordinates(),
@@ -931,21 +902,18 @@ public:
         // Set the parent to local for the search
         find_parent_(g.key()).set_ghosts_local(true);
       }
-      //mpi_tree_traversal_graphviz(5);
-      // Recompute the COM in the tree
+      //clog(trace)<<"Ghosts added done"<<std::endl<<std::flush;
+      // Recompute the Center of Mass with the new ghosts
       cofm(root(), 0, false);
-      //clog(trace)<<rank<<" done"<<std::endl;
-      //mpi_tree_traversal_graphviz(6);
     }
-    MPI_Barrier(MPI_COMM_WORLD);
-    //clog(trace)<<rank<<" Traversal for remaning branches"<<std::endl;
-    std::vector<branch_t*> ignore;
-    traverse_branches(MAC,do_square,remaining_branches,ignore,true,
-      ef,std::forward<ARGS>(args)...);
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    rank || clog(trace) << "tree_traversal.done"<<std::endl<<std::flush;
-    MPI_Barrier(MPI_COMM_WORLD);
+    std::vector<branch_t*> ignore;
+    //clog(trace)<<"Cmopute the remaining branches"<<std::endl<<std::flush;
+    #pragma omp parallel
+    {
+      traverse_branches(MAC,do_square,remaining_branches,ignore,true,
+        tree_lock,ef,std::forward<ARGS>(args)...);
+    }
   } // apply_sub_cells
 
   template<
@@ -959,6 +927,7 @@ public:
     std::vector<branch_t*>& work_branch,
     std::vector<branch_t*>& non_local_branches,
     bool assert_local,
+    omp_lock_t& tree_lock,
     EF&& ef,
     ARGS&&... args)
   {
@@ -977,14 +946,14 @@ public:
     if(td == nt-1){
       end = nelem;
     }
-    std::cerr<<"INSIDE : nt="<<nt<<" td="<<td<<std::endl;
-
     for(size_t i = start; i < end; ++i){
       std::vector<branch_t*> inter_list;
       std::vector<branch_t*> requests_branches;
       if(sub_cells_inter(work_branch[i],MAC,inter_list,requests_branches)){
+        omp_set_lock(&tree_lock);
         force_calc(work_branch[i],inter_list,do_square,
                ef,std::forward<ARGS>(args)...);
+        omp_unset_lock(&tree_lock);
       }else{
         assert(!assert_local);
         std::vector<key_t> send;
@@ -1004,7 +973,6 @@ public:
         MPI_Request request;
         MPI_Send(&(send[0]),send.size()*sizeof(key_t),MPI_BYTE,rank,
           LOCAL_REQUEST,MPI_COMM_WORLD);
-          rank ||clog(trace)<<"Request"<<std::endl;
       }
     }
   }
@@ -1013,7 +981,9 @@ public:
 *
 */
   void
-  handle_requests()
+  handle_requests(
+    omp_lock_t& tree_lock
+  )
   {
     int max_size = 100;
     int max_requests = 100;
@@ -1046,13 +1016,12 @@ public:
     {
       MPI_Status status;
       // Wait on probe
-      clog(trace)<<"TH waiting"<<std::endl;
+
       MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
       int source = status.MPI_SOURCE;
       int tag = status.MPI_TAG;
       int nrecv = 0;
       MPI_Get_count(&status, MPI_BYTE, &nrecv);
-
       switch(tag)
       {
         case MPI_RANK_DONE:
@@ -1087,12 +1056,14 @@ public:
           MPI_Recv(&(received[0]), nrecv, MPI_BYTE, source, SOURCE_REQUEST,
             MPI_COMM_WORLD, MPI_STATUS_IGNORE);
           assert(is_unique(received));
+          omp_set_lock(&tree_lock);
           for(auto k: received){
             auto branch = branch_map_.find(k);
             assert(branch != branch_map_.end());
             get_sub_entities(&(branch->second),
               reply[source][current_reply[source]]);
           }
+          omp_unset_lock(&tree_lock);
           int ncount = reply[source][current_reply[source]].size();
           MPI_Isend(&(reply[source][current_reply[source]++][0]),
             ncount*sizeof(entity_t),MPI_BYTE,source,SOURCE_REPLY,MPI_COMM_WORLD,
@@ -1201,7 +1172,6 @@ public:
         }
       }
     }
-    std::cerr<<"Trhead exiting"<<std::endl<<std::flush;
   }
 
   void
