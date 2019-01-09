@@ -865,26 +865,43 @@ public:
     size_t current_ghosts = ghosts_entities_.size();
     std::vector<branch_t*> remaining_branches;
     // Start the threads on the branches
-    std::thread handler([this]{handle_requests();});
+    // std::thread handler([this]{handle_requests();});
+    int omp_max =  omp_get_max_threads();
+    std::cerr<<"Max = "<<omp_max<<std::endl;
+    int nthreads = omp_max + 1 ;
+    omp_set_num_threads(nthreads);
+    std::cerr<<"Max = "<<nthreads<<std::endl;
+    #pragma omp parallel default(shared)
+    {
+      #pragma omp single
+      std::cerr<<"OMP="<<omp_get_num_threads()<<std::endl;
+      std::cout<<"Thread: "<<omp_get_thread_num()<<std::endl;
 
-    traverse_branches(MAC,do_square,work_branch,remaining_branches,false,ef,
-        std::forward<ARGS>(args)...);
+      if(omp_get_thread_num() == nthreads-1){
+        std::cerr<<"Starting handler: "<< omp_get_thread_num()<<std::endl;
+        handle_requests();
+        std::cerr<<"Done hlander"<<std::endl;
+      }
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    rank ||clog(trace)<<"Done traversal "<<std::endl;
-    MPI_Barrier(MPI_COMM_WORLD);
+      if(omp_get_thread_num() < nthreads-1){
+        traverse_branches(MAC,do_square,work_branch,remaining_branches,false,ef,
+          std::forward<ARGS>(args)...);
+        // Wait for other threads
 
-    // Send message to the handler that the traversal is done
-    MPI_Send(NULL, 0, MPI_INT, rank, MPI_DONE,MPI_COMM_WORLD);
-
-    rank ||clog(trace)<<"Waiting done"<<std::endl;
-
-    // Waiting thread join
-    handler.join();
-
-    clog(trace)<<rank<<"Done Join "<<std::endl;
-
-    MPI_Barrier(MPI_COMM_WORLD);
+        if(omp_get_thread_num() == 0){
+          rank ||clog(trace)<<"Done traversal "<<std::endl;
+          MPI_Send(NULL, 0, MPI_INT, rank, MPI_DONE,MPI_COMM_WORLD);
+          rank ||clog(trace)<<"Waiting done"<<std::endl<<std::flush;
+        }
+      }
+    }
+    rank ||clog(trace)<<"Merged done"<<std::endl<<std::flush;
+    omp_set_num_threads(omp_max);
+    #pragma omp parallel
+    {
+      #pragma omp single
+      std::cerr<<"OMP="<<omp_get_num_threads()<<std::endl;
+    }
 
     // Check if no message remainig
 #ifdef DEBUG
@@ -949,8 +966,20 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
-    #pragma omp parallel for
-    for(size_t i = 0; i < work_branch.size(); ++i){
+    int nelem = work_branch.size();
+    int td = omp_get_thread_num();
+    int nt = omp_get_num_threads();
+    if(!assert_local){
+      --nt;
+    }
+    int start = td*nelem/nt;
+    int end = nelem*(td+1)/nt;
+    if(td == nt-1){
+      end = nelem;
+    }
+    std::cerr<<"INSIDE : nt="<<nt<<" td="<<td<<std::endl;
+
+    for(size_t i = start; i < end; ++i){
       std::vector<branch_t*> inter_list;
       std::vector<branch_t*> requests_branches;
       if(sub_cells_inter(work_branch[i],MAC,inter_list,requests_branches)){
@@ -1170,7 +1199,6 @@ public:
         for(size_t i = 0 ; i < size; ++i){
           done = rank_done[i]==false?false:done;
         }
-        clog(trace)<<"done = "<<done<<std::endl;
       }
     }
     std::cerr<<"Trhead exiting"<<std::endl<<std::flush;
