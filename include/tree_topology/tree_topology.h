@@ -828,7 +828,9 @@ public:
     MPI_Barrier(MPI_COMM_WORLD);
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    rank ||clog(trace)<<"Tree traversal "<<std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+    rank ||clog(trace)<<"Tree traversal "<<std::endl<<std::flush;
+    MPI_Barrier(MPI_COMM_WORLD);
     std::stack<branch_t*> stk;
     stk.push(b);
 
@@ -854,11 +856,13 @@ public:
       }
     }
 
+    MPI_Barrier(MPI_COMM_WORLD);
+    rank ||clog(trace)<<"Done branches: "<<work_branch.size()<<std::endl<<std::flush;
+    MPI_Barrier(MPI_COMM_WORLD);
+
     //mpi_tree_traversal_graphviz(3);
 
     size_t current_ghosts = ghosts_entities_.size();
-
-
     std::vector<branch_t*> remaining_branches;
     // Start the threads on the branches
     std::thread handler([this]{handle_requests();});
@@ -866,12 +870,19 @@ public:
     traverse_branches(MAC,do_square,work_branch,remaining_branches,false,ef,
         std::forward<ARGS>(args)...);
 
-    void * buf = NULL;
-    MPI_Request request;
-    MPI_Isend(buf, 0, MPI_INT, rank, MPI_DONE,MPI_COMM_WORLD,&request);
+    MPI_Barrier(MPI_COMM_WORLD);
+    rank ||clog(trace)<<"Done traversal "<<std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    // Send message to the handler that the traversal is done
+    MPI_Send(NULL, 0, MPI_INT, rank, MPI_DONE,MPI_COMM_WORLD);
+
+    rank ||clog(trace)<<"Waiting done"<<std::endl;
 
     // Waiting thread join
     handler.join();
+
+    clog(trace)<<rank<<"Done Join "<<std::endl;
 
     MPI_Barrier(MPI_COMM_WORLD);
 
@@ -964,11 +975,14 @@ public:
         MPI_Request request;
         MPI_Send(&(send[0]),send.size()*sizeof(key_t),MPI_BYTE,rank,
           LOCAL_REQUEST,MPI_COMM_WORLD);
+          rank ||clog(trace)<<"Request"<<std::endl;
       }
     }
   }
 
-
+/**
+*
+*/
   void
   handle_requests()
   {
@@ -998,14 +1012,12 @@ public:
     std::vector<bool> rank_done(size,false);
     bool done_rank = false;
 
-    std::vector<entity_t> new_ghosts;
-
-    int rq_ct = 0;
     // Put thread waiting on MPI_Recv
     while(!done)
     {
       MPI_Status status;
       // Wait on probe
+      clog(trace)<<"TH waiting"<<std::endl;
       MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
       int source = status.MPI_SOURCE;
       int tag = status.MPI_TAG;
@@ -1034,7 +1046,7 @@ public:
           ghosts_entities_.insert(
             ghosts_entities_.end(),received.begin(),received.end());
           assert(is_unique(ghosts_entities_));
-          --rq_ct;
+          --request_counter;
         }
         break;
         // ------------------------------------------------------------------ //
@@ -1084,7 +1096,7 @@ public:
                   clog(error)<<rank<<
                     ": Exceeding number of requests requests"<<std::endl;
               }
-              ++rq_ct;
+              ++request_counter;
             }
           }
         }
@@ -1110,7 +1122,7 @@ public:
                   clog(error)<<rank<<
                     ": Exceeding number of requests requests"<<std::endl;
               }
-              ++rq_ct;
+              ++request_counter;
             }
           }
           done_traversal = true;
@@ -1125,7 +1137,7 @@ public:
       if(done_traversal)
       {
         // Check if all requests have been answered
-        done = rq_ct==0?true:false;
+        done = request_counter==0?true:false;
         bool done_requests = true;
         int flag;
         for(size_t i = 0 ; i < current_mpi_requests; ++i){
@@ -1139,8 +1151,7 @@ public:
           done_replies = flag==false?false:done_replies;
         }
         done = done && done_replies;
-
-        if(done_replies && done_requests && (rq_ct == 0) && (!done_rank))
+        if(done && (!done_rank))
         {
           done_rank = true;
           // Send rank done
@@ -1159,8 +1170,10 @@ public:
         for(size_t i = 0 ; i < size; ++i){
           done = rank_done[i]==false?false:done;
         }
+        clog(trace)<<"done = "<<done<<std::endl;
       }
     }
+    std::cerr<<"Trhead exiting"<<std::endl<<std::flush;
   }
 
   void

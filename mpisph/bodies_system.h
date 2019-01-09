@@ -68,8 +68,6 @@ public:
    */
   ~body_system(){};
 
-  //
-
   /**
    * @brief      Max mass to stop the tree search during
    * the gravitation computation with FMM
