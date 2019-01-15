@@ -224,7 +224,7 @@ TEST(tree_distribution, distribution) {
     // 6. Perform a several traversal and compute the neighbors
     int64_t ncritical = 1;
     bool variable_sph = true;
-    t.apply_sub_cells(t.root(),0.,ncritical,variable_sph,
+    t.apply_sub_cells(t.root(),ncritical,variable_sph,
       [](body_holder * srch,std::vector<body_holder*>& nbh)
       {
         srch->getBody()->set_neighbors(nbh.size());
@@ -251,7 +251,7 @@ TEST(tree_distribution, distribution) {
     // 6. Perform a several traversal and compute the neighbors
     ncritical = 1;
     variable_sph = true;
-    t.apply_sub_cells(t.root(),0.,ncritical,variable_sph,
+    t.apply_sub_cells(t.root(),ncritical,variable_sph,
       [](body_holder * srch,std::vector<body_holder*>& nbh)
       {
         srch->getBody()->set_neighbors(nbh.size());

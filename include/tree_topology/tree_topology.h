@@ -819,7 +819,6 @@ public:
   void
   apply_sub_cells(
       branch_t * b,
-      element_t MAC,
       int64_t ncritical,
       bool do_square,
       EF&& ef,
@@ -863,7 +862,7 @@ public:
       if(tid == nthreads-1){
         handle_requests();
       }else{
-        traverse_branches(MAC,do_square,work_branch,remaining_branches,false,
+        traverse_branches(do_square,work_branch,remaining_branches,false,
           ef,std::forward<ARGS>(args)...);
         // Wait for other threads
         #pragma omp atomic
@@ -908,7 +907,7 @@ public:
     //clog(trace)<<"Cmopute the remaining branches"<<std::endl<<std::flush;
     #pragma omp parallel
     {
-      traverse_branches(MAC,do_square,remaining_branches,ignore,true,
+      traverse_branches(do_square,remaining_branches,ignore,true,
         ef,std::forward<ARGS>(args)...);
     }
   } // apply_sub_cells
@@ -919,7 +918,6 @@ public:
   >
   void
   traverse_branches(
-    element_t& MAC,
     bool do_square,
     std::vector<branch_t*>& work_branch,
     std::vector<branch_t*>& non_local_branches,
@@ -945,7 +943,7 @@ public:
     for(size_t i = start; i < end; ++i){
       std::vector<branch_t*> inter_list;
       std::vector<branch_t*> requests_branches;
-      if(sub_cells_inter(work_branch[i],MAC,inter_list,requests_branches)){
+      if(sub_cells_inter(work_branch[i],inter_list,requests_branches)){
         // If the reader works wait, when done, increase writers
         {
           std::unique_lock<std::mutex> lk(m);
@@ -982,6 +980,231 @@ public:
           LOCAL_REQUEST,MPI_COMM_WORLD);
       }
     }
+  }
+
+
+  template<
+    typename FC,
+    typename DFCDR,
+    typename DFCDRDR,
+    typename C2P
+  >
+  void
+  apply_fmm(
+      branch_t * b,
+      double maxmasscell,
+      const double MAC,
+      FC f_fc,
+      DFCDR f_dfcdr,
+      DFCDRDR f_dfcdrdr,
+      C2P f_c2p
+    )
+  {
+    MPI_Barrier(MPI_COMM_WORLD);
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    rank || clog(trace) << "FMM : maxmasscell: "<<maxmasscell<<" MAC: "<<MAC
+      <<std::endl;
+    std::stack<branch_t*> stk;
+    stk.push(b);
+
+    std::vector<branch_t*> work_branch;
+
+    // Only work on local branches
+    // 1. Gather the cells
+    while(!stk.empty()){
+      branch_t* c = stk.top();
+      stk.pop();
+      if(c->is_leaf() && c->is_local()){
+        work_branch.push_back(c);
+      }else{
+        if(c->is_local() && c->mass() <= maxmasscell){
+          work_branch.push_back(c);
+        }else{
+          for(int i=0; i<(1<<dimension);++i){
+            branch_t * next = child(c,i);
+            if(next == nullptr) continue;
+            if(next->is_local()){
+              stk.push(next);
+            }
+          }
+        }
+      }
+    }
+
+    std::vector<branch_t*> remaining_branches;
+    int done = omp_get_max_threads();
+    #pragma omp parallel num_threads(omp_get_max_threads()+1)
+    {
+      int nthreads = omp_get_num_threads();
+      int tid = omp_get_thread_num();
+
+      if(tid == nthreads-1){
+        handle_requests();
+      }else{
+        traversal_fmm(work_branch,remaining_branches,MAC,
+          f_fc,f_dfcdr,f_dfcdrdr,f_c2p);
+        // Wait for other threads
+        #pragma omp atomic
+          --done;
+        if(done == 0){
+          MPI_Send(NULL, 0, MPI_INT, rank, MPI_DONE,MPI_COMM_WORLD);
+        }
+      }
+    }
+
+    // Check if no message remainig
+#ifdef DEBUG
+    int flag = 0;
+    MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag,
+      MPI_STATUS_IGNORE);
+    assert(flag == 0);
+#endif
+    if(remaining_branches.size() > 0 ){
+      assert(is_unique(ghosts_entities_));
+      for(size_t i = 0; i < ghosts_entities_.size(); ++i)
+      {
+        entity_t& g = ghosts_entities_[i];
+        auto id = make_entity(g.key(),g.coordinates(),
+          nullptr,g.owner(),g.mass(),g.id(),g.radius());
+        // Assert the parent exists and is non local
+        assert(!find_parent_(g.key()).is_local());
+        insert(id);
+        auto nbi = get(id);
+        nbi->setBody(&g);
+        assert(nbi->global_id() == g.id());
+        assert(nbi->getBody() != nullptr);
+        // Set the parent to local for the search
+        find_parent_(g.key()).set_ghosts_local(true);
+      }
+      //clog(trace)<<"Ghosts added done"<<std::endl<<std::flush;
+      // Recompute the Center of Mass with the new ghosts
+      cofm(root(), 0, false);
+    }
+
+    std::vector<branch_t*> ignore;
+    //clog(trace)<<"Cmopute the remaining branches"<<std::endl<<std::flush;
+    //#pragma omp parallel
+    //{
+    //  traverse_p2p(remaining_branches,ignore,true,
+    //    ef,std::forward<ARGS>(args)...);
+    //}
+  } // apply_sub_cells
+
+  template<
+    typename FC,
+    typename DFCDR,
+    typename DFCDRDR,
+    typename C2P
+  >
+  void
+  traversal_fmm(
+    std::vector<branch_t*>& work_branch,
+    std::vector<branch_t*>& non_local_branches,
+    const double MAC,
+    FC f_fc,
+    DFCDR f_dfcdr,
+    DFCDRDR f_dfcdrdr,
+    C2P f_c2p
+  )
+  {
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Comm_size(MPI_COMM_WORLD,&size);
+
+    int nelem = work_branch.size();
+    int td = omp_get_thread_num();
+    int nt = omp_get_num_threads();
+    // Do not count the thread handling the requests
+    --nt;
+    int start = td*nelem/nt;
+    int end = nelem*(td+1)/nt;
+    if(td == nt-1){
+      end = nelem;
+    }
+    for(size_t i = start; i < end; ++i){
+      std::vector<branch_t*> inter_list;
+      std::vector<branch_t*> requests_branches;
+      // Sub traversal and compute the MAC
+      point_t fc = 0.;
+      double dfcdr[9] = {0.};
+      double dfcdrdr[27] = {0.};
+      if(traversal_c2c_c2p(work_branch[i],requests_branches,MAC,
+        fc,dfcdr,dfcdrdr,f_fc,f_dfcdr,f_dfcdrdr,f_c2p))
+      {
+        std::vector<key_t> send;
+        #pragma omp critical
+        {
+          non_local_branches.push_back(work_branch[i]);
+          // Send branch key to request handler
+          for(auto b: requests_branches){
+            assert(b->owner() < size && b->owner() >= 0);
+            assert(b->owner() != rank);
+            if(!b->requested()){
+              send.push_back(b->id());
+              b->set_requested(true);
+            }
+          }
+        }
+        MPI_Request request;
+        MPI_Send(&(send[0]),send.size()*sizeof(key_t),MPI_BYTE,rank,
+          LOCAL_REQUEST,MPI_COMM_WORLD);
+      }
+    }
+  }
+
+  template<
+    typename FC,
+    typename DFCDR,
+    typename DFCDRDR,
+    typename F_C2P
+  >
+  bool
+  traversal_c2c_c2p(
+    branch_t* b,
+    std::vector<branch_t*>& non_local,
+    const double MAC,
+    point_t& fc,double dfcdr[9],double dfcdrdr[27],
+    FC f_fc, DFCDR f_dfcdr,DFCDRDR f_dfcdrdr, F_C2P f_c2p
+  )
+  {
+    std::stack<branch_t*> stk;
+    stk.push(root());
+    while(!stk.empty()){
+      branch_t* c = stk.top();
+      stk.pop();
+      if(c->is_leaf()){
+        if(geometry_t::box_MAC(
+          b->coordinates(),c->coordinates(),
+          c->bmin(),c->bmax(),MAC)
+        ) {
+          // Compute the matrices
+          f_fc(fc,b->coordinates(),c->coordinates(),c->mass());
+          f_dfcdr(dfcdr,b->coordinates(),c->coordinates(),c->mass());
+          f_dfcdrdr(dfcdrdr,b->coordinates(),c->coordinates(),c->mass());
+        }else{
+          // Request the sub-particles of this leaf
+          non_local.push_back(c);
+        }
+      }else{
+        for(int i=0 ; i<(1<<dimension);++i){
+          auto branch = child(c,i);
+          if(branch == nullptr) continue;
+          if(geometry_t::box_MAC(
+            b->coordinates(),
+            branch->coordinates(),
+            branch->bmin(),
+            branch->bmax(),MAC))
+          {
+            stk.push(branch);
+          }
+        }
+      }
+    }
+    // Expand to this sub - tree
+    // Do a subtree traversal
+    // f_c2p(fc,dfcdr,dfcdrdr);
+    return non_local.size() > 0;
   }
 
 /**
@@ -1364,7 +1587,6 @@ public:
   bool
   sub_cells_inter(
     branch_t* b,
-    element_t MAC,
     std::vector<branch_t*>& inter_list,
     std::vector<branch_t*>& non_local)
   {

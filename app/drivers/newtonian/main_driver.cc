@@ -211,7 +211,6 @@ mpi_init_task(const char * parameter_file){
 
     // Output the diagnostic
     if(out_diagnostic_every > 0 && physics::iteration%out_diagnostic_every==0){
-      bs.get_all(diagnostic::compute_neighbors_stats,bs.tree(),bs.getNBodies());
       bs.get_all(diagnostic::compute_smoothinglength_stats,bs.getNBodies());
       bs.get_all(diagnostic::compute_velocity_stats,bs.getNBodies());
       diagnostic::output("diagnostic.dat");

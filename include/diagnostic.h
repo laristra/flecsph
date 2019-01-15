@@ -38,6 +38,7 @@ namespace diagnostic {
   entity_id_t id_N_min, id_N_max, id_h_min, id_h_max;
   double V_min, V_max, V_average;
 
+#if 0
   /**
    * @brief      Compute the min, max and average number of neighbor
    * Also compute the minimum distance in smoothing length
@@ -113,6 +114,7 @@ namespace diagnostic {
     average_dist_in_h /= totalnbodies;
     N_average = N_total/ totalnbodies;
   }
+#endif 
 
   /**
    * @brief      Compute the min, max and average smoothing length

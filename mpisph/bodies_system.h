@@ -18,6 +18,7 @@
 #include "io.h"
 #include "utils.h"
 #include "params.h"
+#include "fmm.h"
 
 #include <omp.h>
 #include <iostream>
@@ -377,25 +378,9 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
   void
   gravitation_fmm()
   {
-    int rank, size;
-    MPI_Comm_size(MPI_COMM_WORLD,&size);
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-
-    rank|| clog(trace)<<"FMM: mmass="<<maxmasscell_<<" angle="<<macangle_<<std::endl;
-
-    // Just consider the local particles in the tree for FMM
-    tree_.cofm(tree_.root(),epsilon_,true);
-
-
-    //tree_->update_branches(smoothinglength_,true);
-    assert((int64_t)tree_.root()->sub_entities() == localnbodies_);
-
-    tfmm_.mpi_exchange_cells(tree_,maxmasscell_);
-    tfmm_.mpi_compute_fmm(tree_,macangle_,0);
-    tfmm_.mpi_gather_cells(tree_,macangle_,totalnbodies_);
-
-
-    tree_.cofm(tree_.root(),epsilon_,false);
+    tree_.apply_fmm(tree_.root(),maxmasscell_,macangle_,
+      fmm::gravitation_fc,fmm::gravitation_dfcdr,fmm::gravitation_dfcdrdr,
+      fmm::interation_c2p);
   }
 
   /**
@@ -423,7 +408,6 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
     int64_t ncritical = 1;
     tree_.apply_sub_cells(
         tree_.root(),
-        0.,
         ncritical,
         param::sph_variable_h,
         ef,
