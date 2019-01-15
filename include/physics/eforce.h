@@ -34,70 +34,57 @@ namespace external_force {
 
 
   /**
-   * @brief      Trivial case: zero acceleration
+   * @brief      1D walls: steep power-law-like potentials
    * @param      srch  The source's body holder
    */
-  point_t acceleration_zero(body_holder* srch) {
-    point_t a = 0.0;
-    return a;
-  }
-
-  double potential_zero(body_holder* srch) {
-    return param::zero_potential_poison_value; // POISON IT
-  }
-
-  /**
-   * @brief      Square well in y- and z-dimension
-   * @param      srch  The source's body holder
-   */
-  point_t acceleration_squarewell_xyz(body_holder* srch) {
+  double potential_square_well(body_holder* srch, int I) {
     using namespace param;
-    point_t a = 0.0;
-    point_t rp =  srch->getBody()->getPosition();
-    double box[3] = {0.,0.,0.};
-    bool do_squarewell[3] = {squarewell_x,squarewell_y,squarewell_z};
-    if(param::squarewell_x){
-      box[0] = 0.5*box_length;
-    }
-    if(param::squarewell_y){
-      box[1] = 0.5*box_width;
-    }
-    if(param::squarewell_z){
-      box[2] = 0.5*box_height;
-    }
-    const double pw_n = extforce_wall_powerindex;
-    const double pw_a = extforce_wall_steepness;
-    for (unsigned short i=0; i<gdimension; ++i) {
-      a[i]  = (((rp[i] <- box[i]) ? pow(-rp[i]- box[i], pw_n - 1) : 0.0)
-              -((rp[i] >  box[i]) ? pow(rp[i] - box[i], pw_n - 1) : 0.0))
-            *pw_n*pw_a*do_squarewell[i];
-    }
-    return a;
-  }
+    body* source = srch->getBody();
+    point_t rp = source->getPosition();
+    const static double
+       box[3] = {.5*box_length,.5*box_width,.5*box_height},
+       pw_n = extforce_wall_powerindex,
+       pw_a = extforce_wall_steepness;
 
-  double potential_squarewell_xyz(body_holder* srch) {
-    using namespace param;
-    double phi = 0.0;
-    point_t rp =  srch->getBody()->getPosition();
-    double box[3] = {0.,0.,0.};
-    bool do_squarewell[3] = {squarewell_x,squarewell_y,squarewell_z};
-    if(param::squarewell_x){
-      box[0] = 0.5*box_length;
-    }
-    if(param::squarewell_y){
-      box[1] = 0.5*box_width;
-    }
-    if(param::squarewell_z){
-      box[2] = 0.5*box_height;
-    }
-    const double pw_n = extforce_wall_powerindex;
-    const double pw_a = extforce_wall_steepness;
-    for (unsigned short i=0; i<gdimension; ++i) {
-      phi += (((rp[i] < -box[i]) ? pow(-rp[i]- box[i], pw_n) : 0.0)
-             +((rp[i] >  box[i]) ? pow(rp[i] - box[i], pw_n) : 0.0))
-            *pw_a*do_squarewell[i];
-    }
+    double phi = (((rp[I] < -box[I]) ? pow(-rp[I]- box[I], pw_n) : 0.0)
+                 +((rp[I] >  box[I]) ? pow( rp[I]- box[I], pw_n) : 0.0))
+                 *pw_a;
     return phi;
+  }
+  double potential_walls_x (body_holder* srch) { 
+    return potential_square_well(srch,0); 
+  }
+  double potential_walls_y (body_holder* srch) { 
+    return potential_square_well(srch,1); 
+  }
+  double potential_walls_z (body_holder* srch) { 
+    return potential_square_well(srch,2); 
+  }
+
+
+  point_t acceleration_square_well(body_holder* srch, int I) {
+    using namespace param;
+    point_t a = 0.0;
+    body* source = srch->getBody();
+    point_t rp = source->getPosition();
+    const static double
+       box[3] = {.5*box_length,.5*box_width,.5*box_height},
+       pw_n = extforce_wall_powerindex,
+       pw_a = extforce_wall_steepness;
+
+    a[I]  = (((rp[I] <- box[I]) ? pow(-rp[I]- box[I], pw_n - 1) : 0.0)
+            -((rp[I] >  box[I]) ? pow(rp[I] - box[I], pw_n - 1) : 0.0))
+          *pw_n*pw_a;
+    return a;
+  }
+  point_t acceleration_walls_x(body_holder* srch) {
+    return acceleration_square_well(srch,0); 
+  }
+  point_t acceleration_walls_y(body_holder* srch) {
+    return acceleration_square_well(srch,1); 
+  }
+  point_t acceleration_walls_z(body_holder* srch) {
+    return acceleration_square_well(srch,2); 
   }
 
   /**
@@ -107,7 +94,8 @@ namespace external_force {
   point_t acceleration_spherical_wall(body_holder* srch) {
     using namespace param;
     point_t a = 0.0;
-    point_t rp =  srch->getBody()->getPosition();
+    body* source = srch->getBody();
+    point_t rp = source->getPosition();
     const double pw_n = extforce_wall_powerindex;
     const double pw_a = extforce_wall_steepness;
     double r = rp[0]*rp[0];
@@ -135,6 +123,32 @@ namespace external_force {
     if (r > sphere_radius)
       phi = pw_a*pow(r - sphere_radius, pw_n);
     return phi;
+  }
+
+
+  /**
+   * @brief      Add uniform constant gravity acceleration
+   * 	         in y-direction (or x-direction if number of
+   * 	         dimensions == 1)
+   * @param      srch  The source's body holder
+   */
+  point_t acceleration_gravity(body_holder* srch) {
+    static const double grav = param::gravity_acceleration_constant;
+    point_t acc = 0.0;
+    if(gdimension > 1)
+      acc[1] = -grav;  // negative y-direction
+    else
+      acc[0] = -grav;  // negative x-direction
+    return acc;
+  }
+
+  double potential_gravity(body_holder* srch) {
+    static const double grav = param::gravity_acceleration_constant;
+    point_t rp =  srch->getBody()->getPosition();
+    double height = rp[0];
+    if(gdimension > 1)
+      height = rp[1];
+    return height*grav;
   }
 
 
@@ -186,7 +200,7 @@ namespace external_force {
       a[0] = a0*cos(alpha) - a1*sin(alpha);
       a[1] = a0*sin(alpha) + a1*cos(alpha);
     }
-    return a + acceleration_squarewell_xyz(srch);
+    return a;
   }
 
   double potential_airfoil (body_holder* srch)
@@ -212,7 +226,7 @@ namespace external_force {
     double aux = SQ(upper_surface) - SQ(y-camber_line) + 0.002;
     if (inside_bounding_box && aux>0.0)
       phi = pw_a*pow(aux,pw_n);
-    return phi + potential_squarewell_xyz(srch);
+    return phi;
   }
 
   /**
@@ -234,83 +248,119 @@ namespace external_force {
     return a;
   }
 
-  double potential_do_drag(body_holder* srch) {
-    // No potential for dragging. Only du/dt = 0 during relaxation
-    return 0.0; // POISON IT
-  }
 
-  point_t acceleration_gravitation(body_holder* srch)
-  {
-    body* source = srch->getBody();
-    point_t acc{};
-    acc[0] = -param::gravitation_value;
-    if(gdimension > 1)
-      acc[1] = -param::gravitation_value;
-    return acc;
-  }
-
-  double potential_gravitation(body_holder* srch)
-  {
-    body* source = srch->getBody();
-    double pot = 0.;
-    double height = srch->coordinates()[0];
-    if(gdimension > 1)
-      height = srch->coordinates()[1];
-    pot = height*param::gravitation_value;
-    return pot;
+  /**
+   * @brief      Constant potential shift
+   * @param      srch  The source's body holder
+   */
+  double potential_poison(body_holder* srch) {
+    return param::zero_potential_poison_value;
   }
 
   // acceleration and potential function types and pointers
   typedef double  (*potential_t)(body_holder*);
   typedef point_t (*acceleration_t)(body_holder*);
-  potential_t    potential_boundaries = potential_zero;
-  acceleration_t acceleration_boundaries = acceleration_zero;
+  static std::vector<potential_t> vec_potentials;
+  static std::vector<acceleration_t> vec_accelerations;
 
-  point_t acceleration(body_holder* srch)
-  {
-    point_t acc = acceleration_boundaries(srch);
-    if(param::squarewell_x||param::squarewell_y||param::squarewell_z)
-      acc += acceleration_squarewell_xyz(srch);
-    if(param::do_gravitation)
-      acc += acceleration_gravitation(srch);
-    return acc;
+  /**
+   * @brief      Total external force at a point 'srch'
+   * @param      srch  The source's body holder
+   */
+  point_t acceleration(body_holder* srch) {
+    point_t a = 0.0;
+    for (auto p = vec_accelerations.begin(); p!= vec_accelerations.end(); ++p)
+      a += (*p)(srch);
+    return a;
   }
 
-  double potential(body_holder* srch)
-  {
-    double pot = potential_boundaries(srch);
-    if(param::squarewell_x||param::squarewell_y||param::squarewell_z)
-      pot += potential_squarewell_xyz(srch);
-    if(param::do_gravitation)
-      pot += potential_gravitation(srch);
-    return pot;
+
+  /**
+   * @brief      Total external potential
+   * @param      srch  The source's body holder
+   */
+  double potential(body_holder* srch) {
+    double phi = 0.0;
+    for (auto p = vec_potentials.begin(); p!= vec_potentials.end(); ++p)
+      phi += (*p)(srch);
+    return phi;
   }
+
 
   /**
    * @brief      External force selector
    * @param      efstr    ext. force string
    */
   void select(const std::string& efstr) {
-    if (boost::iequals(efstr,"zero") or boost::iequals(efstr,"none")) {
-      potential_boundaries = potential_zero;
-      acceleration_boundaries = acceleration_zero;
-    }
-    else if (boost::iequals(efstr,"spherical wall")) {
-      potential_boundaries = potential_spherical_wall;
-      acceleration_boundaries = acceleration_spherical_wall;
-    }
-    else if (boost::iequals(efstr,"airfoil")) {
-      potential_boundaries = potential_airfoil;
-      acceleration_boundaries = acceleration_airfoil;
-    }
-    else if (boost::iequals(efstr,"drag")) {
-      potential_boundaries = potential_do_drag;
-      acceleration_boundaries = acceleration_do_drag;
-    }
-    else {
-      clog_one(fatal) << "ERROR: bad external_force_type" << std::endl;
-    }
-  }
+
+    vec_potentials.clear();
+    vec_accelerations.clear();
+
+    if (boost::iequals(efstr,"zero") or boost::iequals(efstr,"none"))
+      return; // trivial case
+
+    using namespace std;
+
+    // parse efstr: external force specification string is a comma-separated
+    // list of potentials / accelerations which need to be added up: e.g.
+    // "spherical wall,walls:xyz,gravity"
+    vector<string> split_efstr;
+    boost::split(split_efstr, efstr, boost::is_any_of(","));
+    for (auto it = split_efstr.begin(); it!= split_efstr.end(); ++it) {
+      if (boost::iequals(*it,"spherical wall")) {
+        vec_potentials.push_back(potential_spherical_wall);
+        vec_accelerations.push_back(acceleration_spherical_wall);
+      }
+      else if (boost::iequals(*it,"airfoil")) {
+        vec_potentials.push_back(potential_airfoil);
+        vec_accelerations.push_back(acceleration_airfoil);
+      }
+      else if (boost::iequals(*it,"gravity")) {
+        vec_potentials.push_back(potential_gravity);
+        vec_accelerations.push_back(acceleration_airfoil);
+      }
+      else if (boost::iequals(it->substr(0,6),"walls:")) {
+        // parse in which directions to place the walls
+        // this can be e.g. "walls:xyz" or "walls:y" etc.
+        const char *cxyz = it->substr(6).c_str();
+        char   imx = min(3,(int)it->substr(6).length());
+        for (int i=0; i<imx; ++i) {
+          switch (cxyz[i]) {
+          case 'x':
+          case 'X':
+            vec_potentials.push_back(potential_walls_x);
+            vec_accelerations.push_back(acceleration_walls_x);
+            break;
+          case 'y':
+          case 'Y':
+            vec_potentials.push_back(potential_walls_y);
+            vec_accelerations.push_back(acceleration_walls_y);
+            break;
+          case 'z':
+          case 'Z':
+            vec_potentials.push_back(potential_walls_z);
+            vec_accelerations.push_back(acceleration_walls_z);
+            break;
+          default:
+            clog_one(fatal) << "ERROR: bad external_force_type" << std::endl;
+            assert(false);
+          }
+        }
+      }
+      else if (boost::iequals(*it,"drag")) {
+        // drag force
+        vec_accelerations.push_back(acceleration_do_drag);
+      }
+      else if (boost::iequals(*it,"poison")) {
+        // zero potential shift
+        vec_potentials.push_back(potential_poison);
+      }
+      else {
+        clog_one(fatal) << "ERROR: bad external_force_type" << std::endl;
+      }
+    } // for it in split_efstr
+
+  } // select()
 
 } // namespace external_force
 

@@ -28,17 +28,9 @@
 
 
   # boundaries
-  box_width = 1.5
-  box_length = .5
-  box_height = .5
+  box_width  = 1.5
+  box_length = 0.5
+  box_height = 0.5
 
-  squarewell_x = yes
-  squarewell_y = yes
-  squarewell_z = yes
-
-  zero_potential_poison_value = 0.0
-  extforce_wall_steepness = 1e12
-  extforce_wall_powerindex = 5
-
-  do_gravitation = yes
-  gravitation_value = 1
+  external_force_type = "walls:xyz,gravity"
+  gravity_acceleration_constant = 1.0
