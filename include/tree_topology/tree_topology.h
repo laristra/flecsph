@@ -855,18 +855,16 @@ public:
 
     std::vector<branch_t*> remaining_branches;
     int done = omp_get_max_threads();
-    omp_lock_t tree_lock;
-    omp_init_lock(&tree_lock);
     #pragma omp parallel num_threads(omp_get_max_threads()+1)
     {
       int nthreads = omp_get_num_threads();
       int tid = omp_get_thread_num();
 
       if(tid == nthreads-1){
-        handle_requests(tree_lock);
+        handle_requests();
       }else{
         traverse_branches(MAC,do_square,work_branch,remaining_branches,false,
-          tree_lock,ef,std::forward<ARGS>(args)...);
+          ef,std::forward<ARGS>(args)...);
         // Wait for other threads
         #pragma omp atomic
           --done;
@@ -875,7 +873,6 @@ public:
         }
       }
     }
-    omp_destroy_lock(&tree_lock);
   //  clog(trace)<<"Merged done"<<std::endl<<std::flush;
 
     // Check if no message remainig
@@ -912,7 +909,7 @@ public:
     #pragma omp parallel
     {
       traverse_branches(MAC,do_square,remaining_branches,ignore,true,
-        tree_lock,ef,std::forward<ARGS>(args)...);
+        ef,std::forward<ARGS>(args)...);
     }
   } // apply_sub_cells
 
@@ -927,7 +924,6 @@ public:
     std::vector<branch_t*>& work_branch,
     std::vector<branch_t*>& non_local_branches,
     bool assert_local,
-    omp_lock_t& tree_lock,
     EF&& ef,
     ARGS&&... args)
   {
@@ -950,10 +946,21 @@ public:
       std::vector<branch_t*> inter_list;
       std::vector<branch_t*> requests_branches;
       if(sub_cells_inter(work_branch[i],MAC,inter_list,requests_branches)){
-        omp_set_lock(&tree_lock);
+        // If the reader works wait, when done, increase writers
+        {
+          std::unique_lock<std::mutex> lk(m);
+          cv_wr.wait(lk, [this] {return rd == 0;});
+          ++wr;
+        }
         force_calc(work_branch[i],inter_list,do_square,
                ef,std::forward<ARGS>(args)...);
-        omp_unset_lock(&tree_lock);
+        // Wake up the reader in case
+        {
+          m.lock();
+          --wr;assert(wr >=0 );
+          m.unlock();
+          cv_rd.notify_one();
+        }
       }else{
         assert(!assert_local);
         std::vector<key_t> send;
@@ -981,9 +988,7 @@ public:
 *
 */
   void
-  handle_requests(
-    omp_lock_t& tree_lock
-  )
+  handle_requests()
   {
     int max_size = 100;
     int max_requests = 100;
@@ -1056,14 +1061,23 @@ public:
           MPI_Recv(&(received[0]), nrecv, MPI_BYTE, source, SOURCE_REQUEST,
             MPI_COMM_WORLD, MPI_STATUS_IGNORE);
           assert(is_unique(received));
-          omp_set_lock(&tree_lock);
+          // Reeader prioritary
+          {
+            std::unique_lock<std::mutex> lk(m);
+            ++rd;
+            cv_rd.wait(lk, [this] {return wr == 0;});
+          }
           for(auto k: received){
             auto branch = branch_map_.find(k);
             assert(branch != branch_map_.end());
             get_sub_entities(&(branch->second),
               reply[source][current_reply[source]]);
           }
-          omp_unset_lock(&tree_lock);
+          {
+            m.lock(); --rd; m.unlock();
+            cv_wr.notify_all();
+          }
+
           int ncount = reply[source][current_reply[source]].size();
           MPI_Isend(&(reply[source][current_reply[source]++][0]),
             ncount*sizeof(entity_t),MPI_BYTE,source,SOURCE_REPLY,MPI_COMM_WORLD,
@@ -2090,6 +2104,12 @@ public:
   std::vector<entity_t> shared_entities_;
 
   int64_t nonlocal_branches_;
+
+  // To handle the threads
+  std::mutex m;
+  int rd = 0, wr = 0;
+  std::condition_variable cv_rd, cv_wr;
+  std::mutex cv_m;
 };
 
 } // namespace topology
