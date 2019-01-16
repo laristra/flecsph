@@ -104,7 +104,8 @@ class tree_topology : public P, public data::data_client_t
     SOURCE_REQUEST = 2,
     MPI_DONE =3,
     SOURCE_REPLY = 5,
-    MPI_RANK_DONE = 6
+    MPI_RANK_DONE = 6,
+    FAILED_PROBE = 7 
   };
 
 
@@ -872,7 +873,7 @@ public:
         }
       }
     }
-  //  clog(trace)<<"Merged done"<<std::endl<<std::flush;
+    //clog(trace)<<"Merged done"<<std::endl<<std::flush;
 
     // Check if no message remainig
 #ifdef DEBUG
@@ -910,6 +911,7 @@ public:
       traverse_branches(do_square,remaining_branches,ignore,true,
         ef,std::forward<ARGS>(args)...);
     }
+    MPI_Barrier(MPI_COMM_WORLD); 
   } // apply_sub_cells
 
   template<
@@ -1045,10 +1047,12 @@ public:
         traversal_fmm(work_branch,remaining_branches,MAC,
           f_fc,f_dfcdr,f_dfcdrdr,f_c2p);
         // Wait for other threads
-        #pragma omp atomic
-          --done;
-        if(done == 0){
-          MPI_Send(NULL, 0, MPI_INT, rank, MPI_DONE,MPI_COMM_WORLD);
+        #pragma omp critical
+        {
+          if(--done == 0){
+            MPI_Send(NULL, 0, MPI_INT, rank, MPI_DONE,MPI_COMM_WORLD);
+          }
+          assert(done >= 0); 
         }
       }
     }
@@ -1245,11 +1249,28 @@ public:
       MPI_Status status;
       // Wait on probe
 
-      MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-      int source = status.MPI_SOURCE;
-      int tag = status.MPI_TAG;
-      int nrecv = 0;
-      MPI_Get_count(&status, MPI_BYTE, &nrecv);
+      int source, tag, nrecv; 
+      if(!done_traversal){
+        MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        source = status.MPI_SOURCE;
+        tag = status.MPI_TAG;
+        nrecv = 0;
+        MPI_Get_count(&status, MPI_BYTE, &nrecv);
+      }else{
+        int flag; 
+        MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, 
+            &status);
+        if(flag){
+          source = status.MPI_SOURCE;
+          tag = status.MPI_TAG;
+          nrecv = 0;
+          MPI_Get_count(&status, MPI_BYTE, &nrecv);
+        }else{
+          tag = FAILED_PROBE; 
+        }
+      }
+      //if(tag != LOCAL_REQUEST)
+      //  clog(trace)<<rank<<" received: "<<tag<<" from "<< source <<std::endl;
       switch(tag)
       {
         case MPI_RANK_DONE:
@@ -1366,6 +1387,9 @@ public:
         }
         break;
 
+        case FAILED_PROBE: 
+          break; 
+
         default:
           {assert(false);}
         break;
@@ -1379,13 +1403,13 @@ public:
         int flag;
         for(size_t i = 0 ; i < current_mpi_requests; ++i){
           MPI_Test(&(mpi_requests[i]),&flag,MPI_STATUS_IGNORE);
-          done_requests = flag==false?false:done_requests;
+          done_requests = done_requests && flag;
         }
         done = done && done_requests;
         bool done_replies = true;
         for(size_t i = 0 ; i < current_mpi_replies; ++i){
           MPI_Test(&(mpi_replies[i]),&flag,MPI_STATUS_IGNORE);
-          done_replies = flag==false?false:done_replies;
+          done_replies = done_requests && flag;
         }
         done = done && done_replies;
         if(done && (!done_rank))
@@ -1405,10 +1429,11 @@ public:
           rank_done[rank] = true;
         }
         for(size_t i = 0 ; i < size; ++i){
-          done = rank_done[i]==false?false:done;
+          done = done && rank_done[i];
         }
       }
     }
+    //clog(trace)<<"Handler done"<<std::endl;
   }
 
   void
