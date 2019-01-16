@@ -110,7 +110,7 @@ public:
     os << " a: " << b.acceleration_;
     os << " id: " << b.id_;
     os << " key: "<<b.key_;
-    os << " owner: "<<b.owner_; 
+    os << " owner: "<<b.owner_;
     return os;
   }
 

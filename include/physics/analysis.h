@@ -289,7 +289,7 @@ namespace analysis{
   {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    rank || clog(info) << "Checking conservation of: ";
+    clog(info) << "Checking conservation of: ";
     for(auto c: check){
       switch(c){
         case MASS:
@@ -376,6 +376,8 @@ namespace analysis{
         } // switch
       } // for
     } // while
+    // Close the file
+    inFile.close();
     return true;
   } // conservation check
 

@@ -1,10 +1,10 @@
 #------------------------------------------------------------------------------#
-# The cinch version 
+# The cinch version
 #------------------------------------------------------------------------------#
 cinch_minimum_required(1.0)
 
 #------------------------------------------------------------------------------#
-# The project name 
+# The project name
 #------------------------------------------------------------------------------#
 project(flecsph)
 
@@ -33,7 +33,7 @@ cinch_load_extras()
 #------------------------------------------------------------------------------#
 # Legion
 #------------------------------------------------------------------------------#
-option(ENABLE_LEGION "Enable Legion" OFF) 
+option(ENABLE_LEGION "Enable Legion" OFF)
 if(ENABLE_LEGION)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DENABLE_LEGION")
   find_package(Legion REQUIRED)
@@ -113,4 +113,3 @@ cinch_add_application_directory("include/tree_topology/test")
 #------------------------------------------------------------------------------#
 cinch_add_application_directory("app/id_generators")
 cinch_add_application_directory("app/drivers")
-

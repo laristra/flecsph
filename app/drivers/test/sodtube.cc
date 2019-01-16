@@ -1,10 +1,22 @@
-#include <cinchdevel.h>
 #include <cinchtest.h>
 
-#include <iostream>
-#include <cmath>
-
 #include <mpi.h>
+
+using namespace ::testing;
+class MyEnv: public testing::Environment {
+public:
+  MyEnv() : ::testing::Environment() {}
+  virtual ~MyEnv() {}
+  void SetUp() override {
+    int provided;
+    MPI_Init_thread(NULL, NULL, MPI_THREAD_MULTIPLE, &provided);
+    ASSERT_TRUE(provided == MPI_THREAD_MULTIPLE);
+  }
+  void TearDown() override { MPI_Finalize(); std::cout<<"Done finalize"<<std::endl;}
+private:
+  MyEnv(const MyEnv& env) {}
+};
+Environment*  const env = AddGlobalTestEnvironment(new MyEnv);
 
 namespace analysis{
   enum e_conservation: size_t
@@ -23,6 +35,9 @@ using namespace flecsi;
 using namespace execution;
 
 TEST(sodtube, working) {
+  int provided;
+  MPI_Query_thread(&provided);
+  ASSERT_TRUE(provided == MPI_THREAD_MULTIPLE);
   mpi_init_task("sodtube_t1_n100.par");
   ASSERT_TRUE(check_conservation({MASS,ENERGY,MOMENTUM}));
 }

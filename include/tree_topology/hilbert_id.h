@@ -510,7 +510,16 @@ public:
       output.insert(output.begin(),'1');
       ostr<<output.c_str();
     }else{
-      ostr<<std::bitset<64>(id_);
+      std::string output;
+      hilbert_id id = *this;
+      int poped;
+      while(id != root())
+      {
+        poped = id.pop_value();
+        output.insert(0,std::to_string(poped));
+      }
+      output.insert(output.begin(),'1');
+      ostr<<output.c_str();
     }
   }
 

@@ -66,10 +66,16 @@ namespace topology {
 
 template <class T>
 bool is_unique(std::vector<T> X) {
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   std::sort(X.begin(), X.end());
   auto last = std::unique(X.begin(), X.end());
   if(last != X.end()){
-    clog(trace)<<*last<<std::endl;
+    // list all
+    for(auto e: X){
+      std::cerr<<rank<<" "<<e<<std::endl;
+    }
+    //clog(trace)<<rank<<": "<<*last<<std::endl;
   }
   return last == X.end();
 }
@@ -105,7 +111,7 @@ class tree_topology : public P, public data::data_client_t
     MPI_DONE =3,
     SOURCE_REPLY = 5,
     MPI_RANK_DONE = 6,
-    FAILED_PROBE = 7 
+    FAILED_PROBE = 7
   };
 
 
@@ -866,10 +872,10 @@ public:
         traverse_branches(do_square,work_branch,remaining_branches,false,
           ef,std::forward<ARGS>(args)...);
         // Wait for other threads
-        #pragma omp atomic
-          --done;
-        if(done == 0){
-          MPI_Send(NULL, 0, MPI_INT, rank, MPI_DONE,MPI_COMM_WORLD);
+        #pragma omp critical
+        {
+          if(--done == 0)
+            MPI_Send(NULL, 0, MPI_INT, rank, MPI_DONE,MPI_COMM_WORLD);
         }
       }
     }
@@ -883,7 +889,7 @@ public:
     assert(flag == 0);
 #endif
     if(remaining_branches.size() > 0 ){
-      assert(is_unique(ghosts_entities_));
+      //assert(is_unique(ghosts_entities_));
       for(size_t i = 0; i < ghosts_entities_.size(); ++i)
       {
         entity_t& g = ghosts_entities_[i];
@@ -911,7 +917,7 @@ public:
       traverse_branches(do_square,remaining_branches,ignore,true,
         ef,std::forward<ARGS>(args)...);
     }
-    MPI_Barrier(MPI_COMM_WORLD); 
+    MPI_Barrier(MPI_COMM_WORLD);
   } // apply_sub_cells
 
   template<
@@ -947,20 +953,20 @@ public:
       std::vector<branch_t*> requests_branches;
       if(sub_cells_inter(work_branch[i],inter_list,requests_branches)){
         // If the reader works wait, when done, increase writers
-        {
-          std::unique_lock<std::mutex> lk(m);
-          cv_wr.wait(lk, [this] {return rd == 0;});
-          ++wr;
-        }
+        //{
+        //  std::unique_lock<std::mutex> lk(m);
+        //  cv_wr.wait(lk, [this] {return rd == 0;});
+        //  ++wr;
+        //}
         force_calc(work_branch[i],inter_list,do_square,
                ef,std::forward<ARGS>(args)...);
         // Wake up the reader in case
-        {
-          m.lock();
-          --wr;assert(wr >=0 );
-          m.unlock();
-          cv_rd.notify_one();
-        }
+        //{
+        //  m.lock();
+        //  --wr;assert(wr >=0 );
+        //  m.unlock();
+        //l  cv_rd.notify_one();
+        //}
       }else{
         assert(!assert_local);
         std::vector<key_t> send;
@@ -1002,16 +1008,16 @@ public:
       C2P f_c2p
     )
   {
+
     MPI_Barrier(MPI_COMM_WORLD);
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    rank || clog(trace) << "FMM : maxmasscell: "<<maxmasscell<<" MAC: "<<MAC
-      <<std::endl;
+    rank || clog(trace) << "FMM : maxmasscell: "<<maxmasscell<<" MAC: "<<
+      MAC<<std::endl;
+
     std::stack<branch_t*> stk;
     stk.push(b);
-
     std::vector<branch_t*> work_branch;
-
     // Only work on local branches
     // 1. Gather the cells
     while(!stk.empty()){
@@ -1052,7 +1058,7 @@ public:
           if(--done == 0){
             MPI_Send(NULL, 0, MPI_INT, rank, MPI_DONE,MPI_COMM_WORLD);
           }
-          assert(done >= 0); 
+          assert(done >= 0);
         }
       }
     }
@@ -1065,7 +1071,7 @@ public:
     assert(flag == 0);
 #endif
     if(remaining_branches.size() > 0 ){
-      assert(is_unique(ghosts_entities_));
+      //assert(is_unique(ghosts_entities_));
       for(size_t i = 0; i < ghosts_entities_.size(); ++i)
       {
         entity_t& g = ghosts_entities_[i];
@@ -1243,13 +1249,12 @@ public:
     std::vector<bool> rank_done(size,false);
     bool done_rank = false;
 
-    // Put thread waiting on MPI_Recv
     while(!done)
     {
       MPI_Status status;
       // Wait on probe
 
-      int source, tag, nrecv; 
+      int source, tag, nrecv;
       if(!done_traversal){
         MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
         source = status.MPI_SOURCE;
@@ -1257,8 +1262,8 @@ public:
         nrecv = 0;
         MPI_Get_count(&status, MPI_BYTE, &nrecv);
       }else{
-        int flag; 
-        MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, 
+        int flag;
+        MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag,
             &status);
         if(flag){
           source = status.MPI_SOURCE;
@@ -1266,7 +1271,7 @@ public:
           nrecv = 0;
           MPI_Get_count(&status, MPI_BYTE, &nrecv);
         }else{
-          tag = FAILED_PROBE; 
+          tag = FAILED_PROBE;
         }
       }
       //if(tag != LOCAL_REQUEST)
@@ -1289,10 +1294,10 @@ public:
           std::vector<entity_t> received(nrecv/sizeof(entity_t));
           MPI_Recv(&(received[0]),nrecv,MPI_BYTE,source,
             SOURCE_REPLY,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-          assert(is_unique(received));
+          //assert(is_unique(received));
           ghosts_entities_.insert(
             ghosts_entities_.end(),received.begin(),received.end());
-          assert(is_unique(ghosts_entities_));
+          //assert(is_unique(ghosts_entities_));
           --request_counter;
         }
         break;
@@ -1306,22 +1311,22 @@ public:
             MPI_COMM_WORLD, MPI_STATUS_IGNORE);
           assert(is_unique(received));
           // Reeader prioritary
-          {
-            std::unique_lock<std::mutex> lk(m);
-            ++rd;
-            cv_rd.wait(lk, [this] {return wr == 0;});
-          }
+          //{
+          //  std::unique_lock<std::mutex> lk(m);
+          //  ++rd;
+          //  cv_rd.wait(lk, [this] {return wr == 0;});
+          //}
           for(auto k: received){
             auto branch = branch_map_.find(k);
             assert(branch != branch_map_.end());
             get_sub_entities(&(branch->second),
               reply[source][current_reply[source]]);
           }
-          {
-            m.lock(); --rd; m.unlock();
-            cv_wr.notify_all();
-          }
-
+          //{
+          //  m.lock(); --rd; m.unlock();
+          //  cv_wr.notify_all();
+          //}
+          //assert(is_unique(reply[source][current_reply[source]]));
           int ncount = reply[source][current_reply[source]].size();
           MPI_Isend(&(reply[source][current_reply[source]++][0]),
             ncount*sizeof(entity_t),MPI_BYTE,source,SOURCE_REPLY,MPI_COMM_WORLD,
@@ -1347,7 +1352,7 @@ public:
             // Add this request to vector
             requests[owner][current_requests[owner]].push_back(k);
             if(requests[owner][current_requests[owner]].size() >= max_size){
-              assert(is_unique(requests[owner][current_requests[owner]])); 
+              //assert(is_unique(requests[owner][current_requests[owner]]));
               MPI_Isend(&(requests[owner][current_requests[owner]++][0]),
                 max_size*sizeof(key_t),MPI_BYTE,owner,SOURCE_REQUEST,
                 MPI_COMM_WORLD,&(mpi_requests[current_mpi_requests++]));
@@ -1388,8 +1393,8 @@ public:
         }
         break;
 
-        case FAILED_PROBE: 
-          break; 
+        case FAILED_PROBE:
+          break;
 
         default:
           {assert(false);}
@@ -2120,7 +2125,7 @@ public:
            key.truncate(max_depth()+2);
 
            output<<key<<" [label=\""<<key << "\", xlabel=\"" <<
-            e->owner() <<"\"];"<<std::endl;
+            e->owner() <<" - "<<e->global_id()<<"\"];"<<std::endl;
 
            output<<cur->id()<<"->"<<key<<std::endl;
            switch (e->locality())
