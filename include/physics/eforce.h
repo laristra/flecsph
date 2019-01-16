@@ -32,12 +32,18 @@
 
 namespace external_force {
 
+  // acceleration and potential function types and pointers
+  typedef double  (*potential_t)(body_holder*);
+  typedef point_t (*acceleration_t)(body_holder*);
+  static std::vector<potential_t> vec_potentials;
+  static std::vector<acceleration_t> vec_accelerations;
 
   /**
    * @brief      1D walls: steep power-law-like potentials
    * @param      srch  The source's body holder
    */
-  double potential_square_well(body_holder* srch, int I) {
+  template <int I = 0>
+  double potential_square_well(body_holder* srch) {
     using namespace param;
     body* source = srch->getBody();
     point_t rp = source->getPosition();
@@ -51,18 +57,13 @@ namespace external_force {
                  *pw_a;
     return phi;
   }
-  double potential_walls_x (body_holder* srch) { 
-    return potential_square_well(srch,0); 
-  }
-  double potential_walls_y (body_holder* srch) { 
-    return potential_square_well(srch,1); 
-  }
-  double potential_walls_z (body_holder* srch) { 
-    return potential_square_well(srch,2); 
-  }
+  potential_t potential_walls_x = potential_square_well<0>;
+  potential_t potential_walls_y = potential_square_well<1>;
+  potential_t potential_walls_z = potential_square_well<2>;
 
 
-  point_t acceleration_square_well(body_holder* srch, int I) {
+  template <int I = 0>
+  point_t acceleration_square_well(body_holder* srch) {
     using namespace param;
     point_t a = 0.0;
     body* source = srch->getBody();
@@ -77,15 +78,9 @@ namespace external_force {
           *pw_n*pw_a;
     return a;
   }
-  point_t acceleration_walls_x(body_holder* srch) {
-    return acceleration_square_well(srch,0); 
-  }
-  point_t acceleration_walls_y(body_holder* srch) {
-    return acceleration_square_well(srch,1); 
-  }
-  point_t acceleration_walls_z(body_holder* srch) {
-    return acceleration_square_well(srch,2); 
-  }
+  acceleration_t acceleration_walls_x = acceleration_square_well<0>;
+  acceleration_t acceleration_walls_y = acceleration_square_well<1>;
+  acceleration_t acceleration_walls_z = acceleration_square_well<2>;
 
   /**
    * @brief      Round or spherical boundary wall
@@ -256,12 +251,6 @@ namespace external_force {
   double potential_poison(body_holder* srch) {
     return param::zero_potential_poison_value;
   }
-
-  // acceleration and potential function types and pointers
-  typedef double  (*potential_t)(body_holder*);
-  typedef point_t (*acceleration_t)(body_holder*);
-  static std::vector<potential_t> vec_potentials;
-  static std::vector<acceleration_t> vec_accelerations;
 
   /**
    * @brief      Total external force at a point 'srch'
