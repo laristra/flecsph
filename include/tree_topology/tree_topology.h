@@ -1347,6 +1347,7 @@ public:
             // Add this request to vector
             requests[owner][current_requests[owner]].push_back(k);
             if(requests[owner][current_requests[owner]].size() >= max_size){
+              assert(is_unique(requests[owner][current_requests[owner]])); 
               MPI_Isend(&(requests[owner][current_requests[owner]++][0]),
                 max_size*sizeof(key_t),MPI_BYTE,owner,SOURCE_REQUEST,
                 MPI_COMM_WORLD,&(mpi_requests[current_mpi_requests++]));
