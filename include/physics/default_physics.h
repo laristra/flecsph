@@ -86,7 +86,7 @@ namespace physics{
     const point_t pos = source->coordinates(),
                   vel = source->getVelocity();
     const double eint = source->getInternalenergy(),
-                 epot = external_force::potential(srch);
+                 epot = external_force::potential(pos);
     double ekin = vel[0]*vel[0];
     for (unsigned short i=1; i<gdimension; ++i)
       ekin += vel[i]*vel[i];
@@ -105,7 +105,7 @@ namespace physics{
     const point_t pos = source->coordinates(),
                   vel = source->getVelocity();
     const double etot = source->getTotalenergy(),
-                 epot = external_force::potential(srch);
+                 epot = external_force::potential(pos);
     double ekin = vel[0]*vel[0];
     for (unsigned short i=1; i<gdimension; ++i)
       ekin += vel[i]*vel[i];
@@ -141,6 +141,8 @@ namespace physics{
     eos::compute_pressure(srch);
     eos::compute_soundspeed(srch);
   }
+
+
   /**
    * @brief      Calculates the hydro acceleration
    * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics
@@ -310,7 +312,7 @@ namespace physics{
                 + .5*Pi_ab*(va_dot_DaWab + vb_dot_DaWab));
     }
 
-    source->setDudt(dedt);
+    source->setDedt(dedt);
   } // compute_dedt
 
 
@@ -330,8 +332,9 @@ namespace physics{
                     / (sph_eta*kernels::kernel_width);
 
     // timestep based on particle velocity
-    const double vel = norm_point(source->getVelocity());
-    const double dt_v = dx/(vel + tiny);
+    const point_t vel = source->getVelocity();
+    const double vn  = norm_point(vel);
+    const double dt_v = dx/(vn + tiny);
 
     // timestep based on acceleration
     const double acc = norm_point(source->getAcceleration());
@@ -343,10 +346,27 @@ namespace physics{
     const double dt_c = dx/ (tiny + cs_a*(1 + mc*sph_viscosity_alpha)
                                   + mc*sph_viscosity_beta*max_mu_ab);
 
-    // critical OMP to avoid outside synchronizations
+    // minimum timestep
     double dtmin = timestep_cfl_factor * std::min(std::min(dt_v,dt_a), dt_c);
+
+    // timestep based on positivity of internal energy
+    if (thermokinetic_formulation) {
+      const double eint = source->getInternalenergy();
+      const point_t pos = source->getPosition();
+      const double epot = external_force::potential(pos);
+      double epot_next;
+      int i;
+      for(i=0; i<20; ++i) {
+        epot_next = external_force::potential(pos + dtmin*vel);
+        if(epot_next - epot < eint*0.5) break;
+        dtmin *= 0.5;
+      }
+      assert (i<20);
+    }
+
     source->setDt(dtmin);
   }
+
 
   /**
    * @brief      Reduce adaptive timestep and set its value
@@ -373,6 +393,7 @@ namespace physics{
     if (dtmin > 2.0*physics::dt)
       physics::dt = physics::dt*2.0;
   }
+
 
   void
   compute_smoothinglength(
@@ -412,6 +433,7 @@ namespace physics{
       }
     } // if gdimension
   }
+
 
   /**
    * @brief update smoothing length for particles (Rosswog'09, eq.51)

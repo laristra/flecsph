@@ -351,7 +351,7 @@ namespace param {
 //      If we have some IDs that do not require relaxation,
 //      this can be neglected
 //
-//- Do drag froce boolean
+//- apply drag force?
 #ifndef do_drag
   DECLARE_PARAM(bool,do_drag,false)
 #endif
@@ -370,53 +370,35 @@ namespace param {
 //
 // Parameters for external acceleration
 //
+# ifndef thermokinetic_formulation
+  DECLARE_PARAM(bool,thermokinetic_formulation, true)
+# endif
+
 //- which external force to apply?
 //  * "none" (default)
 #ifndef external_force_type
   DECLARE_STRING_PARAM(external_force_type,"none")
 #endif
 
+// poison zero potential level: since potential is defined
+// up to a constant, any poison value should still work
 # ifndef zero_potential_poison_value
   DECLARE_PARAM(double,zero_potential_poison_value, 0.0)
 # endif
 
-// Enable squarewell on X axis
-#ifndef squarewell_x
-  DECLARE_PARAM(bool,squarewell_x,false)
-#endif
-
-// Enable squarewell on X axis
-#ifndef squarewell_y
-  DECLARE_PARAM(bool,squarewell_y,false)
-#endif
-
-// Enable squarewell on X axis
-#ifndef squarewell_z
-  DECLARE_PARAM(bool,squarewell_z,false)
-#endif
-
+// boundary wall power index
 # ifndef extforce_wall_powerindex
   DECLARE_PARAM(double,extforce_wall_powerindex, 5.0)
 # endif
 
+// boundary wall steepness parameter
 # ifndef extforce_wall_steepness
-  DECLARE_PARAM(double,extforce_wall_steepness, 1e6)
+  DECLARE_PARAM(double,extforce_wall_steepness, 1e12)
 # endif
 
-# ifndef thermokinetic_formulation
-  DECLARE_PARAM(bool,thermokinetic_formulation, true)
-# endif
-
-
-// Apply gravitation on particles
-// On : 1D, x, 2D y, 3D z
-# ifndef do_gravitation
-  DECLARE_PARAM(bool,do_gravitation, false)
-# endif
-
-// Value for the gravitation
-# ifndef gravitation_value
-  DECLARE_PARAM(double,gravitation_value, 9.81)
+// value of the gravity constant
+# ifndef gravity_acceleration_constant
+  DECLARE_PARAM(double,gravity_acceleration_constant, 9.81)
 # endif
 
 //
@@ -736,7 +718,7 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(fmm_max_cell_mass)
 # endif
 
-// Drag force parameters ---------------------------------------------------
+  // drag force parameters ---------------------------------------------------
 #ifndef do_drag
   READ_BOOLEAN_PARAM(do_drag)
 #endif
@@ -750,6 +732,10 @@ void set_param(const std::string& param_name,
 # endif
 
 // external force  --------------------------------------------------------
+# ifndef thermokinetic_formulation
+  READ_BOOLEAN_PARAM(thermokinetic_formulation)
+# endif
+
 #ifndef external_force_type
   READ_STRING_PARAM(external_force_type)
 #endif
@@ -757,21 +743,6 @@ void set_param(const std::string& param_name,
 # ifndef zero_potential_poison_value
   READ_NUMERIC_PARAM(zero_potential_poison_value)
 # endif
-
-// Enable squarewell on X axis
-#ifndef squarewell_x
-  READ_BOOLEAN_PARAM(squarewell_x)
-#endif
-
-// Enable squarewell on X axis
-#ifndef squarewell_y
-  READ_BOOLEAN_PARAM(squarewell_y)
-#endif
-
-// Enable squarewell on X axis
-#ifndef squarewell_z
-  READ_BOOLEAN_PARAM(squarewell_z)
-#endif
 
 # ifndef extforce_wall_powerindex
   READ_NUMERIC_PARAM(extforce_wall_powerindex)
@@ -781,22 +752,11 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(extforce_wall_steepness)
 # endif
 
-# ifndef thermokinetic_formulation
-  READ_BOOLEAN_PARAM(thermokinetic_formulation)
+# ifndef gravity_acceleration_constant
+  READ_NUMERIC_PARAM(gravity_acceleration_constant)
 # endif
 
-// Apply gravitation on particles
-// On : 1D, x, 2D y, 3D z
-# ifndef do_gravitation
-  READ_BOOLEAN_PARAM(do_gravitation)
-# endif
-
-// Value for the gravitation
-# ifndef gravitation_value
-  READ_NUMERIC_PARAM(gravitation_value)
-# endif
-
-  // specific apps  ---------------------------------------------------------
+// specific apps  ---------------------------------------------------------
 # ifndef sodtest_num
   READ_NUMERIC_PARAM(sodtest_num)
 # endif
