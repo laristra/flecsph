@@ -332,8 +332,9 @@ namespace physics{
                     / (sph_eta*kernels::kernel_width);
 
     // timestep based on particle velocity
-    const double vel = norm_point(source->getVelocity());
-    const double dt_v = dx/(vel + tiny);
+    const point_t vel = source->getVelocity();
+    const double vn  = norm_point(vel);
+    const double dt_v = dx/(vn + tiny);
 
     // timestep based on acceleration
     const double acc = norm_point(source->getAcceleration());
@@ -347,6 +348,22 @@ namespace physics{
 
     // minimum timestep
     double dtmin = timestep_cfl_factor * std::min(std::min(dt_v,dt_a), dt_c);
+
+    // timestep based on positivity of internal energy
+    if (thermokinetic_formulation) {
+      const double eint = source->getInternalenergy();
+      const point_t pos = source->getPosition();
+      const double epot = external_force::potential(pos);
+      double epot_next;
+      int i;
+      for(i=0; i<20; ++i) {
+        epot_next = external_force::potential(pos + dtmin*vel);
+        if(epot_next - epot < eint*0.5) break;
+        dtmin *= 0.5;
+      }
+      assert (i<20);
+    }
+
     source->setDt(dtmin);
   }
 
