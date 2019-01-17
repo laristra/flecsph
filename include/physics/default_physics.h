@@ -352,7 +352,7 @@ namespace physics{
     // timestep based on positivity of internal energy
     if (thermokinetic_formulation) {
       const double eint = source->getInternalenergy();
-      const point_t pos = source->getPosition();
+      const point_t pos = source->coordinates();
       const double epot = external_force::potential(pos);
       double epot_next;
       int i;

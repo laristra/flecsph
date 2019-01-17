@@ -201,6 +201,7 @@ struct tree_geometry<T, 1>
   /**
   * @brief Multipole method acceptance based on MAC.
   * The angle === l/r < MAC (l source box width, r distance sink -> source)
+  * Barnes & Hut 1986
   */
   bool
   box_MAC(
@@ -373,8 +374,7 @@ struct tree_geometry<T, 2>
     double macangle)
   {
     double dmax = flecsi::distance(box_source_min,box_source_max);
-    double disttoc = flecsi::distance(
-        position_sink,position_source);
+    double disttoc = flecsi::distance(position_sink,position_source);
     return dmax/disttoc < macangle;
   }
 
@@ -563,9 +563,8 @@ struct tree_geometry<T, 3>
     double macangle)
   {
     double dmax = flecsi::distance(box_source_min,box_source_max);
-    double disttoc = flecsi::distance(
-        position_sink,position_source);
-    return dmax/disttoc - macangle <= tol;
+    double disttoc = flecsi::distance(position_sink,position_source);
+    return dmax/disttoc < macangle ;
   }
 
 };

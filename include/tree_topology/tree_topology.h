@@ -1038,7 +1038,6 @@ public:
       }
     }
 
-    std::vector<branch_t*> remaining_branches;
     int done = omp_get_max_threads();
     #pragma omp parallel num_threads(omp_get_max_threads()+1)
     {
@@ -1048,7 +1047,7 @@ public:
       if(tid == nthreads-1){
         handle_requests();
       }else{
-        traversal_fmm(work_branch,remaining_branches,MAC,
+        traversal_fmm(work_branch,MAC,
           f_fc,f_dfcdr,f_dfcdrdr,f_c2p);
         // Wait for other threads
         #pragma omp critical
@@ -1104,7 +1103,6 @@ public:
   void
   traversal_fmm(
     std::vector<branch_t*>& work_branch,
-    std::vector<branch_t*>& non_local_branches,
     const double MAC,
     FC f_fc,
     DFCDR f_dfcdr,
@@ -1137,7 +1135,6 @@ public:
         std::vector<key_t> send;
         #pragma omp critical
         {
-          non_local_branches.push_back(work_branch[i]);
           // Send branch key to request handler
           for(auto b: requests_branches){
             assert(b->owner() < size && b->owner() >= 0);
@@ -1201,6 +1198,12 @@ public:
             branch->bmin(),
             branch->bmax(),MAC))
           {
+            f_fc(fc,b->coordinates(),branch->coordinates(),branch->mass());
+            f_dfcdr(dfcdr,b->coordinates(),branch->coordinates(),
+              branch->mass());
+            f_dfcdrdr(dfcdrdr,b->coordinates(),branch->coordinates(),
+              branch->mass());
+          }else{
             stk.push(branch);
           }
         }
@@ -1216,8 +1219,10 @@ public:
         // For every bodies propagate
         for(auto id: *b){
           auto child = &(tree_entities_[id]);
-          if(child->is_local())
+          if(child->is_local()){
+            // reset acceleration
             f_c2p(fc,dfcdr,dfcdrdr,b->coordinates(),child);
+          }
         }
       }else{
         for(int i=0 ; i<(1<<dimension);++i){
@@ -1248,9 +1253,8 @@ public:
       if(c->is_leaf() && c->is_local()){
         for(auto id: *b){
           auto child = &(tree_entities_[id]);
-          if(child->is_local()){
+          if(child->is_local())
             local_entities.push_back(child);
-          }
         }
       }else{
         for(int i=0 ; i<(1<<dimension);++i){
@@ -1268,19 +1272,20 @@ public:
       if(c->is_leaf()){
         if(!geometry_t::box_MAC(
           b->coordinates(),c->coordinates(),
-          c->bmin(),c->bmax(),MAC)
-        )
+          c->bmin(),c->bmax(),MAC))
         {
-          for(auto id: *b){
+          for(auto id: *c){
             auto child = &(tree_entities_[id]);
             for(auto& loc: local_entities)
             {
-              // N square computation
-              point_t fc;
-              loc->getBody()->setAcceleration(
-                loc->getBody()->getAcceleration() +
-                f_fc(fc,loc->coordinates(),child->coordinates(),child->mass())
-              );
+              if(child->id() != loc->id()){
+                // N square computation
+                point_t fc;
+                loc->getBody()->setAcceleration(
+                  loc->getBody()->getAcceleration() +
+                  f_fc(fc,loc->coordinates(),child->coordinates(),child->mass())
+                );
+              }
             }
           }
         }

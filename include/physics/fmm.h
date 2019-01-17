@@ -45,11 +45,9 @@ namespace fmm {
   )
   {
     double dist = flecsi::distance(sink_coordinates,source_coordinates);
-    point_t res = {};
-    if(dist > 0){
-      res = -source_mass/(dist*dist*dist)*(source_coordinates-sink_coordinates);
-    }
-    fc = fc + res;
+    point_t res = -source_mass/(dist*dist*dist)*
+      (sink_coordinates-source_coordinates);
+    fc += res;
     return res;
   }
 
@@ -136,7 +134,7 @@ namespace fmm {
     point_t grav = fc;
     // The Jacobi
     for(size_t i=0;i<gdimension;++i){
-      for(size_t  j=0;j<gdimension;++j){
+      for(size_t j=0;j<gdimension;++j){
         grav[i] += dfcdr[i*gdimension+j]*diffPos[j];
       } // for
     } // for

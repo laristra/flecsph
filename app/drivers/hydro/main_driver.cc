@@ -119,14 +119,14 @@ mpi_init_task(const char * parameter_file){
         bs.apply_all(physics::set_total_energy);
       }
 
-      rank|| clog(trace) << "compute density pressure cs" << std::flush;
+      rank|| clog(trace) << "compute density pressure cs"<<std::endl << std::flush;
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
       bs.apply_all(integration::save_velocityhalf);
 
       // necessary for computing dv/dt and du/dt in the next step
       bs.reset_ghosts();
 
-      rank|| clog(trace) << "compute rhs of evolution equations" << std::flush;
+      rank|| clog(trace) << "compute rhs of evolution equations"<<std::endl << std::flush;
       bs.apply_in_smoothinglength(physics::compute_acceleration);
       if (thermokinetic_formulation){
         rank|| clog(trace) << "compute dedt" << std::flush;

@@ -64,54 +64,7 @@ namespace external_force {
   point_t acceleration_square_well(body* source) {
     using namespace param;
     point_t a = 0.0;
-<<<<<<< HEAD
-    point_t rp =  srch->getBody()->coordinates();
-    double box[3] = {0.,0.,0.};
-    bool do_squarewell[3] = {squarewell_x,squarewell_y,squarewell_z};
-    if(param::squarewell_x){
-      box[0] = 0.5*box_length;
-    }
-    if(param::squarewell_y){
-      box[1] = 0.5*box_width;
-    }
-    if(param::squarewell_z){
-      box[2] = 0.5*box_height;
-    }
-    const double pw_n = extforce_wall_powerindex;
-    const double pw_a = extforce_wall_steepness;
-    for (unsigned short i=0; i<gdimension; ++i) {
-      a[i]  = (((rp[i] <- box[i]) ? pow(-rp[i]- box[i], pw_n - 1) : 0.0)
-              -((rp[i] >  box[i]) ? pow(rp[i] - box[i], pw_n - 1) : 0.0))
-            *pw_n*pw_a*do_squarewell[i];
-    }
-    return a;
-  }
-
-  double potential_squarewell_xyz(body_holder* srch) {
-    using namespace param;
-    double phi = 0.0;
-    point_t rp =  srch->getBody()->coordinates();
-    double box[3] = {0.,0.,0.};
-    bool do_squarewell[3] = {squarewell_x,squarewell_y,squarewell_z};
-    if(param::squarewell_x){
-      box[0] = 0.5*box_length;
-    }
-    if(param::squarewell_y){
-      box[1] = 0.5*box_width;
-    }
-    if(param::squarewell_z){
-      box[2] = 0.5*box_height;
-    }
-    const double pw_n = extforce_wall_powerindex;
-    const double pw_a = extforce_wall_steepness;
-    for (unsigned short i=0; i<gdimension; ++i) {
-      phi += (((rp[i] < -box[i]) ? pow(-rp[i]- box[i], pw_n) : 0.0)
-             +((rp[i] >  box[i]) ? pow(rp[i] - box[i], pw_n) : 0.0))
-            *pw_a*do_squarewell[i];
-    }
-    return phi;
-=======
-    point_t rp = source->getPosition();
+    point_t rp = source->coordinates();
     const static double
        box[3] = {.5*box_length,.5*box_width,.5*box_height},
        pw_n = extforce_wall_powerindex,
@@ -121,7 +74,6 @@ namespace external_force {
             -((rp[I] >  box[I]) ? pow(rp[I] - box[I], pw_n - 1) : 0.0))
           *pw_n*pw_a;
     return a;
->>>>>>> feature/oleg/dragforce
   }
   acceleration_t acceleration_walls_x = acceleration_square_well<0>;
   acceleration_t acceleration_walls_y = acceleration_square_well<1>;
@@ -134,11 +86,7 @@ namespace external_force {
   point_t acceleration_spherical_wall(body* source) {
     using namespace param;
     point_t a = 0.0;
-<<<<<<< HEAD
-    point_t rp =  srch->getBody()->coordinates();
-=======
-    point_t rp = source->getPosition();
->>>>>>> feature/oleg/dragforce
+    point_t rp = source->coordinates();
     const double pw_n = extforce_wall_powerindex;
     const double pw_a = extforce_wall_steepness;
     double r = rp[0]*rp[0];
@@ -156,10 +104,6 @@ namespace external_force {
   double potential_spherical_wall(const point_t& rp) {
     using namespace param;
     double phi = 0.0;
-<<<<<<< HEAD
-    point_t rp =  srch->getBody()->coordinates();
-=======
->>>>>>> feature/oleg/dragforce
     const double pw_n = extforce_wall_powerindex;
     const double pw_a = extforce_wall_steepness;
     double r = rp[0]*rp[0];
@@ -220,11 +164,7 @@ namespace external_force {
     point_t a = 0.0;
     assert (gdimension > 1);
 
-<<<<<<< HEAD
-    point_t rp =  srch->getBody()->coordinates();
-=======
-    point_t rp =  source->getPosition();
->>>>>>> feature/oleg/dragforce
+    point_t rp =  source->coordinates();
     const double x1 = rp[0] - airfoil_anchor_x,
                  y1 = rp[1] - airfoil_anchor_y,
                  alpha = airfoil_attack_angle*M_PI/180.0,
@@ -257,13 +197,7 @@ namespace external_force {
     double phi = 0.0;
     assert (gdimension > 1);
 
-<<<<<<< HEAD
-    point_t rp =  srch->getBody()->coordinates();
-    const double x1 = rp[0] - airfoil_anchor_x,
-                 y1 = rp[1] - airfoil_anchor_y,
-=======
-    static const double             
->>>>>>> feature/oleg/dragforce
+    static const double
                  alpha = airfoil_attack_angle*M_PI/180.0,
                  pw_n = extforce_wall_powerindex,
                  pw_a = extforce_wall_steepness;

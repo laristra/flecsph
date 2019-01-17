@@ -113,6 +113,7 @@ mpi_init_task(const char * parameter_file){
 
     if (physics::iteration == param::initial_iteration){
 
+      rank|| clog(trace)<<"First iteration"<<std::endl << std::flush;
       bs.update_iteration();
 
       if(thermokinetic_formulation) {
@@ -120,20 +121,24 @@ mpi_init_task(const char * parameter_file){
         bs.apply_all(physics::set_total_energy);
       }
 
+      rank|| clog(trace) << "compute density pressure cs" << std::flush;
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
       bs.apply_all(integration::save_velocityhalf);
 
       // necessary for computing dv/dt and du/dt in the next step
       bs.reset_ghosts();
 
-      rank|| clog(trace) << "compute rhs of evolution equations" << std::flush;
+      rank|| clog(trace) << "compute rhs of evolution equations" <<std::endl<< std::flush;
       bs.apply_in_smoothinglength(physics::compute_acceleration);
-      rank|| clog(trace) << "compute gravitation" << std::flush;
+      rank|| clog(trace) << "compute gravitation" <<std::endl<< std::flush;
       bs.gravitation_fmm();
-      if (thermokinetic_formulation)
+      if (thermokinetic_formulation){
+        rank|| clog(trace) << "compute dedt" << std::flush;
         bs.apply_in_smoothinglength(physics::compute_dedt);
-      else
+      }else{
+        rank|| clog(trace) << "compute dudt" << std::flush;
         bs.apply_in_smoothinglength(physics::compute_dudt);
+      }
       rank|| clog(trace) << ".done" << std::endl;
 
     }
@@ -153,16 +158,17 @@ mpi_init_task(const char * parameter_file){
 
       // sync velocities
       bs.update_iteration();
-
+      rank|| clog(trace) << "compute density pressure cs"<<std::endl << std::flush;
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
 
       // Sync density/pressure/cs
       bs.reset_ghosts();
 
-      rank|| clog(trace) << "leapfrog: kick two (velocity)" << std::flush;
+
       bs.apply_in_smoothinglength(physics::compute_acceleration);
-      rank|| clog(trace) << "compute gravitation" << std::flush;
+      rank|| clog(trace) << "compute gravitation"<<std::endl << std::flush;
       bs.gravitation_fmm();
+      rank|| clog(trace) << "leapfrog: kick two (velocity)" << std::flush;
       bs.apply_all(integration::leapfrog_kick_v);
       rank|| clog(trace) << ".done" << std::endl;
 
@@ -171,10 +177,12 @@ mpi_init_task(const char * parameter_file){
 
       rank|| clog(trace) << "leapfrog: kick two (energy)" << std::flush;
       if (thermokinetic_formulation) {
+        rank|| clog(trace) << "compute dedt" << std::flush;
         bs.apply_in_smoothinglength(physics::compute_dedt);
         bs.apply_all(integration::leapfrog_kick_e);
       }
       else {
+        rank|| clog(trace) << "compute dudt" << std::flush;
         bs.apply_in_smoothinglength(physics::compute_dudt);
         bs.apply_all(integration::leapfrog_kick_u);
       }
@@ -239,6 +247,13 @@ usage(int rank) {
                     << "<parameter-file.par>" << std::endl << std::flush;
 }
 
+bool
+check_conservation(
+  const std::vector<analysis::e_conservation>& check
+)
+{
+  return analysis::check_conservation(check);
+}
 
 void
 specialization_tlt_init(int argc, char * argv[]){
