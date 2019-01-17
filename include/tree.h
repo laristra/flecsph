@@ -61,87 +61,15 @@ public:
   using geometry_t = flecsi::topology::tree_geometry<element_t, gdimension>;
   using id_t = flecsi::topology::entity_id_t;
 
-  /**
-   * @brief BODY_HOLDER, entity in the tree. Light representation of a body
-   */
-  class body_holder :
-    public flecsi::topology::tree_entity<double,key_int_t,dimension>{
-
-  public:
-
-    body_holder(
-        const key_t& key,
-        const point_t coordinates,
-        body * bodyptr,
-        size_t owner,
-        element_t mass,
-	      id_t id,
-        element_t h
-        )
-      : tree_entity(key,coordinates),
-      mass_(mass),
-      h_(h),
-      bodyptr_(bodyptr)
-    {
-      locality_ = bodyptr_==nullptr?NONLOCAL:EXCL;
-      global_id_ = id;
-      owner_ = owner;
-    };
-
-    body_holder()
-      :tree_entity(key_id_t{},point_t{0,0,0}),
-       mass_(0.0),
-       h_(0.0),
-       bodyptr_(nullptr)
-    {
-      locality_ = NONLOCAL;
-      owner_ = -1;
-      global_id_ = {};
-    };
-
-    ~body_holder()
-    {
-      //bodyptr_ = nullptr;
-    }
-
-    body* getBody(){return bodyptr_;};
-    element_t mass(){return mass_;};
-    element_t h(){return h_;};
-
-    void setBody(body * bodyptr){bodyptr_ = bodyptr;};
-    void set_id(id_t& id){id_ = id;};
-    void set_h(element_t h){h_=h;};
-    void set_shared(){locality_ = SHARED;};
-
-    friend std::ostream& operator<<(std::ostream& os, const body_holder& b){
-      os << std::setprecision(10);
-      os << "Holder. Pos: " <<b.coordinates_ << " Mass: "<< b.mass_ << " ";
-      if(b.locality_ == LOCAL || b.locality_ == EXCL || b.locality_ == SHARED)
-      {
-        os<< "LOCAL";
-      }else{
-        os << "NONLOCAL";
-      }
-      os << " owner: " << b.owner_;
-      os << " id: " << b.id_;
-      return os;
-    }
-
-  private:
-    element_t mass_;
-    element_t h_;
-    body * bodyptr_;
-  };
-
-  using tree_entity_t = body_holder;
-  using branch_t = flecsi::topology::tree_branch<key_int_t,dimension,double>;
   using entity_t = body;
+  using tree_entity_t = flecsi::topology::tree_entity<double,key_int_t,dimension,body>;
+  using branch_t = flecsi::topology::tree_branch<key_int_t,dimension,double>;
 
 }; // class tree_policy
 
 using tree_topology_t = flecsi::topology::tree_topology<tree_policy>;
 using tree_geometry_t = flecsi::topology::tree_geometry<type_t,gdimension>;
-using body_holder = tree_topology_t::body_holder;
+using body_holder = tree_topology_t::tree_entity_t;
 using point_t = tree_topology_t::point_t;
 using branch_t = tree_topology_t::branch_t;
 using branch_id_t = tree_topology_t::branch_id_t;

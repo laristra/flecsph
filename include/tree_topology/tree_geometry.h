@@ -198,6 +198,10 @@ struct tree_geometry<T, 1>
     return radius/distance(p1,p2) - MAC <= tol;
   }
 
+  /**
+  * @brief Multipole method acceptance based on MAC.
+  * The angle === l/r < MAC (l source box width, r distance sink -> source)
+  */
   bool
   box_MAC(
     const point_t& position_source,

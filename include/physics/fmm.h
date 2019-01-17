@@ -47,9 +47,9 @@ namespace fmm {
     double dist = flecsi::distance(sink_coordinates,source_coordinates);
     point_t res = {};
     if(dist > 0){
-      res = source_mass/(dist*dist*dist)*(source_coordinates-sink_coordinates);
+      res = -source_mass/(dist*dist*dist)*(source_coordinates-sink_coordinates);
     }
-    fc = fc - res;
+    fc = fc + res;
     return res;
   }
 
@@ -123,7 +123,7 @@ namespace fmm {
   * hessian and the targeted particle
   */
   void interation_c2p(
-    double& fc,
+    point_t& fc,
     double dfcdr[9],
     double dfcdrdr[27],
     point_t cofm_coordinates,
