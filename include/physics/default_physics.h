@@ -141,6 +141,8 @@ namespace physics{
     eos::compute_pressure(srch);
     eos::compute_soundspeed(srch);
   }
+
+
   /**
    * @brief      Calculates the hydro acceleration
    * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics
@@ -310,7 +312,7 @@ namespace physics{
                 + .5*Pi_ab*(va_dot_DaWab + vb_dot_DaWab));
     }
 
-    source->setDudt(dedt);
+    source->setDedt(dedt);
   } // compute_dedt
 
 
@@ -343,10 +345,11 @@ namespace physics{
     const double dt_c = dx/ (tiny + cs_a*(1 + mc*sph_viscosity_alpha)
                                   + mc*sph_viscosity_beta*max_mu_ab);
 
-    // critical OMP to avoid outside synchronizations
+    // minimum timestep
     double dtmin = timestep_cfl_factor * std::min(std::min(dt_v,dt_a), dt_c);
     source->setDt(dtmin);
   }
+
 
   /**
    * @brief      Reduce adaptive timestep and set its value
@@ -373,6 +376,7 @@ namespace physics{
     if (dtmin > 2.0*physics::dt)
       physics::dt = physics::dt*2.0;
   }
+
 
   void
   compute_smoothinglength(
@@ -412,6 +416,7 @@ namespace physics{
       }
     } // if gdimension
   }
+
 
   /**
    * @brief update smoothing length for particles (Rosswog'09, eq.51)

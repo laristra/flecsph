@@ -306,7 +306,7 @@ namespace external_force {
       }
       else if (boost::iequals(*it,"gravity")) {
         vec_potentials.push_back(potential_gravity);
-        vec_accelerations.push_back(acceleration_airfoil);
+        vec_accelerations.push_back(acceleration_gravity);
       }
       else if (boost::iequals(it->substr(0,6),"walls:")) {
         // parse in which directions to place the walls
