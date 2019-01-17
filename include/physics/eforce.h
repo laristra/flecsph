@@ -33,20 +33,18 @@
 namespace external_force {
 
   // acceleration and potential function types and pointers
-  typedef double  (*potential_t)(body_holder*);
-  typedef point_t (*acceleration_t)(body_holder*);
+  typedef double  (*potential_t)(const point_t&);
+  typedef point_t (*acceleration_t)(body*);
   static std::vector<potential_t> vec_potentials;
   static std::vector<acceleration_t> vec_accelerations;
 
   /**
    * @brief      1D walls: steep power-law-like potentials
-   * @param      srch  The source's body holder
+   * @param      rp  Point coordinates
    */
   template <int I = 0>
-  double potential_square_well(body_holder* srch) {
+  double potential_square_well(const point_t& rp) {
     using namespace param;
-    body* source = srch->getBody();
-    point_t rp = source->getPosition();
     const static double
        box[3] = {.5*box_length,.5*box_width,.5*box_height},
        pw_n = extforce_wall_powerindex,
@@ -63,10 +61,9 @@ namespace external_force {
 
 
   template <int I = 0>
-  point_t acceleration_square_well(body_holder* srch) {
+  point_t acceleration_square_well(body* source) {
     using namespace param;
     point_t a = 0.0;
-    body* source = srch->getBody();
     point_t rp = source->getPosition();
     const static double
        box[3] = {.5*box_length,.5*box_width,.5*box_height},
@@ -86,10 +83,9 @@ namespace external_force {
    * @brief      Round or spherical boundary wall
    * @param      srch  The source's body holder
    */
-  point_t acceleration_spherical_wall(body_holder* srch) {
+  point_t acceleration_spherical_wall(body* source) {
     using namespace param;
     point_t a = 0.0;
-    body* source = srch->getBody();
     point_t rp = source->getPosition();
     const double pw_n = extforce_wall_powerindex;
     const double pw_a = extforce_wall_steepness;
@@ -105,10 +101,9 @@ namespace external_force {
     return a;
   }
 
-  double potential_spherical_wall(body_holder* srch) {
+  double potential_spherical_wall(const point_t& rp) {
     using namespace param;
     double phi = 0.0;
-    point_t rp =  srch->getBody()->getPosition();
     const double pw_n = extforce_wall_powerindex;
     const double pw_a = extforce_wall_steepness;
     double r = rp[0]*rp[0];
@@ -127,7 +122,7 @@ namespace external_force {
    * 	         dimensions == 1)
    * @param      srch  The source's body holder
    */
-  point_t acceleration_gravity(body_holder* srch) {
+  point_t acceleration_gravity(body* source) {
     static const double grav = param::gravity_acceleration_constant;
     point_t acc = 0.0;
     if(gdimension > 1)
@@ -137,9 +132,8 @@ namespace external_force {
     return acc;
   }
 
-  double potential_gravity(body_holder* srch) {
+  double potential_gravity(const point_t& rp) {
     static const double grav = param::gravity_acceleration_constant;
-    point_t rp =  srch->getBody()->getPosition();
     double height = rp[0];
     if(gdimension > 1)
       height = rp[1];
@@ -165,12 +159,12 @@ namespace external_force {
    *
    * @param      srch  The source's body holder
    */
-  point_t acceleration_airfoil (body_holder* srch) {
+  point_t acceleration_airfoil (body* source) {
     using namespace param;
     point_t a = 0.0;
     assert (gdimension > 1);
 
-    point_t rp =  srch->getBody()->getPosition();
+    point_t rp =  source->getPosition();
     const double x1 = rp[0] - airfoil_anchor_x,
                  y1 = rp[1] - airfoil_anchor_y,
                  alpha = airfoil_attack_angle*M_PI/180.0,
@@ -198,18 +192,17 @@ namespace external_force {
     return a;
   }
 
-  double potential_airfoil (body_holder* srch)
-  {
+  double potential_airfoil (const point_t& rp) {
     using namespace param;
     double phi = 0.0;
     assert (gdimension > 1);
 
-    point_t rp =  srch->getBody()->getPosition();
-    const double x1 = rp[0] - airfoil_anchor_x,
-                 y1 = rp[1] - airfoil_anchor_y,
+    static const double             
                  alpha = airfoil_attack_angle*M_PI/180.0,
                  pw_n = extforce_wall_powerindex,
                  pw_a = extforce_wall_steepness;
+    const double x1 = rp[0] - airfoil_anchor_x,
+                 y1 = rp[1] - airfoil_anchor_y;
     const double x = x1*cos(alpha) + y1*sin(alpha),
                  y =-x1*sin(alpha) + y1*cos(alpha);
 
@@ -230,9 +223,8 @@ namespace external_force {
    * 	         few steps
    * @param      srch  The source's body holder
    */
-  point_t acceleration_do_drag(body_holder* srch) {
+  point_t acceleration_do_drag(body* source) {
     using namespace param;
-    body* source = srch->getBody();
     int64_t iteration = 0;
     point_t a = 0.0;
     if(do_drag && iteration <= relax_steps){
@@ -246,9 +238,9 @@ namespace external_force {
 
   /**
    * @brief      Constant potential shift
-   * @param      srch  The source's body holder
+   * @param      rp  Point coordinates
    */
-  double potential_poison(body_holder* srch) {
+  double potential_poison(const point_t& rp) {
     return param::zero_potential_poison_value;
   }
 
@@ -258,20 +250,21 @@ namespace external_force {
    */
   point_t acceleration(body_holder* srch) {
     point_t a = 0.0;
-    for (auto p = vec_accelerations.begin(); p!= vec_accelerations.end(); ++p)
-      a += (*p)(srch);
+    body* source = srch->getBody();
+    for (auto p : vec_accelerations)
+      a += (*p)(source);
     return a;
   }
 
 
   /**
    * @brief      Total external potential
-   * @param      srch  The source's body holder
+   * @param      coords  Coordinates of where to compute the potential
    */
-  double potential(body_holder* srch) {
+  double potential(const point_t& coords) {
     double phi = 0.0;
-    for (auto p = vec_potentials.begin(); p!= vec_potentials.end(); ++p)
-      phi += (*p)(srch);
+    for (auto p : vec_potentials)
+      phi += (*p)(coords);
     return phi;
   }
 

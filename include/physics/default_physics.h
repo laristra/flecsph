@@ -86,7 +86,7 @@ namespace physics{
     const point_t pos = source->getPosition(),
                   vel = source->getVelocity();
     const double eint = source->getInternalenergy(),
-                 epot = external_force::potential(srch);
+                 epot = external_force::potential(pos);
     double ekin = vel[0]*vel[0];
     for (unsigned short i=1; i<gdimension; ++i)
       ekin += vel[i]*vel[i];
@@ -105,7 +105,7 @@ namespace physics{
     const point_t pos = source->getPosition(),
                   vel = source->getVelocity();
     const double etot = source->getTotalenergy(),
-                 epot = external_force::potential(srch);
+                 epot = external_force::potential(pos);
     double ekin = vel[0]*vel[0];
     for (unsigned short i=1; i<gdimension; ++i)
       ekin += vel[i]*vel[i];
