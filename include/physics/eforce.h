@@ -218,25 +218,6 @@ namespace external_force {
   }
 
   /**
-   * @brief      Drag case : apply drag force to
-   * 	         relax the initial star during initial
-   * 	         few steps
-   * @param      srch  The source's body holder
-   */
-  point_t acceleration_do_drag(body* source) {
-    using namespace param;
-    int64_t iteration = 0;
-    point_t a = 0.0;
-    if(do_drag && iteration <= relax_steps){
-      //Redefine drag coefficient with dt
-      double drag_coeff_dt = drag_coeff/initial_dt;
-      a -=drag_coeff_dt*source->getVelocity();
-    }
-    return a;
-  }
-
-
-  /**
    * @brief      Constant potential shift
    * @param      rp  Point coordinates
    */
@@ -329,10 +310,6 @@ namespace external_force {
           }
         }
       }
-      else if (boost::iequals(*it,"drag")) {
-        // drag force
-        vec_accelerations.push_back(acceleration_do_drag);
-      }
       else if (boost::iequals(*it,"poison")) {
         // zero potential shift
         vec_potentials.push_back(potential_poison);
@@ -343,6 +320,24 @@ namespace external_force {
     } // for it in split_efstr
 
   } // select()
+
+
+  /**
+   * @brief      Artificial drag force - used for 
+   *             particle relaxation
+   * @param      srch  The source's body holder
+   */
+  point_t acceleration_drag(const point_t& vel) {
+    using namespace param;
+    point_t acc = 0.0;
+    double v2 = vel[0]*vel[0];
+    for (short int i=1; i<gdimension; ++i)
+      v2 += vel[i]*vel[i];
+
+    acc -= (relaxation_beta + relaxation_gamma*v2) * vel;
+    return acc;
+  }
+
 
 } // namespace external_force
 

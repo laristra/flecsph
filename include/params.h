@@ -342,28 +342,28 @@ namespace param {
 # endif
 
 //
-// Drag force parameters
+// Parameters for particle relaxation, used to relax configurations
+// by applying negative drag force against the direction of velocity
+// for each particle:
+//  f_relax = - (beta + gamma*v^2) * v
 //
-// HL : These parameters are used to relax star from
-//      initial star in both single and binary system.
-//      Drag force is applied to acceleration computation
-//      during beginning of steps.
-//      If we have some IDs that do not require relaxation,
-//      this can be neglected
-//
-//- apply drag force?
-#ifndef do_drag
-  DECLARE_PARAM(bool,do_drag,false)
-#endif
+// Simple tests which are set up on regular rectangular lattices do not
+// require particle relaxation term.
+// 
 
-//- relaxation steps
-# ifndef relax_steps
-  DECLARE_PARAM(int,relax_steps,10)
+//- apply relaxation for this many steps (non-inclusive); 
+//  if set to zero (default), do not apply relaxation.
+# ifndef relaxation_steps
+  DECLARE_PARAM(int,relaxation_steps,0)
 # endif
 
-//- Drag force coefficients.
-# ifndef drag_coeff
-  DECLARE_PARAM(double,drag_coeff,1.e-6)
+//- relaxation coefficients beta and gamma (both must be positive)
+# ifndef relaxation_beta
+  DECLARE_PARAM(double,relaxation_beta,1.e-6)
+# endif
+
+# ifndef relaxation_gamma
+  DECLARE_PARAM(double,relaxation_gamma,0.0)
 # endif
 
 
@@ -718,20 +718,20 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(fmm_max_cell_mass)
 # endif
 
-  // drag force parameters ---------------------------------------------------
-#ifndef do_drag
-  READ_BOOLEAN_PARAM(do_drag)
-#endif
-
-# ifndef relax_steps
-  READ_NUMERIC_PARAM(relax_steps)
+  // relaxation parameters  --------------------------------------------------
+# ifndef relaxation_steps
+  READ_NUMERIC_PARAM(relaxation_steps)
 # endif
 
-# ifndef drag_coeff
-  READ_NUMERIC_PARAM(drag_coeff)
+# ifndef relaxation_beta
+  READ_NUMERIC_PARAM(relaxation_beta)
 # endif
 
-// external force  --------------------------------------------------------
+# ifndef relaxation_gamma
+  READ_NUMERIC_PARAM(relaxation_gamma)
+# endif
+
+  // external force  --------------------------------------------------------
 # ifndef thermokinetic_formulation
   READ_BOOLEAN_PARAM(thermokinetic_formulation)
 # endif
@@ -756,7 +756,7 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(gravity_acceleration_constant)
 # endif
 
-// specific apps  ---------------------------------------------------------
+  // specific apps  ---------------------------------------------------------
 # ifndef sodtest_num
   READ_NUMERIC_PARAM(sodtest_num)
 # endif
