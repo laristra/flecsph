@@ -47,17 +47,13 @@ static int64_t np_bottom = 0; // number of particles in the bottom block
 static double sph_sep_t = 0; // particle separation in top or bottom blocks
 static double pmass = 0;      // particle mass in the middle block
 
-double pressure_gravity(const double& y, const double& rho)
-{
+double pressure_gravity(const double& y, const double& rho) {
   using namespace param;
-  double pressure = pressure_0 - rho * param::gravitation_value * y;
-  return pressure;
+  return pressure_0 - rho * gravity_acceleration_constant * y;
 }
 
-double u_from_eos(const double& rho, const double& p)
-{
-  double u = p / ((param::poly_gamma-1.0)*rho);
-  return u;
+double u_from_eos(const double& rho, const double& p) {
+  return p / ((param::poly_gamma-1.0)*rho);
 }
 
 void set_derived_params() {

@@ -143,7 +143,7 @@ public:
     void setDudt(double dudt){dudt_ = dudt;};
     void setDedt(double dedt){dedt_ = dedt;};
     double getDudt(){return dudt_;};
-    double getDedt(){return dudt_;};
+    double getDedt(){return dedt_;};
     double getAdiabatic() const{return adiabatic_;}
     void setAdiabatic(double adiabatic){adiabatic_ = adiabatic;};
     double getDadt() const{return dadt_;};

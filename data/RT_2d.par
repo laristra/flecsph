@@ -26,17 +26,9 @@
   out_diagnostic_every = 1
   output_h5data_prefix = "ev_RT_n30"
 
-
-  # boundaries
-  box_width = 1.5
-  box_length = .5
-
-  squarewell_y = yes
+# boundaries
+  box_width  = 1.5
+  box_length = 0.5
   periodic_boundary_x = yes
-
-  zero_potential_poison_value = 0.0
-  extforce_wall_steepness = 1e12
-  extforce_wall_powerindex = 5
-
-  do_gravitation = yes
-  gravitation_value = 1
+  external_force_type = "walls:y,gravity"
+  gravity_acceleration_constant = 1.0

@@ -133,6 +133,13 @@ mpi_init_task(const char * parameter_file){
         bs.apply_in_smoothinglength(physics::compute_dudt);
       rank|| clog(trace) << ".done" << std::endl;
 
+      if (physics::iteration < relaxation_steps) {
+        rank|| clog(trace) << "add relaxation terms" << std::flush;
+        bs.apply_all(physics::add_drag_acceleration);
+        if (thermokinetic_formulation)
+          bs.apply_all(physics::add_drag_dedt);
+        rank|| clog(trace) << ".done" << std::endl;
+      }
     }
     else {
       rank|| clog(trace) << "leapfrog: kick one" << std::flush;
@@ -158,6 +165,8 @@ mpi_init_task(const char * parameter_file){
 
       rank|| clog(trace) << "leapfrog: kick two (velocity)" << std::flush;
       bs.apply_in_smoothinglength(physics::compute_acceleration);
+      if (physics::iteration < relaxation_steps) 
+        bs.apply_all(physics::add_drag_acceleration);
       bs.apply_all(integration::leapfrog_kick_v);
       rank|| clog(trace) << ".done" << std::endl;
 
@@ -167,6 +176,8 @@ mpi_init_task(const char * parameter_file){
       rank|| clog(trace) << "leapfrog: kick two (energy)" << std::flush;
       if (thermokinetic_formulation) {
         bs.apply_in_smoothinglength(physics::compute_dedt);
+        if (physics::iteration < relaxation_steps) 
+          bs.apply_all(physics::add_drag_dedt);
         bs.apply_all(integration::leapfrog_kick_e);
       }
       else {

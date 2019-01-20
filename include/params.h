@@ -342,81 +342,63 @@ namespace param {
 # endif
 
 //
-// Drag force parameters
+// Parameters for particle relaxation, used to relax configurations
+// by applying negative drag force against the direction of velocity
+// for each particle:
+//  f_relax = - (beta + gamma*v^2) * v
 //
-// HL : These parameters are used to relax star from
-//      initial star in both single and binary system.
-//      Drag force is applied to acceleration computation
-//      during beginning of steps.
-//      If we have some IDs that do not require relaxation,
-//      this can be neglected
-//
-//- Do drag froce boolean
-#ifndef do_drag
-  DECLARE_PARAM(bool,do_drag,false)
-#endif
+// Simple tests which are set up on regular rectangular lattices do not
+// require particle relaxation term.
+// 
 
-//- relaxation steps
-# ifndef relax_steps
-  DECLARE_PARAM(int,relax_steps,10)
+//- apply relaxation for this many steps (non-inclusive); 
+//  if set to zero (default), do not apply relaxation.
+# ifndef relaxation_steps
+  DECLARE_PARAM(int,relaxation_steps,0)
 # endif
 
-//- Drag force coefficients.
-# ifndef drag_coeff
-  DECLARE_PARAM(double,drag_coeff,1.e-6)
+//- relaxation coefficients beta and gamma (both must be positive)
+# ifndef relaxation_beta
+  DECLARE_PARAM(double,relaxation_beta,1.e-6)
+# endif
+
+# ifndef relaxation_gamma
+  DECLARE_PARAM(double,relaxation_gamma,0.0)
 # endif
 
 
 //
 // Parameters for external acceleration
 //
+# ifndef thermokinetic_formulation
+  DECLARE_PARAM(bool,thermokinetic_formulation, true)
+# endif
+
 //- which external force to apply?
 //  * "none" (default)
 #ifndef external_force_type
   DECLARE_STRING_PARAM(external_force_type,"none")
 #endif
 
+// poison zero potential level: since potential is defined
+// up to a constant, any poison value should still work
 # ifndef zero_potential_poison_value
   DECLARE_PARAM(double,zero_potential_poison_value, 0.0)
 # endif
 
-// Enable squarewell on X axis
-#ifndef squarewell_x
-  DECLARE_PARAM(bool,squarewell_x,false)
-#endif
-
-// Enable squarewell on X axis
-#ifndef squarewell_y
-  DECLARE_PARAM(bool,squarewell_y,false)
-#endif
-
-// Enable squarewell on X axis
-#ifndef squarewell_z
-  DECLARE_PARAM(bool,squarewell_z,false)
-#endif
-
+// boundary wall power index
 # ifndef extforce_wall_powerindex
   DECLARE_PARAM(double,extforce_wall_powerindex, 5.0)
 # endif
 
+// boundary wall steepness parameter
 # ifndef extforce_wall_steepness
-  DECLARE_PARAM(double,extforce_wall_steepness, 1e6)
+  DECLARE_PARAM(double,extforce_wall_steepness, 1e12)
 # endif
 
-# ifndef thermokinetic_formulation
-  DECLARE_PARAM(bool,thermokinetic_formulation, true)
-# endif
-
-
-// Apply gravitation on particles
-// On : 1D, x, 2D y, 3D z
-# ifndef do_gravitation
-  DECLARE_PARAM(bool,do_gravitation, false)
-# endif
-
-// Value for the gravitation
-# ifndef gravitation_value
-  DECLARE_PARAM(double,gravitation_value, 9.81)
+// value of the gravity constant
+# ifndef gravity_acceleration_constant
+  DECLARE_PARAM(double,gravity_acceleration_constant, 9.81)
 # endif
 
 //
@@ -736,20 +718,24 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(fmm_max_cell_mass)
 # endif
 
-// Drag force parameters ---------------------------------------------------
-#ifndef do_drag
-  READ_BOOLEAN_PARAM(do_drag)
-#endif
-
-# ifndef relax_steps
-  READ_NUMERIC_PARAM(relax_steps)
+  // relaxation parameters  --------------------------------------------------
+# ifndef relaxation_steps
+  READ_NUMERIC_PARAM(relaxation_steps)
 # endif
 
-# ifndef drag_coeff
-  READ_NUMERIC_PARAM(drag_coeff)
+# ifndef relaxation_beta
+  READ_NUMERIC_PARAM(relaxation_beta)
 # endif
 
-// external force  --------------------------------------------------------
+# ifndef relaxation_gamma
+  READ_NUMERIC_PARAM(relaxation_gamma)
+# endif
+
+  // external force  --------------------------------------------------------
+# ifndef thermokinetic_formulation
+  READ_BOOLEAN_PARAM(thermokinetic_formulation)
+# endif
+
 #ifndef external_force_type
   READ_STRING_PARAM(external_force_type)
 #endif
@@ -757,21 +743,6 @@ void set_param(const std::string& param_name,
 # ifndef zero_potential_poison_value
   READ_NUMERIC_PARAM(zero_potential_poison_value)
 # endif
-
-// Enable squarewell on X axis
-#ifndef squarewell_x
-  READ_BOOLEAN_PARAM(squarewell_x)
-#endif
-
-// Enable squarewell on X axis
-#ifndef squarewell_y
-  READ_BOOLEAN_PARAM(squarewell_y)
-#endif
-
-// Enable squarewell on X axis
-#ifndef squarewell_z
-  READ_BOOLEAN_PARAM(squarewell_z)
-#endif
 
 # ifndef extforce_wall_powerindex
   READ_NUMERIC_PARAM(extforce_wall_powerindex)
@@ -781,19 +752,8 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(extforce_wall_steepness)
 # endif
 
-# ifndef thermokinetic_formulation
-  READ_BOOLEAN_PARAM(thermokinetic_formulation)
-# endif
-
-// Apply gravitation on particles
-// On : 1D, x, 2D y, 3D z
-# ifndef do_gravitation
-  READ_BOOLEAN_PARAM(do_gravitation)
-# endif
-
-// Value for the gravitation
-# ifndef gravitation_value
-  READ_NUMERIC_PARAM(gravitation_value)
+# ifndef gravity_acceleration_constant
+  READ_NUMERIC_PARAM(gravity_acceleration_constant)
 # endif
 
   // specific apps  ---------------------------------------------------------

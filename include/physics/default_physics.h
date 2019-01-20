@@ -86,7 +86,7 @@ namespace physics{
     const point_t pos = source->getPosition(),
                   vel = source->getVelocity();
     const double eint = source->getInternalenergy(),
-                 epot = external_force::potential(srch);
+                 epot = external_force::potential(pos);
     double ekin = vel[0]*vel[0];
     for (unsigned short i=1; i<gdimension; ++i)
       ekin += vel[i]*vel[i];
@@ -105,7 +105,7 @@ namespace physics{
     const point_t pos = source->getPosition(),
                   vel = source->getVelocity();
     const double etot = source->getTotalenergy(),
-                 epot = external_force::potential(srch);
+                 epot = external_force::potential(pos);
     double ekin = vel[0]*vel[0];
     for (unsigned short i=1; i<gdimension; ++i)
       ekin += vel[i]*vel[i];
@@ -141,6 +141,8 @@ namespace physics{
     eos::compute_pressure(srch);
     eos::compute_soundspeed(srch);
   }
+
+
   /**
    * @brief      Calculates the hydro acceleration
    * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics
@@ -198,6 +200,20 @@ namespace physics{
 
 
   /**
+   * @brief      Adds drag force to acceleration
+   * @param      srch  The source's body holder
+   */
+  void add_drag_acceleration( body_holder* srch) {
+    using namespace param;
+    body* source = srch->getBody();
+    point_t       acc = source->getAcceleration();
+    const point_t vel = source->getVelocity();
+    acc += external_force::acceleration_drag(vel);
+    source->setAcceleration(acc);
+  } // add_drag_acceleration
+
+
+  /**
    * @brief      Calculates the dudt, time derivative of internal energy.
    * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics
    *
@@ -247,8 +263,8 @@ namespace physics{
     double rho_a = source->getDensity();
     dudt = P_a/(rho_a*rho_a)*dudt_pressure + .5*dudt_visc;
 
-    //Do not change internal energy during relaxation
-    if(do_drag && iteration <= relax_steps){
+    // Do not change internal energy in relaxation phase
+    if(iteration < relaxation_steps){
        dudt = 0.0;
     }
 
@@ -310,8 +326,26 @@ namespace physics{
                 + .5*Pi_ab*(va_dot_DaWab + vb_dot_DaWab));
     }
 
-    source->setDudt(dedt);
+    source->setDedt(dedt);
   } // compute_dedt
+
+
+  /**
+   * @brief      Adds energy dissipation rate due to artificial
+   *             particle relaxation drag force
+   * @param      srch  The source's body holder
+   */
+  void add_drag_dedt( body_holder* srch) {
+    using namespace param;
+    body* source = srch->getBody();
+    const point_t vel = source->getVelocity();
+    const point_t acc = external_force::acceleration_drag(vel);
+    double va = vel[0]*acc[0];
+    for (short int i=1; i<gdimension; ++i)
+      va += vel[i]*acc[i];
+    double dedt = source->getDedt();
+    source->setDedt(dedt + va);
+  } // add_drag_dedt
 
 
   /**
@@ -330,8 +364,9 @@ namespace physics{
                     / (sph_eta*kernels::kernel_width);
 
     // timestep based on particle velocity
-    const double vel = norm_point(source->getVelocity());
-    const double dt_v = dx/(vel + tiny);
+    const point_t vel = source->getVelocity();
+    const double vn  = norm_point(vel);
+    const double dt_v = dx/(vn + tiny);
 
     // timestep based on acceleration
     const double acc = norm_point(source->getAcceleration());
@@ -343,10 +378,27 @@ namespace physics{
     const double dt_c = dx/ (tiny + cs_a*(1 + mc*sph_viscosity_alpha)
                                   + mc*sph_viscosity_beta*max_mu_ab);
 
-    // critical OMP to avoid outside synchronizations
+    // minimum timestep
     double dtmin = timestep_cfl_factor * std::min(std::min(dt_v,dt_a), dt_c);
+
+    // timestep based on positivity of internal energy
+    if (thermokinetic_formulation) {
+      const double eint = source->getInternalenergy();
+      const point_t pos = source->getPosition();
+      const double epot = external_force::potential(pos);
+      double epot_next;
+      int i;
+      for(i=0; i<20; ++i) {
+        epot_next = external_force::potential(pos + dtmin*vel);
+        if(epot_next - epot < eint*0.5) break;
+        dtmin *= 0.5;
+      }
+      assert (i<20);
+    }
+
     source->setDt(dtmin);
   }
+
 
   /**
    * @brief      Reduce adaptive timestep and set its value
@@ -373,6 +425,7 @@ namespace physics{
     if (dtmin > 2.0*physics::dt)
       physics::dt = physics::dt*2.0;
   }
+
 
   void
   compute_smoothinglength(
@@ -412,6 +465,7 @@ namespace physics{
       }
     } // if gdimension
   }
+
 
   /**
    * @brief update smoothing length for particles (Rosswog'09, eq.51)
