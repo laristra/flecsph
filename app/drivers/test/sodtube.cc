@@ -2,6 +2,7 @@
 
 #include <mpi.h>
 
+#if 0
 using namespace ::testing;
 class MyEnv: public testing::Environment {
 public:
@@ -17,6 +18,7 @@ private:
   MyEnv(const MyEnv& env) {}
 };
 Environment*  const env = AddGlobalTestEnvironment(new MyEnv);
+#endif
 
 namespace analysis{
   enum e_conservation: size_t

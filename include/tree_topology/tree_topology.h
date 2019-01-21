@@ -845,13 +845,19 @@ public:
       EF&& ef,
       ARGS&&... args)
   {
+
     MPI_Barrier(MPI_COMM_WORLD);
     int rank;
+    rank || clog(trace) << std::endl;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     std::stack<branch_t*> stk;
     stk.push(b);
 
     std::vector<branch_t*> work_branch;
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    rank || clog(trace)<<"Searching breanches";
+    MPI_Barrier(MPI_COMM_WORLD);
 
     while(!stk.empty()){
       branch_t* c = stk.top();
@@ -872,6 +878,11 @@ public:
         }
       }
     }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    rank || clog(trace)<<".done : "<<work_branch.size()<<std::endl;
+    rank || clog(trace)<<"Computing and communication";
+    MPI_Barrier(MPI_COMM_WORLD);
 
     std::vector<branch_t*> remaining_branches;
     int done = omp_get_max_threads();
@@ -894,6 +905,11 @@ public:
       }
     }
     //clog(trace)<<"Merged done"<<std::endl<<std::flush;
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    rank || clog(trace)<<".done"<<std::endl;
+    rank || clog(trace)<<"Adding the ghosts";
+    MPI_Barrier(MPI_COMM_WORLD);
 
     // Check if no message remainig
 #ifdef DEBUG
@@ -921,6 +937,11 @@ public:
     assert(current_ghosts < max_traversal);
     cofm(root(), 0, false);
 
+    MPI_Barrier(MPI_COMM_WORLD);
+    rank || clog(trace)<<".done"<<std::endl;
+    rank || clog(trace)<<"Finishing branches";
+    MPI_Barrier(MPI_COMM_WORLD);
+
     std::vector<branch_t*> ignore;
     //clog(trace)<<"Cmopute the remaining branches"<<std::endl<<std::flush;
     #pragma omp parallel
@@ -928,9 +949,28 @@ public:
       traverse_branches(do_square,remaining_branches,ignore,true,
         ef,std::forward<ARGS>(args)...);
     }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    rank || clog(trace)<<".done"<<std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
   } // apply_sub_cells
 
+  /**
+  * @brief Perform a tree traversal in parallel using omp threads for
+  * each working branch. If a branch is not local, make a request to the
+  * thread handler.
+  * @param [in] do_square True is varible smoothing length false otherwize
+  * @param [in] work_branch The set of branch on which to compute the inter.
+  * @param [in] non_local_branches The branches identified as non local
+  * during this traversal, they will be computed after this traversal when the
+  * distant particles will be gathered
+  * @param [in] assert_local In the case of local run assert that no distant
+  * particles are reached.
+  * @param [in] ef The function to apply to the particles in the work_branch
+  * @param [in] args Arguments of the function ef
+  * @return void
+  * @details
+  */
   template<
     typename EF,
     typename... ARGS
@@ -948,6 +988,10 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
+    const size_t inter_list_size = 150;
+    std::vector<tree_entity_t*> inter_list;
+    inter_list.reserve(inter_list_size);
+
     int nelem = work_branch.size();
     int td = omp_get_thread_num();
     int nt = omp_get_num_threads();
@@ -960,10 +1004,11 @@ public:
       end = nelem;
     }
     for(size_t i = start; i < end; ++i){
-      std::vector<branch_t*> inter_list;
+      inter_list.clear();
       std::vector<branch_t*> requests_branches;
-      if(sub_cells_inter(work_branch[i],inter_list,requests_branches)){
-        force_calc(work_branch[i],inter_list,do_square,
+      if(sub_cells_inter(work_branch[i],inter_list,requests_branches,do_square))
+      {
+        force_calc(work_branch[i],inter_list,
                ef,std::forward<ARGS>(args)...);
       }else{
         assert(!assert_local);
@@ -980,13 +1025,13 @@ public:
               b->set_requested(true);
             }
           }
-        }
+        } // omp critical
         MPI_Request request;
         MPI_Send(&(send[0]),send.size()*sizeof(key_t),MPI_BYTE,rank,
           LOCAL_REQUEST,MPI_COMM_WORLD);
-      }
-    }
-  }
+      }  // if else
+    } // for
+  } // traverse_branches
 
 
   template<
@@ -1694,12 +1739,22 @@ public:
       if(!b->is_local()) nonlocal_branches_add();
     }
 
-
+  /**
+  * @brief Compute the interaction list for all the sub-particles in b
+  * @param [in] b Branch on which to propagate the force
+  * @param [in] inter_list The interaction list of the sub-particles of b
+  * @param [in] ef The function to apply on the particles
+  * @param [in] args The arguments of the function to apply
+  * @return void
+  * @details This function apply a tree traversal because the branch b can
+  * be different than a leaf.
+  */
   bool
   sub_cells_inter(
     branch_t* b,
-    std::vector<branch_t*>& inter_list,
-    std::vector<branch_t*>& non_local)
+    std::vector<tree_entity_t*>& inter_list,
+    std::vector<branch_t*>& non_local,
+    const bool do_square)
   {
     std::stack<branch_t*> stk;
     stk.push(root());
@@ -1708,7 +1763,21 @@ public:
       stk.pop();
       if(c->is_leaf()){
         if(c->is_local() || c->ghosts_local()){
-          inter_list.push_back(c);
+          for(auto id: *c){
+            auto child = this->get(id);
+            if(do_square)
+              if(geometry_t::within_square(
+                  b->coordinates(),
+                  child->coordinates(),
+                  b->radius(),child->h()))
+                inter_list.push_back(child);
+            else
+              if(geometry_t::within(
+                  b->coordinates(),
+                  child->coordinates(),
+                  b->radius()))
+                inter_list.push_back(child);
+          }
         }else{
           non_local.push_back(c);
         }
@@ -1730,6 +1799,17 @@ public:
     return (non_local.size() == 0);
   }
 
+  /**
+  * @brief Compute the interaction on a branch with the interaction list of
+  * the sub-particles
+  * @param [in] b Branch on which to propagate the force
+  * @param [in] inter_list The interaction list of the sub-particles of b
+  * @param [in] ef The function to apply on the particles
+  * @param [in] args The arguments of the function to apply
+  * @return void
+  * @details This function apply a tree traversal because the branch b can
+  * be different than a leaf.
+  */
   template<
     typename EF,
     typename... ARGS
@@ -1737,8 +1817,7 @@ public:
   void
   force_calc(
       branch_t* b,
-      std::vector<branch_t*>& inter_list,
-      bool do_square,
+      std::vector<tree_entity_t*>& inter_list,
       EF&& ef,
       ARGS&&... args)
   {
@@ -1752,12 +1831,7 @@ public:
         for(auto id: *c){
           auto child = this->get(id);
           if(child->is_local()){
-            if(do_square)
-              apply_sub_entity_sq(child,inter_list,ef,
-                std::forward<ARGS>(args)...);
-            else
-              apply_sub_entity(child,inter_list,ef,
-                std::forward<ARGS>(args)...);
+            ef(child, inter_list,std::forward<ARGS>(args)...);
           }
         }
       }else{
@@ -1769,61 +1843,6 @@ public:
       }
     }
   }
-
-  template<
-    typename EF,
-    typename... ARGS
-  >
-  void
-  apply_sub_entity(
-      tree_entity_t* ent,
-      std::vector<branch_t*>& inter_list,
-      EF&& ef,
-      ARGS&&... args)
-  {
-    std::vector<tree_entity_t*> neighbors;
-    for(auto b: inter_list){
-      for(auto id: *b){
-        auto nb = this->get(id);
-        if(geometry_t::within(
-              ent->coordinates(),
-              nb->coordinates(),
-              ent->h()))
-        {
-          neighbors.push_back(nb);
-        }
-      }
-    }
-    ef(ent,neighbors,std::forward<ARGS>(args)...);
-  }
-
-  template<
-    typename EF,
-    typename... ARGS
-  >
-  void
-  apply_sub_entity_sq(
-      tree_entity_t* ent,
-      std::vector<branch_t*>& inter_list,
-      EF&& ef,
-      ARGS&&... args)
-  {
-    std::vector<tree_entity_t*> neighbors;
-    for(auto b: inter_list){
-      for(auto id: *b){
-        auto nb = this->get(id);
-        if(geometry_t::within_square(
-              ent->coordinates(),
-              nb->coordinates(),
-              ent->h(),nb->h()))
-        {
-          neighbors.push_back(nb);
-        }
-      }
-    }
-    ef(ent,neighbors,std::forward<ARGS>(args)...);
-  }
-
 
   /*!
     Return an index space containing all entities within the specified

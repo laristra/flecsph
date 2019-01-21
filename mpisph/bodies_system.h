@@ -405,7 +405,7 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
       EF&& ef,
       ARGS&&... args)
   {
-    int64_t ncritical = 1;
+    int64_t ncritical = 16;
     tree_.apply_sub_cells(
         tree_.root(),
         ncritical,
