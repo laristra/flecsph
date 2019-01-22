@@ -70,20 +70,20 @@ namespace density_profiles {
    * @brief      External force selector
    * @param      efstr    ext. force string
    */
-  void select(const std::string& dpstr) {
-
-      if (boost::iequals(dpstr,"constant")) {
-        spherical_density_profile = rho_constant_density;
-        spherical_mass_profile = mass_constant_density;
-      }
-      else if (boost::iequals(dpstr,"parabolic")) {
-        spherical_density_profile = rho_parabolic_density;
-        spherical_mass_profile = mass_parabolic_density;
-      }
-      else {
-        clog(error) << "ERROR: wrong parameter in density_profiles";
-        exit(2);
-      }
+  void select() {
+    using namespace param;
+    if (boost::iequals(density_profile,"constant")) {
+      spherical_density_profile = rho_constant_density;
+      spherical_mass_profile = mass_constant_density;
+    }
+    else if (boost::iequals(density_profile,"parabolic")) {
+      spherical_density_profile = rho_parabolic_density;
+      spherical_mass_profile = mass_parabolic_density;
+    }
+    else {
+      clog(error) << "ERROR: wrong parameter in density_profiles";
+      exit(2);
+    }
 
   } // select()
 

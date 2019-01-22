@@ -117,6 +117,31 @@ namespace external_force {
 
 
   /**
+   * @brief      External force support for parabolic 
+   *             sphericall-symmetric density
+   * @param      srch  The source's body holder
+   */
+  point_t acceleration_parabolic_density_support (body* source) {
+    using namespace param;
+    point_t a = 0.0;
+    point_t rp = source->getPosition();
+    // 
+    // TODO
+    //
+    return a;
+  }
+
+  double potential_parabolic_density_support(const point_t& rp) {
+    using namespace param;
+    double phi = 0.0;
+    //
+    // TODO
+    //
+    return phi;
+  }
+
+
+  /**
    * @brief      Add uniform constant gravity acceleration
    * 	         in y-direction (or x-direction if number of
    * 	         dimensions == 1)
@@ -277,6 +302,10 @@ namespace external_force {
       else if (boost::iequals(*it,"airfoil")) {
         vec_potentials.push_back(potential_airfoil);
         vec_accelerations.push_back(acceleration_airfoil);
+      }
+      else if (boost::iequals(*it,"parabolic density support")) {
+        vec_potentials.push_back(potential_parabolic_density_support);
+        vec_accelerations.push_back(acceleration_parabolic_density_support);
       }
       else if (boost::iequals(*it,"gravity")) {
         vec_potentials.push_back(potential_gravity);

@@ -68,7 +68,7 @@ static std::string initial_data_file; // = initial_data_prefix + ".h5part"
 void set_derived_params() {
   using namespace param;
 
-  density_profiles::select("constant");
+  density_profiles::select();
   particle_lattice::select();
 
   // The value for constant timestep
