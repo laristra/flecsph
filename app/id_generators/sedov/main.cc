@@ -112,10 +112,16 @@ void set_derived_params() {
       total_mass = rho_initial * M_PI*SQ(sphere_radius);
   }
   else if (gdimension == 3) {
-    if (domain_type == 0) // a box
+    if (domain_type == 0) { // a box
+      assert (boost::iequals(density_profile,"constant"));
       total_mass = rho_initial * box_length*box_width*box_height;
-    else if (domain_type == 1) // a sphere
-      total_mass = rho_initial * 4./3.*M_PI*CU(sphere_radius);
+    }
+    else if (domain_type == 1) { // a sphere
+      //total_mass = rho_initial * 4./3.*M_PI*CU(sphere_radius);
+      // normalize mass such that central density is rho_initial
+      total_mass = rho_initial * CU(sphere_radius)
+                 / density_profiles::spherical_density_profile(0.0);
+    }
   }
   else
     assert (false);
@@ -221,17 +227,41 @@ int main(int argc, char * argv[]){
 
   // Assign density, pressure and specific internal energy to particles,
   // including the particles in the blast zone
+  const double rho0 = density_profiles::spherical_density_profile(0);
   for(int64_t part=0; part<nparticles; ++part){
     m[part] = mass_particle;
-    P[part] = pressure_initial;
-    rho[part] = rho_initial;
-    u[part] = uint_initial;
-    h[part] = sph_smoothing_length;
+
+    double r = 0.; // radial distance from the origin
+    switch (gdimension) {
+    case 1:
+      r = abs(x[part]);
+      break;
+    case 2:
+      r = sqrt(SQ(x[part]) + SQ(y[part]));
+      break;
+    case 3:
+      r = sqrt(SQ(x[part]) + SQ(y[part]) + SQ(z[part]));
+    }
+
+    if (domain_type == 0) { // a box 
+      P[part] = pressure_initial;
+      rho[part] = rho_initial;
+      u[part] = uint_initial;
+      h[part] = sph_smoothing_length;
+    }
+    else { // a sphere / circle
+      rho[part] = rho_initial/rho0 
+                * density_profiles::spherical_density_profile(r/sphere_radius);
+      u[part] = uint_initial;
+      P[part] = u[part]*rho[part]*(poly_gamma - 1.);
+      h[part] = sph_eta * kernels::kernel_width
+                        * pow(mass_particle/rho[part],1./gdimension);
+    }
     id[part] = posid++;
 
-    if (SQ(x[part]) + SQ(y[part]) + SQ(z[part]) < SQ(r_blast)) {
-       u[part] = u[part] + sedov_blast_energy/particles_blast;
-       P[part] = u[part]*rho[part]*(poly_gamma - 1.0);
+    if (r < r_blast) {
+      u[part] = u[part] + sedov_blast_energy/particles_blast;
+      P[part] = u[part]*rho[part]*(poly_gamma - 1.);
     }
   }
 

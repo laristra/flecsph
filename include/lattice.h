@@ -308,7 +308,8 @@ int64_t npart_icosahedral_sphere(const int k) {
  *             concentric shells, centered at the origin.
  *             Depending on the count_only switch--count total number of particles
  *             or assign the positions to the position arrays
- *             Returns int64_t: total particle number
+ *             Uses current spherical density profile from density_profiles.h
+ *             Returns int64_t: total particle number.
  *
  * @param      Refer to inputs section in introduction
  */
@@ -535,35 +536,23 @@ int64_t generator_icosahedral_lattice(const int lattice_type,
     } // for i from 0 to 20
 
     // update radius
-    /*
-      rk12 = rk12p*pow(1.0 + 3*m0*npart_icosahedral_shell(NN+1)
-                              /(4*pi*rho0*CU(rk12p)),1./3.);
-    */
     // 
     // Find rk12 such that m0*npart(NN+1) == m(rk12) - m(rk12p)
     //
     Mk = m0*npart_icosahedral_shell(NN+1); // mass of the shell
     x1 = rk12p/R_shells;
     mrk12  = 1.0;
-std::cout << "Mk = " << Mk << std::endl;
     if (mrk12 - mrk12p > Mk) {
-std::cout << "NN = " << NN << ": xn = {";    
       for (int nrit=0;  nrit<100; ++nrit) {
         mrk12 = density_profiles::spherical_mass_profile(x1);
         f = mrk12 - mrk12p - Mk;
         f1 = 4.0*pi*(x1*x1) * density_profiles::spherical_density_profile(x1);
         x2 = x1 - f/f1;
-std::cout << x2 << " ";
         if (abs(x2-x1)<1e-12) break;
         x1 = x2;
       }
-std::cout << "}, mrk12 = " << mrk12 << std::endl;      
     }
     rk12 = x1*R_shells;
-//std::cout << "rk12 = " << rk12 << " vs "
-//          << rk12p*cbrt(1.0 + 3*m0*npart_icosahedral_shell(NN+1)
-//                                         /(4*pi*rho0*CU(rk12p)))
-//          << std::endl;
 
     rk = 0.5*(rk12p + rk12);
     rk12p= rk12;

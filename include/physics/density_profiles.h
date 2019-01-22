@@ -20,7 +20,11 @@
  * @file density_profiles.h
  * @author Oleg Korobkin
  * @date January 2019
- * @brief interface to select various density profiles
+ * @brief Interface to select various density profiles
+ * 
+ * Notes: 
+ *  - all spherical density profiles have support with radius R = 1;
+ *  - all profiles are normalized to total mass M = 1.
  */
 
 #ifndef DENSITY_PROFILES_H
