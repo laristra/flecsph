@@ -1357,8 +1357,8 @@ public:
   void
   handle_requests()
   {
-    int max_size = 500;
-    int max_requests = 100;
+    int max_size = 1000;
+    int max_requests = 1000;
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
