@@ -848,16 +848,16 @@ public:
 
     MPI_Barrier(MPI_COMM_WORLD);
     int rank;
-    clog_one(trace) << std::endl;
+    //clog_one(trace) << std::endl;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     std::stack<branch_t*> stk;
     stk.push(b);
 
     std::vector<branch_t*> work_branch;
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace)<<"Searching breanches";
-    MPI_Barrier(MPI_COMM_WORLD);
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //clog_one(trace)<<"Searching breanches";
+    //MPI_Barrier(MPI_COMM_WORLD);
 
     while(!stk.empty()){
       branch_t* c = stk.top();
@@ -879,10 +879,10 @@ public:
       }
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace)<<".done : "<<work_branch.size()<<std::endl;
-    clog_one(trace)<<"Computing and communication";
-    MPI_Barrier(MPI_COMM_WORLD);
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //clog_one(trace)<<".done : "<<work_branch.size()<<std::endl;
+    //clog_one(trace)<<"Computing and communication";
+    //MPI_Barrier(MPI_COMM_WORLD);
 
     std::vector<branch_t*> remaining_branches;
     int done = omp_get_max_threads();
@@ -906,10 +906,10 @@ public:
     }
     //clog(trace)<<"Merged done"<<std::endl<<std::flush;
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace)<<".done"<<std::endl;
-    clog_one(trace)<<"Adding the ghosts";
-    MPI_Barrier(MPI_COMM_WORLD);
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //clog_one(trace)<<".done"<<std::endl;
+    //clog_one(trace)<<"Adding the ghosts";
+    //MPI_Barrier(MPI_COMM_WORLD);
 
     // Check if no message remainig
 #ifdef DEBUG
@@ -937,10 +937,10 @@ public:
     assert(current_ghosts < max_traversal);
     cofm(root(), 0, false);
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace)<<".done"<<std::endl;
-    clog_one(trace)<<"Finishing branches";
-    MPI_Barrier(MPI_COMM_WORLD);
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //clog_one(trace)<<".done"<<std::endl;
+    //clog_one(trace)<<"Finishing branches";
+    //MPI_Barrier(MPI_COMM_WORLD);
 
     std::vector<branch_t*> ignore;
     //clog(trace)<<"Cmopute the remaining branches"<<std::endl<<std::flush;
@@ -950,9 +950,9 @@ public:
         ef,std::forward<ARGS>(args)...);
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace)<<".done"<<std::endl;
-    MPI_Barrier(MPI_COMM_WORLD);
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //clog_one(trace)<<".done"<<std::endl;
+    //MPI_Barrier(MPI_COMM_WORLD);
   } // apply_sub_cells
 
   /**
