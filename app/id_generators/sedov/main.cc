@@ -13,6 +13,7 @@
 #include "params.h"
 #include "lattice.h"
 #include "kernels.h"
+#include "density_profiles.h"
 #include "io.h"
 using namespace io;
 
@@ -67,6 +68,7 @@ static std::string initial_data_file; // = initial_data_prefix + ".h5part"
 void set_derived_params() {
   using namespace param;
 
+  density_profiles::select("constant");
   particle_lattice::select();
 
   // The value for constant timestep
