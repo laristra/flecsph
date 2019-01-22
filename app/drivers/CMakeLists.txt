@@ -90,7 +90,7 @@ cinch_add_unit(sodtube_test
   SOURCES
     test/sodtube.cc
     hydro/main_driver.cc
-    #${FleCSI_RUNTIME}/runtime_driver.cc
+    ${FleCSI_RUNTIME}/runtime_driver.cc
   INPUTS
     ${PROJECT_SOURCE_DIR}/data/sodtube_t1_n100.par
   LIBRARIES
