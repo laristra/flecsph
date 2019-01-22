@@ -44,6 +44,7 @@ namespace density_profiles {
   typedef double  (*radial_function_t)(const double);
   static radial_function_t spherical_density_profile = NULL;
   static radial_function_t spherical_mass_profile = NULL;
+  static radial_function_t spherical_drho_dr = NULL;
 
   /**
    * @brief  constant uniform density in a domain of radius R = 1
@@ -55,6 +56,10 @@ namespace density_profiles {
 
   double mass_constant_density(const double r) {
     return CU(r);
+  }
+
+  double drhodr_constant_density(const double r) {
+    return 0.;
   }
 
   /**
@@ -70,6 +75,10 @@ namespace density_profiles {
     return CU(r);
   }
 
+  double drhodr_parabolic_density(const double r) {
+    return -15./(4.*M_PI)*r;
+  }
+
   /**
    * @brief      External force selector
    * @param      efstr    ext. force string
@@ -79,10 +88,12 @@ namespace density_profiles {
     if (boost::iequals(density_profile,"constant")) {
       spherical_density_profile = rho_constant_density;
       spherical_mass_profile = mass_constant_density;
+      spherical_drho_dr = drhodr_constant_density;
     }
     else if (boost::iequals(density_profile,"parabolic")) {
       spherical_density_profile = rho_parabolic_density;
       spherical_mass_profile = mass_parabolic_density;
+      spherical_drho_dr = drhodr_parabolic_density;
     }
     else {
       clog(error) << "ERROR: wrong parameter in density_profiles";
