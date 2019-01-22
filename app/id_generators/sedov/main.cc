@@ -228,6 +228,8 @@ int main(int argc, char * argv[]){
   // Assign density, pressure and specific internal energy to particles,
   // including the particles in the blast zone
   const double rho0 = density_profiles::spherical_density_profile(0);
+  const double K0 = pressure_initial // polytropic constant
+                  / pow(rho_initial, poly_gamma); 
   for(int64_t part=0; part<nparticles; ++part){
     m[part] = mass_particle;
 
@@ -252,8 +254,8 @@ int main(int argc, char * argv[]){
     else { // a sphere / circle
       rho[part] = rho_initial/rho0 
                 * density_profiles::spherical_density_profile(r/sphere_radius);
-      u[part] = uint_initial;
-      P[part] = u[part]*rho[part]*(poly_gamma - 1.);
+      P[part] = K0*pow(rho[part], poly_gamma); 
+      u[part] = P[part]/(rho[part]*(poly_gamma-1));
       h[part] = sph_eta * kernels::kernel_width
                         * pow(mass_particle/rho[part],1./gdimension);
     }
