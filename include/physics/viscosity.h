@@ -110,7 +110,7 @@ namespace viscosity{
     if (boost::iequals(kstr,"artificial_viscosity")){
       viscosity = artificial_viscosity;
     }else{
-      clog_one(fatal) << "Bad viscosity parameter"<<std::endl;
+      clog_fatal("Bad viscosity parameter"<<std::endl);
     }
   }
 

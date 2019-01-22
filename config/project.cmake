@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------#
 # The cinch version
 #------------------------------------------------------------------------------#
-cinch_minimum_required(1.0)
+cinch_minimum_required(VERSION 1.0)
 
 #------------------------------------------------------------------------------#
 # The project name
@@ -33,13 +33,7 @@ cinch_load_extras()
 #------------------------------------------------------------------------------#
 # Legion
 #------------------------------------------------------------------------------#
-option(ENABLE_LEGION "Enable Legion" OFF)
-if(ENABLE_LEGION)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DENABLE_LEGION")
-  find_package(Legion REQUIRED)
-  include_directories(${Legion_INCLUDE_DIRS})
-  list(APPEND FleCSPH_LIBRARIES ${Legion_LIBRARY} ${REALM_LIBRARY})
-endif()
+cinch_load_extras(LEGION)
 
 #------------------------------------------------------------------------------#
 # Find FleCSI
@@ -53,15 +47,8 @@ message(STATUS ${FleCSPH_LIBRARIES})
 #------------------------------------------------------------------------------#
 # MPI
 #------------------------------------------------------------------------------#
-find_package(MPI REQUIRED)
-include_directories(${MPI_INCLUDE_PATH})
-list(APPEND FleCSPH_LIBRARIES ${MPI_LIBRARIES})
-
-#------------------------------------------------------------------------------#
-# Pthreads for parallelism in the tree
-#------------------------------------------------------------------------------#
-#find_package(Threads REQUIRED)
-#include_directories(${THREADS_INCLUDE_PATH})
+cinch_load_extras(MPI)
+list (APPEND FleCSPH_LIBRARIES ${CINCH_RUNTIME_LIBRARIES} )
 
 #------------------------------------------------------------------------------#
 # Add OpenMP
@@ -75,18 +62,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 #------------------------------------------------------------------------------#
 find_package(Boost REQUIRED)
 include_directories(${Boost_INCLUDE_DIR})
-
-#------------------------------------------------------------------------------#
-# H5HUT
-#------------------------------------------------------------------------------#
-# Set by hand right now
-#find_package(H5hut REQUIRED)
-#set(HDF5_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/third-party-libraries/local/include")
-#set(HDF5_LIBRARIES "${CMAKE_SOURCE_DIR}/third-party-libraries/local/lib/libH5hut.so")
-#message(STATUS ${H5hut_LIBRARIES})
-#message(STATUS ${H5hut_INCLUDE_DIRS})
-#list(APPEND FleCSPH_LIBRARIES ${H5hut_LIBRARIES})
-#include_directories(${H5hut_INCLUDE_DIRS})
 
 #------------------------------------------------------------------------------#
 # HDF5

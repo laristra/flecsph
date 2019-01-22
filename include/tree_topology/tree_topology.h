@@ -848,7 +848,7 @@ public:
 
     MPI_Barrier(MPI_COMM_WORLD);
     int rank;
-    rank || clog(trace) << std::endl;
+    clog_one(trace) << std::endl;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     std::stack<branch_t*> stk;
     stk.push(b);
@@ -856,7 +856,7 @@ public:
     std::vector<branch_t*> work_branch;
 
     MPI_Barrier(MPI_COMM_WORLD);
-    rank || clog(trace)<<"Searching breanches";
+    clog_one(trace)<<"Searching breanches";
     MPI_Barrier(MPI_COMM_WORLD);
 
     while(!stk.empty()){
@@ -880,8 +880,8 @@ public:
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
-    rank || clog(trace)<<".done : "<<work_branch.size()<<std::endl;
-    rank || clog(trace)<<"Computing and communication";
+    clog_one(trace)<<".done : "<<work_branch.size()<<std::endl;
+    clog_one(trace)<<"Computing and communication";
     MPI_Barrier(MPI_COMM_WORLD);
 
     std::vector<branch_t*> remaining_branches;
@@ -907,8 +907,8 @@ public:
     //clog(trace)<<"Merged done"<<std::endl<<std::flush;
 
     MPI_Barrier(MPI_COMM_WORLD);
-    rank || clog(trace)<<".done"<<std::endl;
-    rank || clog(trace)<<"Adding the ghosts";
+    clog_one(trace)<<".done"<<std::endl;
+    clog_one(trace)<<"Adding the ghosts";
     MPI_Barrier(MPI_COMM_WORLD);
 
     // Check if no message remainig
@@ -938,8 +938,8 @@ public:
     cofm(root(), 0, false);
 
     MPI_Barrier(MPI_COMM_WORLD);
-    rank || clog(trace)<<".done"<<std::endl;
-    rank || clog(trace)<<"Finishing branches";
+    clog_one(trace)<<".done"<<std::endl;
+    clog_one(trace)<<"Finishing branches";
     MPI_Barrier(MPI_COMM_WORLD);
 
     std::vector<branch_t*> ignore;
@@ -951,7 +951,7 @@ public:
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
-    rank || clog(trace)<<".done"<<std::endl;
+    clog_one(trace)<<".done"<<std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
   } // apply_sub_cells
 
@@ -1055,7 +1055,7 @@ public:
     MPI_Barrier(MPI_COMM_WORLD);
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    rank || clog(trace) << "FMM : maxmasscell: "<<maxmasscell<<" MAC: "<<
+    clog_one(trace) << "FMM : maxmasscell: "<<maxmasscell<<" MAC: "<<
       MAC<<std::endl;
 
     std::stack<branch_t*> stk;
@@ -1457,7 +1457,7 @@ public:
             ncount*sizeof(entity_t),MPI_BYTE,source,SOURCE_REPLY,MPI_COMM_WORLD,
             &(mpi_replies[current_mpi_replies++]));
           if(current_mpi_replies > max_requests){
-              clog(error)<<rank<<
+              clog_one(error)<<rank<<
                 ": Exceeding number of replies requests"<<std::endl;
           }
         }
@@ -1482,7 +1482,7 @@ public:
                 max_size*sizeof(key_t),MPI_BYTE,owner,SOURCE_REQUEST,
                 MPI_COMM_WORLD,&(mpi_requests[current_mpi_requests++]));
               if(current_mpi_requests > max_requests){
-                  clog(error)<<rank<<
+                  clog_one(error)<<rank<<
                     ": Exceeding number of requests requests"<<std::endl;
               }
               ++request_counter;
@@ -1508,7 +1508,7 @@ public:
                 &(mpi_requests[current_mpi_requests++]));
               if(current_mpi_requests > max_requests)
               {
-                  clog(error)<<rank<<
+                  clog_one(error)<<rank<<
                     ": Exceeding number of requests requests"<<std::endl;
               }
               ++request_counter;
@@ -1553,7 +1553,7 @@ public:
                 &(mpi_requests[current_mpi_requests++]));
             if(current_mpi_requests > max_requests)
             {
-                clog(error)<<rank<<
+                clog_one(error)<<rank<<
                   ": Exceeding number of requests requests"<<std::endl;
             }
           }
@@ -2150,7 +2150,7 @@ public:
    {
      int rank = 0;
      MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-     rank || clog(trace)<<rank<<" outputing tree file #"<<num<<std::endl;
+     clog_one(trace)<<rank<<" outputing tree file #"<<num<<std::endl;
 
      char fname[64];
      sprintf(fname,"output_graphviz_%02d_%02d.gv",rank,num);

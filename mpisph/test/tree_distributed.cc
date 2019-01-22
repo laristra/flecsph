@@ -40,9 +40,6 @@ using geometry_t = flecsi::topology::tree_geometry<double, 3>;
 
 TEST(tree_distribution, distribution) {
 
-  int provided;
-  MPI_Init_thread(NULL, NULL, MPI_THREAD_MULTIPLE, &provided);
-
   //--------------------------------------------------------------------------//
   //     Perform the computation on one process to compute the neighbors      //
   //--------------------------------------------------------------------------//
@@ -114,12 +111,13 @@ TEST(tree_distribution, distribution) {
   //--------------------------------------------------------------------------//
   //     Perform the computation on all process to compute the neighbors      //
   //--------------------------------------------------------------------------//
-
   tree_colorer<double,gdimension> tc;
   tree_topology_t t;
+
   int rank, size;
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
+
   rank || clog(trace)<<"#proc: "<<size<<std::endl;
 
   int64_t totalnbodies;
@@ -277,5 +275,4 @@ TEST(tree_distribution, distribution) {
 
   }
 
-  MPI_Finalize();
 }

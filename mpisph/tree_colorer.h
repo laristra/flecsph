@@ -137,7 +137,7 @@ public:
 
     // If one process, done
     if(size==1){
-      clog(trace)<<"Local particles: "<<totalnbodies<<std::endl;
+      clog_one(trace)<<"Local particles: "<<totalnbodies<<std::endl;
       return;
     } // if
 
@@ -199,7 +199,7 @@ public:
     oss<<"Repartition: ";
     for(auto num: totalprocbodies)
       oss<<num<<";";
-    rank|| clog(trace)<<oss.str()<<std::endl;
+    clog_one(trace)<<oss.str()<<std::endl;
     #endif
 #endif // OUTPUT
   } // mpi_qsort
@@ -233,12 +233,10 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
-    assert(size == (1<<(int)log2(size)) && "Current implementation impose power 2");
-
 #ifdef OUTPUT
     MPI_Barrier(MPI_COMM_WORLD);
     #ifdef OUTPUT_TREE_INFO
-    rank|| clog(trace)<<"Branches repartition" << std::endl << std::flush;
+    clog_one(trace)<<"Branches repartition" << std::endl << std::flush;
     #endif
 #endif
 
@@ -270,61 +268,109 @@ public:
   // Do the hypercube communciation to share the branches
   // Add them in the tree in the same time
   int dim = log2(size);
+  bool non_power_2 = false;
   // In case of non power two, consider dim + 1
-  //if(1<<dim < size)
-  //  dim++;
+  // In this case all rank also take size + 1 rank
+  int ghosts_rank = -1;
+  if(1<<dim < size){
+    non_power_2 = true;
+    dim++;
+    ghosts_rank = rank + size;
+    if(ghosts_rank > (1<<dim)-1)
+      ghosts_rank = rank;
+  }
+  std::vector<mpi_branch_t> ghosts_branches;
+  int ghosts_nsend;
+  int ghosts_last = 0;
+
+  //if(non_power_2)
+  //{
+  //  std::cerr<<rank<<" = "<<ghosts_rank<<" dim = "<<dim<<std::endl;
+  //}
+
   int nsend;
   int last = branches.size();
   for(int i = 0; i < dim; ++i){
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (rank == 0 ) std::cout<<"i="<<i<<std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
     nsend = branches.size();
     int partner = rank ^ (1<<i);
     assert(partner != rank);
-    //clog(trace)<<rank<<" partner -> "<<partner<<std::endl;
-    // In case of non power 2
-    MPI_Request request;
-    if(partner < size){
-      // I send
-      if(rank < partner){
-        // Send size
-        MPI_Isend(&(branches[0]),nsend*sizeof(mpi_branch_t),MPI_BYTE,partner,1,
-          MPI_COMM_WORLD,&request);
-      }else{
-        MPI_Status status;
-        // Read the size of the message
-        MPI_Probe(partner,1,MPI_COMM_WORLD,&status);
-        // Get the size
-        int nrecv = 0;
-        MPI_Get_count(&status, MPI_BYTE, &nrecv);
-        branches.resize(branches.size()+nrecv/sizeof(mpi_branch_t));
-        MPI_Recv(&(branches[last]), nrecv, MPI_BYTE, partner, 1,
-           MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        last = branches.size();
+    std::cout<<rank<<" -- "<<partner<<std::endl;
+    mpi_one_to_one(rank,partner,branches,nsend,last);
+    // Handle the non power two cases
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (rank == 0 ) std::cout<<"NON power:"<<std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(non_power_2)
+    {
+      // In this case we handle the last dimension by "hand"
+      if(i == dim-1) continue;
+
+      ghosts_nsend = ghosts_branches.size();
+      assert(ghosts_rank != -1);
+      int ghosts_partner = ghosts_rank ^ (1<<i);
+      // Already handled this case
+      if(ghosts_rank == rank && partner < size)
+        continue;
+      partner = ghosts_partner;
+      if(partner >= size){
+        partner -= size;
       }
-      // Other rank send
-      if(rank > partner){
-        // Send size
-        MPI_Isend(&(branches[0]),nsend*sizeof(mpi_branch_t),MPI_BYTE,partner,1,
-          MPI_COMM_WORLD,&request);
+      std::cout<<ghosts_rank<<" ("<<rank<<") -- "<<ghosts_partner<<" ("<<partner<<")"<<std::endl;
+      assert(partner != ghosts_rank);
+      if(ghosts_rank == rank){
+        mpi_one_to_one(rank,partner,branches,nsend,last);
       }else{
-        MPI_Status status;
-        // Read the size of the message
-        MPI_Probe(partner,1,MPI_COMM_WORLD,&status);
-        // Get the size
-        int nrecv = 0;
-        MPI_Get_count(&status, MPI_BYTE, &nrecv);
-        branches.resize(branches.size()+nrecv/sizeof(mpi_branch_t));
-        MPI_Recv(&(branches[last]), nrecv, MPI_BYTE, partner, 1,
-           MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        last = branches.size();
+        mpi_one_to_one(rank,partner,ghosts_branches,ghosts_nsend,
+          ghosts_last);
       }
-      //Wait for request
-      MPI_Status status;
-      MPI_Wait(&request,&status);
     }
   }
+  // Handle the last dimension by "hand" in the non power 2 case
+  // Indeed, some rank are involved in more than one communications
+  if(non_power_2)
+  {
+    if(rank == 0) std::cout<<"FINISHING"<<std::endl;
+    // Ranks which have already exchange in the normal communication
+    int free_ranks = size - (1<<(dim-1));
+    if(rank == 0) std::cout<<" free rank = "<<free_ranks<<std::endl;
+    int partner = -1;
+    int ghosts_partner = -1;
+    // 1. Handle for the real ranks
+    ghosts_nsend = ghosts_branches.size();
+    nsend = branches.size();
 
+    if(ghosts_rank != rank && rank < (1<<(dim-1)))
+    {
+      if(rank < free_ranks){
+        ghosts_partner = ghosts_rank ^ (1<<(dim-1));
+      }else{
+        ghosts_partner = rank ^ (1<<(dim-1));
+      }
+      ghosts_nsend = ghosts_branches.size();
+      assert(ghosts_rank != -1);
+      partner = ghosts_partner;
+      if(partner >= size){
+        partner -= size;
+      }
+      if(rank < free_ranks){
+        std::cout<<ghosts_rank<<" ("<<rank<<") -- "<<ghosts_partner<<" ("<<partner<<")"<<std::endl;
+      }else{
+        std::cout<<rank<<" -- "<<ghosts_partner<<std::endl;
+      }
+      assert(partner != ghosts_rank);
+      if(ghosts_rank == rank){
+        mpi_one_to_one(rank,partner,branches,nsend,last);
+      }else{
+        mpi_one_to_one(rank,partner,ghosts_branches,ghosts_nsend,
+          ghosts_last);
+      }
+    }
+  }
   // Total branches
-  rank || clog(trace)<<rank<<"total branches: "<<branches.size()<<std::endl;
+  clog_one(trace)<<rank<<"total branches: "<<branches.size()<<std::endl;
 
 #if DEBUG
   // Check if everyone have the same number
@@ -347,7 +393,7 @@ public:
 
 #ifdef OUTPUT_TREE_INFO
     MPI_Barrier(MPI_COMM_WORLD);
-    rank || clog(trace)<<".done "<<std::endl;
+    clog_one(trace)<<".done "<<std::endl;
 #endif
 
   }

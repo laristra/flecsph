@@ -2,24 +2,6 @@
 
 #include <mpi.h>
 
-#if 0
-using namespace ::testing;
-class MyEnv: public testing::Environment {
-public:
-  MyEnv() : ::testing::Environment() {}
-  virtual ~MyEnv() {}
-  void SetUp() override {
-    int provided;
-    MPI_Init_thread(NULL, NULL, MPI_THREAD_MULTIPLE, &provided);
-    ASSERT_TRUE(provided == MPI_THREAD_MULTIPLE);
-  }
-  void TearDown() override { MPI_Finalize(); std::cout<<"Done finalize"<<std::endl;}
-private:
-  MyEnv(const MyEnv& env) {}
-};
-Environment*  const env = AddGlobalTestEnvironment(new MyEnv);
-#endif
-
 namespace analysis{
   enum e_conservation: size_t
   { MASS = 0 , ENERGY = 1, MOMENTUM = 2, ANG_MOMENTUM = 3 };

@@ -324,7 +324,7 @@ namespace external_force {
             vec_accelerations.push_back(acceleration_walls_z);
             break;
           default:
-            clog_one(fatal) << "ERROR: bad external_force_type" << std::endl;
+            clog_fatal("ERROR: bad external_force_type" << std::endl);
             assert(false);
           }
         }
@@ -338,7 +338,7 @@ namespace external_force {
         vec_potentials.push_back(potential_poison);
       }
       else {
-        clog_one(fatal) << "ERROR: bad external_force_type" << std::endl;
+        clog_fatal("ERROR: bad external_force_type" << std::endl);
       }
     } // for it in split_efstr
 

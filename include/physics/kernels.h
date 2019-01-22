@@ -4,7 +4,7 @@
  *~--------------------------------------------------------------------------~*/
 
  /*~--------------------------------------------------------------------------~*
- * 
+ *
  * /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
  * /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
  * /@@       /@@  @@@@@  @@    // /@@       /@@   /@@/@@     /@@
@@ -12,7 +12,7 @@
  * /@@////   /@@/@@@@@@@/@@       ////////@@/@@////  /@@//////@@
  * /@@       /@@/@@//// //@@    @@       /@@/@@      /@@     /@@
  * /@@       @@@//@@@@@@ //@@@@@@  @@@@@@@@ /@@      /@@     /@@
- * //       ///  //////   //////  ////////  //       //      //  
+ * //       ///  //////   //////  ////////  //       //      //
  *
  *~--------------------------------------------------------------------------~*/
 
@@ -31,11 +31,12 @@
 
 #include "tree.h"
 #include "params.h"
+#include "cinchlog.h"
 
 namespace kernels{
 
   /**
-   * @brief      Compute the size of the vector 
+   * @brief      Compute the size of the vector
    * needed in the computation of the gradients
    *
    * @param      p     The vector, in point_t shape
@@ -52,7 +53,7 @@ namespace kernels{
       return abs(p[0]);
   }
 
-  // Coefficient for the kernels in 1d, 2d and 3d without h 
+  // Coefficient for the kernels in 1d, 2d and 3d without h
   // h depends of the dimension and is added in the kernel
   const double cubic_spline_sigma[3] = {4./3.,40./(7.*M_PI),8./M_PI};
   const double quintic_spline_sigma[3] = {1./40.,63./(478.*M_PI),81./(359.*M_PI)};
@@ -83,7 +84,7 @@ namespace kernels{
     sinc_sigma[1] = 4.*(si_b0[1] + si_b1[1]*si + si_b2[1]/si + si_b3[1]/s2);
     sinc_sigma[2] = 8.*(si_b0[2] + si_b1[2]*sq + si_b2[2]*si + si_b3[2]*sq*si);
   }
- 
+
   // Connection to the sph_eta parameter
   static double kernel_width = 1.0;
 
@@ -94,21 +95,21 @@ namespace kernels{
    * @brief      Cubic spline kernel
    * From Monaghan/92
    *
-   * @param[in]  r     Distance between the particles 
-   * @param[in]  h     Smoothing length 
+   * @param[in]  r     Distance between the particles
+   * @param[in]  h     Smoothing length
    *
-   * @return     Contribution from the particle 
+   * @return     Contribution from the particle
    */
-  double 
+  double
   cubic_spline(
-      const double r, 
+      const double r,
       const double h)
   {
     double rh = 2.*r/h;
     double result = 0.;
 
     if (rh < 2.0) {
-      if (rh < 1.0) 
+      if (rh < 1.0)
         result = 1.0 - 1.5*rh*rh + .75*rh*rh*rh;
       else
         result = 0.25*(2 - rh)*(2 - rh)*(2 - rh);
@@ -123,14 +124,14 @@ namespace kernels{
    * @brief      Gradient of cubic spline kernel
    * From Monaghan/92
    *
-   * @param[in]  vecP  The vector pab = pa - pb 
-   * @param[in]  h     The smoothing length 
+   * @param[in]  vecP  The vector pab = pa - pb
+   * @param[in]  h     The smoothing length
    *
-   * @return     Contribution from the particle 
+   * @return     Contribution from the particle
    */
-  point_t 
+  point_t
   gradient_cubic_spline(
-      const point_t & vecP, 
+      const point_t & vecP,
       const double h)
   {
     double r = vector_norm(vecP);
@@ -150,23 +151,23 @@ namespace kernels{
     }
     return result;
 
-  } // gradKernel 
+  } // gradKernel
 
 /*============================================================================*/
 /*   Gaussian                                                                 */
 /*============================================================================*/
   /**
-   * @brief      Gaussian kernel: W(r,h) = exp( -[3r/h]^2 ) 
+   * @brief      Gaussian kernel: W(r,h) = exp( -[3r/h]^2 )
    * From Liu/2010
    *
-   * @param[in]  r     Distance between the particles 
-   * @param[in]  h     Smoothing length 
+   * @param[in]  r     Distance between the particles
+   * @param[in]  h     Smoothing length
    *
-   * @return     Contribution from the particle 
+   * @return     Contribution from the particle
    */
-  double 
+  double
   gaussian(
-    const double r, 
+    const double r,
     const double h)
   {
     double rh = 3.*r/h;
@@ -177,19 +178,19 @@ namespace kernels{
                    / pow(h,gdimension);
       result = sigma*exp(-rh*rh);
     }
-    return result; 
+    return result;
   }
 
   /**
    * @brief      Gradient of gaussian kernel
    * From Liu/2010
    *
-   * @param[in]  vecP  The vector pab = pa - pb 
-   * @param[in]  h     The smoothing length 
+   * @param[in]  vecP  The vector pab = pa - pb
+   * @param[in]  h     The smoothing length
    *
-   * @return     Contribution from the particle 
+   * @return     Contribution from the particle
    */
-  point_t 
+  point_t
   gradient_gaussian(
     const point_t & vecP,
     const double h)
@@ -211,17 +212,17 @@ namespace kernels{
 /*   Quintic spline                                                           */
 /*============================================================================*/
     /**
-   * @brief      Quintic spline kernel 
+   * @brief      Quintic spline kernel
    * From Liu/2010
    *
-   * @param[in]  r     Distance between the particles 
-   * @param[in]  h     Smoothing length 
+   * @param[in]  r     Distance between the particles
+   * @param[in]  h     Smoothing length
    *
-   * @return     Contribution from the particle 
+   * @return     Contribution from the particle
    */
-  double 
+  double
   quintic_spline(
-    const double r, 
+    const double r,
     const double h)
   {
     double rh = 3.*r/h;
@@ -246,12 +247,12 @@ namespace kernels{
    * @brief      Gradient of quintic spline kernel
    * From Liu/2010
    *
-   * @param[in]  vecP  The vector pab = pa - pb 
-   * @param[in]  h     The smoothing length 
+   * @param[in]  vecP  The vector pab = pa - pb
+   * @param[in]  h     The smoothing length
    *
-   * @return     Contribution from the particle 
+   * @return     Contribution from the particle
    */
-  point_t 
+  point_t
   gradient_quintic_spline(
     const point_t & vecP,
     const double h)
@@ -273,7 +274,7 @@ namespace kernels{
       result = vecP*sigma*dWdr/r;
     }
 
-    return result; 
+    return result;
   }
 
 /*============================================================================*/
@@ -283,10 +284,10 @@ namespace kernels{
    * @brief      Wendland C2-continuous kernel
    *             Reference: Dehnen & Aly (2012) MNRAS 425(2)
    *
-   * @param[in]  r     Distance between the particles 
-   * @param[in]  h     Smoothing length 
+   * @param[in]  r     Distance between the particles
+   * @param[in]  h     Smoothing length
    *
-   * @return     Contribution from the particle 
+   * @return     Contribution from the particle
    */
   double wendland_c2_1d(const double r, const double h) {
     double rh = r/h;
@@ -297,32 +298,32 @@ namespace kernels{
       double sigma = wendland_c2_sigma[0]/h;
       result = sigma*rh2*(1 - rh)*(3*rh + 1);
     }
-    return result; 
+    return result;
   }
 
   double wendland_c2_23d(const double r, const double h) {
     double rh = r/h;
     double result = 0.;
-    
+
     if(rh < 1.0) {
       double hd = h*h;
-      if (gdimension == 3) 
+      if (gdimension == 3)
         hd *= h;
 
       double rh2 = (1 - rh)*(1 - rh);
       double sigma = wendland_c2_sigma[gdimension-1] / hd;
       result = sigma*rh2*rh2*(4*rh + 1);
     }
-    return result; 
+    return result;
   }
 
   /**
    * @brief      Gradient of Wendland kernel
    *
-   * @param[in]  vecP  The vector pab = pa - pb 
-   * @param[in]  h     The smoothing length 
+   * @param[in]  vecP  The vector pab = pa - pb
+   * @param[in]  h     The smoothing length
    *
-   * @return     Contribution from the particle 
+   * @return     Contribution from the particle
    */
   point_t gradient_wendland_c2_1d(const point_t & vecP, const double h) {
     double r = vector_norm(vecP);
@@ -333,10 +334,10 @@ namespace kernels{
       double rh2 = (1 - rh)*(1 - rh);
       double sigma = wendland_c2_sigma[0]/(h*h);
       double dWdr = -12.*rh*rh2;
-      result = vecP*sigma*dWdr/r; 
+      result = vecP*sigma*dWdr/r;
     }
 
-    return result; 
+    return result;
   }
 
   point_t gradient_wendland_c2_23d(const point_t & vecP, const double h) {
@@ -346,15 +347,15 @@ namespace kernels{
 
     if(rh < 1.0) {
       double hd1 = h*h*h;
-      if (gdimension == 3) 
+      if (gdimension == 3)
         hd1 *= h;
 
       double rh2 = (1 - rh)*(1 - rh);
       double sigma = 2.*wendland_c2_sigma[gdimension-1]/hd1;
       double dWdr = -10.*rh*rh2*(1 - rh);
-      result = vecP*sigma*dWdr/r; 
+      result = vecP*sigma*dWdr/r;
     }
-    return result; 
+    return result;
   }
 
 /*============================================================================*/
@@ -364,10 +365,10 @@ namespace kernels{
    * @brief      Wendland C4-continuous kernel
    *             Reference: Dehnen & Aly (2012) MNRAS 425(2)
    *
-   * @param[in]  r     Distance between the particles 
-   * @param[in]  h     Smoothing length 
+   * @param[in]  r     Distance between the particles
+   * @param[in]  h     Smoothing length
    *
-   * @return     Contribution from the particle 
+   * @return     Contribution from the particle
    */
   double wendland_c4_1d(const double r, const double h) {
     double rh = r/h;
@@ -379,7 +380,7 @@ namespace kernels{
       double sigma = wendland_c4_sigma[0]/h;
       result = sigma*rh3*rh2*(1 + rh*(5 + rh*8));
     }
-    return result; 
+    return result;
   }
 
   double wendland_c4_23d(const double r, const double h) {
@@ -388,7 +389,7 @@ namespace kernels{
 
     if(rh < 1.0) {
       double hd = h*h;
-      if (gdimension == 3) 
+      if (gdimension == 3)
         hd *= h;
 
       double rh1 = 1 - rh;
@@ -397,16 +398,16 @@ namespace kernels{
       double sigma = wendland_c4_sigma[gdimension-1]/hd;
       result = sigma*rh6*(1 + rh*(6 + rh*35/3));
     }
-    return result; 
+    return result;
   }
 
   /**
    * @brief      Gradient of the Wendland-C4 kernel
    *
-   * @param[in]  vecP  The vector pab = pa - pb 
-   * @param[in]  h     The smoothing length 
+   * @param[in]  vecP  The vector pab = pa - pb
+   * @param[in]  h     The smoothing length
    *
-   * @return     Contribution from the particle 
+   * @return     Contribution from the particle
    */
   point_t gradient_wendland_c4_1d(const point_t & vecP, const double h) {
     double r = vector_norm(vecP);
@@ -418,9 +419,9 @@ namespace kernels{
       double sigma = 14.*wendland_c4_sigma[0]/(h*h);
       double dWdr = -rh*rh2*rh2*(1 + 4.*rh);
 
-      result = vecP*sigma*dWdr/r; 
+      result = vecP*sigma*dWdr/r;
     }
-    return result; 
+    return result;
   }
 
 
@@ -431,7 +432,7 @@ namespace kernels{
 
     if(rh < 1.0) {
       double hd1 = h*h*h;
-      if (gdimension==3) 
+      if (gdimension==3)
         hd1*=h;
 
       double rh2 = (1 - rh)*(1 - rh);
@@ -439,9 +440,9 @@ namespace kernels{
       double sigma = 14.*wendland_c4_sigma[gdimension-1]/hd1;
       double dWdr = -4./3.*rh*rh3*rh2*(1 + 5.*rh);
 
-      result = vecP*sigma*dWdr/r; 
+      result = vecP*sigma*dWdr/r;
     }
-    return result; 
+    return result;
   }
 
 
@@ -452,10 +453,10 @@ namespace kernels{
    * @brief      Wendland C6-continuous kernel
    *             Reference: Dehnen & Aly (2012) MNRAS 425(2)
    *
-   * @param[in]  r     Distance between the particles 
-   * @param[in]  h     Smoothing length 
+   * @param[in]  r     Distance between the particles
+   * @param[in]  h     Smoothing length
    *
-   * @return     Contribution from the particle 
+   * @return     Contribution from the particle
    */
   double wendland_c6_1d(const double r, const double h) {
     double rh = r/h;
@@ -468,7 +469,7 @@ namespace kernels{
       double sigma = wendland_c6_sigma[0]/h;
       result = sigma*rh3*rh4*(1 + rh*(7 + rh*(19 + rh*21)));
     }
-    return result; 
+    return result;
   }
 
   double wendland_c6_23d(const double r, const double h) {
@@ -477,7 +478,7 @@ namespace kernels{
 
     if(rh < 1.0) {
       double hd = h*h;
-      if (gdimension == 3) 
+      if (gdimension == 3)
         hd *= h;
 
       double rh2 = (1 - rh)*(1 - rh);
@@ -485,17 +486,17 @@ namespace kernels{
       double sigma = wendland_c6_sigma[gdimension-1]/hd;
       result = sigma*rh4*rh4*(1 + rh*(8 + rh*(25 + rh*32)));
     }
-    return result; 
+    return result;
   }
 
 
   /**
    * @brief      Gradient of Wendland-C6 kernel
    *
-   * @param[in]  vecP  The vector pab = pa - pb 
-   * @param[in]  h     The smoothing length 
+   * @param[in]  vecP  The vector pab = pa - pb
+   * @param[in]  h     The smoothing length
    *
-   * @return     Contribution from the particle 
+   * @return     Contribution from the particle
    */
   point_t gradient_wendland_c6_1d(const point_t & vecP, const double h) {
     double r = vector_norm(vecP);
@@ -507,9 +508,9 @@ namespace kernels{
       double rh3 = rh2*(1 - rh);
       double sigma = wendland_c6_sigma[0]/(h*h);
       double dWdr  = -6.*rh*rh3*rh3*(3 + rh*(18 + rh*35));
-      result = vecP*sigma*dWdr/r; 
+      result = vecP*sigma*dWdr/r;
     }
-    return result; 
+    return result;
   }
 
   point_t gradient_wendland_c6_23d(const point_t & vecP, const double h) {
@@ -519,7 +520,7 @@ namespace kernels{
 
     if(rh < 1.0) {
       double hd1 = h*h*h;
-      if (gdimension==3) 
+      if (gdimension==3)
         hd1*=h;
 
       double rh2 = (1 - rh)*(1 - rh);
@@ -527,10 +528,10 @@ namespace kernels{
       double rh4 = rh2*rh2;
       double sigma = wendland_c6_sigma[gdimension-1]/hd1;
       double dWdr  = -22.*rh*rh4*rh3*(1 + rh*(7 + rh*16));
-      result = vecP*sigma*dWdr/r; 
+      result = vecP*sigma*dWdr/r;
     }
 
-    return result; 
+    return result;
   }
 
 
@@ -542,14 +543,14 @@ namespace kernels{
    *             Reference: Monaghan, J. J. (1992), ARAA 30:543-74
    *             Note: the kernel is negative in certain regions.
    *
-   * @param[in]  r     Distance between the particles 
-   * @param[in]  h     Smoothing length 
+   * @param[in]  r     Distance between the particles
+   * @param[in]  h     Smoothing length
    *
-   * @return     Contribution from the particle 
+   * @return     Contribution from the particle
    */
-  double 
+  double
   super_gaussian(
-    const double r, 
+    const double r,
     const double h)
   {
     double rh = 3.*r/h, rh2 = rh*rh;
@@ -560,18 +561,18 @@ namespace kernels{
                    / pow(h,gdimension);
       result = sigma*exp(-rh2)*(gdimension/2.0 + 1 - rh2);
     }
-    return result; 
+    return result;
   }
 
   /**
    * @brief      Gradient of Super Gaussian kernel
    *
-   * @param[in]  vecP  The vector pab = pa - pb 
-   * @param[in]  h     The smoothing length 
+   * @param[in]  vecP  The vector pab = pa - pb
+   * @param[in]  h     The smoothing length
    *
-   * @return     Contribution from the particle 
+   * @return     Contribution from the particle
    */
-  point_t 
+  point_t
   gradient_super_gaussian(
     const point_t & vecP,
     const double h)
@@ -596,10 +597,10 @@ namespace kernels{
    * @brief   Sinc kernel
    * From : Garcia-Senz, Cabezon et al. (2014), A&A 570, A14
    *
-   * @param[in]  r     Distance between the particles 
-   * @param[in]  h     Smoothing length 
+   * @param[in]  r     Distance between the particles
+   * @param[in]  h     Smoothing length
    *
-   * @return     Contribution from the particle 
+   * @return     Contribution from the particle
    */
   double sinc_ker(const double r, const double h) {
     using namespace param;
@@ -608,12 +609,12 @@ namespace kernels{
     const double eps_root = sqrt(eps);
     const double eps_root4 = sqrt(eps_root);
 
-    //HL : It seems boost has sinc function as in thier special function lib 
+    //HL : It seems boost has sinc function as in thier special function lib
     //     But, here, I implement anyway
     double result = 0.;
     if(rh < 1.) {
       double hd = h;
-      for (unsigned int i=1; i<gdimension; i++) 
+      for (unsigned int i=1; i<gdimension; i++)
         hd *= h;
 
       double sinc = 1.0;
@@ -626,16 +627,16 @@ namespace kernels{
       }
       result = sinc_sigma[gdimension-1]/hd * pow(sinc, sph_sinc_index);
     }
-    return result; 
+    return result;
   }
 
   /**
    * @brief      Gradient of sinc kernel
    *
-   * @param[in]  vecP  The vector pab = pa - pb 
-   * @param[in]  h     The smoothing length 
+   * @param[in]  vecP  The vector pab = pa - pb
+   * @param[in]  h     The smoothing length
    *
-   * @return     Contribution from the particle 
+   * @return     Contribution from the particle
    */
   point_t gradient_sinc_ker(const point_t & vecP, const double h) {
     using namespace param;
@@ -648,7 +649,7 @@ namespace kernels{
     point_t result = 0.0;
     if(rh < 1.) {
       double hd = h*h;
-      for (unsigned int i=1; i<gdimension; i++) 
+      for (unsigned int i=1; i<gdimension; i++)
         hd *= h;
       double sigma = sinc_sigma[gdimension-1]/hd;
 
@@ -665,7 +666,7 @@ namespace kernels{
       }
       result = vecP*sigma*dWdr/r;
     }
-    return result; 
+    return result;
   }
 
   // kernel function pointers
@@ -736,7 +737,7 @@ namespace kernels{
       kernel_width = 2.0;
     }
     else {
-      clog_one(fatal) << "Bad kernel parameter" << std::endl;
+      clog_fatal("Bad kernel parameter" << std::endl);
     }
   }
 

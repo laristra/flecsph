@@ -56,11 +56,11 @@ public:
 
     #pragma omp parallel
     #pragma omp master
-    rank || clog(warn)<<"USING OMP THREADS: "<<
+    clog_one(warn)<<"USING OMP THREADS: "<<
       omp_get_num_threads()<<std::endl;
 
     if(param::sph_variable_h){
-      rank || clog(warn) <<"Variable smoothing length ENABLE"<<std::endl;
+      clog_one(warn) <<"Variable smoothing length ENABLE"<<std::endl;
     }
   };
 
@@ -214,12 +214,12 @@ public:
         MPI_COMM_WORLD);
     }
 
-    rank || clog(trace)<<"#particles: "<<totalnbodies_<<std::endl;
+    clog_one(trace)<<"#particles: "<<totalnbodies_<<std::endl;
 
    // Then compute the range of the system
     tcolorer_.mpi_compute_range(tree_.entities(),range_);
     assert(range_[0] != range_[1]);
-    rank || clog(trace) << "Range="<<range_[0]<<";"<<range_[1]<<std::endl;
+    clog_one(trace) << "Range="<<range_[0]<<";"<<range_[1]<<std::endl;
 
     // Generate the tree based on the range
     //tree_ = new tree_topology_t(range_[0],range_[1]);
@@ -231,7 +231,7 @@ public:
     tcolorer_.mpi_qsort(tree_.entities(),totalnbodies_);
 
 #ifdef OUTPUT_TREE_INFO
-    rank || clog(trace) << "Construction of the tree";
+    clog_one(trace) << "Construction of the tree";
 #endif
 
 // Sort the bodies
@@ -266,7 +266,7 @@ public:
     localnbodies_ = tree_.entities().size();
 
     #ifdef OUTPUT_TREE_INFO
-        rank || clog(trace) << ".done"<<std::endl;
+        clog_one(trace) << ".done"<<std::endl;
     #endif
 
 if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
@@ -285,7 +285,7 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
     tree_.share_edge();
 
 #ifdef OUTPUT_TREE_INFO
-    rank || clog(trace) << "Computing branches"<<std::endl;
+    clog_one(trace) << "Computing branches"<<std::endl;
 #endif
 
     tree_.cofm(tree_.root(),epsilon_,false);
@@ -311,7 +311,7 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
       oss << v << ";";
     }
     oss << std::endl;
-    rank|| clog(trace) << oss.str() << std::flush;
+    clog_one(trace) << oss.str() << std::flush;
 
     oss.str("");
     oss.clear();
@@ -349,13 +349,13 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
         assert(v == totalnbodies_);
       }
       oss << std::endl;
-      rank|| clog(trace) << oss.str() << std::flush;
+      clog_one(trace) << oss.str() << std::flush;
     }
 #endif
 
 #ifdef OUTPUT_TREE_INFO
     // Tree informations
-    rank || clog(trace) << tree_ << " root range = "<< tree_.root()->bmin()
+    clog_one(trace) << tree_ << " root range = "<< tree_.root()->bmin()
      <<";"<<tree_.root()->bmax()<< std::endl;
 #endif
   }
