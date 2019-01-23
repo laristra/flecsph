@@ -14,7 +14,6 @@
 #define _mpisph_body_system_h_
 
 #include "tree_colorer.h"
-#include "tree_fmm.h"
 #include "io.h"
 #include "utils.h"
 #include "params.h"
@@ -522,7 +521,6 @@ private:
   range_t range_;
   std::vector<range_t> rangeposproc_;
   tree_colorer<T,D> tcolorer_;
-  tree_fmm<T,D> tfmm_;        // tree_fmm.h function for FMM
   tree_topology_t tree_;     // The particle tree data structure
   double smoothinglength_;    // Keep track of the biggest smoothing length
   double epsilon_ = 0.;

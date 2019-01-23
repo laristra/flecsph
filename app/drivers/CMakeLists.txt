@@ -86,6 +86,8 @@ install(TARGETS newtonian_3d RUNTIME DESTINATION bin/drivers)
 # sodtube test, call the default parameter file
 #------------------------------------------------------------------------------#
 
+#[[
+
 cinch_add_unit(sodtube_test
   SOURCES
     test/sodtube.cc
@@ -228,3 +230,5 @@ add_custom_target(
 )
 add_dependencies(implosion_test implosion_2d_generator_test)
 endif()
+
+]]#

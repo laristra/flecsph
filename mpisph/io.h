@@ -383,7 +383,7 @@ void inputDataHDF5(
   MPI_Comm_size(comm_,&size);
   MPI_Comm_rank(comm_,&rank);
 
-  rank|| clog(trace)<<"Input particles" << std::endl;
+  clog_one(trace)<<"Input particles" << std::endl;
 
   hid_t dataFile = H5P_openFile(filename,H5F_ACC_RDONLY);
 
@@ -410,7 +410,7 @@ void inputDataHDF5(
         H5P_setStep(dataFile,step);
         int64_t iteration;
         if(0 != H5P_readAttributeStep(dataFile,"iteration",&iteration)){
-          rank || clog(error) << "Cannot read iteration in step "
+          clog_one(error) << "Cannot read iteration in step "
             <<step<<std::endl;
           MPI_Barrier(comm_);
           MPI_Finalize();
@@ -425,13 +425,13 @@ void inputDataHDF5(
       ++step;
     }
     if(!found){
-      rank || clog(error) << "Cannot find iteration "<<startIteration<<" in "
+      clog_one(error) << "Cannot find iteration "<<startIteration<<" in "
         <<filename<<std::endl;
       MPI_Barrier(comm_);
       MPI_Finalize();
     }
     startStep = step-1;
-    rank || clog(warn)<<"Found step "<<startStep<<" for iteration "<<
+    clog_one(warn)<<"Found step "<<startStep<<" for iteration "<<
       startIteration<<std::endl;
   }
 
@@ -444,12 +444,12 @@ void inputDataHDF5(
     while(!end){
       // Generate the filename associate with this step
       sprintf(step_filename,"%s_%05d.h5part",output_file_prefix,step);
-      rank || clog(trace) <<"Checking if file "<<step_filename<<" exists"
+      clog_one(trace) <<"Checking if file "<<step_filename<<" exists"
         <<std::endl<<std::flush;
       MPI_Barrier(comm_);
       // Check if files exists
       if(access(step_filename,F_OK)==-1){
-        rank || clog(error)<<"Cannot find file "<< step_filename<<
+        clog_one(error)<<"Cannot find file "<< step_filename<<
           " unable to find file with iteration "<<startIteration<<std::endl;
         MPI_Barrier(comm_);
         MPI_Finalize();
@@ -459,7 +459,7 @@ void inputDataHDF5(
       int64_t iteration;
       H5P_setStep(dataFile,step);
       if(0 != H5P_readAttributeStep(stepFile,"iteration",&iteration)){
-          rank || clog(error) << "Cannot read iteration in file "
+          clog_one(error) << "Cannot read iteration in file "
             <<step_filename<<std::endl;
           MPI_Barrier(comm_);
           MPI_Finalize();
@@ -474,7 +474,7 @@ void inputDataHDF5(
     startStep = step-1;
     char diff_filename[128];
     sprintf(diff_filename,"%s_%05d.h5part",output_file_prefix,startStep);
-    rank || clog(warn) << "Reading from file "<<diff_filename<<std::endl;
+    clog_one(warn) << "Reading from file "<<diff_filename<<std::endl;
     // Change input file in this case
     dataFile = H5P_openFile(diff_filename,H5F_ACC_RDONLY);
   }
@@ -496,10 +496,10 @@ void inputDataHDF5(
       int lastStep = startStep;
       while(H5P_hasStep(outputFile,lastStep)){lastStep++;}
       --lastStep;
-      rank || clog(trace)<<"startStep: "<<startStep<<" lastStep: "
+      clog_one(trace)<<"startStep: "<<startStep<<" lastStep: "
         <<lastStep<<std::endl;
       if(startStep != lastStep){
-        rank || clog(error) << "First step not last step in output"<<std::endl;
+        clog_one(error) << "First step not last step in output"<<std::endl;
         MPI_Barrier(comm_);
         MPI_Finalize();
       }
@@ -509,7 +509,7 @@ void inputDataHDF5(
 
 
   if(dataFile == 0){
-    rank || clog(error) << "Cannot find data file"<<std::endl;
+    clog_one(error) << "Cannot find data file"<<std::endl;
     MPI_Barrier(comm_);
     MPI_Finalize();
   }
@@ -540,7 +540,7 @@ void inputDataHDF5(
   if(0 == H5P_readAttribute(dataFile,"dimension",&dimension)){
     assert(gdimension == dimension);
   }else{
-    rank|| clog(error)<<"No dimension value: setting to default 3"<<std::endl;
+    clog_one(error)<<"No dimension value: setting to default 3"<<std::endl;
     dimension = 3;
   }
 
@@ -558,12 +558,12 @@ void inputDataHDF5(
     if(0 == H5P_readAttributeStep(dataFile,"timestep",&timestep)){
       physics::dt = timestep;
     }else{
-      rank || clog(warn)<<"Unable to read timestep from file"<<std::endl;
+      clog_one(warn)<<"Unable to read timestep from file"<<std::endl;
     }
     if(0 == H5P_readAttributeStep(dataFile,"time",&totaltime)){
       physics::totaltime = totaltime;
     }else{
-      rank || clog(warn)<<"Unable to read totaltime from file"<<std::endl;
+      clog_one(warn)<<"Unable to read totaltime from file"<<std::endl;
     }
   }
 
@@ -586,11 +586,11 @@ void inputDataHDF5(
     errZ = H5P_readDataset(dataFile,"z",dataZ);
 
   if(errX != 0)
-    rank || clog(warn) << "Unable to read x" << std::endl;
+    clog_one(warn) << "Unable to read x" << std::endl;
   if(errY != 0)
-    rank || clog(warn) << "Unable to read y" << std::endl;
+    clog_one(warn) << "Unable to read y" << std::endl;
   if(errZ != 0)
-    rank || clog(warn) << "Unable to read z" << std::endl;
+    clog_one(warn) << "Unable to read z" << std::endl;
 
 
   for(int64_t i=0; i<IO_nparticlesproc; ++i){
@@ -618,11 +618,11 @@ void inputDataHDF5(
     errZ = H5P_readDataset(dataFile,"vz",dataZ);
 
   if(errX != 0)
-    rank || clog(warn) << "Unable to read vx" << std::endl;
+    clog_one(warn) << "Unable to read vx" << std::endl;
   if(errY != 0)
-    rank || clog(warn) << "Unable to read vy" << std::endl;
+    clog_one(warn) << "Unable to read vy" << std::endl;
   if(errZ != 0)
-    rank || clog(warn) << "Unable to read vz" << std::endl;
+    clog_one(warn) << "Unable to read vz" << std::endl;
 
   for(int64_t i=0; i<IO_nparticlesproc; ++i){
     point_t velocity;
@@ -649,11 +649,11 @@ void inputDataHDF5(
     errZ = H5P_readDataset(dataFile,"az",dataZ);
 
   if(errX != 0)
-    rank || clog(warn) << "Unable to read ax" << std::endl;
+    clog_one(warn) << "Unable to read ax" << std::endl;
   if(errY != 0)
-    rank || clog(warn) << "Unable to read ay" << std::endl;
+    clog_one(warn) << "Unable to read ay" << std::endl;
   if(errZ != 0)
-    rank || clog(warn) << "Unable to read az" << std::endl;
+    clog_one(warn) << "Unable to read az" << std::endl;
 
   for(int64_t i=0; i<IO_nparticlesproc; ++i){
     point_t acceleration;
@@ -677,11 +677,11 @@ void inputDataHDF5(
   errZ = H5P_readDataset(dataFile,"h",dataZ);
 
   if(errX != 0)
-    rank || clog(warn) << "Unable to read m" << std::endl;
+    clog_one(warn) << "Unable to read m" << std::endl;
   if(errY != 0)
-    rank || clog(warn) << "Unable to read rho" << std::endl;
+    clog_one(warn) << "Unable to read rho" << std::endl;
   if(errZ != 0)
-    rank || clog(warn) << "Unable to read h" << std::endl;
+    clog_one(warn) << "Unable to read h" << std::endl;
 
   for(int64_t i=0; i<IO_nparticlesproc; ++i){
     bodies[i].set_mass(dataX[i]);
@@ -697,18 +697,18 @@ void inputDataHDF5(
   // Pressure
   errX = H5P_readDataset(dataFile,"P",dataX);
   if(errX != 0)
-    rank || clog(warn) << "Unable to read P" <<std::endl;
+    clog_one(warn) << "Unable to read P" <<std::endl;
   for(int64_t i=0; i<IO_nparticlesproc; ++i){
     bodies[i].setPressure(dataX[i]);
   }
 
   // Internal Energy
   #ifdef INTERNAL_ENERGY
-  rank|| clog(trace)<<"Reading internal energy"<<std::endl;
+  clog_one(trace)<<"Reading internal energy"<<std::endl;
   std::fill(dataX,dataX+IO_nparticlesproc,0.);
   errX = H5P_readDataset(dataFile,"u",dataX);
   if(errX != 0)
-    rank || clog(warn) << "Unable to read u"<<std::endl;
+    clog_one(warn) << "Unable to read u"<<std::endl;
   for(int64_t i=0; i<IO_nparticlesproc; ++i){
     bodies[i].setInternalenergy(dataX[i]);
   }
@@ -725,7 +725,7 @@ void inputDataHDF5(
       bodies[i].set_id(dataInt[i]);
     }
   }else{
-    rank|| clog(trace)<<"Setting ID for particles"<<std::endl;
+    clog_one(trace)<<"Setting ID for particles"<<std::endl;
     // Otherwise generate the id
     int64_t start = (totalnbodies/size)*rank+1;
     for(int64_t i=0; i<IO_nparticlesproc; ++i){
@@ -742,7 +742,7 @@ void inputDataHDF5(
   // delta T
   errX = H5P_readDataset(dataFile,"dt",dataX);
   if(errX != 0)
-    rank || clog(warn) << "Unable to read dt" << std::endl;
+    clog_one(warn) << "Unable to read dt" << std::endl;
   for(int64_t i=0; i<IO_nparticlesproc; ++i){
     bodies[i].setDt(dataX[i]);
   }
@@ -753,7 +753,7 @@ void inputDataHDF5(
   // delta T
   errX = H5P_readDataset(dataFile,"type",dataInt32);
   if(errX != 0)
-    rank || clog(warn) << "Unable to read type"<< std::endl;
+    clog_one(warn) << "Unable to read type"<< std::endl;
   for(int64_t i=0; i<IO_nparticlesproc; ++i){
     bodies[i].setType(dataInt32[i]);
   }
@@ -768,7 +768,7 @@ void inputDataHDF5(
   H5Fclose(dataFile);
   //H5CloseFile(dataFile);
 
-  rank|| clog(trace)<<"Input particles.done"<<std::endl;
+  clog_one(trace)<<"Input particles.done"<<std::endl;
 
 
 }// inputDataHDF5
@@ -793,7 +793,7 @@ void outputDataHDF5(
   MPI_Comm_rank(comm_,&rank);
 
   MPI_Barrier(comm_);
-  rank|| clog(trace)<<"Output particles"<<std::flush;
+  clog_one(trace)<<"Output particles"<<std::flush;
 
   char filename[128];
   if(do_diff_files){
@@ -952,7 +952,7 @@ void outputDataHDF5(
   delete[] bi;
   delete[] bint;
 
-  rank|| clog(trace)<<".done"<<std::endl;
+  clog_one(trace)<<".done"<<std::endl;
 
 
 }// outputDataHDF5

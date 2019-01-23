@@ -62,13 +62,13 @@ cinch_add_unit(mpi_qsort
   POLICY MPI
 )
 
-cinch_add_unit(gravitation
-  SOURCES
-    test/gravitation.cc
-    ${FleCSI_RUNTIME}/runtime_driver.cc
-  LIBRARIES ${FleCSPH_LIBRARIES}
-  POLICY MPI
-)
+#cinch_add_unit(gravitation
+#  SOURCES
+#    test/gravitation.cc
+#    ${FleCSI_RUNTIME}/runtime_driver.cc
+#  LIBRARIES ${FleCSPH_LIBRARIES}
+#  POLICY MPI
+#)
 
 cinch_add_unit(io
   SOURCES

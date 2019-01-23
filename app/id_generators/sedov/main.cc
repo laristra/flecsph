@@ -157,7 +157,7 @@ int main(int argc, char * argv[]){
 
   // check options list: exactly one option is allowed
   if (argc != 2) {
-    clog(error) << "ERROR: parameter file not specified!" << std::endl;
+    clog_one(error) << "ERROR: parameter file not specified!" << std::endl;
     print_usage();
     MPI_Finalize();
     exit(0);
@@ -233,9 +233,9 @@ int main(int argc, char * argv[]){
     }
   }
 
-  clog(info) << "Number of particles: " << nparticles << std::endl;
-  clog(info) << "Total number of seeded blast particles: " << particles_blast << std::endl;
-  clog(info) << "Total blast energy (E_blast = u_blast * total mass): "
+  clog_one(info) << "Number of particles: " << nparticles << std::endl;
+  clog_one(info) << "Total number of seeded blast particles: " << particles_blast << std::endl;
+  clog_one(info) << "Total blast energy (E_blast = u_blast * total mass): "
                  << sedov_blast_energy * mass_blast << std::endl;
 
   // remove the previous file

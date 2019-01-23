@@ -21,7 +21,7 @@ using namespace io;
 // help message
 //
 void print_usage() {
-  clog(warn)
+  clog_one(warn)
       << "Initial data generator for Sod shocktube test in"
       << gdimension << "D" << std::endl
       << "Usage: ./sodtube_generator <parameter-file.par>" << std::endl;
@@ -105,7 +105,7 @@ void set_derived_params() {
       break;
 
     default:
-      clog(error) << "ERROR: invalid test (" << sodtest_num << ")." << endl;
+      clog_one(error) << "ERROR: invalid test (" << sodtest_num << ")." << endl;
       MPI_Finalize();
       exit(-1);
 
