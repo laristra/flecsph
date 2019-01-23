@@ -338,7 +338,7 @@ namespace param {
 
 //- maximum mass per cell
 # ifndef fmm_max_cell_mass
-  DECLARE_PARAM(double,fmm_max_cell_mass, 1.0e-4)
+  DECLARE_PARAM(double,fmm_max_cell_mass, 0.)
 # endif
 
 //
