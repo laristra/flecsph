@@ -65,11 +65,11 @@ RUN cmake -DENABLE_MPI=ON \
           -DCXX_CONFORMANCE_STANDARD=c++17 \
           -DENABLE_BOOST_PREPROCESSOR=ON \
           -DENABLE_CLOG=ON \
-          -DENABLE_COLOR_UNIT_TEST=ON \
+          -DENABLE_COLOR_UNIT_TESTS=ON \
           -DFleCSI_INCLUDE_DIR=/usr/local/include \
           -DFleCSI_RUNTIME=/usr/local/share/FleCSI/runtime \
           -DFleCSI_LIBRARY=/usr/local/lib*/libFleCSI.so \
-          -DENABLE_MPI_THREAD_MULTIPLE=ON \
+          -DENABLE_MPI_THREAD_MULITPLE=ON \
           ${COVERAGE:+-DENABLE_COVERAGE_BUILD=ON} ..
 
 RUN HDF5_USE_SHLIB=yes ${SONARQUBE:+build-wrapper-linux-x86-64 --out-dir bw-output} make VERBOSE=1 -j2
@@ -79,7 +79,7 @@ RUN make install DESTDIR=${PWD}/install && rm -rf ${PWD}/install
 ENV LD_LIBRARY_PATH="/usr/local/lib64/:${LD_LIBRARY_PATH}"
 ENV LD_LIBRARY_PATH="/usr/local/lib/:${LD_LIBRARY_PATH}"
 RUN echo $LD_LIBRARY_PATH
-RUN make test ARGS="-V"
+RUN make test
 RUN cd .. && if [ ${COVERAGE} ]; then \
   if [ ${CC} = clang ]; then \
     $HOME/.local/bin/codecov -F "${CC}" --gcov-exec "llvm-cov gcov"; \

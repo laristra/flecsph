@@ -1,6 +1,6 @@
 ![logo](doc/flecsph_logo_bg.png)
 
-[![Build Status](https://travis-ci.org/laristra/flecsph.svg?branch=master)](https://travis-ci.org/laristra/flecsph)
+[![Build Status](https://travis-ci.com/laristra/flecsph.svg?branch=master)](https://travis-ci.com/laristra/flecsph)
 [![codecov.io](https://codecov.io/github/laristra/flecsph/coverage.svg?branch=master)](https://codecov.io/github/laristra/flecsph?branch=master)
 <!---
 [![Quality Gate](https://sonarqube.com/api/badges/gate?key=flecsph%3A%2Fmaster)](https://sonarqube.com/dashboard?id=flecsph%3A%2Fmaster)
@@ -10,7 +10,7 @@
 
 This project implements smoothed particles hydrodynamics (SPH) method of
 simulating fluids and gases using the FleCSI framework.
-Currently, particle affinity and gravitation is handled using the parallel 
+Currently, particle affinity and gravitation is handled using the parallel
 implementation of the octree data structure provided by FleCSI.
 
 We provide several examples of physics problems in 1D, 2D and 3D:
@@ -18,8 +18,8 @@ We provide several examples of physics problems in 1D, 2D and 3D:
 - Sod shock tubes in 1D/2D/3D;
 - Noh shock test in 2D/3D;
 - Sedov blast waves 2D and 3D;
-- airfoil flow in a wind tunnel (2D/3D); 
-- pressure-induced spherical implosion (2D/3D); 
+- airfoil flow in a wind tunnel (2D/3D);
+- pressure-induced spherical implosion (2D/3D);
 - single and binary stars with Newtonian gravity in 3D.
 
 # Building the FleCSPH
@@ -60,12 +60,13 @@ You will need the following tools:
 
 - C++17 - capable compiler, such as gcc version >= 7;
 - git version > 2.14;
-- MPI libraries, compiled with the gcc compiler above and multithread support 
-  (`--enable-mpi-thread-multiple` for OpenMPI and 
+- MPI libraries, compiled with the gcc compiler above and multithread support
+  (`--enable-mpi-thread-multiple` for OpenMPI and
    `--enable-threads=multiple` for MPICH);
 - cmake version > 3.7;
 - boost library version > 1.59;
 - Python version > 2.7.
+- HDF5 compiled with parallel flag version > 1.8
 
 ## FleCSI
 
@@ -121,6 +122,7 @@ Configure command:
        -DENABLE_UNIT_TESTS=ON                     \
        -DCXX_CONFORMANCE_STANDARD=c++17           \
        -DENABLE_CLOG=ON                           \
+       -DENABLE_MPI_THREAD_MULTIPLE=ON            \
        -DHDF5_IS_PARALLEL=ON
 ```
 
@@ -132,7 +134,7 @@ Build and install:
 ### Building FleCSPH on various architectures
 Architecture-/machine-specific notes for building FleCSPH are collected in
 [doc/machines](https://github.com/laristra/flecsph/tree/master/doc/machines).
-If you succeeded in compiling and running FleCSPH on new architectures, 
+If you succeeded in compiling and running FleCSPH on new architectures,
 please do not hesitate to share your recipe.
 We appreciate user contributions.
 
@@ -152,7 +154,7 @@ Evolution drivers are located in `app/drivers`:
 - `newtonian`: 3D hydro evolution with self-gravity.
 
 To run a test, you also need an input parameter file, specifying parameters of the
-problem. Parameter files are located in `data/` subdirectory. Running an 
+problem. Parameter files are located in `data/` subdirectory. Running an
 application consists of two steps:
 
 - generating intitial data;
@@ -169,30 +171,30 @@ you are in your build directory after having successfully built FleCSPH):
 
 # Creating your own initial data or drivers
 You can add your own initial data generator or a new evolution module under
-`app/id_generators` or `app/drivers` directories. Create a directory with 
+`app/id_generators` or `app/drivers` directories. Create a directory with
 unique name for your project and modify `CMakeLists.txt` to inform the cmake
-system that your project needs to be built. 
+system that your project needs to be built.
 
 A new initial data generator usually has a single `main.cc` file and an optional
-include file. You can use existing interfaces for lattice generators or equations 
-of state in the `include/` directory. 
+include file. You can use existing interfaces for lattice generators or equations
+of state in the `include/` directory.
 The file `app/drivers/include/user.h` defines the dimensions of your problem, both
-for initial data generators and for the evolution drivers. 
+for initial data generators and for the evolution drivers.
 This is done via a compile-time macro `EXT_GDIMENSION`, which allows users to have
-the same source code for different problem dimensions. Actual dimension is set at 
+the same source code for different problem dimensions. Actual dimension is set at
 compile time via the `target_compile_definitions` directive of cmake, e.g.:
 ```
    target_compile_definitions(sodtube_1d_generator PUBLIC -DEXT_GDIMENSION=1)
    target_compile_definitions(sodtube_2d_generator PUBLIC -DEXT_GDIMENSION=2)
 ```
 
-A new evolution driver must have a `main.cc` and `main_driver.cc` files. Do not edit 
-`main.cc`, because FleCSI expects certain format of this file. It is easier to start 
-by copying existing files to your folder under `app/drivers`. Include cmake 
+A new evolution driver must have a `main.cc` and `main_driver.cc` files. Do not edit
+`main.cc`, because FleCSI expects certain format of this file. It is easier to start
+by copying existing files to your folder under `app/drivers`. Include cmake
 targets with different dimensions using examples in `app/drivers/CMakeLists.txt`.
 
-Make sure to document your subproject in a corresponding `README.md` file 
-that describes the problem you want to run. In order to get all files easily and 
+Make sure to document your subproject in a corresponding `README.md` file
+that describes the problem you want to run. In order to get all files easily and
 correctly, you can copy them from other subprojects such as `sodtube` or `hydro`.
 
 # For developers
@@ -205,11 +207,11 @@ FleCSPH follows the FleCSI coding style, which in turn follows (in general) the 
 FleCSI coding style is documented here:
 https://github.com/laristra/flecsi/blob/master/flecsi/style.md
 
-# Logs 
+# Logs
 
-Cinch Log is the logging tool for this project. 
-In order to display log set the environement variable as: 
-```bash 
+Cinch Log is the logging tool for this project.
+In order to display log set the environement variable as:
+```bash
 export CLOG_ENABLE_STDLOG=1
 ```
 
@@ -220,13 +222,12 @@ by default it is set to 0 (trace), but for simulations it is perhaps preferrable
 clog(trace) << "This is verbose output  (level 0)" << std::endl;
 clog(info) << "This is essential output (level 1)" << std::endl;
 clog(warn) << "This is a warning output (level 2)" << std::endl;
-clog(fatal) << "Farewell!" << std::endl; 
+clog(fatal) << "Farewell!" << std::endl;
 ```
 
-For further details, refer to the documentation at: 
+For further details, refer to the documentation at:
 https://github.com/laristra/cinch/blob/master/logging/README.md
 
  # Contacts
 
  If you have any questions or concerns regarding FleCSPH, please contact Julien Loiseau (jloiseau@lanl.gov), Oleg Korobkin (korobkin@lanl.gov) and/or Hyun Lim (hylim1988@gmail.com)
-
