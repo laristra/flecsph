@@ -275,89 +275,51 @@ public:
   if(1<<dim < size){
     non_power_2 = true;
     dim++;
-    ghosts_rank = rank + size;
+    ghosts_rank = rank + (1<<dim-1);
     if(ghosts_rank > (1<<dim)-1)
       ghosts_rank = rank;
   }
+
   std::vector<mpi_branch_t> ghosts_branches;
   int ghosts_nsend;
   int ghosts_last = 0;
 
-  //if(non_power_2)
-  //{
-  //  std::cerr<<rank<<" = "<<ghosts_rank<<" dim = "<<dim<<std::endl;
-  //}
-
   int nsend;
   int last = branches.size();
   for(int i = 0; i < dim; ++i){
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //if (rank == 0 ) std::cout<<"i="<<i<<std::endl;
-    //MPI_Barrier(MPI_COMM_WORLD);
     nsend = branches.size();
     int partner = rank ^ (1<<i);
     assert(partner != rank);
-    //std::cout<<rank<<" -- "<<partner<<std::endl;
     mpi_one_to_one(rank,partner,branches,nsend,last);
     // Handle the non power two cases
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //if (rank == 0 ) std::cout<<"NON power:"<<std::endl;
-    //MPI_Barrier(MPI_COMM_WORLD);
     if(non_power_2)
     {
-      // In this case we handle the last dimension by "hand"
-      if(i == dim-1) continue;
-
+      // If this ghosts_rank exists for a real rank don't use it
+      if(rank != ghosts_rank && ghosts_rank <= size-1)
+        continue;
       ghosts_nsend = ghosts_branches.size();
       assert(ghosts_rank != -1);
       int ghosts_partner = ghosts_rank ^ (1<<i);
-      // Already handled this case
+      partner = ghosts_partner;
+      // Case already handled before
       if(ghosts_rank == rank && partner < size)
         continue;
-      partner = ghosts_partner;
       if(partner >= size){
-        partner -= size;
+        partner -= (1<<dim-1);
       }
-      //std::cout<<ghosts_rank<<" ("<<rank<<") -- "<<ghosts_partner<<" ("<<partner<<")"<<std::endl;
-      assert(partner != ghosts_rank);
-      if(ghosts_rank == rank){
-        mpi_one_to_one(rank,partner,branches,nsend,last);
+      if(partner == rank){
+        // Add into the buffer, no communication needed
+        branches.insert(branches.end(),ghosts_branches.begin(),
+          ghosts_branches.end());
       }else{
-        mpi_one_to_one(rank,partner,ghosts_branches,ghosts_nsend,
-          ghosts_last);
+        assert(partner != rank);
+        if(ghosts_rank == rank){
+          mpi_one_to_one(rank,partner,branches,nsend,last);
+        }else{
+          mpi_one_to_one(rank,partner,ghosts_branches,ghosts_nsend,
+            ghosts_last);
+        }
       }
-    }
-  }
-  // Handle the last dimension by "hand" in the non power 2 case
-  // Indeed, some rank are involved in more than one communications
-  if(non_power_2 && rank < (1<<(dim-1)))
-  {
-    int ghosts_nsend = ghosts_branches.size();
-    int nsend = branches.size();
-    int partner = -1;
-    //if(rank == 0) std::cout<<"FINISHING"<<std::endl;
-    // Ranks which have already exchange in the normal communication
-    int free_ranks = size - (1<<(dim-1));
-    //if(rank == 0) std::cout<<" free rank = "<<free_ranks<<std::endl;
-    // Do one by one communications
-    // All processes > free_ranks shared with ghosts = rank + dim-1
-    if(rank >= free_ranks){
-      partner = rank + (1<<(dim-1));
-      //std::cout<<rank<<" <-> "<<partner<<"("<<partner-size<<")"<<std::endl;
-      // They communicate two times
-      mpi_one_to_one(rank,partner-size,branches,nsend,last);
-    }else if(ghosts_rank >= free_ranks+(1<<(dim-1))){
-      partner = ghosts_rank-(1<<(dim-1));
-      //std::cout<<ghosts_rank<<"("<<rank<<") <-> "<<partner<<std::endl;
-      mpi_one_to_one(rank,partner,ghosts_branches,ghosts_nsend,
-        ghosts_last);
-    }
-    // Start the reply for the other ones
-    if(ghosts_rank >= size+free_ranks){
-      partner = ghosts_rank - (1<<(dim-1));
-      //std::cout<<ghosts_rank<<"("<<rank<<") <-> "<<partner<<std::endl;
-      mpi_one_to_one(rank,partner,ghosts_branches,ghosts_nsend,
-        ghosts_last);
     }
   }
   // Total branches
