@@ -71,10 +71,10 @@ TEST(tree_topology, neighbors_sphere_NORMAL) {
   for(size_t i = 0; i < n; ++i){
     auto ent = t.get(i);
 
-    std::cout<<"Entity "<<i+1<<"/"<<n<<" = "<<ent->key();
+    //std::cout<<"Entity "<<i+1<<"/"<<n<<" = "<<ent->key();
     auto ns = t.find_in_radius(ent->coordinates(), HMAX,
         tree_geometry_t::within);
-    std:cout<<" -> "<<ns.size()<<" nbrs.done"<<std::endl;
+    //std:cout<<" -> "<<ns.size()<<" nbrs.done"<<std::endl;
 
     set<body_holder*> s1;
     s1.insert(ns.begin(), ns.end());

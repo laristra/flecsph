@@ -182,8 +182,8 @@ namespace analysis{
     const int screen_length = 40;
     if (out_screen_every > 0 || physics::iteration % out_screen_every == 0) {
       (++count-1)%screen_length  ||
-      rank || clog(info)<< "#-- iteration:               time:" <<std::endl;
-      rank || clog(info)
+      clog_one(info)<< "#-- iteration:               time:" <<std::endl;
+      clog_one(info)
         << std::setw(14) << physics::iteration
         << std::setw(20) << std::scientific << std::setprecision(12)
         << physics::totaltime << std::endl;
@@ -289,20 +289,20 @@ namespace analysis{
   {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    clog(info) << "Checking conservation of: ";
+    clog_one(info) << "Checking conservation of: ";
     for(auto c: check){
       switch(c){
         case MASS:
-          rank || clog(info) << " MASS ";
+          clog_one(info) << " MASS ";
           break;
         case ENERGY:
-          rank || clog(info) << " ENERGY ";
+          clog_one(info) << " ENERGY ";
           break;
         case MOMENTUM:
-          rank || clog(info) << " MOMENTUM ";
+          clog_one(info) << " MOMENTUM ";
           break;
         case ANG_MOMENTUM:
-          rank || clog(info) << " ANG_MOMENTUM ";
+          clog_one(info) << " ANG_MOMENTUM ";
           break;
         default:
           break;
