@@ -28,6 +28,7 @@
 
 #include "tree.h"
 #include "params.h"
+#include "density_profiles.h"
 #define SQ(x) ((x)*(x))
 
 namespace external_force {
@@ -112,6 +113,52 @@ namespace external_force {
     r = sqrt(r);
     if (r > sphere_radius)
       phi = pw_a*pow(r - sphere_radius, pw_n);
+    return phi;
+  }
+
+
+  /**
+   * @brief      External force support for parabolic 
+   *             sphericall-symmetric density
+   * @param      srch  The source's body holder
+   */
+  point_t acceleration_spherical_density_support (body* source) {
+    using namespace param;
+    point_t a = 0.0;
+    static const double 
+        K0 = pressure_initial / pow(rho_initial, poly_gamma),
+        rho0 = density_profiles::spherical_density_profile(0.);
+    point_t rp = source->getPosition();
+    double r = rp[0]*rp[0];
+    for (unsigned short i=1; i<gdimension; ++i)
+      r += rp[i]*rp[i];
+    r = sqrt(r);
+    const double x = r / sphere_radius;
+    if (x > 1e-12) {
+      double rho = rho_initial / rho0
+                 * density_profiles::spherical_density_profile(x);
+      double drhodr = rho_initial / (rho0 * sphere_radius)
+                    * density_profiles::spherical_drho_dr(x);
+      double a_r = K0*poly_gamma*pow(rho,poly_gamma-2)*drhodr;
+      for (short int i=0; i<gdimension; ++i) 
+        a[i] = a_r*rp[i] / r;
+    }
+    return a;
+  }
+
+  double potential_spherical_density_support(const point_t& rp) {
+    using namespace param;
+    static const double 
+        K0 = pressure_initial / pow(rho_initial, poly_gamma),
+        rho0 = density_profiles::spherical_density_profile(0.);
+    double r = rp[0]*rp[0];
+    for (unsigned short i=1; i<gdimension; ++i)
+      r += rp[i]*rp[i];
+    r = sqrt(r);
+    const double x = r / sphere_radius;
+    double rho = rho_initial / rho0
+               * density_profiles::spherical_density_profile(x);
+    double phi = -K0*poly_gamma*pow(rho,poly_gamma-1.) / (poly_gamma-1.);
     return phi;
   }
 
@@ -277,6 +324,11 @@ namespace external_force {
       else if (boost::iequals(*it,"airfoil")) {
         vec_potentials.push_back(potential_airfoil);
         vec_accelerations.push_back(acceleration_airfoil);
+      }
+      else if (boost::iequals(*it,"spherical density support")) {
+        density_profiles::select();
+        vec_potentials.push_back(potential_spherical_density_support);
+        vec_accelerations.push_back(acceleration_spherical_density_support);
       }
       else if (boost::iequals(*it,"gravity")) {
         vec_potentials.push_back(potential_gravity);

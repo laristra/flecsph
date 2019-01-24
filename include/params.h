@@ -414,7 +414,12 @@ namespace param {
   DECLARE_PARAM(bool,equal_mass,true)
 #endif
 
-// characteristic density for an initial conditions
+// for some spherically- or axi-symmetric configurations:
+#ifndef density_profile
+  DECLARE_STRING_PARAM(density_profile,"constant")
+#endif
+
+// characteristic density for initial conditions
 # ifndef rho_initial
   DECLARE_PARAM(double,rho_initial,1.0)
 # endif
@@ -764,6 +769,10 @@ void set_param(const std::string& param_name,
 #ifndef equal_mass
   READ_BOOLEAN_PARAM(equal_mass)
 #endif
+
+# ifndef density_profile
+  READ_STRING_PARAM(density_profile)
+# endif
 
 # ifndef rho_initial
   READ_NUMERIC_PARAM(rho_initial)

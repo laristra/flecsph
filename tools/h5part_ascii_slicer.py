@@ -5,6 +5,7 @@
 
 import sys, h5py, argparse
 import numpy as np
+from math import sqrt
 
 ########################
 my_description = """
@@ -27,6 +28,8 @@ parser.add_argument('-y', action='store_const', const=True, default=False,
     help='output along the y-axis')
 parser.add_argument('-z', action='store_const', const=True, default=False,
     help='output along the z-axis')
+parser.add_argument('-r', action='store_const', const=True, default=False,
+    help='output particles against the radial coordinate')
 parser.add_argument('-xy', action='store_const', const=True, default=False,
     help='output xy-parallel plane')
 parser.add_argument('-yz', action='store_const', const=True, default=False,
@@ -51,14 +54,14 @@ parser.add_argument('-z0', action='store', type=float, default=0.0,
 args = parser.parse_args()
 
 # arguments compatibility check
-if not (args.x or args.y or args.z or args.xy or args.yz or args.xz):
+if not (args.x or args.y or args.z or args.r or args.xy or args.yz or args.xz):
   args.x = True
 
-if (args.x + args.y + args.z + args.xy + args.yz + args.xz != 1):
+if (args.x + args.y + args.z + args.r + args.xy + args.yz + args.xz != 1):
   sys.exit ("ERROR: only one of the [-x|-y|-z|-xy|-yz|-xz] is allowed")
 
 # flag to indicate whether this will be a 1D or 2D output
-out1d = args.x or args.y or args.z
+out1d = args.x or args.y or args.z or args.r
 
 # read the input file
 try:
@@ -120,7 +123,23 @@ dset[args.var2].read_direct(var2)
 
 # main output
 print ("# step=%d  time=%12.5e" % (args.step, tm))
-if out1d: # 1D slice --------------------------------------------------------
+if args.r: # radial 1D output -----------------------------------------------
+  print ("# 1:r 2:%s 3:%s" % (args.var1, args.var2))
+  if ndim == 1:
+    for i in range(Npart):
+      print ("%12.5e %12.5e %12.5e" % (abs(x[i]), var1[i], var2[i]))
+
+  if ndim == 2:
+    for i in range(Npart):
+      r = sqrt(x[i]**2 + y[i]**2)
+      print ("%12.5e %12.5e %12.5e" % (r, var1[i], var2[i]))
+  
+  if ndim == 3:
+    for i in range(Npart):
+      r = sqrt(x[i]**2 + y[i]**2 + z[i]**2)
+      print ("%12.5e %12.5e %12.5e" % (r, var1[i], var2[i]))
+
+elif out1d: # 1D slice ------------------------------------------------------
   if args.d == 0.0 or ndim == 1:
     if args.x:
       print ("# 1:x 2:%s 3:%s" % (args.var1, args.var2))

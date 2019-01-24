@@ -98,7 +98,7 @@ mpi_init_task(const char * parameter_file){
   // remove output file
   //remove(output_h5data_file.c_str());
 
-  // read input file
+  // read input file and initialize equation of state
   body_system<double,gdimension> bs;
   bs.read_bodies(initial_data_file.c_str(),
       output_h5data_prefix,initial_iteration);
@@ -113,6 +113,7 @@ mpi_init_task(const char * parameter_file){
 
       rank|| clog(trace)<<"First iteration"<<std::endl << std::flush;
       bs.update_iteration();
+      bs.apply_all(eos::init);
 
       if(thermokinetic_formulation) {
         // compute total energy for every particle
