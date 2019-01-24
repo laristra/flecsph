@@ -451,6 +451,13 @@ public:
     return poped;
   }
 
+  int last_value()
+  {
+    int poped = 0;
+    poped = id_ & ((1<<(dimension))-1);
+    return poped; 
+  }
+
   /*!
     Pop the depth d bits from the end of this this id.
    */

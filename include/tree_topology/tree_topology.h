@@ -90,9 +90,9 @@ struct branch_id_hasher__{
   size_t
   operator()(
     const IDTYPE& k
-  ) const
+  ) const noexcept
   {
-    return std::hash<T>()(k.value_());
+    return std::hash<T>{}(k.value_());
   }
 };
 
@@ -611,9 +611,7 @@ public:
     auto child = branch_map_.find(bid); // Search for the child
     // If it does not exists, return nullptr
     if(child == branch_map_.end())
-    {
       return nullptr;
-    }
     return &child->second;
   }
 
@@ -1605,8 +1603,9 @@ public:
       if(!cur->is_leaf()){
         for(int i = 0 ; i < (1<<dimension) ; ++i)
         {
+          if(!cur->as_child(i))
+            continue;
           branch_t * next = child(cur,i);
-          if(next == nullptr) continue;
           stk1.push(next);
         }
       }
@@ -1631,7 +1630,6 @@ public:
       MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
       //typename branch_t::b_locality locality = branch_t::NONLOCAL;
-      char bit_child = 0;
       element_t mass = element_t(0);
       point_t bmax{};
       point_t bmin{};
@@ -1706,7 +1704,6 @@ public:
         {
           auto branch = child(b,i);
           if(branch == nullptr) continue;
-          bit_child |= 1<<i;
 
           nchildren+=branch->sub_entities();
           mass += branch->mass();
@@ -1734,8 +1731,9 @@ public:
         // Compute the radius
         for(int i = 0 ; i < (1<<dimension); ++i)
         {
+          if(!b->as_child(i))
+            continue;
           auto branch = child(b,i);
-          if(branch == nullptr) continue;
 
           radius = std::max(
               radius,
@@ -1757,7 +1755,6 @@ public:
       b->set_mass(mass);
       b->set_bmin(bmin);
       b->set_bmax(bmax);
-      b->set_bit_child(bit_child);
       if(nchildren == 0){
         b->set_locality(branch_t::EMPTY);
       }
@@ -1781,6 +1778,8 @@ public:
     std::vector<branch_t*>& non_local,
     const bool do_square)
   {
+    size_t searched_branches = 0;
+    size_t searched_branches_reach = 0;
     std::stack<branch_t*> stk;
     stk.push(root());
     while(!stk.empty()){
@@ -1790,18 +1789,21 @@ public:
         if(c->is_local() || c->ghosts_local()){
           for(auto id: *c){
             auto child = this->get(id);
-            if(do_square)
+            if(do_square){
+              assert(param::sph_variable_h);
               if(geometry_t::within_square(
                   b->coordinates(),
                   child->coordinates(),
                   b->radius(),child->h()))
                 inter_list.push_back(child);
-            else
+            }else{
+              assert(param::sph_variable_h == false);
               if(geometry_t::within(
                   b->coordinates(),
                   child->coordinates(),
                   b->radius()))
                 inter_list.push_back(child);
+            }
           }
         }else{
           non_local.push_back(c);
@@ -1812,6 +1814,7 @@ public:
             continue;
           auto branch = child(c,i);
           assert(branch!=nullptr);
+          searched_branches_reach++;
           if(geometry_t::intersects_box_box(
             b->bmin(),
             b->bmax(),
@@ -1819,10 +1822,13 @@ public:
             branch->bmax()))
           {
             stk.push(branch);
+            searched_branches++;
           }
         }
       }
     }
+    //#pragma omp critical
+    //std::cout<<"inter: "<<inter_list.size()<<" S branches: "<<searched_branches<<" map: "<<searched_branches_reach<<std::endl;
     return (non_local.size() == 0);
   }
 
@@ -1858,7 +1864,16 @@ public:
         for(auto id: *c){
           auto child = this->get(id);
           if(child->is_local()){
-            ef(child, inter_list,std::forward<ARGS>(args)...);
+            std::vector<tree_entity_t*> sublist;
+            for(auto ent: inter_list){
+              if(geometry_t::within_square(
+                child->coordinates(),
+                ent->coordinates(),
+                child->h(),ent->h())
+              )
+                sublist.push_back(ent);
+            }
+            ef(child,sublist,std::forward<ARGS>(args)...);
           }
         }
       }else{
@@ -1866,7 +1881,6 @@ public:
           if(!c->as_child(i))
             continue;
           auto next = child(c,i);
-          assert(next != nullptr);
           stk.push(next);
         }
       }
@@ -2019,6 +2033,7 @@ public:
       if(itr == branch_map_.end()){
         // Add the missing parents
         key_t pk = key;
+        int last_bit = pk.last_value();
         pk.pop();
         while(branch_map_.find(pk) == branch_map_.end()){
           //clog(trace)<<rank<<" adding parent: "<<pk<<std::endl;
@@ -2033,10 +2048,13 @@ public:
           itr->second.set_sub_entities(sub_entities);
           itr->second.set_locality(branch_t::NONLOCAL);
           itr->second.set_leaf(false);
+          itr->second.add_bit_child(last_bit);
+          last_bit = pk.last_value();
           pk.pop();
         }
         // Set upper level not to leave
         branch_map_.find(pk)->second.set_leaf(false);
+        branch_map_.find(pk)->second.add_bit_child(last_bit);
 
         branch_map_.emplace(key,key);
         itr = branch_map_.find(key);
@@ -2320,9 +2338,13 @@ public:
         if(!b.is_leaf())
         {
           //clog(trace)<<"Not leaf"<<std::endl;
+          // Add a child
+
           // Create the branch
           int depth = b.id().depth()+1;
           bid.truncate(depth);
+          int bit = bid.last_value();
+          b.add_bit_child(bit);
           // Insert this branch and reinsert
           branch_map_.emplace(bid,bid);
           //clog(trace)<<"Creating sub parent: "<<bid<<std::endl;
@@ -2407,10 +2429,13 @@ public:
       size_t depth = pid.depth() + 1;
 
       // For every children
+      char bit_child = 0;
       for(auto ent: b)
       {
         key_t k = get(ent)->key();
         k.truncate(depth);
+        bit_child |= 1<<k.last_value();
+
         branch_map_.emplace(k,k);
         insert(ent,depth);
       }
@@ -2419,6 +2444,7 @@ public:
       b.set_leaf(false);
       b.clear();
       b.reset();
+      b.set_bit_child(bit_child);
     }
 
     // helper method in coarsening
