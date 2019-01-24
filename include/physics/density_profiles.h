@@ -72,7 +72,6 @@ namespace density_profiles {
 
   double mass_parabolic_density(const double r) {
     return 7.5*CU(r)*(1./3. - r*r/5.);
-    return CU(r);
   }
 
   double drhodr_parabolic_density(const double r) {

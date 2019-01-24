@@ -268,6 +268,7 @@ int main(int argc, char * argv[]){
   }
 
   clog(info) << "Number of particles: " << nparticles << std::endl;
+  clog(info) << "Mass of a single particle: " << mass_particle << std::endl;
   clog(info) << "Total number of seeded blast particles: " << particles_blast << std::endl;
   clog(info) << "Total blast energy (E_blast = u_blast * total mass): "
                  << sedov_blast_energy * mass_blast << std::endl;

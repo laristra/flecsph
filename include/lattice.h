@@ -367,12 +367,12 @@ int64_t generator_icosahedral_lattice(const int lattice_type,
   // compute K_rad: number of shells
   const double R_shells = (xmax - xmin)/2.0;
   const int K_rad = (int)(R_shells/dr) + 1;
-  const double m0 = 1.0 / npart_icosahedral_sphere(K_rad+1);
+  const double m0 = 1.0 / npart_icosahedral_sphere(K_rad);
   double rho0 = density_profiles::spherical_density_profile(0.0) 
               / CU(R_shells);
 
   double rk = 0.0, rk12;
-  double rk12p = cbrt(3.0*m0/(4*pi*rho0));
+  double rk12p = 1.2*cbrt(3.0*m0/(4*pi*rho0));
   double mrk12p = m0, mrk12;
 
   for (int NN=0; NN<=K_rad; ++NN) {
@@ -540,10 +540,10 @@ int64_t generator_icosahedral_lattice(const int lattice_type,
     // Find rk12 such that m0*npart(NN+1) == m(rk12) - m(rk12p)
     //
     Mk = m0*npart_icosahedral_shell(NN+1); // mass of the shell
-    x1 = rk12p/R_shells;
+    x1 = 0.5*(rk12p/R_shells + 1.0);
     mrk12  = 1.0;
     if (mrk12 - mrk12p > Mk) {
-      for (int nrit=0;  nrit<100; ++nrit) {
+      for (int nrit=0;  nrit<10; ++nrit) {
         mrk12 = density_profiles::spherical_mass_profile(x1);
         f = mrk12 - mrk12p - Mk;
         f1 = 4.0*pi*(x1*x1) * density_profiles::spherical_density_profile(x1);
