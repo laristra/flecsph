@@ -695,8 +695,10 @@ public:
       if(!cur->is_leaf()){
         for(int i = 0 ; i < (1<<dimension) ; ++i)
         {
-          branch_t * next = child(cur,i);
-          if(next == nullptr) continue;
+          if(!cur->as_child(i))
+            continue;
+          auto next = child(cur,i);
+          assert(next != nullptr);
           stk1.push(next);
         }
       }
@@ -726,8 +728,10 @@ public:
         //search_list.push_back(c);
       }else{
         for(int i=0; i<(1<<dimension);++i){
-          branch_t * next = child(c,i);
-          if(next == nullptr) continue;
+          if(!c->as_child(i))
+            continue;
+          auto next = child(c,i);
+          assert(next != nullptr);
           search_list.push_back(next);
           stk.push(next);
         }
@@ -761,8 +765,10 @@ public:
         }
       }else{
         for(int i=0; i<(1<<dimension);++i){
-          branch_t * next = child(c,i);
-          if(next == nullptr) continue;
+          if(!c->as_child(i))
+            continue;
+          auto next = child(c,i);
+          assert(next != nullptr);
           stk.push(next);
         }
       }
@@ -788,8 +794,10 @@ public:
           search_list.push_back(c);
         }else{
           for(int i=0; i<(1<<dimension);++i){
-            branch_t * next = child(c,i);
-            if(next == nullptr) continue;
+            if(!c->as_child(i))
+              continue;
+            auto next = child(c,i);
+            assert(next != nullptr);
             stk.push(next);
           }
         }
@@ -824,8 +832,10 @@ public:
           search_list.push_back(c);
         }else{
           for(int i=0; i<(1<<dimension);++i){
-            branch_t * next = child(c,i);
-            if(next == nullptr) continue;
+            if(!c->as_child(i))
+              continue;
+            auto next = child(c,i);
+            assert(next != nullptr);
             stk.push(next);
           }
         }
@@ -848,16 +858,16 @@ public:
 
     MPI_Barrier(MPI_COMM_WORLD);
     int rank;
-    //clog_one(trace) << std::endl;
+    clog_one(trace) << std::endl;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     std::stack<branch_t*> stk;
     stk.push(b);
 
     std::vector<branch_t*> work_branch;
 
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //clog_one(trace)<<"Searching breanches";
-    //MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
+    clog_one(trace)<<"Searching breanches";
+    MPI_Barrier(MPI_COMM_WORLD);
 
     while(!stk.empty()){
       branch_t* c = stk.top();
@@ -869,8 +879,10 @@ public:
           work_branch.push_back(c);
         }else{
           for(int i=0; i<(1<<dimension);++i){
-            branch_t * next = child(c,i);
-            if(next == nullptr) continue;
+            if(!c->as_child(i))
+              continue;
+            auto next = child(c,i);
+            assert(next != nullptr);
             if(next->is_local()){
               stk.push(next);
             }
@@ -879,10 +891,10 @@ public:
       }
     }
 
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //clog_one(trace)<<".done : "<<work_branch.size()<<std::endl;
-    //clog_one(trace)<<"Computing and communication";
-    //MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
+    clog_one(trace)<<".done : "<<work_branch.size()<<std::endl;
+    clog_one(trace)<<"Computing and communication";
+    MPI_Barrier(MPI_COMM_WORLD);
 
     std::vector<branch_t*> remaining_branches;
     int done = omp_get_max_threads();
@@ -906,10 +918,10 @@ public:
     }
     //clog(trace)<<"Merged done"<<std::endl<<std::flush;
 
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //clog_one(trace)<<".done"<<std::endl;
-    //clog_one(trace)<<"Adding the ghosts";
-    //MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
+    clog_one(trace)<<".done"<<std::endl;
+    clog_one(trace)<<"Adding the ghosts";
+    MPI_Barrier(MPI_COMM_WORLD);
 
     // Check if no message remainig
 #ifdef DEBUG
@@ -937,10 +949,10 @@ public:
     assert(current_ghosts < max_traversal);
     cofm(root(), 0, false);
 
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //clog_one(trace)<<".done"<<std::endl;
-    //clog_one(trace)<<"Finishing branches";
-    //MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
+    clog_one(trace)<<".done"<<std::endl;
+    clog_one(trace)<<"Finishing branches";
+    MPI_Barrier(MPI_COMM_WORLD);
 
     std::vector<branch_t*> ignore;
     //clog(trace)<<"Cmopute the remaining branches"<<std::endl<<std::flush;
@@ -950,9 +962,9 @@ public:
         ef,std::forward<ARGS>(args)...);
     }
 
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //clog_one(trace)<<".done"<<std::endl;
-    //MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
+    clog_one(trace)<<".done"<<std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
   } // apply_sub_cells
 
   /**
@@ -1073,8 +1085,10 @@ public:
           work_branch.push_back(c);
         }else{
           for(int i=0; i<(1<<dimension);++i){
-            branch_t * next = child(c,i);
-            if(next == nullptr) continue;
+            if(!c->as_child(i))
+              continue;
+            auto next = child(c,i);
+            assert(next != nullptr);
             if(next->is_local()){
               stk.push(next);
             }
@@ -1235,8 +1249,10 @@ public:
         }
       }else{
         for(int i=0 ; i<(1<<dimension);++i){
+          if(!c->as_child(i))
+            continue;
           auto branch = child(c,i);
-          if(branch == nullptr) continue;
+          assert(branch != nullptr);
           if(geometry_t::box_MAC(
             b->coordinates(),
             branch->coordinates(),
@@ -1271,8 +1287,10 @@ public:
         }
       }else{
         for(int i=0 ; i<(1<<dimension);++i){
+          if(!c->as_child(i))
+            continue;
           auto branch = child(c,i);
-          if(branch == nullptr) continue;
+          assert(branch != nullptr);
           stk.push(branch);
         }
       }
@@ -1303,8 +1321,10 @@ public:
         }
       }else{
         for(int i=0 ; i<(1<<dimension);++i){
+          if(!c->as_child(i))
+            continue;
           auto branch = child(c,i);
-          if(branch == nullptr) continue;
+          assert(branch != nullptr);
           stk.push(branch);
         }
       }
@@ -1336,8 +1356,10 @@ public:
         }
       }else{
         for(int i=0 ; i<(1<<dimension);++i){
+          if(!c->as_child(i))
+            continue;
           auto branch = child(c,i);
-          if(branch == nullptr) continue;
+          assert(branch != nullptr);
           if(!geometry_t::box_MAC(
             b->coordinates(),
             branch->coordinates(),
@@ -1609,6 +1631,7 @@ public:
       MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
       //typename branch_t::b_locality locality = branch_t::NONLOCAL;
+      char bit_child = 0;
       element_t mass = element_t(0);
       point_t bmax{};
       point_t bmin{};
@@ -1683,6 +1706,7 @@ public:
         {
           auto branch = child(b,i);
           if(branch == nullptr) continue;
+          bit_child |= 1<<i;
 
           nchildren+=branch->sub_entities();
           mass += branch->mass();
@@ -1733,6 +1757,7 @@ public:
       b->set_mass(mass);
       b->set_bmin(bmin);
       b->set_bmax(bmax);
+      b->set_bit_child(bit_child);
       if(nchildren == 0){
         b->set_locality(branch_t::EMPTY);
       }
@@ -1783,8 +1808,10 @@ public:
         }
       }else{
         for(int i=0 ; i<(1<<dimension);++i){
+          if(!c->as_child(i))
+            continue;
           auto branch = child(c,i);
-          if(branch == nullptr) continue;
+          assert(branch!=nullptr);
           if(geometry_t::intersects_box_box(
             b->bmin(),
             b->bmax(),
@@ -1836,8 +1863,10 @@ public:
         }
       }else{
         for(int i=0; i<(1<<dimension); ++i){
-          branch_t * next = child(c,i);
-          if(next == nullptr) continue;
+          if(!c->as_child(i))
+            continue;
+          auto next = child(c,i);
+          assert(next != nullptr);
           stk.push(next);
         }
       }
@@ -1876,8 +1905,10 @@ public:
         }
       }else{
         for(int i=0 ; i<(1<<dimension);++i){
+          if(!b->as_child(i))
+            continue;
           auto branch = child(b,i);
-          if(branch == nullptr ) continue;
+          assert(branch != nullptr);
           if(geometry_t::intersects_sphere_box(
                 branch->bmin(),
                 branch->bmax(),
@@ -1926,8 +1957,10 @@ public:
         }
       }else{
         for(int i=0 ; i<(1<<dimension);++i){
+          if(!b->as_child(i))
+            continue;
           auto branch = child(b,i);
-          if(branch == nullptr) continue;
+          assert(branch != nullptr);
           if(geometry_t::intersects_box_box(min,max,branch->bmin(),
                 branch->bmax()))
           {

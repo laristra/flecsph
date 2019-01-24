@@ -156,6 +156,14 @@ public:
   auto end(){return ents_.end();}
   auto clear(){ents_.clear();}
 
+  char bit_child(){return bit_child_;};
+  void add_bit_child(int i){
+    assert(!(bit_child_ & 1<<i));
+    bit_child_ |= 1<<i;
+  };
+  void set_bit_child(char bit_child){bit_child_ = bit_child;};
+  bool as_child(int i){return bit_child_ & 1<<i;};
+
   /*!
     Called to trigger a refinement at this branch.
    */
@@ -227,6 +235,8 @@ protected:
   bool requested_ = false;
 
   char children_ = 0;
+
+  char bit_child_ = 0;
 
 };
 

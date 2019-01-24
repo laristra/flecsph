@@ -462,27 +462,6 @@ struct tree_geometry<T, 3>
     const point_t& min_b2,
     const point_t& max_b2)
   {
-    /*return
-      (inRange(min_b2[0],max_b2[0],min_b1[0]) || // minb2 minb1 maxb2
-      inRange(min_b1[0],max_b1[0],min_b2[0]) || // minb1 minb2 maxb1
-      inRange(min_b1[0],max_b1[0],min_b2[0]) || // minb1 minb2 maxb2 maxb1
-      inRange(min_b1[0],max_b1[0],max_b2[0]) ||
-      inRange(min_b2[0],max_b2[0],min_b1[0]) || // minb2 minb1 maxb1 maxb2
-      inRange(min_b2[0],max_b2[0],max_b1[0])) &&
-
-      (inRange(min_b2[1],max_b2[1],min_b1[1]) || // minb2 minb1 maxb2
-      inRange(min_b1[1],max_b1[1],min_b2[1]) || // minb1 minb2 maxb1
-      inRange(min_b1[1],max_b1[1],min_b2[1]) || // minb1 minb2 maxb2 maxb1
-      inRange(min_b1[1],max_b1[1],max_b2[1]) ||
-      inRange(min_b2[1],max_b2[1],min_b1[1]) || // minb2 minb1 maxb1 maxb2
-      inRange(min_b2[1],max_b2[1],max_b1[1])) &&
-
-      (inRange(min_b2[2],max_b2[2],min_b1[2]) || // minb2 minb1 maxb2
-      inRange(min_b1[2],max_b1[2],min_b2[2]) || // minb1 minb2 maxb1
-      inRange(min_b1[2],max_b1[2],min_b2[2]) || // minb1 minb2 maxb2 maxb1
-      inRange(min_b1[2],max_b1[2],max_b2[2]) ||
-      inRange(min_b2[2],max_b2[2],min_b1[2]) || // minb2 minb1 maxb1 maxb2
-      inRange(min_b2[2],max_b2[2],max_b1[2]));*/
     return
       (min_b1[0] <= max_b2[0] && min_b1[0] >= min_b2[0] || // b2 b1 b2 b1
        min_b1[0] <= max_b2[0] && max_b1[0] >= min_b2[0] || // b1 b2 b1 b2
