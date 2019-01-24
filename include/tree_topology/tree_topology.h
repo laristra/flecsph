@@ -999,7 +999,7 @@ public:
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
     const size_t inter_list_size = 150;
-    std::vector<tree_entity_t*> inter_list;
+    std::vector<branch_t*> inter_list;
     inter_list.reserve(inter_list_size);
 
     int nelem = work_branch.size();
@@ -1018,7 +1018,7 @@ public:
       std::vector<branch_t*> requests_branches;
       if(sub_cells_inter(work_branch[i],inter_list,requests_branches,do_square))
       {
-        force_calc(work_branch[i],inter_list,
+        force_calc(work_branch[i],inter_list,do_square,
                ef,std::forward<ARGS>(args)...);
       }else{
         assert(!assert_local);
@@ -1774,7 +1774,7 @@ public:
   bool
   sub_cells_inter(
     branch_t* b,
-    std::vector<tree_entity_t*>& inter_list,
+    std::vector<branch_t*>& inter_list,
     std::vector<branch_t*>& non_local,
     const bool do_square)
   {
@@ -1787,24 +1787,7 @@ public:
       stk.pop();
       if(c->is_leaf()){
         if(c->is_local() || c->ghosts_local()){
-          for(auto id: *c){
-            auto child = this->get(id);
-            if(do_square){
-              assert(param::sph_variable_h);
-              if(geometry_t::within_square(
-                  b->coordinates(),
-                  child->coordinates(),
-                  b->radius(),child->h()))
-                inter_list.push_back(child);
-            }else{
-              assert(param::sph_variable_h == false);
-              if(geometry_t::within(
-                  b->coordinates(),
-                  child->coordinates(),
-                  b->radius()))
-                inter_list.push_back(child);
-            }
-          }
+          inter_list.push_back(c);
         }else{
           non_local.push_back(c);
         }
@@ -1850,7 +1833,8 @@ public:
   void
   force_calc(
       branch_t* b,
-      std::vector<tree_entity_t*>& inter_list,
+      std::vector<branch_t*>& inter_list,
+      const bool do_square,
       EF&& ef,
       ARGS&&... args)
   {
@@ -1864,16 +1848,8 @@ public:
         for(auto id: *c){
           auto child = this->get(id);
           if(child->is_local()){
-            std::vector<tree_entity_t*> sublist;
-            for(auto ent: inter_list){
-              if(geometry_t::within_square(
-                child->coordinates(),
-                ent->coordinates(),
-                child->h(),ent->h())
-              )
-                sublist.push_back(ent);
-            }
-            ef(child,sublist,std::forward<ARGS>(args)...);
+            apply_sub_entity(child,inter_list,do_square,
+              ef,std::forward<ARGS>(args)...);
           }
         }
       }else{
@@ -1886,6 +1862,45 @@ public:
       }
     }
   }
+
+  template<
+   typename EF,
+   typename... ARGS
+ >
+ void
+ apply_sub_entity(
+     tree_entity_t* ent,
+     std::vector<branch_t*>& inter_list,
+     const bool do_square,
+     EF&& ef,
+     ARGS&&... args)
+ {
+   std::vector<tree_entity_t*> neighbors;
+   for(auto b: inter_list){
+     for(auto id: *b){
+       auto nb = this->get(id);
+       if(do_square){
+         if(geometry_t::within_square(
+               ent->coordinates(),
+               nb->coordinates(),
+               ent->h(),nb->h()))
+         {
+           neighbors.push_back(nb);
+         }
+       }else{
+         if(geometry_t::within(
+              ent->coordinates(),
+              nb->coordinates(),
+              ent->h()))
+         {
+            neighbors.push_back(nb);
+         }
+       }
+     }
+   }
+   ef(ent,neighbors,std::forward<ARGS>(args)...);
+ }
+
 
   /*!
     Return an index space containing all entities within the specified
