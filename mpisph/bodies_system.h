@@ -405,7 +405,7 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
       ARGS&&... args)
   {
     int64_t ncritical = 16;
-    tree_.apply_sub_cells(
+    tree_.traversal_asynchronous(
         tree_.root(),
         ncritical,
         param::sph_variable_h,

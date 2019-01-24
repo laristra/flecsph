@@ -154,13 +154,13 @@ mpi_init_task(const char * parameter_file){
 
       // sync velocities
       bs.update_iteration();
-      clog_one(trace) << "compute density pressure cs" << std::flush;
+      clog_one(trace) << "compute density pressure cs" << std::flush<<std::endl;
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
 
       // Sync density/pressure/cs
       bs.reset_ghosts();
 
-      clog_one(trace) << "leapfrog: kick two (velocity)" << std::flush;
+      clog_one(trace) << "leapfrog: kick two (velocity)" << std::flush<<std::endl;
       bs.apply_in_smoothinglength(physics::compute_acceleration);
       bs.apply_all(integration::leapfrog_kick_v);
       clog_one(trace) << ".done" << std::endl;
@@ -168,7 +168,7 @@ mpi_init_task(const char * parameter_file){
       // sync velocities
       bs.reset_ghosts();
 
-      clog_one(trace) << "leapfrog: kick two (energy)" << std::flush;
+      clog_one(trace) << "leapfrog: kick two (energy)" << std::flush<<std::endl;
       if (thermokinetic_formulation) {
         clog_one(trace) << "compute dedt" << std::flush;
         bs.apply_in_smoothinglength(physics::compute_dedt);
