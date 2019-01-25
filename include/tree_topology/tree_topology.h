@@ -231,7 +231,7 @@ public:
       {
         // Find the parent and change the status
         key_t k = g.key();
-        auto& b = find_parent_(k);
+        auto& b = find_parent(k);
         assert(!b.is_local());
         for(auto eid: b)
         {
@@ -249,7 +249,7 @@ public:
     {
       // Find the parent and change the status
       key_t k = s.key();
-      auto& b = find_parent_(k);
+      auto& b = find_parent(k);
       std::vector<entity_id_t> remove;
       for(auto eid: b)
       {
@@ -326,7 +326,7 @@ public:
           // Get my last key
           my_keys[0] = entities_.back().key();
           // Get the parent of this entity
-          my_keys[1] = find_parent_(my_keys[0]).key();
+          my_keys[1] = find_parent(my_keys[0]).key();
           MPI_Send(&(my_keys[0]),byte_size,MPI_BYTE,partner,1,
             MPI_COMM_WORLD);
           MPI_Recv(&(neighbor_keys[0]),byte_size,MPI_BYTE,partner,1,
@@ -339,7 +339,7 @@ public:
           // Get my last key
           my_keys[0] = entities_.front().key();
           // Get the parent of this entity
-          my_keys[1] = find_parent_(my_keys[0]).key();
+          my_keys[1] = find_parent(my_keys[0]).key();
           MPI_Recv(&(neighbor_keys[0]),byte_size,MPI_BYTE,partner,1,
             MPI_COMM_WORLD,MPI_STATUS_IGNORE);
           MPI_Send(&(my_keys[0]),byte_size,MPI_BYTE,partner,1,
@@ -545,7 +545,7 @@ public:
     }
     for(auto& g : shared_entities_)
     {
-      find_parent_(g.key()).set_ghosts_local(true);
+      find_parent(g.key()).set_ghosts_local(true);
     }
   }
 
@@ -720,7 +720,7 @@ public:
     typename... ARGS
   >
   void
-  traversal_asynchronous(
+  traversal_sph(
       branch_t * b,
       int64_t ncritical,
       bool do_square,
@@ -750,7 +750,7 @@ public:
       if(tid == nthreads-1){
         handle_requests();
       }else{
-        traverse_branches(do_square,work_branch,remaining_branches,false,
+        traverse_sph(do_square,work_branch,remaining_branches,false,
           ef,std::forward<ARGS>(args)...);
         // Wait for other threads
         #pragma omp critical
@@ -775,14 +775,14 @@ public:
       auto id = make_entity(g.key(),g.coordinates(),
         nullptr,g.owner(),g.mass(),g.id(),g.radius());
       // Assert the parent exists and is non local
-      assert(!find_parent_(g.key()).is_local());
+      assert(!find_parent(g.key()).is_local());
       insert(id);
       auto nbi = get(id);
       nbi->setBody(&g);
       assert(nbi->global_id() == g.id());
       assert(nbi->getBody() != nullptr);
       // Set the parent to local for the search
-      find_parent_(g.key()).set_ghosts_local(true);
+      find_parent(g.key()).set_ghosts_local(true);
     }
     // Prepare for the eventual next tree traversal, use other ghosts vector
     ++current_ghosts;
@@ -794,7 +794,7 @@ public:
     std::vector<branch_t*> ignore;
     #pragma omp parallel
     {
-      traverse_branches(do_square,remaining_branches,ignore,true,
+      traverse_sph(do_square,remaining_branches,ignore,true,
         ef,std::forward<ARGS>(args)...);
     }
   } // apply_sub_cells
@@ -820,7 +820,7 @@ public:
     typename... ARGS
   >
   void
-  traverse_branches(
+  traverse_sph(
     const bool do_square,
     std::vector<branch_t*>& work_branch,
     std::vector<branch_t*>& non_local_branches,
@@ -883,9 +883,10 @@ public:
           LOCAL_REQUEST,MPI_COMM_WORLD);
       }  // if else
     } // for
-  } // traverse_branches
+  } // traverse_sph
 
 
+  
   template<
     typename FC,
     typename DFCDR,
@@ -893,7 +894,7 @@ public:
     typename C2P
   >
   void
-  apply_fmm(
+  traversal_fmm(
       branch_t * b,
       double maxmasscell,
       const double MAC,
@@ -972,14 +973,14 @@ public:
       auto id = make_entity(g.key(),g.coordinates(),
         nullptr,g.owner(),g.mass(),g.id(),g.radius());
       // Assert the parent exists and is non local
-      assert(!find_parent_(g.key()).is_local());
+      assert(!find_parent(g.key()).is_local());
       insert(id);
       auto nbi = get(id);
       nbi->setBody(&g);
       assert(nbi->global_id() == g.id());
       assert(nbi->getBody() != nullptr);
       // Set the parent to local for the search
-      find_parent_(g.key()).set_ghosts_local(true);
+      find_parent(g.key()).set_ghosts_local(true);
     }
     ++current_ghosts;
     assert(current_ghosts < max_traversal);
@@ -993,6 +994,10 @@ public:
     }
   } // apply_sub_cells
 
+  /**
+  * @brief Similar to traverse_sph but using the MAC criterion and applying
+  * the C2C and C2P computations
+  */
   template<
     typename FC,
     typename DFCDR,
@@ -1051,6 +1056,10 @@ public:
     }
   }
 
+  /**
+  * @brief Center of Mass (COM) to COM interaction and the COM to the particles
+  * in this COM.
+  */
   template<
     typename FC,
     typename DFCDR,
@@ -1138,6 +1147,10 @@ public:
     return non_local.size() > 0;
   }
 
+  /**
+  * @brief Compute the particle to particle interction for this branch with
+  * the other branches that does not fit in the MAC criterion.
+  */
   template<typename F_FC>
   void
   traversal_p2p(
@@ -1686,6 +1699,10 @@ public:
     }
   }
 
+  /**
+  * @brief Apply the ef function to all the sub entities of this branch
+  * using the interaction list computed before.
+  */
   template<
    typename EF,
    typename... ARGS
@@ -2144,40 +2161,23 @@ public:
     using branch_map_t = std::unordered_map<branch_id_t, branch_t,
       branch_id_hasher__<key_int_t, dimension>>;
 
-      branch_id_t
-      to_branch_id(
-        const point_t& p,
-        size_t max_depth
-      )
-      {
-        return branch_id_t(range_, p, max_depth);
-      }
-
-      branch_id_t
-      to_branch_id(
-        const point_t& p
-      )
-      {
-        return branch_id_t(range_, p);
-      }
-
+      /**
+      * @brief Try to insert an entity in the tree. This might need to refine
+      * the branch.
+      */
       void
       insert(
         const entity_id_t& id,
         size_t max_depth
       )
       {
-
         // Find parent of the id
         auto ent = &(tree_entities_[id]);
         branch_id_t bid = ent->get_entity_key();
-        branch_t& b = find_parent(bid, max_depth);
-        // Check if it is a leaf
+        branch_t& b = find_parent(bid);
+        // It is not a leaf, need to insert intermediate branch
         if(!b.is_leaf())
         {
-          //clog(trace)<<"Not leaf"<<std::endl;
-          // Add a child
-
           // Create the branch
           int depth = b.id().depth()+1;
           bid.truncate(depth);
@@ -2214,12 +2214,18 @@ public:
         }
       }
 
-
+    /**
+    * @brief Find the parent of an entity or branch based on the key
+    * @details First truncate the key to the lowest possible in the tree, then
+    * loop on the key to find an existing branch. At least it will find the root
+    */
     branch_t&
-      find_parent_(
+      find_parent(
       branch_id_t bid
     )
     {
+      branch_id_t pid = bid;
+      pid.truncate(max_depth_);
       for(;;)
       {
         auto itr = branch_map_.find(bid);
@@ -2231,33 +2237,9 @@ public:
       }
     }
 
-    branch_t*
-    find_parent(
-      branch_t* b
-    )
-    {
-      return find_parent(b.id());
-    }
-
-    branch_t*
-    find_parent(
-      branch_id_t bid
-    )
-    {
-      return find_parent(bid, max_depth_);
-    }
-
-    branch_t&
-    find_parent(
-      branch_id_t bid,
-      size_t max_depth
-    )
-    {
-      branch_id_t pid = bid;
-      pid.truncate(max_depth);
-      return find_parent_(pid);
-    }
-
+    /**
+    * @brief Refine the current branch b if there is a conflict of children
+    */
      void
     refine_(
       branch_t& b
@@ -2283,56 +2265,6 @@ public:
       b.clear();
       b.reset();
       b.set_bit_child(bit_child);
-    }
-
-    // helper method in coarsening
-    // insert into p, coarsen all recursive children of b
-
-    void
-    coarsen_(
-      branch_t* p,
-      branch_t* b
-    )
-    {
-      if(b->is_leaf())
-      {
-        return;
-      }
-
-      for(size_t i = 0; i < branch_t::num_children; ++i)
-      {
-        branch_t* ci = b->template child_<branch_t>(i);
-
-        for(auto ent : *ci)
-        {
-          p->insert(ent);
-          ent->set_branch_id_(p->id());
-        }
-
-        coarsen_(p, ci);
-        branch_map_.erase(ci->id());
-      }
-    }
-
-    void
-    coarsen_(
-      branch_t* p
-    )
-    {
-      coarsen_(p, p);
-      p->template into_leaf_<branch_t>();
-      p->reset();
-    }
-
-    size_t
-    get_queue_depth(
-      thread_pool& pool
-    )
-    {
-      size_t n = pool.num_threads();
-      constexpr size_t rb = key_int_t(1) << P::dimension;
-      double bn = std::log2(double(rb));
-      return std::log2(double(n))/bn + 1;
     }
 
   // Declared before, here for readability

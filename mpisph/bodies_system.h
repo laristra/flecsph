@@ -377,7 +377,7 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
   void
   gravitation_fmm()
   {
-    tree_.apply_fmm(tree_.root(),maxmasscell_,macangle_,
+    tree_.traversal_fmm(tree_.root(),maxmasscell_,macangle_,
       fmm::gravitation_fc,fmm::gravitation_dfcdr,fmm::gravitation_dfcdrdr,
       fmm::interation_c2p);
   }
@@ -405,7 +405,7 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
       ARGS&&... args)
   {
     int64_t ncritical = 16;
-    tree_.traversal_asynchronous(
+    tree_.traversal_sph(
         tree_.root(),
         ncritical,
         param::sph_variable_h,
