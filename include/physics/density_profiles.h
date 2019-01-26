@@ -83,7 +83,14 @@ namespace density_profiles {
   }
 
   /**
-   * @brief  "mesa" density: flat top and steep slopes
+   * @brief  spherical "mesa" density: flat top and steep slopes
+   *
+   *           / rho0                      if r < r0;
+   *           |
+   * rho(r) = <  rho0 (1 - (r-r0)^2/dr^2)  if r < r0 + dr;
+   *           |
+   *           \ 0                         if r > r0 + dr.
+   *
    * @param  r     - spherical radius
    */
   double mesa_mass_helper(const double r) { 
@@ -122,8 +129,7 @@ namespace density_profiles {
   }
 
   /**
-   * @brief      External force selector
-   * @param      efstr    ext. force string
+   * @brief      Density profile selector
    */
   void select() {
     using namespace param;
