@@ -309,28 +309,143 @@ H5P_readDataset(
   return status;
 }
 
-// 
-// Attempt to read dataset from HDF5 file specified by file_id;
-//  - if dataset doesn't exist, complain and return;
-//  - otherwise, assign dataset to corresponding fields in bodies
-//
-template<typename T>
+/*
+ * Read scalar data from HDF5 file and assign to bodies
+ *  - if dataset doesn't exist, produce warning;
+ *  - otherwise, read dataset into array data[];
+ *  - set dataset to corresponding fields in bodies.
+ */
+template<
+  typename T>
 void H5P_bodiesReadDataset(
-  int rank,
   std::vector<std::pair<entity_key_t,body>>& bodies,
   hid_t& file_id,
   const char * dsname,
   T* data,
   size_t dim = IO_nparticlesproc)
 {
-  if (!H5P_readDataset(file_id,dsname,data))
-    rank || clog(warn) << "Unable to read "<<dsname<< std::endl;
-  else
-    if (!strcmp(dsname,"type")) {
+  int rank, size;
+  MPI_Comm_size(MPI_COMM_WORLD,&size);
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+
+  // reset data buffer to zero
+  std::fill(data, data + IO_nparticlesproc, 0.);
+
+  // read dataset
+  int err = H5P_readDataset(file_id,dsname,data);
+  if (err)
+    rank || clog(warn) << "Unable to read "<<dsname<<": "
+                       << "error code "<<err<<std::endl;
+
+  // assign corresponding field in bodies
+  if (!strcmp(dsname,"type")) {
+    for(int64_t i=0; i<IO_nparticlesproc; ++i)
+      bodies[i].second.setType(data[i]);
+  }
+  else if (!strcmp(dsname,"id")) {
+    if (err == 0) {
+      // set existing IDs from file
       for(int64_t i=0; i<IO_nparticlesproc; ++i)
-        bodies[i].second.setType(data[i]);
+          bodies[i].second.setType(data[i]);
     }
-}
+    else {
+      // generate the ids
+      rank|| clog(trace)<<"Setting ID for particles"<<std::endl;
+      int64_t start = (IO_nparticles/size)*rank+1;
+      for(int64_t i=0; i<IO_nparticlesproc; ++i){
+        bodies[i].second.setId(start+i);
+      }
+      if(rank == size - 1) // last rank
+        assert(IO_nparticles == bodies.back().second.getId());
+    }
+  }
+  else if (!strcmp(dsname,"m")) {
+    for(int64_t i=0; i<IO_nparticlesproc; ++i)
+      bodies[i].second.setMass(data[i]);
+  }
+  else if (!strcmp(dsname,"rho")) {
+    for(int64_t i=0; i<IO_nparticlesproc; ++i)
+      bodies[i].second.setDensity(data[i]);
+  }
+  else if (!strcmp(dsname,"h")) {
+    for(int64_t i=0; i<IO_nparticlesproc; ++i)
+      bodies[i].second.setSmoothinglength(data[i]);
+  }
+  else if (!strcmp(dsname,"P")) {
+    for(int64_t i=0; i<IO_nparticlesproc; ++i)
+      bodies[i].second.setPressure(data[i]);
+  }
+  #ifdef INTERNAL_ENERGY
+  else if (!strcmp(dsname,"u")) {
+    for(int64_t i=0; i<IO_nparticlesproc; ++i)
+      bodies[i].second.setInternalenergy(data[i]);
+  }
+  #endif
+  else if (!strcmp(dsname,"dt")) {
+    for(int64_t i=0; i<IO_nparticlesproc; ++i)
+      bodies[i].second.setDt(data[i]);
+  }
+  else if constexpr (std::is_same_v<T,double>) {
+    if (!strcmp(dsname,"x")) {
+      if constexpr (gdimension == 1) {
+        for(int64_t i=0; i<IO_nparticlesproc; ++i) {
+          point_t pos = {data[i]};
+          bodies[i].second.setPosition(pos);
+        }
+      }
+      if constexpr (gdimension == 2) {
+        std::fill(data + IO_nparticlesproc, 
+                  data + IO_nparticlesproc*2, 0.);
+        H5P_readDataset(file_id, "y", data + IO_nparticlesproc);
+        for(int64_t i=0; i<IO_nparticlesproc; ++i) {
+          point_t pos = {data[i],data[IO_nparticlesproc+i]};
+          bodies[i].second.setPosition(pos);
+        }
+      }
+      if constexpr (gdimension == 3) {
+        std::fill(data + IO_nparticlesproc, 
+                  data + IO_nparticlesproc*3, 0.);
+        H5P_readDataset(file_id, "y", data + IO_nparticlesproc);
+        H5P_readDataset(file_id, "z", data + 2*IO_nparticlesproc);
+        for(int64_t i=0; i<IO_nparticlesproc; ++i) {
+          point_t pos = {data[i],data[IO_nparticlesproc   + i],
+                                 data[IO_nparticlesproc*2 + i]};
+          bodies[i].second.setPosition(pos);
+        }
+      } 
+    }
+    else if (!strcmp(dsname,"vx")) {
+      if constexpr (gdimension == 1) {
+        for(int64_t i=0; i<IO_nparticlesproc; ++i) {
+          point_t vel = {data[i]};
+          bodies[i].second.setVelocity(vel);
+        }
+      }
+      if constexpr (gdimension == 2) {
+        std::fill(data + IO_nparticlesproc, 
+                  data + IO_nparticlesproc*2, 0.);
+        H5P_readDataset(file_id, "vy", data + IO_nparticlesproc);
+        for(int64_t i=0; i<IO_nparticlesproc; ++i) {
+          point_t vel = {data[i],data[IO_nparticlesproc+i]};
+          bodies[i].second.setVelocity(vel);
+        }
+      }
+      if constexpr (gdimension == 3) {
+        std::fill(data + IO_nparticlesproc, 
+                  data + IO_nparticlesproc*3, 0.);
+        H5P_readDataset(file_id, "vy", data + IO_nparticlesproc);
+        H5P_readDataset(file_id, "vz", data + 2*IO_nparticlesproc);
+        for(int64_t i=0; i<IO_nparticlesproc; ++i) {
+          point_t vel = {data[i],data[IO_nparticlesproc   + i],
+                                 data[IO_nparticlesproc*2 + i]};
+          bodies[i].second.setVelocity(vel);
+        }
+      } // switch gdimension
+    } // if dsname 
+  } // if T is double
+
+} // H5P_bodiesReadDataset()
+
 
 size_t
 H5P_setNumParticles(const int64_t& nparticlesproc)
@@ -588,196 +703,27 @@ void inputDataHDF5(
   }
 
   // Read the dataset and fill the particles data
-  double* dataX = new double[IO_nparticlesproc];
-  double* dataY = new double[IO_nparticlesproc];
-  double* dataZ = new double[IO_nparticlesproc];
+  double*    dataX = new  double[IO_nparticlesproc*gdimension];
   int64_t* dataInt = new int64_t[IO_nparticlesproc];
-  int * dataInt32 = new int[IO_nparticlesproc];
+  int *  dataInt32 = new     int[IO_nparticlesproc];
 
-  // Handle errors from H5HUT
-  hid_t errX, errY, errZ;
-  errX = errY = errZ = 0; // prevent warnings
+  // Read positions and velocities
+  H5P_bodiesReadDataset(bodies,dataFile,"x",  dataX);
+  H5P_bodiesReadDataset(bodies,dataFile,"vx", dataX);
+  H5P_bodiesReadDataset(bodies,dataFile,"m",  dataX);
+  H5P_bodiesReadDataset(bodies,dataFile,"rho",dataX);
+  H5P_bodiesReadDataset(bodies,dataFile,"h",  dataX);
+  H5P_bodiesReadDataset(bodies,dataFile,"P",  dataX);
 
-  // Positions
-  errX = H5P_readDataset(dataFile,"x",dataX);
-  if(gdimension > 1)
-    errY = H5P_readDataset(dataFile,"y",dataY);
-  if(gdimension > 2)
-    errZ = H5P_readDataset(dataFile,"z",dataZ);
-
-  if(errX != 0)
-    rank || clog(warn) << "Unable to read x" << std::endl;
-  if(errY != 0)
-    rank || clog(warn) << "Unable to read y" << std::endl;
-  if(errZ != 0)
-    rank || clog(warn) << "Unable to read z" << std::endl;
-
-
-  for(int64_t i=0; i<IO_nparticlesproc; ++i){
-    point_t position;
-    position[0] = dataX[i];
-    if(gdimension>1){
-      position[1] = dataY[i];
-    }
-    if(gdimension>2){
-      position[2] = dataZ[i];
-    }
-    bodies[i].second.setPosition(position);
-  }
-
-  // Reset buffer to 0, if next value not present
-  std::fill(dataX,dataX+IO_nparticlesproc,0.);
-  std::fill(dataY,dataY+IO_nparticlesproc,0.);
-  std::fill(dataZ,dataZ+IO_nparticlesproc,0.);
-
-  // Velocity
-  errX = H5P_readDataset(dataFile,"vx",dataX);
-  if(gdimension > 1)
-    errY = H5P_readDataset(dataFile,"vy",dataY);
-  if(gdimension > 2)
-    errZ = H5P_readDataset(dataFile,"vz",dataZ);
-
-  if(errX != 0)
-    rank || clog(warn) << "Unable to read vx" << std::endl;
-  if(errY != 0)
-    rank || clog(warn) << "Unable to read vy" << std::endl;
-  if(errZ != 0)
-    rank || clog(warn) << "Unable to read vz" << std::endl;
-
-  for(int64_t i=0; i<IO_nparticlesproc; ++i){
-    point_t velocity;
-    velocity[0] = dataX[i];
-    if(gdimension>1){
-      velocity[1] = dataY[i];
-    }
-    if(gdimension>2){
-      velocity[2] = dataZ[i];
-    }
-    bodies[i].second.setVelocity(velocity);
-  }
-
-  // Reset buffer to 0, if next value not present
-  std::fill(dataX,dataX+IO_nparticlesproc,0.);
-  std::fill(dataY,dataY+IO_nparticlesproc,0.);
-  std::fill(dataZ,dataZ+IO_nparticlesproc,0.);
-
-  // Acceleration
-  errX = H5P_readDataset(dataFile,"ax",dataX);
-  if(gdimension > 1)
-    errY = H5P_readDataset(dataFile,"ay",dataY);
-  if(gdimension > 2)
-    errZ = H5P_readDataset(dataFile,"az",dataZ);
-
-  if(errX != 0)
-    rank || clog(warn) << "Unable to read ax" << std::endl;
-  if(errY != 0)
-    rank || clog(warn) << "Unable to read ay" << std::endl;
-  if(errZ != 0)
-    rank || clog(warn) << "Unable to read az" << std::endl;
-
-  for(int64_t i=0; i<IO_nparticlesproc; ++i){
-    point_t acceleration;
-    acceleration[0] = dataX[i];
-    if(gdimension>1){
-      acceleration[1] = dataY[i];
-    }
-    if(gdimension>2){
-      acceleration[2] = dataZ[i];
-    }
-    bodies[i].second.setAcceleration(acceleration);
-  }
-
-  // Reset buffer to 0, if next value not present
-  std::fill(dataX,dataX+IO_nparticlesproc,0.);
-  std::fill(dataY,dataY+IO_nparticlesproc,0.);
-  std::fill(dataZ,dataZ+IO_nparticlesproc,0.);
-
-  errX = H5P_readDataset(dataFile,"m",dataX);
-  errY = H5P_readDataset(dataFile,"rho",dataY);
-  errZ = H5P_readDataset(dataFile,"h",dataZ);
-
-  if(errX != 0)
-    rank || clog(warn) << "Unable to read m" << std::endl;
-  if(errY != 0)
-    rank || clog(warn) << "Unable to read rho" << std::endl;
-  if(errZ != 0)
-    rank || clog(warn) << "Unable to read h" << std::endl;
-
-  for(int64_t i=0; i<IO_nparticlesproc; ++i){
-    bodies[i].second.setMass(dataX[i]);
-    bodies[i].second.setDensity(dataY[i]);
-    bodies[i].second.setSmoothinglength(dataZ[i]);
-  }
-
-  // Reset buffer to 0, if next value not present
-  std::fill(dataX,dataX+IO_nparticlesproc,0.);
-  std::fill(dataY,dataY+IO_nparticlesproc,0.);
-  std::fill(dataZ,dataZ+IO_nparticlesproc,0.);
-
-  // Pressure
-  errX = H5P_readDataset(dataFile,"P",dataX);
-  if(errX != 0)
-    rank || clog(warn) << "Unable to read P" <<std::endl;
-  for(int64_t i=0; i<IO_nparticlesproc; ++i){
-    bodies[i].second.setPressure(dataX[i]);
-  }
-
-  // Internal Energy
   #ifdef INTERNAL_ENERGY
-  rank|| clog(trace)<<"Reading internal energy"<<std::endl;
-  std::fill(dataX,dataX+IO_nparticlesproc,0.);
-  errX = H5P_readDataset(dataFile,"u",dataX);
-  if(errX != 0)
-    rank || clog(warn) << "Unable to read u"<<std::endl;
-  for(int64_t i=0; i<IO_nparticlesproc; ++i){
-    bodies[i].second.setInternalenergy(dataX[i]);
-  }
+  H5P_bodiesReadDataset(bodies,dataFile,"u",  dataX);
   #endif
 
-  // Set particle IDs
-  // \TODO check if user ID is uniq
-  if (!H5P_readDataset(dataFile,"id",dataInt)) {
-    // set existing IDs from file
-    for(int64_t i=0; i<IO_nparticlesproc; ++i){
-      bodies[i].second.setId(dataInt[i]);
-    }
-  }else{
-    // generate the ids
-    rank|| clog(trace)<<"Setting ID for particles"<<std::endl;
-    int64_t start = (totalnbodies/size)*rank+1;
-    for(int64_t i=0; i<IO_nparticlesproc; ++i){
-      bodies[i].second.setId(start+i);
-    }
-    if(size == rank + 1){
-      assert(totalnbodies==bodies.back().second.getId());
-    }
-  }
-
-  // Reset buffer to 0, if next value not present
-  std::fill(dataX,dataX+IO_nparticlesproc,0.);
-
-  // delta T
-  errX = H5P_readDataset(dataFile,"dt",dataX);
-  if(errX != 0)
-    rank || clog(warn) << "Unable to read dt" << std::endl;
-  for(int64_t i=0; i<IO_nparticlesproc; ++i){
-    bodies[i].second.setDt(dataX[i]);
-  }
-
-  // Reset buffer to 0, if next value not present
-  std::fill(dataInt32,dataInt32+IO_nparticlesproc,0.);
-
-  // delta T
-  errX = H5P_readDataset(dataFile,"type",dataInt32);
-  if(errX != 0)
-    rank || clog(warn) << "Unable to read type"<< std::endl;
-  for(int64_t i=0; i<IO_nparticlesproc; ++i){
-    bodies[i].second.setType(dataInt32[i]);
-  }
+  H5P_bodiesReadDataset(bodies,dataFile,"id",dataInt);
+  H5P_bodiesReadDataset(bodies,dataFile,"dt",dataX);
+  H5P_bodiesReadDataset(bodies,dataFile,"type",dataInt32);
 
   delete[] dataX;
-  delete[] dataY;
-  delete[] dataZ;
   delete[] dataInt;
   delete[] dataInt32;
 
