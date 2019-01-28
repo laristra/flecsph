@@ -346,7 +346,7 @@ void H5P_bodiesReadDataset(
     if (err == 0) {
       // set existing IDs from file
       for(int64_t i=0; i<IO_nparticlesproc; ++i)
-          bodies[i].second.setType(data[i]);
+          bodies[i].second.setId(data[i]);
     }
     else {
       // generate the ids
