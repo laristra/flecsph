@@ -60,6 +60,7 @@
 #include "tree_entity.h"
 #include "tree_geometry.h"
 #include "entity.h"
+#include "hashtable.h"
 
 namespace flecsi {
 namespace topology {
@@ -620,18 +621,6 @@ public:
     return entities_[static_cast<int>(e)];
   }
 
-
-  /*!
-    Insert an entity into the lowest possible branch division.
-   */
-  void
-  insert(
-    const entity_id_t& id
-  )
-  {
-      insert(id, max_depth_);
-  }
-
   /**
    * @brief Return a vector with all the local sub entities
    *
@@ -733,9 +722,8 @@ public:
     std::stack<branch_t*> stk;
     stk.push(b);
 
-    // Find the branches on which we perform the computation
-    std::vector<branch_t*> work_branch;
-    find_sub_cells(b,ncritical,work_branch);
+    entities_w_ = entities_;
+
     // Remaining branches in case of non locality
     std::vector<branch_t*> remaining_branches;
 
@@ -750,7 +738,7 @@ public:
       if(tid == nthreads-1){
         handle_requests();
       }else{
-        traverse_sph(do_square,work_branch,remaining_branches,false,
+        traverse_sph(do_square,remaining_branches,false,
           ef,std::forward<ARGS>(args)...);
         // Wait for other threads
         #pragma omp critical
@@ -794,9 +782,12 @@ public:
     std::vector<branch_t*> ignore;
     #pragma omp parallel
     {
-      traverse_sph(do_square,remaining_branches,ignore,true,
+      traverse_sph(do_square,remaining_branches,true,
         ef,std::forward<ARGS>(args)...);
     }
+
+    // Copy back the results
+    entities_ = entities_w_;
   } // apply_sub_cells
 
   /**
@@ -822,7 +813,6 @@ public:
   void
   traverse_sph(
     const bool do_square,
-    std::vector<branch_t*>& work_branch,
     std::vector<branch_t*>& non_local_branches,
     const bool assert_local,
     EF&& ef,
@@ -833,10 +823,10 @@ public:
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
     const size_t inter_list_size = 150;
-    std::vector<branch_t*> inter_list;
+    std::vector<entity_t*> inter_list;
     inter_list.reserve(inter_list_size);
 
-    int nelem = work_branch.size();
+    int nelem = entities_.size()/vector_size;
     int td = omp_get_thread_num();
     int nt = omp_get_num_threads();
     if(!assert_local){
@@ -848,26 +838,41 @@ public:
       end = nelem;
     }
 
+    std::vector<point_t> coord(vector_size);
+    std::vector<element_t> h(vector_size);
+
     // For each branches handled by this thread
     for(size_t i = start; i < end; ++i){
+      size_t start_entity = i*vector_size;
+      size_t end_entity = (i+1)*vector_size;
       inter_list.clear();
       std::vector<branch_t*> requests_branches;
+
+      // Informations for this groupp
+      assert(end_entity<=entities_.size());
+      assert(start_entity+vector_size<=entities_.size());
+
+      for(int i = 0 ;i < vector_size;++i){
+        coord[i] = entities_[i+start_entity].coordinates();
+        h[i] = entities_[i+start_entity].radius();
+      }
       // Compute the interaction list for this branch
       if(interactions_branches(
-          work_branch[i],
+          coord,
+          h,
           inter_list,
           requests_branches,
           do_square))
       {
         // Compute the function using the interaction list
-        force_calc(work_branch[i],inter_list,do_square,
+        force_calc(start_entity,coord,h,inter_list,do_square,
                ef,std::forward<ARGS>(args)...);
       }else{
         assert(!assert_local);
         std::vector<key_t> send;
         #pragma omp critical
         {
-          non_local_branches.push_back(work_branch[i]);
+          non_local_branches.push_back(requests_branches[i]);
           // Send branch key to request handler
           for(auto b: requests_branches){
             assert(b->owner() < size && b->owner() >= 0);
@@ -886,7 +891,6 @@ public:
   } // traverse_sph
 
 
-  
   template<
     typename FC,
     typename DFCDR,
@@ -910,6 +914,8 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     clog_one(trace) << "FMM : maxmasscell: "<<maxmasscell<<" MAC: "<<
       MAC<<std::endl;
+
+    entities_w_ = entities_;
 
     std::stack<branch_t*> stk;
     stk.push(b);
@@ -1466,18 +1472,25 @@ public:
       }
     }
     // Unstack stack 2
+    size_t children = 0;
+    size_t leaves = 0;
+    size_t max_children = 0;
     while(!stk2.empty())
     {
       branch_t * cur = stk2.top();
       stk2.pop();
-      update_COM(cur,epsilon,local);
+      update_COM(cur,children,leaves,max_children,epsilon,local);
     }
+    std::cout<<"#children="<<children<<" #leaves="<<leaves<<" avrg="<<children/leaves<<" max="<<max_children<<std::endl;
   }
 
    // Functions for the tree traversal
    void
    update_COM(
         branch_t * b,
+        size_t& children,
+        size_t& leaves,
+        size_t& max_children,
         element_t epsilon = element_t(0),
         bool local_only = false)
     {
@@ -1529,6 +1542,7 @@ public:
             radius = std::max(radius,
                 distance(ent->coordinates(),coordinates)  + epsilon + ent->h());
           }
+
         }else{
           // For non local particles use existing value from remote
           coordinates = b->coordinates();
@@ -1546,6 +1560,10 @@ public:
           b->set_locality(branch_t::SHARED);
         else
           b->set_locality(branch_t::NONLOCAL);
+
+        ++leaves;
+        children += nchildren;
+        max_children = std::max(max_children,(size_t)nchildren);
       }else{
         bool local = false;
         bool nonlocal = false;
@@ -1611,44 +1629,72 @@ public:
   */
   bool
   interactions_branches(
-    branch_t* b,
-    std::vector<branch_t*>& inter_list,
+    const std::vector<point_t>& coord,
+    const std::vector<element_t>& h,
+    std::vector<entity_t*>& inter_list,
     std::vector<branch_t*>& non_local,
     const bool do_square)
   {
-    size_t searched_branches = 0;
-    size_t searched_branches_reach = 0;
-    std::stack<branch_t*> stk;
-    stk.push(root());
-    while(!stk.empty()){
-      branch_t* c = stk.top();
-      stk.pop();
-      if(c->is_leaf()){
-        if(c->is_local() || c->ghosts_local()){
-          inter_list.push_back(c);
-        }else{
-          non_local.push_back(c);
+
+    // Queues for the branches
+    std::vector<branch_t*> queue;
+    std::vector<branch_t*> new_queue;
+    std::vector<point_t> mins, maxs;
+    std::vector<point_t> new_mins, new_maxs;
+    std::vector<size_t> accepted;
+    queue.push_back(root());
+    mins.push_back(root()->bmin());
+    maxs.push_back(root()->bmax());
+    while(!queue.empty())
+    {
+      assert(queue.size() == mins.size() && queue.size() == maxs.size());
+      const size_t queue_size = queue.size();
+      new_queue.clear();
+      new_maxs.clear();
+      new_mins.clear();
+      accepted.clear();
+      accepted.resize(queue_size);
+      std::fill(accepted.begin(),accepted.end(),0);
+      for(int i = 0 ; i < vector_size; ++i){
+        for(int j = 0 ; j < queue_size; ++j){
+          accepted[j] += geometry_t::intersects_sphere_box(mins[j],maxs[j],coord[i],h[i]);
         }
-      }else{
-        for(int i=0 ; i<(1<<dimension);++i){
-          if(!c->as_child(i))
-            continue;
-          auto branch = child(c,i);
-          assert(branch!=nullptr);
-          searched_branches_reach++;
-          if(geometry_t::intersects_box_box(
-            b->bmin(),
-            b->bmax(),
-            branch->bmin(),
-            branch->bmax()))
-          {
-            stk.push(branch);
-            searched_branches++;
+      }
+      for(int i = 0 ; i < queue_size; ++i){
+        if(accepted[i])
+        {
+          branch_t *c = queue[i];
+          if(c->is_leaf()){
+            if(c->is_local() || c->ghosts_local()){
+              // Push all particles in the interaction list
+              for(auto tent_id: *c){
+                auto tent = get(tent_id);
+                inter_list.push_back(tent->getBody());
+              }
+            }else{
+              non_local.push_back(c);
+            }
+          }else{
+            for(int d=0 ; d<(1<<dimension);++d){
+              if(!c->as_child(d))
+                continue;
+              branch_t* next = child(c,d);
+              assert(next != nullptr);
+              new_queue.push_back(next);
+              new_maxs.push_back(next->bmax());
+              new_mins.push_back(next->bmin());
+            }
           }
         }
       }
+      //queue.clear();
+      //mins.clear();
+      //maxs.clear();
+      mins = new_mins;
+      maxs = new_maxs;
+      queue = new_queue;
     }
-    return (non_local.size() == 0);
+    return non_local.size() == 0;
   }
 
   /**
@@ -1668,79 +1714,37 @@ public:
   >
   void
   force_calc(
-      branch_t* b,
-      std::vector<branch_t*>& inter_list,
+      const size_t& start_tent,
+      const std::vector<point_t>& coord,
+      const std::vector<element_t>& h,
+      const std::vector<entity_t*>& inter_list,
       const bool do_square,
       EF&& ef,
       ARGS&&... args)
   {
-    std::stack<branch_t*> stk;
-    stk.push(b);
-    while(!stk.empty())
-    {
-      branch_t* c = stk.top();
-      stk.pop();
-      if(c->is_leaf()){
-        for(auto id: *c){
-          auto child = this->get(id);
-          if(child->is_local()){
-            apply_sub_entity(child,inter_list,do_square,
-              ef,std::forward<ARGS>(args)...);
-          }
-        }
-      }else{
-        for(int i=0; i<(1<<dimension); ++i){
-          if(!c->as_child(i))
-            continue;
-          auto next = child(c,i);
-          stk.push(next);
-        }
+    const int inter_list_size = inter_list.size();
+    std::vector<point_t> coord_inter(inter_list_size);
+    std::vector<element_t> h_inter(inter_list_size);
+    std::vector<int> accepted(inter_list_size);
+    for(int i = 0 ;i < inter_list_size;++i){
+      coord_inter[i] = inter_list[i]->coordinates();
+      h_inter[i] = inter_list[i]->radius();
+    }
+    // N2 algoriothm to determine if in group
+    for(int i = 0; i < vector_size; ++i){
+      std::vector<entity_t*> neighbors;
+      std::fill(accepted.begin(),accepted.end(),0);
+      for(int j = 0 ; j < inter_list_size; ++j){
+          accepted[j] += geometry_t::within_square(coord[i],coord_inter[j],h[i],h_inter[j]);
       }
+      for(int j = 0 ; j < inter_list_size; ++j){
+        if(accepted[j])
+          neighbors.push_back(inter_list[j]);
+      }
+      entity_t* ptr = &(entities_w_[tree_entities_[i].id()]);
+      ef(&(entities_[i+start_tent]),neighbors,std::forward<ARGS>(args)...);
     }
   }
-
-  /**
-  * @brief Apply the ef function to all the sub entities of this branch
-  * using the interaction list computed before.
-  */
-  template<
-   typename EF,
-   typename... ARGS
- >
- void
- apply_sub_entity(
-     tree_entity_t* ent,
-     std::vector<branch_t*>& inter_list,
-     const bool do_square,
-     EF&& ef,
-     ARGS&&... args)
- {
-   std::vector<tree_entity_t*> neighbors;
-   for(auto b: inter_list){
-     for(auto id: *b){
-       auto nb = this->get(id);
-       if(do_square){
-         if(geometry_t::within_square(
-               ent->coordinates(),
-               nb->coordinates(),
-               ent->h(),nb->h()))
-         {
-           neighbors.push_back(nb);
-         }
-       }else{
-         if(geometry_t::within(
-              ent->coordinates(),
-              nb->coordinates(),
-              ent->h()))
-         {
-            neighbors.push_back(nb);
-         }
-       }
-     }
-   }
-   ef(ent,neighbors,std::forward<ARGS>(args)...);
- }
-
 
   /*!
     Return an index space containing all entities within the specified
@@ -1947,6 +1951,9 @@ public:
       // Add this branch if does not exists
     }
 
+    /**
+    * @brief Compute the keys of all the entities present in the structure
+    */
     void
     compute_keys()
     {
@@ -1978,6 +1985,9 @@ public:
       return &(tree_entities_[id]);
     }
 
+    /**
+    * @brief Get a tree_entity using its ID
+    */
     tree_entity_t*
     get(
         size_t id)
@@ -1986,6 +1996,9 @@ public:
       return &(tree_entities_[id]);
     }
 
+    /**
+    * @brief Get a branch by its id
+    */
     branch_t*
     get(
       branch_id_t id
@@ -2005,29 +2018,10 @@ public:
       return &root_->second;
     }
 
-    int64_t
-    nonlocal_branches()
-    {
-      return nonlocal_branches_;
-    }
-
     void
     nonlocal_branches_add()
     {
       ++nonlocal_branches_;
-    }
-
-
-    std::vector<entity_t>&
-    ghosts_entities()
-    {
-      return ghosts_entities_[current_ghosts];
-    }
-
-    std::vector<entity_t>&
-    shared_entities()
-    {
-      return shared_entities_;
     }
 
     /**
@@ -2038,7 +2032,8 @@ public:
      os<<"Tree topology: "<<"#branches: "<<t.branch_map_.size()<<
        " #entities: "<<t.tree_entities_.size();
      os <<" #root_subentities: "<<t.root()->sub_entities();
-     os <<" #nonlocal_branches: "<<t.nonlocal_branches();
+     os <<" #nonlocal_branches: "<<t.nonlocal_branches_;
+     os <<" depth: "<<t.max_depth_;
      return os;
    }
 
@@ -2157,18 +2152,13 @@ public:
      //MPI_Barrier(MPI_COMM_WORLD);
    }
 
-  private:
-    using branch_map_t = std::unordered_map<branch_id_t, branch_t,
-      branch_id_hasher__<key_int_t, dimension>>;
-
       /**
       * @brief Try to insert an entity in the tree. This might need to refine
       * the branch.
       */
       void
       insert(
-        const entity_id_t& id,
-        size_t max_depth
+        const entity_id_t& id
       )
       {
         // Find parent of the id
@@ -2189,23 +2179,8 @@ public:
           branch_map_.find(bid)->second.set_leaf(true);
           branch_map_.find(bid)->second.insert(id);
         }else{
-          // Check if there is a conflict with existing children
-          bool conflict = false;
-          int e_depth = b.id().depth()+1;
-          key_t new_key = ent->key();
-          new_key.truncate(e_depth);
-          for(auto id: b)
-          {
-            auto e = get(id);
-            key_t k = e->key();
-            k.truncate(e_depth);
-            if(k == new_key)
-            {
-              conflict = true;
-            }
-          }
           // Conflict with a children
-          if(conflict){
+          if(b.size() == (1<<dimension)){
             refine_(b);
             insert(id);
           }else{
@@ -2214,6 +2189,9 @@ public:
         }
       }
 
+
+private:
+
     /**
     * @brief Find the parent of an entity or branch based on the key
     * @details First truncate the key to the lowest possible in the tree, then
@@ -2221,20 +2199,20 @@ public:
     */
     branch_t&
       find_parent(
-      branch_id_t bid
+        branch_id_t bid
     )
     {
       branch_id_t pid = bid;
       pid.truncate(max_depth_);
-      for(;;)
+      while(bid != root_->second.id())
       {
         auto itr = branch_map_.find(bid);
-        if(itr != branch_map_.end())
-        {
+        if(itr != branch_map_.end()){
           return itr->second;
         }
         bid.pop();
       }
+      return root_->second;
     }
 
     /**
@@ -2255,11 +2233,13 @@ public:
         key_t k = get(ent)->key();
         k.truncate(depth);
         bit_child |= 1<<k.last_value();
-
         branch_map_.emplace(k,k);
-        insert(ent,depth);
       }
       max_depth_ = std::max(max_depth_, depth);
+
+      for(auto ent: b){
+        insert(ent);
+      }
 
       b.set_leaf(false);
       b.clear();
@@ -2267,20 +2247,23 @@ public:
       b.set_bit_child(bit_child);
     }
 
-  // Declared before, here for readability
-  //using branch_map_t = std::unordered_map<branch_id_t, branch_t,
-  //    branch_id_hasher__<key_int_t, dimension>>;
+
+  //using branch_map_t = hashtable<key_int_t,branch_t>;
+  using branch_map_t = std::unordered_map<branch_id_t, branch_t,
+    branch_id_hasher__<key_int_t, dimension>>;
 
   branch_map_t branch_map_;
   size_t max_depth_;
   typename std::unordered_map<branch_id_t,branch_t,
       branch_id_hasher__<key_int_t, dimension>>::iterator root_;
+  //typename branch_map_t::iterator root_;
   range_t range_;
   point__<element_t, dimension> scale_;
   element_t max_scale_;
   std::map<entity_id_t,entity_id_t> ghosts_id_;
   std::vector<tree_entity_t> tree_entities_;
   std::vector<entity_t> entities_;
+  std::vector<entity_t> entities_w_;
 
   const size_t max_traversal = 5;
   std::vector<std::vector<entity_t>> ghosts_entities_;
@@ -2289,6 +2272,8 @@ public:
   std::vector<entity_t> shared_entities_;
 
   int64_t nonlocal_branches_;
+
+  const int vector_size = 16;
 };
 
 } // namespace topology

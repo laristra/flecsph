@@ -420,6 +420,9 @@ public:
     id_ |= bits;
   }
 
+  operator int_t() const { return id_; }
+
+
   /*!
     Pop the bits of greatest depth off this id.
    */
@@ -455,7 +458,7 @@ public:
   {
     int poped = 0;
     poped = id_ & ((1<<(dimension))-1);
-    return poped; 
+    return poped;
   }
 
   /*!

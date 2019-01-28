@@ -248,9 +248,8 @@ namespace external_force {
    * @brief      Total external force at a point 'srch'
    * @param      srch  The source's body holder
    */
-  point_t acceleration(body_holder* srch) {
+  point_t acceleration(body* source) {
     point_t a = 0.0;
-    body* source = srch->getBody();
     for (auto p : vec_accelerations)
       a += (*p)(source);
     return a;

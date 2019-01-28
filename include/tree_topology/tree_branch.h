@@ -145,6 +145,12 @@ public:
     ents_.push_back(id);
   } // insert
 
+  int
+  size()
+  {
+    return ents_.size();
+  }
+
   void remove(const flecsi::topology::entity_id_t& id){
     auto itr = find(ents_.begin(), ents_.end(), id);
     assert(itr != ents_.end());
@@ -215,7 +221,7 @@ protected:
     os << " id: " << b.id_;
     os << " sub_entities: "<< b.sub_entities_;
     os << " owner: "<<b.owner_;
-    os << " children: "<<std::bitset<8>(b.children_);
+    os << " bit_child: "<<std::bitset<8>(b.bit_child_);
     return os;
   }
 
@@ -233,9 +239,6 @@ protected:
   element_t radius_;
   bool ghosts_local_ = true;
   bool requested_ = false;
-
-  char children_ = 0;
-
   char bit_child_ = 0;
 
 };

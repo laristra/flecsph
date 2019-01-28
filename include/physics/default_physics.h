@@ -57,14 +57,12 @@ namespace physics{
    */
   void
   compute_density(
-      body_holder* srch,
-      std::vector<body_holder*>& nbsh)
+      body* source,
+      std::vector<body*>& nbsh)
   {
-    body* source = srch->getBody();
     double density = 0;
     mpi_assert(nbsh.size()>0);
-    for(auto nbh : nbsh){
-      body* nb = nbh->getBody();
+    for(auto nb : nbsh){
       double dist = flecsi::distance(source->coordinates(),nb->coordinates());
       mpi_assert(dist>=0.0);
       double kernelresult = kernels::kernel(dist,
@@ -81,7 +79,6 @@ namespace physics{
    * @param      srch  The source's body holder
    */
   void set_total_energy (body_holder* srch) {
-    assert(srch->is_local());
     body* source = srch->getBody();
     const point_t pos = source->coordinates(),
                   vel = source->getVelocity();
@@ -100,8 +97,7 @@ namespace physics{
    *             to recover internal energy
    * @param      srch  The source's body holder
    */
-  void recover_internal_energy (body_holder* srch) {
-    body* source = srch->getBody();
+  void recover_internal_energy (body* source) {
     const point_t pos = source->coordinates(),
                   vel = source->getVelocity();
     const double etot = source->getTotalenergy(),
@@ -132,14 +128,14 @@ namespace physics{
    */
   void
   compute_density_pressure_soundspeed(
-    body_holder* srch,
-    std::vector<body_holder*>& nbsh)
+    body* source,
+    std::vector<body*>& nbsh)
   {
-    compute_density(srch,nbsh);
+    compute_density(source,nbsh);
     if (thermokinetic_formulation)
-      recover_internal_energy(srch);
-    eos::compute_pressure(srch);
-    eos::compute_soundspeed(srch);
+      recover_internal_energy(source);
+    eos::compute_pressure(source);
+    eos::compute_soundspeed(source);
   }
 
 
@@ -152,12 +148,10 @@ namespace physics{
    */
   void
   compute_acceleration(
-    body_holder* srch,
-    std::vector<body_holder*>& ngbsh)
+    body* source,
+    std::vector<body*>& ngbsh)
   {
     using namespace param;
-    body* source = srch->getBody();
-
     // Reset the accelerastion
     // \TODO add a function to reset in main_driver
     point_t acceleration = {};
@@ -165,9 +159,7 @@ namespace physics{
     const double h_s = source->radius();
     source->setMumax(0.0);
 
-    for(auto nbh : ngbsh){
-      body* nb = nbh->getBody();
-
+    for(auto nb : ngbsh){
       if(nb->coordinates() == source->coordinates())
         continue;
 
@@ -194,7 +186,7 @@ namespace physics{
     }
     hydro = -1.0*hydro;
     acceleration += hydro;
-    acceleration += external_force::acceleration(srch);
+    acceleration += external_force::acceleration(source);
     source->setAcceleration(acceleration);
   } // compute_hydro_acceleration
 
@@ -207,19 +199,15 @@ namespace physics{
    * @param      nbsh  The neighbors' body holders
    */
   void compute_dudt(
-      body_holder* srch,
-      std::vector<body_holder*>& ngbsh)
+      body* source,
+      std::vector<body*>& ngbsh)
   {
-    body* source = srch->getBody();
-
     double dudt = 0;
     double dudt_pressure = 0.;
     double dudt_visc = 0.;
     const double h_s = source->radius();
 
-    for(auto nbh: ngbsh){
-      body* nb = nbh->getBody();
-
+    for(auto nb: ngbsh){
       if(nb->coordinates() == source->coordinates()){
         continue;
       }
@@ -268,10 +256,9 @@ namespace physics{
    * @param      nbsh  The neighbors' body holders
    */
   void compute_dedt(
-      body_holder* srch,
-      std::vector<body_holder*>& ngbsh)
+      body* source,
+      std::vector<body*>& ngbsh)
   {
-    body* source = srch->getBody();
 
     double dedt = 0;
 
@@ -282,8 +269,7 @@ namespace physics{
                  rho_a = source->getDensity();
     const double Prho2_a = P_a/(rho_a*rho_a);
 
-    for(auto nbh: ngbsh){
-      body* nb = nbh->getBody();
+    for(auto nb: ngbsh){
       const point_t pos_b = nb->coordinates();
       if(pos_a == pos_b)
         continue;

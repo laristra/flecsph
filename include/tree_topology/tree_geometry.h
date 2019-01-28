@@ -433,8 +433,8 @@ struct tree_geometry<T, 3>
   within_square(
     const point_t& origin,
     const point_t& center,
-    element_t r1,
-    element_t r2)
+    const element_t& r1,
+    const element_t& r2)
   {
     element_t x2 = (origin[0]-center[0])*(origin[0]-center[0]);
     element_t y2 = (origin[1]-center[1])*(origin[1]-center[1]);
@@ -522,15 +522,21 @@ struct tree_geometry<T, 3>
     const point_t& min,
     const point_t& max,
     const point_t& c,
-    const element_t r)
-  {
-    point_t x = point_t(
-        std::max(min[0],std::min(c[0],max[0])),
-        std::max(min[1],std::min(c[1],max[1])),
-        std::max(min[2],std::min(c[2],max[2])));
-    element_t dist = distance(x,c);
-    return dist - r <= tol;
-  }
+    const element_t& r)
+    {
+      point_t x = point_t(
+        c[0]<max[0]?c[0]:max[0],
+        c[1]<max[1]?c[1]:max[1],
+        c[2]<max[2]?c[2]:max[2]);
+      x = {
+        x[0]<min[0]?min[0]:x[0],
+        x[1]<min[1]?min[1]:x[1],
+        x[2]<min[2]?min[2]:x[2]};
+      element_t dist = (x[0]-c[0])*(x[0]-c[0])+
+        (x[1]-c[1])*(x[1]-c[1])+
+        (x[2]-c[2])*(x[2]-c[2]);
+      return dist <= r*r;
+    }
 
   static
   bool
