@@ -77,7 +77,7 @@ struct branch_id_hasher__{
     const IDTYPE& k
   ) const noexcept
   {
-    return std::hash<T>{}(k.value_());
+    return k.value_() & ((1<<22)-1);
   }
 };
 
@@ -719,8 +719,6 @@ public:
 
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    std::stack<branch_t*> stk;
-    stk.push(b);
 
     entities_w_ = entities_;
 
@@ -841,8 +839,13 @@ public:
     std::vector<point_t> coord(vector_size);
     std::vector<element_t> h(vector_size);
 
+    std::vector<std::vector<entity_t*>> neighbors(vector_size);
+
     // For each branches handled by this thread
     for(size_t i = start; i < end; ++i){
+      for(int j = 0 ; j < vector_size; ++j){
+        neighbors[j].clear();
+      }
       size_t start_entity = i*vector_size;
       size_t end_entity = (i+1)*vector_size;
       inter_list.clear();
@@ -860,13 +863,16 @@ public:
       if(interactions_branches(
           coord,
           h,
-          inter_list,
-          requests_branches,
-          do_square))
+          neighbors,
+          requests_branches))
       {
+        for(int j = 0 ; j < vector_size; ++j){
+          entity_t* ptr = &(entities_w_[tree_entities_[j].id()]);
+          ef(&(entities_[j+start_entity]),neighbors[j],std::forward<ARGS>(args)...);
+        }
         // Compute the function using the interaction list
-        force_calc(start_entity,coord,h,inter_list,do_square,
-               ef,std::forward<ARGS>(args)...);
+        //force_calc(start_entity,coord,h,inter_list,
+        //       ef,std::forward<ARGS>(args)...);
       }else{
         assert(!assert_local);
         std::vector<key_t> send;
@@ -1631,9 +1637,8 @@ public:
   interactions_branches(
     const std::vector<point_t>& coord,
     const std::vector<element_t>& h,
-    std::vector<entity_t*>& inter_list,
-    std::vector<branch_t*>& non_local,
-    const bool do_square)
+    std::vector<std::vector<entity_t*>>& neighbors,
+    std::vector<branch_t*>& non_local)
   {
 
     // Queues for the branches
@@ -1647,52 +1652,58 @@ public:
     maxs.push_back(root()->bmax());
     while(!queue.empty())
     {
-      assert(queue.size() == mins.size() && queue.size() == maxs.size());
-      const size_t queue_size = queue.size();
       new_queue.clear();
       new_maxs.clear();
       new_mins.clear();
+      for(int i = 0 ; i < queue.size(); ++i){
+        branch_t *c = queue[i];
+        if(c->is_leaf()){
+          if(c->is_local() || c->ghosts_local()){
+            // Push all particles in the interaction list
+            for(auto tent_id: *c){
+              for(int j = 0 ; j < vector_size; ++j){
+                if(geometry_t::within_square(
+                  coord[j],tree_entities_[tent_id].coordinates(),
+                  h[j],tree_entities_[tent_id].h()))
+                {
+                  neighbors[j].push_back(tree_entities_[tent_id].getBody());
+                }
+              }
+            }
+          }else{
+            non_local.push_back(c);
+          }
+        }else{
+          for(int d=0 ; d<(1<<dimension);++d){
+            if(!c->as_child(d))
+              continue;
+            branch_t* next = child(c,d);
+            new_queue.push_back(next);
+            new_maxs.push_back(next->bmax());
+            new_mins.push_back(next->bmin());
+          }
+        }
+      }
+      const size_t queue_size = new_queue.size();
+      queue.clear();
+      maxs.clear();
+      mins.clear();
       accepted.clear();
       accepted.resize(queue_size);
       std::fill(accepted.begin(),accepted.end(),0);
       for(int i = 0 ; i < vector_size; ++i){
         for(int j = 0 ; j < queue_size; ++j){
-          accepted[j] += geometry_t::intersects_sphere_box(mins[j],maxs[j],coord[i],h[i]);
+          accepted[j] += geometry_t::intersects_sphere_box(
+            new_mins[j],new_maxs[j],coord[i],h[i]);
         }
       }
       for(int i = 0 ; i < queue_size; ++i){
-        if(accepted[i])
-        {
-          branch_t *c = queue[i];
-          if(c->is_leaf()){
-            if(c->is_local() || c->ghosts_local()){
-              // Push all particles in the interaction list
-              for(auto tent_id: *c){
-                auto tent = get(tent_id);
-                inter_list.push_back(tent->getBody());
-              }
-            }else{
-              non_local.push_back(c);
-            }
-          }else{
-            for(int d=0 ; d<(1<<dimension);++d){
-              if(!c->as_child(d))
-                continue;
-              branch_t* next = child(c,d);
-              assert(next != nullptr);
-              new_queue.push_back(next);
-              new_maxs.push_back(next->bmax());
-              new_mins.push_back(next->bmin());
-            }
-          }
+        if(accepted[i]){
+          queue.push_back(new_queue[i]);
+          maxs.push_back(new_maxs[i]);
+          mins.push_back(new_mins[i]);
         }
       }
-      //queue.clear();
-      //mins.clear();
-      //maxs.clear();
-      mins = new_mins;
-      maxs = new_maxs;
-      queue = new_queue;
     }
     return non_local.size() == 0;
   }
@@ -1718,29 +1729,31 @@ public:
       const std::vector<point_t>& coord,
       const std::vector<element_t>& h,
       const std::vector<entity_t*>& inter_list,
-      const bool do_square,
       EF&& ef,
       ARGS&&... args)
   {
+
+
     const int inter_list_size = inter_list.size();
     std::vector<point_t> coord_inter(inter_list_size);
     std::vector<element_t> h_inter(inter_list_size);
     std::vector<int> accepted(inter_list_size);
+    std::vector<entity_t*> neighbors;
+    neighbors.reserve(50);
     for(int i = 0 ;i < inter_list_size;++i){
       coord_inter[i] = inter_list[i]->coordinates();
       h_inter[i] = inter_list[i]->radius();
     }
     // N2 algoriothm to determine if in group
     for(int i = 0; i < vector_size; ++i){
-      std::vector<entity_t*> neighbors;
+      neighbors.clear();
       std::fill(accepted.begin(),accepted.end(),0);
       for(int j = 0 ; j < inter_list_size; ++j){
-          accepted[j] += geometry_t::within_square(coord[i],coord_inter[j],h[i],h_inter[j]);
+          if(geometry_t::within_square(coord[i],coord_inter[j],h[i],h_inter[j]))
+            neighbors.push_back(inter_list[j]);
       }
-      for(int j = 0 ; j < inter_list_size; ++j){
-        if(accepted[j])
-          neighbors.push_back(inter_list[j]);
-      }
+      //#pragma omp critical
+      //std::cout<<"vs="<<vector_size<<" il="<<inter_list.size()<<" nb="<<neighbors.size()<<std::endl;
       entity_t* ptr = &(entities_w_[tree_entities_[i].id()]);
       ef(&(entities_[i+start_tent]),neighbors,std::forward<ARGS>(args)...);
     }

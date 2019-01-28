@@ -96,7 +96,7 @@ private:
 
   unsigned int
   hash_(const KEY& k){
-    return k & hash_mask_ -1;
+    return k & hash_mask_;
   }
 
   const unsigned int hash_bit_ = 22;
