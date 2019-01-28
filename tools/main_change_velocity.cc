@@ -33,6 +33,12 @@ void print_usage() {
 int main(int argc, char * argv[]){
   using namespace param;
 
+  // check options list: exactly three options are allowed
+  if (argc != 4) {
+    print_usage();
+    exit(0);
+  }
+
   // launch MPI
   int rank, size, provided;
   MPI_Init_thread(&argc,&argv,MPI_THREAD_MULTIPLE,&provided);
@@ -40,13 +46,6 @@ int main(int argc, char * argv[]){
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   clog_set_output_rank(0);
-
-  // check options list: exactly one option is allowed
-  if (argc != 4) {
-    print_usage();
-    MPI_Finalize();
-    exit(0);
-  }
 
   // anything other than 2D is not implemented yet
   assert (gdimension == 2);
