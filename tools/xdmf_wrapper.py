@@ -1,4 +1,4 @@
-#!/home/okorobkin/local/Python/2.7.15/bin/python
+#!/usr/bin/env python
 
 # Copyright (c) 2019 Triad National Security, LLC
 # All rights reserved
