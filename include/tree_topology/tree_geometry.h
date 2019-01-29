@@ -440,7 +440,8 @@ struct tree_geometry<T, 3>
     element_t y2 = (origin[1]-center[1])*(origin[1]-center[1]);
     element_t z2 = (origin[2]-center[2])*(origin[2]-center[2]);
     element_t dist_2 = x2 + y2 + z2;
-    return dist_2 - (r1+r2)*(r1+r2)*0.25 <= tol ;
+    element_t rp2 = (r1+r2)*(r1+r2)*0.25;
+    return dist_2 <= rp2 ;
   }
 
   static

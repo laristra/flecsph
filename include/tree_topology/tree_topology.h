@@ -736,8 +736,7 @@ public:
       if(tid == nthreads-1){
         handle_requests();
       }else{
-        traverse_sph(do_square,remaining_branches,false,
-          ef,std::forward<ARGS>(args)...);
+        traverse_sph(remaining_branches,false,ef,std::forward<ARGS>(args)...);
         // Wait for other threads
         #pragma omp critical
         {
@@ -780,10 +779,8 @@ public:
     std::vector<branch_t*> ignore;
     #pragma omp parallel
     {
-      traverse_sph(do_square,remaining_branches,true,
-        ef,std::forward<ARGS>(args)...);
+      traverse_sph(remaining_branches,true,ef,std::forward<ARGS>(args)...);
     }
-
     // Copy back the results
     entities_ = entities_w_;
   } // apply_sub_cells
@@ -810,7 +807,6 @@ public:
   >
   void
   traverse_sph(
-    const bool do_square,
     std::vector<branch_t*>& non_local_branches,
     const bool assert_local,
     EF&& ef,
@@ -855,24 +851,17 @@ public:
       assert(end_entity<=entities_.size());
       assert(start_entity+vector_size<=entities_.size());
 
-      for(int i = 0 ;i < vector_size;++i){
-        coord[i] = entities_[i+start_entity].coordinates();
-        h[i] = entities_[i+start_entity].radius();
+      for(int j = 0 ;j < vector_size;++j){
+        coord[j] = entities_[j+start_entity].coordinates();
+        h[j] = entities_[j+start_entity].radius();
       }
       // Compute the interaction list for this branch
-      if(interactions_branches(
-          coord,
-          h,
-          neighbors,
-          requests_branches))
+      if(interactions_branches(coord,h,neighbors,requests_branches))
       {
         for(int j = 0 ; j < vector_size; ++j){
-          entity_t* ptr = &(entities_w_[tree_entities_[j].id()]);
-          ef(&(entities_[j+start_entity]),neighbors[j],std::forward<ARGS>(args)...);
+          entity_t* ptr = &(entities_w_[tree_entities_[start_entity+j].id()]);
+          ef(ptr,neighbors[j],std::forward<ARGS>(args)...);
         }
-        // Compute the function using the interaction list
-        //force_calc(start_entity,coord,h,inter_list,
-        //       ef,std::forward<ARGS>(args)...);
       }else{
         assert(!assert_local);
         std::vector<key_t> send;
@@ -1487,7 +1476,7 @@ public:
       stk2.pop();
       update_COM(cur,children,leaves,max_children,epsilon,local);
     }
-    std::cout<<"#children="<<children<<" #leaves="<<leaves<<" avrg="<<children/leaves<<" max="<<max_children<<std::endl;
+    //std::cout<<"#children="<<children<<" #leaves="<<leaves<<" avrg="<<children/leaves<<" max="<<max_children<<std::endl;
   }
 
    // Functions for the tree traversal
@@ -1640,7 +1629,6 @@ public:
     std::vector<std::vector<entity_t*>>& neighbors,
     std::vector<branch_t*>& non_local)
   {
-
     // Queues for the branches
     std::vector<branch_t*> queue;
     std::vector<branch_t*> new_queue;
@@ -1659,15 +1647,15 @@ public:
         branch_t *c = queue[i];
         if(c->is_leaf()){
           if(c->is_local() || c->ghosts_local()){
-            // Push all particles in the interaction list
-            for(auto tent_id: *c){
-              for(int j = 0 ; j < vector_size; ++j){
+            for(int j = 0 ; j < vector_size; ++j){
+              const int start = *(c->begin());
+              const int size = c->size();
+              for(int k = 0 ; k < size; ++k){
+                point_t nb_coord = tree_entities_[start+k].coordinates();
+                element_t nb_h = tree_entities_[start+k].h();
                 if(geometry_t::within_square(
-                  coord[j],tree_entities_[tent_id].coordinates(),
-                  h[j],tree_entities_[tent_id].h()))
-                {
-                  neighbors[j].push_back(tree_entities_[tent_id].getBody());
-                }
+                  coord[j],nb_coord,h[j],nb_h))
+                neighbors[j].push_back(tree_entities_[start+k].getBody());
               }
             }
           }else{
@@ -1706,57 +1694,6 @@ public:
       }
     }
     return non_local.size() == 0;
-  }
-
-  /**
-  * @brief Compute the interaction on a branch with the interaction list of
-  * the sub-particles
-  * @param [in] b Branch on which to propagate the force
-  * @param [in] inter_list The interaction list of the sub-particles of b
-  * @param [in] ef The function to apply on the particles
-  * @param [in] args The arguments of the function to apply
-  * @return void
-  * @details This function apply a tree traversal because the branch b can
-  * be different than a leaf.
-  */
-  template<
-    typename EF,
-    typename... ARGS
-  >
-  void
-  force_calc(
-      const size_t& start_tent,
-      const std::vector<point_t>& coord,
-      const std::vector<element_t>& h,
-      const std::vector<entity_t*>& inter_list,
-      EF&& ef,
-      ARGS&&... args)
-  {
-
-
-    const int inter_list_size = inter_list.size();
-    std::vector<point_t> coord_inter(inter_list_size);
-    std::vector<element_t> h_inter(inter_list_size);
-    std::vector<int> accepted(inter_list_size);
-    std::vector<entity_t*> neighbors;
-    neighbors.reserve(50);
-    for(int i = 0 ;i < inter_list_size;++i){
-      coord_inter[i] = inter_list[i]->coordinates();
-      h_inter[i] = inter_list[i]->radius();
-    }
-    // N2 algoriothm to determine if in group
-    for(int i = 0; i < vector_size; ++i){
-      neighbors.clear();
-      std::fill(accepted.begin(),accepted.end(),0);
-      for(int j = 0 ; j < inter_list_size; ++j){
-          if(geometry_t::within_square(coord[i],coord_inter[j],h[i],h_inter[j]))
-            neighbors.push_back(inter_list[j]);
-      }
-      //#pragma omp critical
-      //std::cout<<"vs="<<vector_size<<" il="<<inter_list.size()<<" nb="<<neighbors.size()<<std::endl;
-      entity_t* ptr = &(entities_w_[tree_entities_[i].id()]);
-      ef(&(entities_[i+start_tent]),neighbors,std::forward<ARGS>(args)...);
-    }
   }
 
   /*!
