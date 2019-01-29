@@ -170,7 +170,7 @@ def write_xdmf_timestep (in_h5file, out_xdmfile, in_fname, key_step, ndim):
 #
 def stepLabelSort (stepLabel):
   # Step#23 -> 23
-  return stepLabel[5:]
+  return int(stepLabel[5:])
 
 ########################
 my_desc = """
