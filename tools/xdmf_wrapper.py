@@ -65,14 +65,14 @@ def write_xdmf_timestep (in_h5file, out_xdmfile, in_fname, key_step, ndim):
          </DataItem>
       </Geometry>""")
     for var in ['x','vx','ax']:
-      out_xdmfile.write("""
+      if var in dset.keys(): out_xdmfile.write("""
       <Attribute Name="%s">
         <DataItem Format="HDF" Dimensions="%d" NumberType="%s" Precision="%d">
             %s:/%s/%s
         </DataItem>
       </Attribute>""" % (var,
        Npart,vps[var]['type'],vps[var]['size'],
-       in_fname,key_step,var))
+       in_fname,key_step,var)) 
 
   # -- 2D --------- ---------------------
   if ndim == 2:
@@ -94,7 +94,7 @@ def write_xdmf_timestep (in_h5file, out_xdmfile, in_fname, key_step, ndim):
        in_fname,key_step))
 
     for var in ['x','y','vx','vy','ax','ay']:
-      out_xdmfile.write("""
+      if var in dset.keys(): out_xdmfile.write("""
       <Attribute Name="%s">
         <DataItem Format="HDF" Dimensions="%d" NumberType="%s" Precision="%d">
             %s:/%s/%s
@@ -128,7 +128,7 @@ def write_xdmf_timestep (in_h5file, out_xdmfile, in_fname, key_step, ndim):
        Npart,vps['x']['type'],vps['x']['size'],
        in_fname,key_step))
     for var in ['x','y','z','vx','vy','vz','ax','ay','az']:
-      out_xdmfile.write("""
+      if var in dset.keys(): out_xdmfile.write("""
       <Attribute Name="%s">
         <DataItem Format="HDF" Dimensions="%d" NumberType="%s" Precision="%d">
             %s:/%s/%s
@@ -140,7 +140,7 @@ def write_xdmf_timestep (in_h5file, out_xdmfile, in_fname, key_step, ndim):
 
   # -- Other scalar variables   --------
   for var in ['rho','h','m','P','u','dt','id','key','rank','type']:
-    out_xdmfile.write("""
+    if var in dset.keys(): out_xdmfile.write("""
       <Attribute Name="%s">
         <DataItem Format="HDF" Dimensions="%d" NumberType="%s" Precision="%d">
             %s:/%s/%s
@@ -161,7 +161,17 @@ def write_xdmf_timestep (in_h5file, out_xdmfile, in_fname, key_step, ndim):
   # -- Footer ---------------------------
   xdmfile.write("""
   </Grid>""")
+
+
 # 
+# ## FUNCTION TO SORT STEP LABELS
+#    because alphabetical sort won't work, for example
+#    'Step2 > Step100' # incorrect!
+#
+def stepLabelSort (stepLabel):
+  # Step#23 -> 23
+  return stepLabel[5:]
+
 ########################
 my_desc = """
 Creates an XDMF wrapper for one or multiple H5Part files"""
@@ -254,9 +264,9 @@ xdmfile = open(xdmfname,'w')
 xdmfile.write("""<?xml version="1.0" ?>
 <!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
 <Xdmf Version="2.0">
- <Domain>""")
+ <Domain><Grid GridType="Collection" CollectionType="Temporal" >""")
 
-# -- Output initial snapshot  -----------------------------------------------
+# -- Output snapshots in either multiple-files, or single-file mode  --------
 if multiple_files_mode:
   for ifname in mflist:
     h5file.close()
@@ -269,13 +279,13 @@ if multiple_files_mode:
 
 else:
   steps = h5file.keys()
-  steps.sort()
+  steps.sort(key=stepLabelSort)
   for key_step in steps:
     write_xdmf_timestep (h5file, xdmfile, ifname, key_step, ndim)
 
 # -- Write footer, close files  ---------------------------------------------
 xdmfile.write("""
- </Domain>
+ </Grid></Domain>
 </Xdmf>
 """)
 xdmfile.close()
