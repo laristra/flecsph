@@ -408,7 +408,6 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
     tree_.traversal_sph(
         tree_.root(),
         ncritical,
-        param::sph_variable_h,
         ef,
         std::forward<ARGS>(args)...);
   }

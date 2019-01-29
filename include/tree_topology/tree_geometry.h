@@ -122,7 +122,7 @@ struct tree_geometry<T, 1>
   {
     element_t x2 = (origin[0]-center[0])*(origin[0]-center[0]);
     element_t dist_2 = x2;
-    return dist_2 - (r1+r2)*(r1+r2)*0.25 <= tol;
+    return dist_2 <= (r1+r2)*(r1+r2)*0.25;
   }
 
   /*!
@@ -455,6 +455,7 @@ struct tree_geometry<T, 3>
     return 2*asin(radius/distance(p1,p2)) - MAC <= tol;
   }
 
+  inline
   static
   bool
   intersects_box_box(
@@ -463,6 +464,7 @@ struct tree_geometry<T, 3>
     const point_t& min_b2,
     const point_t& max_b2)
   {
+    /*
     return
       (min_b1[0] <= max_b2[0] && min_b1[0] >= min_b2[0] || // b2 b1 b2 b1
        min_b1[0] <= max_b2[0] && max_b1[0] >= min_b2[0] || // b1 b2 b1 b2
@@ -477,7 +479,12 @@ struct tree_geometry<T, 3>
       (min_b1[2] <= max_b2[2] && min_b1[2] >= min_b2[2] || // b2 b1 b2 b1
        max_b1[2] <= max_b2[2] && max_b1[2] >= min_b2[2] || // b1 b2 b1 b2
        max_b1[2] >= max_b2[2] && min_b1[2] <= min_b2[2] || // b1 b2 b2 b1
-       min_b1[2] >= min_b2[2] && max_b1[2] <= max_b2[2]);  // b2 b1 b1 b2
+       min_b1[2] >= min_b2[2] && max_b1[2] <= max_b2[2]);  // b2 b1 b1 b2*/
+    return
+    !((max_b1[0] < min_b2[0] || max_b1[1] < min_b2[1] || max_b1[2] < min_b2[2])
+    ||(max_b2[0] < min_b1[0] || max_b2[1] < min_b1[1] || max_b2[2] < min_b1[2]));
+
+
   }
 
 
@@ -511,7 +518,7 @@ struct tree_geometry<T, 3>
     return (c2[0]-c1[0])*(c2[0]-c1[0])+
       (c2[1]-c1[1])*(c2[1]-c1[1])+
       (c2[2]-c1[2])*(c2[2]-c1[2])
-        - (r1+r2)*(r1+r2) <= tol;
+        <= (r1+r2)*(r1+r2);
   }
 
 
@@ -548,6 +555,14 @@ struct tree_geometry<T, 3>
         (c[1]-coord[i][1])*(c[1]-coord[i][1])+
         (c[2]-coord[i][2])*(c[2]-coord[i][2]);
       accepted[j] += D > h[i]*h[i]+d*.25;*/
+
+      /*
+      element_t D =
+        (coord[i][0]-new_bcenter[j][0])*(coord[i][0]-new_bcenter[j][0])+
+        (coord[i][1]-new_bcenter[j][1])*(coord[i][1]-new_bcenter[j][1])+
+        (coord[i][2]-new_bcenter[j][2])*(coord[i][2]-new_bcenter[j][2]);
+      accepted[j] += (D <= (h[i]*h[i] + new_diagonal[j]*new_diagonal[j]*.25));
+      */
     }
 
   static

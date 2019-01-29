@@ -126,6 +126,16 @@ public:
   void set_bmin(const point_t& bmin){bmin_ = bmin;};
   void set_bcenter(const point_t& bcenter){bcenter_ = bcenter;};
   void set_diagonal(const element_t& diagonal){diagonal_ = diagonal;};
+  void set_begin_tree_entities(const size_t& begin_tree_entities){
+    begin_tree_entities_ = begin_tree_entities;
+  }
+  void set_end_tree_entities(const size_t& end_tree_entities){
+    end_tree_entities_ = end_tree_entities;
+  }
+  size_t begin_tree_entities(){ return begin_tree_entities_;}
+  size_t end_tree_entities(){ return end_tree_entities_;}
+
+
 
   bool is_leaf() const {return leaf_;}
   void set_leaf(bool leaf){leaf_ = leaf;}
@@ -248,6 +258,9 @@ protected:
   char bit_child_ = 0;
   point_t bcenter_;
   element_t diagonal_;
+
+  size_t begin_tree_entities_;
+  size_t end_tree_entities_;
 
 };
 
