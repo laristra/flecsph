@@ -207,24 +207,9 @@ mpi_init_task(const char * parameter_file){
       rank|| clog(trace) << ".done" << std::endl;
     }
 
-    // Output the scalar values
-    if(out_scalar_every > 0 && physics::iteration % out_scalar_every == 0){
-      // Compute the analysis values based on physics
-      bs.get_all(analysis::compute_lin_momentum);
-      bs.get_all(analysis::compute_total_mass);
-      bs.get_all(analysis::compute_total_energy);
-      bs.get_all(analysis::compute_total_ang_mom);
-      // Only add the header in the first iteration
-      analysis::scalar_output("scalar_reductions.dat");
-    }
-
-    // Output the diagnostic
-    if(out_diagnostic_every > 0 && physics::iteration%out_diagnostic_every==0){
-      bs.get_all(diagnostic::compute_neighbors_stats,bs.tree(),bs.getNBodies());
-      bs.get_all(diagnostic::compute_smoothinglength_stats,bs.getNBodies());
-      bs.get_all(diagnostic::compute_velocity_stats,bs.getNBodies());
-      diagnostic::output("diagnostic.dat");
-    }
+    // Compute and output scalar reductions and diagnostic
+    analysis::scalar_output(bs,rank);
+    diagnostic::output(bs,rank);
 
     if(out_h5data_every > 0 && physics::iteration % out_h5data_every == 0){
       bs.write_bodies(output_h5data_prefix,physics::iteration,

@@ -41,12 +41,11 @@ namespace analysis{
   { MASS = 0 , ENERGY = 1, MOMENTUM = 2, ANG_MOMENTUM = 3 };
 
   point_t linear_momentum;
-  point_t linear_velocity;
   point_t total_ang_mom;
-  point_t part_mom;
-  point_t part_position;
   double total_mass;
   double total_energy;
+  double total_kinetic_energy;
+  double total_internal_energy;
   double velocity_part;
 
   /**
@@ -55,7 +54,7 @@ namespace analysis{
    * @param      bodies  Vector of all the local bodies
    */
   void
-  compute_lin_momentum(
+  compute_total_momentum(
       std::vector<body_holder>& bodies)
   {
     linear_momentum = {0};
@@ -63,9 +62,9 @@ namespace analysis{
     for(size_t i = 0 ; i < bodies.size(); ++i){
     //for(auto& nbh: bodies) {
       if(!bodies[i].is_local()) continue;
-      if(bodies[i].getBody()->type() == NORMAL){
-        linear_momentum += bodies[i].getBody()->getLinMomentum();
-      }
+      body* bp = bodies[i].getBody();
+      if(bp->type() != NORMAL)  continue;
+      linear_momentum += bp->getMass()*bp->getVelocity();
     }
     mpi_utils::reduce_sum(linear_momentum);
   }
@@ -81,11 +80,11 @@ namespace analysis{
   {
     total_mass = 0.;
     #pragma omp parallel for reduction(+:total_mass)
-    for(size_t i = 0 ; i < bodies.size(); ++i){
+    for(size_t i = 0 ; i < bodies.size(); ++i) {
       if(!bodies[i].is_local()) continue;
-      if(bodies[i].getBody()->type() == NORMAL){
-        total_mass += bodies[i].getBody()->getMass();
-      }
+      body* bp = bodies[i].getBody();
+      if(bp->type() != NORMAL)  continue;
+      total_mass += bp->getMass();
     }
     mpi_utils::reduce_sum(total_mass);
   }
@@ -106,35 +105,80 @@ namespace analysis{
       #pragma omp parallel for reduction(+:total_energy)
       for(size_t i = 0 ; i < bodies.size(); ++i){
         if(!bodies[i].is_local()) continue;
-        if(bodies[i].getBody()->type() == NORMAL){
-          total_energy += bodies[i].getBody()->getMass()*
-            bodies[i].getBody()->getTotalenergy();
-        }
+        body* bp = bodies[i].getBody();
+        if(bp->type() != NORMAL)  continue;
+        total_energy += bp->getMass()*bp->getTotalenergy();
       }
     }
     else {
       #pragma omp parallel for reduction(+:total_energy)
       for(size_t i = 0 ; i < bodies.size(); ++i){
         if(!bodies[i].is_local()) continue;
-        if(bodies[i].getBody()->type() != NORMAL){
-          continue;
-        }
-        total_energy += bodies[i].getBody()->getMass()*
-          bodies[i].getBody()->getInternalenergy();
-        linear_velocity = bodies[i].getBody()->getVelocity();
-        velocity_part = 0.;
-        for(size_t i = 0 ; i < gdimension ; ++i){
-          velocity_part += pow(linear_velocity[i],2);
-          part_position = bodies[i].getBody()->getPosition();
-        }
-        total_energy += 1./2.*velocity_part*bodies[i].getBody()->getMass();
+        body* bp = bodies[i].getBody();
+        if(bp->type() != NORMAL)  continue;
+        double m = bp->getMass(), 
+            eint = bp->getInternalenergy();
+        total_energy += m*eint;
+        point_t v = bp->getVelocity();
+        double v2 = v[0]*v[0];
+        for(unsigned short int k=1; k<gdimension; ++k)
+          v2 += v[k]*v[k];
+        total_energy += .5*m*v2;
       }
     }
     mpi_utils::reduce_sum(total_energy);
   }
 
   /**
-   * @brief      Compute the total energy (internal + kinetic)
+   * @brief      Sum up total kinetic energy
+   *
+   * @param      bodies  Vector of all the local bodies
+   */
+  void
+  compute_total_kinetic_energy(
+      std::vector<body_holder>& bodies)
+  {
+    using namespace param;
+
+    total_kinetic_energy = 0.;
+    #pragma omp parallel for reduction(+:total_kinetic_energy)
+    for(size_t i = 0 ; i < bodies.size(); ++i){
+      if(!bodies[i].is_local()) continue;
+      body* bp = bodies[i].getBody();
+      if(bp->type() != NORMAL)  continue;
+      double m = bp->getMass();
+      point_t v = bp->getVelocity();
+      double v2 = v[0]*v[0];
+      for(unsigned short int k=1; k<gdimension; ++k)
+        v2 += v[k]*v[k];
+      total_kinetic_energy += .5*m*v2;
+    }
+    mpi_utils::reduce_sum(total_kinetic_energy);
+  }
+
+  /**
+   * @brief      Sum up internal energy
+   * @param      bodies  Vector of all the local bodies
+   */
+  void
+  compute_total_internal_energy(
+      std::vector<body_holder>& bodies)
+  {
+    using namespace param;
+
+    total_internal_energy = 0.;
+    #pragma omp parallel for reduction(+:total_internal_energy)
+    for(size_t i = 0 ; i < bodies.size(); ++i) {
+      if(!bodies[i].is_local()) continue;
+      body* bp = bodies[i].getBody();
+      if(bp->type() != NORMAL)  continue;
+      total_internal_energy += bp->getMass() * bp->getInternalenergy();
+    }
+    mpi_utils::reduce_sum(total_internal_energy);
+  }
+
+  /**
+   * @brief      Compute total angular momentum
    *
    * @param      bodies  Vector of all the local bodies
    */
@@ -142,33 +186,38 @@ namespace analysis{
   compute_total_ang_mom(
       std::vector<body_holder>& bodies)
   {
-    double part_ang_x;
-    double part_ang_y;
-    double part_ang_z;
     total_ang_mom = {0};
-    part_mom = {0};
-    part_position = {0};
-    #pragma omp parallel for reduction(add_point:total_ang_mom)
-    for(size_t i = 0 ; i < bodies.size(); ++i){
-      if(!bodies[i].is_local()) continue;
-      if(bodies[i].getBody()->type() != NORMAL){
-        continue;
+    switch (gdimension) {
+    case 2:
+      #pragma omp parallel for reduction(add_point:total_ang_mom)
+      for(size_t i = 0 ; i < bodies.size(); ++i){
+        if(!bodies[i].is_local()) continue;
+        body* bp = bodies[i].getBody();
+        if(bp->type() != NORMAL)  continue;
+        const double m = bp->getMass();
+        const point_t v = bp->getVelocity();
+        const point_t r = bp->getPosition();
+        total_ang_mom[0] += m*(r[0]*v[1] - r[1]*v[0]);
       }
-      part_mom = bodies[i].getBody()->getLinMomentum();
-      part_position = bodies[i].getBody()->getPosition();
-      if(gdimension==3){
-        part_ang_x = part_position[1]*part_mom[2]-part_position[2]*part_mom[1];
-        part_ang_y = -part_position[0]*part_mom[2]+part_position[2]*part_mom[0];
-        part_ang_z = part_position[0]*part_mom[1]-part_position[1]*part_mom[0];
-        total_ang_mom += {part_ang_x,part_ang_y,part_ang_z};
-      } else if(gdimension==2){
-        part_ang_z = part_position[0]*part_mom[1]-part_position[1]*part_mom[0];
-        total_ang_mom += part_ang_z;
-      } else if(gdimension==1){
-        total_ang_mom += 0.;
+      mpi_utils::reduce_sum(total_ang_mom);
+      break;
+
+    case 3:
+    default:
+      #pragma omp parallel for reduction(add_point:total_ang_mom)
+      for(size_t i = 0 ; i < bodies.size(); ++i){
+        if(!bodies[i].is_local()) continue;
+        body* bp = bodies[i].getBody();
+        if(bp->type() != NORMAL)  continue;
+        const double m = bp->getMass();
+        const point_t v = bp->getVelocity();
+        const point_t r = bp->getPosition();
+        total_ang_mom[0] += m*(r[1]*v[2] - r[2]*v[1]);
+        total_ang_mom[1] += m*(r[2]*v[0] - r[0]*v[2]);
+        total_ang_mom[2] += m*(r[0]*v[1] - r[1]*v[0]);
       }
+      mpi_utils::reduce_sum(total_ang_mom);
     }
-    mpi_utils::reduce_sum(total_ang_mom);
   }
 
   /**
@@ -210,68 +259,77 @@ namespace analysis{
    * -- << end output file <<<< -------------------------------------------
    */
   void
-  scalar_output(const char * filename = NULL)
+  scalar_output(body_system<double,gdimension>& bs, const int rank)
   {
     static bool first_time = true;
+    if(param::out_scalar_every <= 0 || 
+       physics::iteration % param::out_scalar_every != 0)
+       return;
+
+    // compute reductions
+    bs.get_all(compute_total_momentum);
+    bs.get_all(compute_total_mass);
+    bs.get_all(compute_total_energy);
+    bs.get_all(compute_total_kinetic_energy);
+    bs.get_all(compute_total_internal_energy);
+    bs.get_all(compute_total_ang_mom);
 
     // output only from rank #0
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     if (rank != 0) return;
+    const char * filename = "scalar_reductions.dat";
 
     if (first_time) {
       // Generate and output the header
       std::ostringstream oss_header;
-      oss_header
-        << "# Scalar reductions: " <<std::endl
-        << "# 1:iteration 2:time 3:timestep 4:total_mass 5:total_energy 6:mom_x ";
-
-      // The momentum depends on dimension
-      if(gdimension > 1){
-        oss_header<<"7:mom_y ";
+      switch(gdimension) {
+      case 1:
+        oss_header
+          << "# Scalar reductions: " <<std::endl
+          << "# 1:iteration 2:time 3:timestep 4:total_mass "
+          << " 5:total_energy 6:kinetic_energy 7:internal_energy"
+          << " 8:mom_x"<< std::endl; 
+        break;
+      
+      case 2:
+        oss_header
+          << "# Scalar reductions: " <<std::endl
+          << "# 1:iteration 2:time 3:timestep 4:total_mass 5:total_energy" 
+          <<  " 6:kinetic_energy 7:internal_energy" <<std::endl
+          << "# 8:mom_x 9:mom_y 10:and_mom_z"<< std::endl; 
+        break;
+      
+      case 3:
+      default:
+        oss_header
+          << "# Scalar reductions: " <<std::endl
+          << "# 1:iteration 2:time 3:timestep 4:total_mass 5:total_energy" 
+          <<  " 6:kinetic_energy 7:internal_energy "  <<std::endl
+          << "# 8:mom_x 9:mom_y 10:mom_z "
+          <<  "11:ang_mom_x 12:ang_mom_y 13:ang_mom_z"<< std::endl; 
       }
-      if(gdimension == 3){
-        oss_header<<"8:mom_z ";
-      }
-      // The angular momentum depends on dimension
-      if(gdimension == 2){
-        oss_header<<"9:ang_mom_z";
-      }
-      if(gdimension == 3){
-        oss_header<<"10:ang_mom_x 11:ang_mom_y 12:ang_mom_z ";
-      }
-      oss_header<<std::endl;
-
+      
       std::ofstream out(filename);
       out << oss_header.str();
       out.close();
-
       first_time = false;
     }
 
     std::ostringstream oss_data;
     oss_data << std::setw(14) << physics::iteration
       << std::setw(20) << std::scientific << std::setprecision(12)
-      << physics::totaltime << std::setw(20) << physics::dt
-      << std::setw(20) << total_mass
-      << std::setw(20) << total_energy;
-    for(size_t i = 0 ; i < gdimension ; ++i){
-      oss_data
-        << std::setw(20) << std::scientific << std::setprecision(12)
-        << linear_momentum[i] <<" ";
-    }
-    if(gdimension==2){
-      oss_data
-        << std::setw(20) << std::scientific << std::setprecision(12)
-        << total_ang_mom[0] <<" ";
-    }
-    if(gdimension==3){
-      for(size_t i = 0 ; i < gdimension ; ++i){
-        oss_data
-          << std::setw(20) << std::scientific << std::setprecision(12)
-          << total_ang_mom[i] <<" ";
-      }
-    }
+      << physics::totaltime << std::setw(20) << physics::dt <<" "
+      << total_mass <<" "<< total_energy <<" "
+      << total_kinetic_energy<<" "<<total_internal_energy<<" ";
+    for(unsigned short int k = 0 ; k < gdimension ; ++k)
+      oss_data <<" "<< linear_momentum[k];
+
+    if(gdimension==2)
+      oss_data <<" "<< total_ang_mom[0];
+    
+    if(gdimension==3) 
+      for(unsigned short k = 0 ; k < gdimension ; ++k)
+        oss_data <<" "<< total_ang_mom[k];
+
     oss_data << std::endl;
 
     // Open file in append mode
