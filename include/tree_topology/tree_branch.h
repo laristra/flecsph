@@ -116,11 +116,17 @@ public:
   element_t radius(){return radius_;};
   point_t bmin(){return bmin_;};
   point_t bmax(){return bmax_;};
+  point_t bcenter(){return bcenter_;}
+  element_t diagonal(){return diagonal_;}
+
   void set_coordinates(const point_t& coordinates){coordinates_=coordinates;};
   void set_mass(const element_t& mass){mass_ = mass;};
   void set_radius(const element_t& radius){radius_ = radius;};
   void set_bmax(const point_t& bmax){bmax_ = bmax;};
   void set_bmin(const point_t& bmin){bmin_ = bmin;};
+  void set_bcenter(const point_t& bcenter){bcenter_ = bcenter;};
+  void set_diagonal(const element_t& diagonal){diagonal_ = diagonal;};
+
   bool is_leaf() const {return leaf_;}
   void set_leaf(bool leaf){leaf_ = leaf;}
   bool is_valid() const { return true; }
@@ -240,6 +246,8 @@ protected:
   bool ghosts_local_ = true;
   bool requested_ = false;
   char bit_child_ = 0;
+  point_t bcenter_;
+  element_t diagonal_;
 
 };
 

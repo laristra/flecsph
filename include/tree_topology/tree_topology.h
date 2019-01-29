@@ -1493,10 +1493,12 @@ public:
       MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
       //typename branch_t::b_locality locality = branch_t::NONLOCAL;
-      element_t mass = element_t(0);
+      point_t bcenter = {};
+      element_t diagonal = 0;
+      element_t mass = 0;
       point_t bmax{}, bmin{};
       element_t radius = 0.;
-      point_t coordinates = point_t{};
+      point_t coordinates{};
       uint64_t nchildren = 0;
       int owner = b->owner();
       for(size_t d = 0 ; d < dimension ; ++d){
@@ -1602,12 +1604,20 @@ public:
         if(!local && nonlocal)
           b->set_locality(branch_t::NONLOCAL);
       }
+      for(size_t d = 0 ; d < dimension ; ++d){
+        diagonal += (bmax[d]-bmin[d])*(bmax[d]-bmin[d]);
+      }
+      bcenter = .5*(bmin+bmax);
+      diagonal = sqrt(diagonal);
+      assert(diagonal != 0);
       b->set_radius(radius);
       b->set_sub_entities(nchildren);
       b->set_coordinates(coordinates);
       b->set_mass(mass);
       b->set_bmin(bmin);
       b->set_bmax(bmax);
+      b->set_bcenter(bcenter);
+      b->set_diagonal(diagonal);
       assert(nchildren != 0);
       if(!b->is_local()) nonlocal_branches_add();
     }
@@ -1632,31 +1642,31 @@ public:
     // Queues for the branches
     std::vector<branch_t*> queue;
     std::vector<branch_t*> new_queue;
-    std::vector<point_t> mins, maxs;
-    std::vector<point_t> new_mins, new_maxs;
+    std::vector<point_t> bcenter;
+    std::vector<element_t> diagonal;
+    std::vector<point_t> new_bcenter;
+    std::vector<element_t> new_diagonal;
     std::vector<size_t> accepted;
+
+    std::vector<entity_t*> possible_leaves;
     queue.push_back(root());
-    mins.push_back(root()->bmin());
-    maxs.push_back(root()->bmax());
+    bcenter.push_back(root()->bcenter());
+    diagonal.push_back(root()->diagonal());
     while(!queue.empty())
     {
       new_queue.clear();
-      new_maxs.clear();
-      new_mins.clear();
+      new_bcenter.clear();
+      new_diagonal.clear();
       for(int i = 0 ; i < queue.size(); ++i){
         branch_t *c = queue[i];
         if(c->is_leaf()){
           if(c->is_local() || c->ghosts_local()){
-            for(int j = 0 ; j < vector_size; ++j){
-              const int start = *(c->begin());
-              const int size = c->size();
-              for(int k = 0 ; k < size; ++k){
-                point_t nb_coord = tree_entities_[start+k].coordinates();
-                element_t nb_h = tree_entities_[start+k].h();
-                if(geometry_t::within_square(
-                  coord[j],nb_coord,h[j],nb_h))
-                neighbors[j].push_back(tree_entities_[start+k].getBody());
-              }
+            int nelements = possible_leaves.size();
+            possible_leaves.resize(nelements+c->size());
+            const int start = *(c->begin());
+            const int size = c->size();
+            for(int k = 0 ; k < size; ++k){
+              possible_leaves[nelements+k] = tree_entities_[start+k].getBody();
             }
           }else{
             non_local.push_back(c);
@@ -1667,30 +1677,51 @@ public:
               continue;
             branch_t* next = child(c,d);
             new_queue.push_back(next);
-            new_maxs.push_back(next->bmax());
-            new_mins.push_back(next->bmin());
+            new_bcenter.push_back(next->bcenter());
+            new_diagonal.push_back(next->diagonal());
           }
         }
       }
       const size_t queue_size = new_queue.size();
       queue.clear();
-      maxs.clear();
-      mins.clear();
+      bcenter.clear();
+      diagonal.clear();
       accepted.clear();
       accepted.resize(queue_size);
       std::fill(accepted.begin(),accepted.end(),0);
       for(int i = 0 ; i < vector_size; ++i){
         for(int j = 0 ; j < queue_size; ++j){
-          accepted[j] += geometry_t::intersects_sphere_box(
-            new_mins[j],new_maxs[j],coord[i],h[i]);
+          element_t D =
+            (coord[i][0]-new_bcenter[j][0])*(coord[i][0]-new_bcenter[j][0])+
+            (coord[i][1]-new_bcenter[j][1])*(coord[i][1]-new_bcenter[j][1])+
+            (coord[i][2]-new_bcenter[j][2])*(coord[i][2]-new_bcenter[j][2]);
+          accepted[j] += (D <= (h[i]*h[i] + new_diagonal[j]*new_diagonal[j]*.25));
+          //accepted[j] += geometry_t::intersects_sphere_box(
+          //  new_queue[j]->bmin(),new_queue[j]->bmax(),coord[i],h[i]);
         }
       }
       for(int i = 0 ; i < queue_size; ++i){
         if(accepted[i]){
           queue.push_back(new_queue[i]);
-          maxs.push_back(new_maxs[i]);
-          mins.push_back(new_mins[i]);
+          bcenter.push_back(new_bcenter[i]);
+          diagonal.push_back(new_diagonal[i]);
         }
+      }
+    }
+    const int nelements = possible_leaves.size();
+    //std::cout<<"#elements="<<nelements<<std::endl;
+    // Add the elements in the neighbors list
+    std::vector<int> accepted_branch(vector_size);
+    for(int k = 0 ; k < nelements; ++k){
+      point_t nb_coord = possible_leaves[k]->coordinates();
+      element_t nb_h = possible_leaves[k]->radius();
+      for(int j = 0 ; j < vector_size; ++j){
+        accepted_branch[j] = geometry_t::within_square(
+          coord[j],nb_coord,h[j],nb_h);
+      }
+      for(int j = 0 ; j < vector_size; ++j){
+          if(accepted_branch[j])
+            neighbors[j].push_back(possible_leaves[k]);
       }
     }
     return non_local.size() == 0;

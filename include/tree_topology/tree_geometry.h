@@ -537,6 +537,17 @@ struct tree_geometry<T, 3>
         (x[1]-c[1])*(x[1]-c[1])+
         (x[2]-c[2])*(x[2]-c[2]);
       return dist <= r*r;
+      /*
+      point_t c;
+      element_t D = 0, d = 0;
+      c = {(maxs[j][0]+mins[j][0])*.5,(maxs[j][1]+mins[j][1])*.5,(maxs[j][2]+mins[j][2])*.5};
+      D = (maxs[j][0]-mins[j][0])*(maxs[j][0]-mins[j][0])+
+        (maxs[j][1]-mins[j][1])*(maxs[j][1]-mins[j][1])+
+        (maxs[j][2]-mins[j][2])*(maxs[j][2]-mins[j][2]);
+      d = (c[0]-coord[i][0])*(c[0]-coord[i][0])+
+        (c[1]-coord[i][1])*(c[1]-coord[i][1])+
+        (c[2]-coord[i][2])*(c[2]-coord[i][2]);
+      accepted[j] += D > h[i]*h[i]+d*.25;*/
     }
 
   static
