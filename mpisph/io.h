@@ -48,6 +48,8 @@ hid_t IO_group_id; // Group id to keep track of the current step
 hsize_t IO_offset;
 hsize_t IO_count;
 const int MAX_FNAME_LEN = 256;
+// TODO: overload ostream instead, i.e.smth like, clog_exit << "ERROR!"
+#define FULLSTOP exit(MPI_Barrier(MPI_COMM_WORLD) && MPI_Finalize());
 
 int64_t IO_nparticlesproc;
 int64_t IO_nparticles;
@@ -67,8 +69,7 @@ H5P_getType(T* data)
     type = H5T_NATIVE_ULLONG;
   } else {
     std::cout<<"Unknown type: "<<typeid(T).name()<<std::endl;
-    MPI_Barrier(MPI_COMM_WORLD);
-    MPI_Finalize();
+    FULLSTOP;
   }
   return type;
 }
@@ -501,9 +502,10 @@ H5P_getNumParticles(hid_t file_id)
  *           <fprefix>_XXXXX.h5part
  * @param    fprefix    file prefix
  * @param    filename   file name
+ * @return   step number
  *
  */
-int is_snapshot(const char * fprefix, const char *filename) {
+int H5P_isPrefixSnapshot(const char * fprefix, const char *filename) {
   if (strstr(filename, fprefix) == NULL)
     return -1;
   if (strstr(filename, ".h5part") == NULL)
@@ -542,14 +544,76 @@ bool H5P_fileExists(const char * prefix) {
 
 
 /*
+ * @brief    For a multiple-files H5part data, returns the snapshot
+ *           number of a file with given iteration
+ * @param    prefix     - filename prefix
+ */
+int H5P_findIterationSnapshot(const char * prefix, 
+                              const int iteration) {
+  int step = -1;
+  char fname[MAX_FNAME_LEN];
+  char prefix_dirname[MAX_FNAME_LEN], buf[MAX_FNAME_LEN],
+      prefix_basename[MAX_FNAME_LEN];
+  DIR *d;
+  struct dirent *dir;
+  hid_t file_id = 0;
+
+  // MPI stuff
+  int rank, size;
+  MPI_Comm_size(MPI_COMM_WORLD,&size);
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+
+  // open the prefix directory
+  sprintf(buf, prefix);
+  sprintf(prefix_dirname, dirname(buf));
+  sprintf(buf, prefix);
+  sprintf(prefix_basename,basename(buf));
+  d = opendir(prefix_dirname);
+  if (d) {
+    // go through individual files
+    while ((dir = readdir(d)) != NULL) {
+
+      // skip files which are not "prefix_XXXXX.h5part"
+      step = H5P_isPrefixSnapshot(prefix_basename, dir->d_name);
+      if (step < 0)
+        continue;
+
+      // if the found file is malformed, abort
+      sprintf(fname,"%s_%05d.h5part",prefix,step);
+      file_id = H5P_openFile(fname,H5F_ACC_RDONLY);
+      if (not H5P_hasStep(file_id, step)) {
+        rank || clog(error) << "Cannot find snapshot '"<<step<<"' in Step#"
+          <<step<<" in file "<< fname <<std::endl; FULLSTOP;
+      }
+      H5P_setStep(file_id,step);
+
+      // get iteration of the step
+      int64_t file_iteration;
+      if(0 != H5P_readAttributeStep(file_id,"iteration",&file_iteration)){
+        rank || clog(error) << "Cannot read attribute 'iteration' in Step#"
+          <<step<<" in file "<< fname <<std::endl; FULLSTOP;
+      }
+      H5Fclose(file_id);
+
+      // check if this is what we are looking for
+      if (file_iteration == iteration) 
+        break;
+    }
+    closedir(d);
+  }
+  return step; 
+}
+
+
+/*
  * @brief    Remove *.h5part files with prefix output_file_prefix
- *           If out_h5data_separate_iterations, remove steps after
+ *           If out_h5data_separate_iterations, remove only steps after
  *           the specified one
  * @param    output_file_prefix    the prefix
- * @param    threshold_snapshot    delete everything > snapshot
+ * @param    threshold_stepnum     delete everything > snapshot
  */
-int remove_prefix_h5part(const char * output_file_prefix,
-                         const int threshold_snapnum) {
+int H5P_removePrefix(const char * output_file_prefix,
+                     const int threshold_stepnum) {
   char output_filename[MAX_FNAME_LEN];
   int n_deleted = 0;
   int rank;
@@ -575,8 +639,8 @@ int remove_prefix_h5part(const char * output_file_prefix,
     d = opendir(output_dirname);
     if (d) {
       while ((dir = readdir(d)) != NULL) {
-        int snapnum = is_snapshot(output_basename, dir->d_name);
-        if (snapnum > threshold_snapnum and rank == 0) {
+        int stepnum = H5P_isPrefixSnapshot(output_basename, dir->d_name);
+        if (stepnum > threshold_stepnum and rank == 0) {
           if (remove(dir->d_name) == 0) { // if successful 
             rank|| clog(warn) << "deleting old output file: "
                               << dir->d_name << std::endl;
@@ -586,7 +650,6 @@ int remove_prefix_h5part(const char * output_file_prefix,
       }
       closedir(d);
     }
-    exit(0);
   }
   return n_deleted;
 }
@@ -602,14 +665,13 @@ void inputDataHDF5(
   int startIteration)
 {
 
-  char input_filename[MAX_FNAME_LEN], 
-      output_filename[MAX_FNAME_LEN];
+  char input_filename[MAX_FNAME_LEN];
 
   // add the .h5part extension
   // TODO: automatically detect single-/multiple-file input
   sprintf(input_filename,"%s.h5part",input_file_prefix);
-  sprintf(output_filename,"%s.h5part",output_file_prefix);
   bool input_single_file = H5P_fileExists(input_file_prefix);  
+  hid_t dataFile;
 
   // Default if new file, startStep = 0
   int startStep = 0;
@@ -623,126 +685,99 @@ void inputDataHDF5(
 
   rank|| clog(trace)<<"Input particles" << std::endl;
 
-  hid_t dataFile = H5P_openFile(input_filename,H5F_ACC_RDONLY);
 
-  // The input file depend of the type of output, separate or one file.
-  //h5_file_t * dataFile = nullptr;
-  //if(startIteration == 0){
-  //  dataFile = H5OpenFile(input_filename,H5_O_RDONLY
-  //    | H5_VFD_MPIIO_IND,// Flag to be not use mpiposix
-  //    MPI_COMM_WORLD);
-  //}
+  // ------------- START FROM ITERATION ZERO: OVERWRITE OUTPUT  --------
+  if (startIteration == 0) {
 
-  // ------------- START FROM SPECIFIED ITERATION  ---------------------
-  if (startIteration != 0) {
+    dataFile = H5P_openFile(input_filename,H5F_ACC_RDONLY);
 
-    // in_h5part_separate_files = check if input_file_prefix.h5part exists
+  }
+  // ------------- *** OR *** START FROM SPECIFIED ITERATION  ----------
+  else {
+
+    // step filename
     char step_filename[MAX_FNAME_LEN];
 
-    if (input_single_file) {  // single-file mode
+    if (input_single_file) {  // --- single-file mode --- 
 
       // Go through all the steps in a single file
-      H5P_closeFile(dataFile);
       dataFile = H5P_openFile(input_filename,H5F_ACC_RDONLY);
-      int step = 1;
-      bool end = false;
-      bool found = false;
-      while(!end){ // TODO: this loop better run over all timesteps
-        int hasStep = H5P_hasStep(dataFile,step);
-        if(hasStep){
+
+      // TODO: this loop better run over all timesteps
+      const int64_t maxstep = 1000000;
+      int64_t step;
+      for (step= 1; step<maxstep; ++step) {
+        if (H5P_hasStep(dataFile,step)) {
           // Check iteration number
           H5P_setStep(dataFile,step);
           int64_t iteration;
           if(0 != H5P_readAttributeStep(dataFile,"iteration",&iteration)){
-            rank || clog(error) << "Cannot find attribute 'iteration' in Step#"
-              <<step<<" in file "<< input_filename <<std::endl;
-            MPI_Barrier(MPI_COMM_WORLD);
-            MPI_Finalize();
+            rank || clog(error)<<"Cannot find attribute 'iteration' in Step#"
+              <<step<<" in file "<< input_filename <<std::endl; FULLSTOP;
           }
-          if(iteration == startIteration){
-            found = true;
-            end = true;
-          }
-        }else{
-          end = true;
+          if(iteration == startIteration) 
+            break;
         }
-        ++step;
       }
-      if(!found){
-        rank || clog(error) << "Cannot find iteration "<<startIteration<<" in "
-          <<input_filename<<std::endl;
-        MPI_Barrier(MPI_COMM_WORLD);
-        MPI_Finalize();
+      if(step == maxstep) {
+        rank || clog(error)<<"Cannot find iteration "<<startIteration<<" in "
+          <<input_filename<<std::endl; FULLSTOP;
       }
-      startStep = step-1;
-      rank || clog(warn)<<"Found step "<<startStep<<" for iteration "<<
-        startIteration<<std::endl;
-    } // if out_h5data_separate_iterations
+      startStep = step;
+      rank ||clog(info)<<"Found iteration "<<startIteration<<" at step Step#"
+                       <<startStep<<" in "<<input_filename<<std::endl;
+    }
+    else { // ---- multiple-file mode ---
 
-    else { // multiple-file mode
       // find the file with initial_iteration
-      //    +-- file doesn't exist: complain and exit
-      // if 
-      // open it
-      bool end = false;
-      bool found = false;
-      int step = 1;
-      while(!end){
-        // TODO: instead of guessing the file names and failing when they
-        //       don't exist, read the directory
-        // Generate the filename associate with this step
-        sprintf(step_filename,"%s_%05d.h5part",output_file_prefix,step);
-        rank || clog(trace) <<"Checking if file "<<step_filename<<" exists"
-          <<std::endl<<std::flush;
-        MPI_Barrier(MPI_COMM_WORLD);
-        // Check if files exists
-        if(access(step_filename,F_OK)==-1){
-          rank || clog(error)<<"Cannot find file "<< step_filename<<
-            " unable to find file with iteration "<<startIteration<<std::endl;
-          MPI_Barrier(MPI_COMM_WORLD);
-          MPI_Finalize();
-        }
-        // File exists, check the iteration
-        auto stepFile = H5P_openFile(step_filename,H5F_ACC_RDONLY);
-        int64_t iteration;
-        H5P_setStep(dataFile,step);
-        if(0 != H5P_readAttributeStep(stepFile,"iteration",&iteration)){
-            rank || clog(error) << "Cannot read iteration in file "
-              <<step_filename<<std::endl;
-            MPI_Barrier(MPI_COMM_WORLD);
-            MPI_Finalize();
-        }
-        if(iteration == startIteration){
-          found = true;
-          end = true;
-        }
-        ++step;
-        H5P_closeFile(stepFile);
+      int step = H5P_findIterationSnapshot(input_file_prefix, 
+                                    param::initial_iteration);
+      // file doesn't exist: complain and exit
+      if (step < 0) {
+        rank || clog(error) << "Cannot find iteration " 
+                            << param::initial_iteration 
+                            <<" in prefix " << input_file_prefix
+                            << std::endl; FULLSTOP;
       }
-      startStep = step-1;
-      char diff_filename[128];
-      sprintf(diff_filename,"%s_%05d.h5part",output_file_prefix,startStep);
-      rank || clog(warn) << "Reading from file "<<diff_filename<<std::endl;
-      // Change input file in this case
-      dataFile = H5P_openFile(diff_filename,H5F_ACC_RDONLY);
+
+      // open it
+      char step_filename[128];
+      sprintf(step_filename,"%s_%05d.h5part",input_file_prefix,step);
+      rank || clog(warn) <<"Reading from file "<< step_filename <<std::endl;
+
+      // set dataFile and startStep 
+      dataFile = H5P_openFile(step_filename,H5F_ACC_RDONLY);
+      startStep = step;
+
     }
  
+  } // if specified iteration
+
+
+  // ------------- CHECK IF WE ARE APPENDING TO AN EXISTING FILE  --------------
+  // multiple-files output mode
+  if (param::out_h5data_separate_iterations){
+    // remove files with output prefix that have step numbers higher than
+    // then one with intial_iteration
+    if (param::initial_iteration == 0) 
+      H5P_removePrefix(output_file_prefix, -1);
+    else 
+      H5P_removePrefix(output_file_prefix, startStep);
   }
+  // single-file output mode
+  else {
 
-
-  // ------------- CHECK THAT THE STEP FOUND IS THE LAST IN OUTPUT ------------
-  // If we are in single file mode
-  if (not param::out_h5data_separate_iterations){
-    // If I start a new simulation, just delete the file
-    // if not equal to the input file
-    if(strcmp(output_filename,input_filename) != 0) {
-      int it0 = (param::initial_iteration == 0)?(-1):param::initial_iteration;
-      remove_prefix_h5part(output_file_prefix, it0);
+    // output differs from input: output_prefix =/= input_prefix
+    // --> clear output 
+    if(strcmp(output_file_prefix,input_file_prefix) != 0) {
+      H5P_removePrefix(output_file_prefix, -1);
     }
-    // If the file exists (either same as input or different)
-    // Check if the lastStep is the startIteration
-    if(access(output_filename,F_OK)!=-1){
-      auto outputFile = H5P_openFile(output_filename,H5F_ACC_RDONLY);
+    // restart scenario: output_prefix == input_prefix
+    // --> check if the lastStep is the startIteration
+    else {
+      char output_filename[MAX_FNAME_LEN];
+      sprintf(output_filename,"%s.h5part",output_file_prefix);
+      hid_t outputFile = H5P_openFile(output_filename,H5F_ACC_RDONLY);
       H5P_setStep(outputFile,startStep);
       // Check if startStep == lastStep
       int lastStep = startStep;
@@ -752,18 +787,16 @@ void inputDataHDF5(
         <<lastStep<<std::endl;
       if(startStep != lastStep){
         rank || clog(error) << "First step not last step in output"<<std::endl;
-        MPI_Barrier(MPI_COMM_WORLD);
-        MPI_Finalize();
+        H5P_closeFile(outputFile);
+        FULLSTOP
       }
       H5P_closeFile(outputFile);
     }
+
   }
 
-
   if(dataFile == 0){
-    rank || clog(error) << "Cannot find data file"<<std::endl;
-    MPI_Barrier(MPI_COMM_WORLD);
-    MPI_Finalize();
+    rank || clog(error) << "Cannot find data file"<<std::endl; FULLSTOP;
   }
 
   int val = H5P_hasStep(dataFile,startStep);
@@ -862,7 +895,6 @@ void outputDataHDF5(
 
   int step = iteration/param::out_h5data_every;
 
-  static bool first_time = true;
   int size, rank;
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -875,16 +907,6 @@ void outputDataHDF5(
     sprintf(filename,"%s_%05d.h5part",fileprefix,step);
   else 
     sprintf(filename,"%s.h5part",fileprefix);
-
-  // If different file per iteration, just remove the file with same name
-  // If one big file, remove the file if it is the Step 0
-  if (first_time and rank == 0) {
-    if (param::out_h5data_separate_iterations or step == 0) {
-      int it0 = (param::initial_iteration == 0)?(-1):param::initial_iteration;
-      remove_prefix_h5part(fileprefix, it0);
-    }
-  }
-  first_time = false;
 
   // Wait for removing the file before writing in
   MPI_Barrier(MPI_COMM_WORLD);
@@ -1032,4 +1054,5 @@ void outputDataHDF5(
 }// outputDataHDF5
 } // namespace io
 
+#undef FULLSTOP
 #endif // _mpisph_io_h_
