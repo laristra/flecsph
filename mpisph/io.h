@@ -627,7 +627,7 @@ void inputDataHDF5(
   if (not param::out_h5data_separate_iterations){
     // If I start a new simulation, just delete the file
     // if not equal to the input file
-    if(startIteration == 0 && (strcmp(output_filename,input_filename) != 0)){
+    if(strcmp(output_filename,input_filename) != 0) {
       remove(output_filename);
     }
     // If the file exists (either same as input or different)
