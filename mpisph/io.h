@@ -29,6 +29,9 @@
 #include <cstdlib>
 #include <iostream>
 #include <vector>
+#include <dirent.h>
+#include <libgen.h>
+
 #include "params.h"
 #include "default_physics.h"
 
@@ -492,24 +495,98 @@ H5P_getNumParticles(hid_t file_id)
   return parts;
 }
 
+
+/*
+ * @brief    Checks whether a filename is a snapshot of the form:
+ *           <fprefix>_XXXXX.h5part
+ * @param    fprefix    file prefix
+ * @param    filename   file name
+ *
+ */
+int is_snapshot(const char * fprefix, const char *filename) {
+  if (strstr(filename, fprefix) == NULL)
+    return -1;
+  if (strstr(filename, ".h5part") == NULL)
+    return -1;
+  int imx = strlen(filename) - 8;
+  int imn = imx - 5;
+  int snum = 0, t = 1;
+  for (int i = imx; i > imn; --i) {
+    char c = filename[i];
+    if (c<'0' or c>'9')
+      return -1;
+    snum += t*(c - '0');
+    t*=10;
+  }
+  if (filename[imn] != '_')
+    return -1;
+  char buf[MAX_FNAME_LEN];
+  strcpy(buf,filename);
+  buf[imn] = '\0';
+  if (strcmp(fprefix,buf) == 0)
+    return snum;
+  else
+    return -1;
+    
+}
+
+/*
+ * @brief    Checks if file exists, C-style
+ * @param    prefix     - filename prefix
+ */
+bool H5P_fileExists(const char * prefix) {
+  char fname[MAX_FNAME_LEN];
+  sprintf (fname, "%s.h5part", prefix);
+  return (access( fname, F_OK ) != -1); 
+}
+
+
 /*
  * @brief    Remove *.h5part files with prefix output_file_prefix
- *           If out_h5data_separate_iterations, remove all steps.
+ *           If out_h5data_separate_iterations, remove steps after
+ *           the specified one
  * @param    output_file_prefix    the prefix
+ * @param    threshold_snapshot    delete everything > snapshot
  */
-int remove_prefix_h5part(const char * output_file_prefix) {
+int remove_prefix_h5part(const char * output_file_prefix,
+                         const int threshold_snapnum) {
   char output_filename[MAX_FNAME_LEN];
   int n_deleted = 0;
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
   if (not param::out_h5data_separate_iterations) {
-    sprintf(output_filename,"%s.h5part",output_file_prefix);
-    if (remove(output_filename) == 0) // if successful
+    if (remove(output_filename) == 0) { // if successful 
+      rank|| clog(warn) << "deleting old output file: "
+                        << output_filename << std::endl;
       ++n_deleted;
+    }
   }
   else {
-    sprintf(output_filename,"%s_%05d.h5part",output_file_prefix,0);
-    // TODO
-    ++n_deleted;
+    char output_dirname[MAX_FNAME_LEN], buf[MAX_FNAME_LEN],
+        output_basename[MAX_FNAME_LEN];
+    DIR *d;
+    struct dirent *dir;
+
+    sprintf(buf,output_file_prefix);
+    sprintf(output_dirname,dirname(buf));
+    sprintf(buf,output_file_prefix);
+    sprintf(output_basename,basename(buf));
+    d = opendir(output_dirname);
+    if (d) {
+      while ((dir = readdir(d)) != NULL) {
+        int snapnum = is_snapshot(output_basename, dir->d_name);
+        if (snapnum > threshold_snapnum and rank == 0) {
+          if (remove(dir->d_name) == 0) { // if successful 
+            rank|| clog(warn) << "deleting old output file: "
+                              << dir->d_name << std::endl;
+            ++n_deleted;
+          }
+        }
+      }
+      closedir(d);
+    }
+    exit(0);
   }
   return n_deleted;
 }
@@ -532,6 +609,7 @@ void inputDataHDF5(
   // TODO: automatically detect single-/multiple-file input
   sprintf(input_filename,"%s.h5part",input_file_prefix);
   sprintf(output_filename,"%s.h5part",output_file_prefix);
+  bool input_single_file = H5P_fileExists(input_file_prefix);  
 
   // Default if new file, startStep = 0
   int startStep = 0;
@@ -558,9 +636,54 @@ void inputDataHDF5(
   // ------------- START FROM SPECIFIED ITERATION  ---------------------
   if (startIteration != 0) {
 
-    if(param::out_h5data_separate_iterations){ // multiple-file mode
-      // Check if file with the given iteration exists
-      char step_filename[128];
+    // in_h5part_separate_files = check if input_file_prefix.h5part exists
+    char step_filename[MAX_FNAME_LEN];
+
+    if (input_single_file) {  // single-file mode
+
+      // Go through all the steps in a single file
+      H5P_closeFile(dataFile);
+      dataFile = H5P_openFile(input_filename,H5F_ACC_RDONLY);
+      int step = 1;
+      bool end = false;
+      bool found = false;
+      while(!end){ // TODO: this loop better run over all timesteps
+        int hasStep = H5P_hasStep(dataFile,step);
+        if(hasStep){
+          // Check iteration number
+          H5P_setStep(dataFile,step);
+          int64_t iteration;
+          if(0 != H5P_readAttributeStep(dataFile,"iteration",&iteration)){
+            rank || clog(error) << "Cannot find attribute 'iteration' in Step#"
+              <<step<<" in file "<< input_filename <<std::endl;
+            MPI_Barrier(MPI_COMM_WORLD);
+            MPI_Finalize();
+          }
+          if(iteration == startIteration){
+            found = true;
+            end = true;
+          }
+        }else{
+          end = true;
+        }
+        ++step;
+      }
+      if(!found){
+        rank || clog(error) << "Cannot find iteration "<<startIteration<<" in "
+          <<input_filename<<std::endl;
+        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Finalize();
+      }
+      startStep = step-1;
+      rank || clog(warn)<<"Found step "<<startStep<<" for iteration "<<
+        startIteration<<std::endl;
+    } // if out_h5data_separate_iterations
+
+    else { // multiple-file mode
+      // find the file with initial_iteration
+      //    +-- file doesn't exist: complain and exit
+      // if 
+      // open it
       bool end = false;
       bool found = false;
       int step = 1;
@@ -603,44 +726,6 @@ void inputDataHDF5(
       // Change input file in this case
       dataFile = H5P_openFile(diff_filename,H5F_ACC_RDONLY);
     }
-    else { // single-file mode
-      // Go through all the steps in a single file
-      H5P_closeFile(dataFile);
-      dataFile = H5P_openFile(input_filename,H5F_ACC_RDONLY);
-      int step = 1;
-      bool end = false;
-      bool found = false;
-      while(!end){ // TODO: this loop better run over all timesteps
-        int hasStep = H5P_hasStep(dataFile,step);
-        if(hasStep){
-          // Check iteration number
-          H5P_setStep(dataFile,step);
-          int64_t iteration;
-          if(0 != H5P_readAttributeStep(dataFile,"iteration",&iteration)){
-            rank || clog(error) << "Cannot find attribute 'iteration' in Step#"
-              <<step<<" in file "<< input_filename <<std::endl;
-            MPI_Barrier(MPI_COMM_WORLD);
-            MPI_Finalize();
-          }
-          if(iteration == startIteration){
-            found = true;
-            end = true;
-          }
-        }else{
-          end = true;
-        }
-        ++step;
-      }
-      if(!found){
-        rank || clog(error) << "Cannot find iteration "<<startIteration<<" in "
-          <<input_filename<<std::endl;
-        MPI_Barrier(MPI_COMM_WORLD);
-        MPI_Finalize();
-      }
-      startStep = step-1;
-      rank || clog(warn)<<"Found step "<<startStep<<" for iteration "<<
-        startIteration<<std::endl;
-    } // if out_h5data_separate_iterations
  
   }
 
@@ -651,7 +736,8 @@ void inputDataHDF5(
     // If I start a new simulation, just delete the file
     // if not equal to the input file
     if(strcmp(output_filename,input_filename) != 0) {
-      remove_prefix_h5part(output_file_prefix);
+      int it0 = (param::initial_iteration == 0)?(-1):param::initial_iteration;
+      remove_prefix_h5part(output_file_prefix, it0);
     }
     // If the file exists (either same as input or different)
     // Check if the lastStep is the startIteration
@@ -793,8 +879,10 @@ void outputDataHDF5(
   // If different file per iteration, just remove the file with same name
   // If one big file, remove the file if it is the Step 0
   if (first_time and rank == 0) {
-    if (param::out_h5data_separate_iterations or step == 0)
-      remove_prefix_h5part(fileprefix);
+    if (param::out_h5data_separate_iterations or step == 0) {
+      int it0 = (param::initial_iteration == 0)?(-1):param::initial_iteration;
+      remove_prefix_h5part(fileprefix, it0);
+    }
   }
   first_time = false;
 
