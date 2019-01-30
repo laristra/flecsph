@@ -754,27 +754,32 @@ void inputDataHDF5(
   } // if specified iteration
 
 
-  // ------------- CHECK IF WE ARE APPENDING TO AN EXISTING FILE  --------------
-  // multiple-files output mode
-  if (param::out_h5data_separate_iterations){
-    // remove files with output prefix that have step numbers higher than
-    // then one with intial_iteration
-    if (param::initial_iteration == 0) 
-      H5P_removePrefix(output_file_prefix, -1);
-    else 
-      H5P_removePrefix(output_file_prefix, startStep);
-  }
-  // single-file output mode
-  else {
+  // ------------- CLEAR OUTPUT ------------------------------------------------
+  // output prefix is different from input prefix:
+  // -> clear output
+  if(strcmp(output_file_prefix,input_file_prefix) != 0) {
+    H5P_removePrefix(output_file_prefix, -1);
+  } 
+  else { // --- output prefix == input prefix
+    
+    // multiple-files output mode
+    if (param::out_h5data_separate_iterations){
 
-    // output differs from input: output_prefix =/= input_prefix
-    // --> clear output 
-    if(strcmp(output_file_prefix,input_file_prefix) != 0) {
-      H5P_removePrefix(output_file_prefix, -1);
+      if(param::initial_iteration == 0) { // invalid input
+        rank || clog(error) << "Invalid combination: cannot have "
+         << "initial_iteration = 0 and input prefix == output prefix "
+         << "at the same time"<<std::endl; FULLSTOP
+      }
+      else {
+      // only remove files with output prefix that have step numbers higher than
+      // then one with intial_iteration
+        H5P_removePrefix(output_file_prefix, startStep);
+      }
     }
-    // restart scenario: output_prefix == input_prefix
-    // --> check if the lastStep is the startIteration
+    // single-file output mode
     else {
+
+      // check if the lastStep is the startIteration
       char output_filename[MAX_FNAME_LEN];
       sprintf(output_filename,"%s.h5part",output_file_prefix);
       hid_t outputFile = H5P_openFile(output_filename,H5F_ACC_RDONLY);
@@ -792,8 +797,7 @@ void inputDataHDF5(
       }
       H5P_closeFile(outputFile);
     }
-
-  }
+  } // if input_prefix == output_prefix
 
   if(dataFile == 0){
     rank || clog(error) << "Cannot find data file"<<std::endl; FULLSTOP;
