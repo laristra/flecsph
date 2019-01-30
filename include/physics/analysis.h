@@ -187,8 +187,7 @@ namespace analysis{
       std::vector<body_holder>& bodies)
   {
     total_ang_mom = {0};
-    switch (gdimension) {
-    case 2:
+    if constexpr (gdimension == 2) {
       #pragma omp parallel for reduction(add_point:total_ang_mom)
       for(size_t i = 0 ; i < bodies.size(); ++i){
         if(!bodies[i].is_local()) continue;
@@ -200,10 +199,9 @@ namespace analysis{
         total_ang_mom[0] += m*(r[0]*v[1] - r[1]*v[0]);
       }
       mpi_utils::reduce_sum(total_ang_mom);
-      break;
 
-    case 3:
-    default:
+    }
+    else if constexpr (gdimension == 3) {
       #pragma omp parallel for reduction(add_point:total_ang_mom)
       for(size_t i = 0 ; i < bodies.size(); ++i){
         if(!bodies[i].is_local()) continue;
@@ -219,6 +217,7 @@ namespace analysis{
       mpi_utils::reduce_sum(total_ang_mom);
     }
   }
+
 
   /**
    * @brief Rolling screen output

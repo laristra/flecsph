@@ -62,8 +62,6 @@ void set_derived_params() {
 
   // filenames (this will change for multiple files output)
   std::ostringstream oss;
-  oss << initial_data_prefix << ".h5part";
-  initial_data_file = oss.str();
   oss << output_h5data_prefix << ".h5part";
   output_h5data_file = oss.str();
 
@@ -100,7 +98,7 @@ mpi_init_task(const char * parameter_file){
 
   // read input file
   body_system<double,gdimension> bs;
-  bs.read_bodies(initial_data_file.c_str(),
+  bs.read_bodies(initial_data_prefix,
       output_h5data_prefix,initial_iteration);
   bs.setMacangle(param::fmm_macangle);
   bs.setMaxmasscell(param::fmm_max_cell_mass);
