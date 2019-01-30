@@ -404,10 +404,8 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
       EF&& ef,
       ARGS&&... args)
   {
-    int64_t ncritical = 16;
     tree_.traversal_sph(
         tree_.root(),
-        ncritical,
         ef,
         std::forward<ARGS>(args)...);
   }

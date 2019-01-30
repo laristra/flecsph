@@ -710,7 +710,6 @@ public:
   void
   traversal_sph(
       branch_t * b,
-      int64_t ncritical,
       EF&& ef,
       ARGS&&... args)
   {
@@ -2279,7 +2278,8 @@ private:
 
   int64_t nonlocal_branches_;
 
-  const int vector_size = 32;
+  const int vector_size = 16;
+  const int ncritical = 32;
 };
 
 } // namespace topology
