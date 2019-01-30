@@ -44,6 +44,7 @@ hid_t IO_group_id; // Group id to keep track of the current step
 // Data for hyperslab
 hsize_t IO_offset;
 hsize_t IO_count;
+const int MAX_FNAME_LEN = 256;
 
 int64_t IO_nparticlesproc;
 int64_t IO_nparticles;
@@ -491,6 +492,29 @@ H5P_getNumParticles(hid_t file_id)
   return parts;
 }
 
+/*
+ * @brief    Remove *.h5part files with prefix output_file_prefix
+ *           If out_h5data_separate_iterations, remove all steps.
+ * @param    output_file_prefix    the prefix
+ */
+int remove_prefix_h5part(const char * output_file_prefix) {
+  char output_filename[MAX_FNAME_LEN];
+  int n_deleted = 0;
+
+  if (not param::out_h5data_separate_iterations) {
+    sprintf(output_filename,"%s.h5part",output_file_prefix);
+    if (remove(output_filename) == 0) // if successful
+      ++n_deleted;
+  }
+  else {
+    sprintf(output_filename,"%s_%05d.h5part",output_file_prefix,0);
+    // TODO
+    ++n_deleted;
+  }
+  return n_deleted;
+}
+
+
 // Input data fro HDF5 File
 void inputDataHDF5(
   std::vector<std::pair<entity_key_t,body>>& bodies,
@@ -501,7 +525,6 @@ void inputDataHDF5(
   int startIteration)
 {
 
-  const int MAX_FNAME_LEN = 256;
   char input_filename[MAX_FNAME_LEN], 
       output_filename[MAX_FNAME_LEN];
 
@@ -628,7 +651,7 @@ void inputDataHDF5(
     // If I start a new simulation, just delete the file
     // if not equal to the input file
     if(strcmp(output_filename,input_filename) != 0) {
-      remove(output_filename);
+      remove_prefix_h5part(output_file_prefix);
     }
     // If the file exists (either same as input or different)
     // Check if the lastStep is the startIteration
@@ -753,7 +776,7 @@ void outputDataHDF5(
 
   int step = iteration/param::out_h5data_every;
 
-  bool do_diff_files = param::out_h5data_separate_iterations;
+  static bool first_time = true;
   int size, rank;
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -762,20 +785,18 @@ void outputDataHDF5(
   rank|| clog(trace)<<"Output particles"<<std::flush;
 
   char filename[128];
-  if(do_diff_files){
+  if (param::out_h5data_separate_iterations)
     sprintf(filename,"%s_%05d.h5part",fileprefix,step);
-  }
-  else {
+  else 
     sprintf(filename,"%s.h5part",fileprefix);
-  }
 
   // If different file per iteration, just remove the file with same name
   // If one big file, remove the file if it is the Step 0
-  if(do_diff_files && rank == 0){
-    remove(filename);
-  }else if(step == 0 && rank == 0){
-    remove(filename);
+  if (first_time and rank == 0) {
+    if (param::out_h5data_separate_iterations or step == 0)
+      remove_prefix_h5part(fileprefix);
   }
+  first_time = false;
 
   // Wait for removing the file before writing in
   MPI_Barrier(MPI_COMM_WORLD);
@@ -784,7 +805,7 @@ void outputDataHDF5(
 
   //-------------------GLOBAL HEADER-------------------------------------------
   // Only for the first output
-  if(do_diff_files || step == 0){
+  if (step == 0 or param::out_h5data_separate_iterations) {
     int gdimension32 = gdimension;
     H5P_writeAttribute(dataFile,"dimension",&gdimension32);
   }
