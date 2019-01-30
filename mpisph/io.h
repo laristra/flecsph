@@ -494,14 +494,20 @@ H5P_getNumParticles(hid_t file_id)
 // Input data fro HDF5 File
 void inputDataHDF5(
   std::vector<std::pair<entity_key_t,body>>& bodies,
-  const char * filename,
+  const char * input_file_prefix,
   const char * output_file_prefix,
   int64_t& totalnbodies,
   int64_t& nbodies,
   int startIteration)
 {
 
-  char output_filename[128];
+  const int MAX_FNAME_LEN = 256;
+  char input_filename[MAX_FNAME_LEN], 
+      output_filename[MAX_FNAME_LEN];
+
+  // add the .h5part extension
+  // TODO: automatically detect single-/multiple-file input
+  sprintf(input_filename,"%s.h5part",input_file_prefix);
   sprintf(output_filename,"%s.h5part",output_file_prefix);
 
   // Default if new file, startStep = 0
@@ -516,12 +522,12 @@ void inputDataHDF5(
 
   rank|| clog(trace)<<"Input particles" << std::endl;
 
-  hid_t dataFile = H5P_openFile(filename,H5F_ACC_RDONLY);
+  hid_t dataFile = H5P_openFile(input_filename,H5F_ACC_RDONLY);
 
   // The input file depend of the type of output, separate or one file.
   //h5_file_t * dataFile = nullptr;
   //if(startIteration == 0){
-  //  dataFile = H5OpenFile(filename,H5_O_RDONLY
+  //  dataFile = H5OpenFile(input_filename,H5_O_RDONLY
   //    | H5_VFD_MPIIO_IND,// Flag to be not use mpiposix
   //    MPI_COMM_WORLD);
   //}
@@ -577,7 +583,7 @@ void inputDataHDF5(
     else { // single-file mode
       // Go through all the steps in a single file
       H5P_closeFile(dataFile);
-      dataFile = H5P_openFile(filename,H5F_ACC_RDONLY);
+      dataFile = H5P_openFile(input_filename,H5F_ACC_RDONLY);
       int step = 1;
       bool end = false;
       bool found = false;
@@ -589,7 +595,7 @@ void inputDataHDF5(
           int64_t iteration;
           if(0 != H5P_readAttributeStep(dataFile,"iteration",&iteration)){
             rank || clog(error) << "Cannot find attribute 'iteration' in Step#"
-              <<step<<" in file "<< filename <<std::endl;
+              <<step<<" in file "<< input_filename <<std::endl;
             MPI_Barrier(MPI_COMM_WORLD);
             MPI_Finalize();
           }
@@ -604,7 +610,7 @@ void inputDataHDF5(
       }
       if(!found){
         rank || clog(error) << "Cannot find iteration "<<startIteration<<" in "
-          <<filename<<std::endl;
+          <<input_filename<<std::endl;
         MPI_Barrier(MPI_COMM_WORLD);
         MPI_Finalize();
       }
@@ -618,10 +624,10 @@ void inputDataHDF5(
 
   // ------------- CHECK THAT THE STEP FOUND IS THE LAST IN OUTPUT ------------
   // If we are in single file mode
-  if(!param::out_h5data_separate_iterations){
+  if (not param::out_h5data_separate_iterations){
     // If I start a new simulation, just delete the file
     // if not equal to the input file
-    if(startIteration == 0 && (strcmp(output_filename,filename) != 0)){
+    if(startIteration == 0 && (strcmp(output_filename,input_filename) != 0)){
       remove(output_filename);
     }
     // If the file exists (either same as input or different)
@@ -692,13 +698,13 @@ void inputDataHDF5(
       physics::dt = timestep;
     }else{
       rank || clog(warn)<<"Attribute 'timestep' missing in input file"
-                        <<filename<<std::endl;
+                        <<input_filename<<std::endl;
     }
     if(0 == H5P_readAttributeStep(dataFile,"time",&totaltime)){
       physics::totaltime = totaltime;
     }else{
       rank || clog(warn)<<"Attribute 'totaltime' missing in input file"
-                        <<filename<<std::endl;
+                        <<input_filename<<std::endl;
     }
   }
 

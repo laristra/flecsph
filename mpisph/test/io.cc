@@ -57,7 +57,7 @@ TEST(io, write_N_read) {
   int64_t totalnbodies = 0; 
   int64_t localnbodies = 0; 
   // Read this file 
-  io::inputDataHDF5(rbodies,filename,fileprefix,totalnbodies,localnbodies,0);
+  io::inputDataHDF5(rbodies,fileprefix,fileprefix,totalnbodies,localnbodies,0);
 
   ASSERT_TRUE(localnbodies == n); 
   ASSERT_TRUE(totalnbodies == n*size); 

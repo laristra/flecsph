@@ -48,7 +48,6 @@
 
 #define OUTPUT_ANALYSIS
 
-static std::string initial_data_file;  // = initial_data_prefix  + ".h5part"
 static std::string output_h5data_file; // = output_h5data_prefix + ".h5part"
 
 void set_derived_params() {
@@ -62,8 +61,6 @@ void set_derived_params() {
 
   // filenames (this will change for multiple files output)
   std::ostringstream oss;
-  oss << initial_data_prefix << ".h5part";
-  initial_data_file = oss.str();
   oss << output_h5data_prefix << ".h5part";
   output_h5data_file = oss.str();
 
@@ -100,7 +97,7 @@ mpi_init_task(const char * parameter_file){
 
   // read input file and initialize equation of state
   body_system<double,gdimension> bs;
-  bs.read_bodies(initial_data_file.c_str(),
+  bs.read_bodies(initial_data_prefix,
       output_h5data_prefix,initial_iteration);
 
   MPI_Barrier(MPI_COMM_WORLD);

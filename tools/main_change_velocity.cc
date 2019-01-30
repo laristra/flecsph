@@ -25,7 +25,8 @@ void print_usage() {
   clog(warn)
       << "Change the velocity for relaxed simulation"
       << gdimension << "D" << std::endl
-      << "Usage: ./RT_XD_velocity <filename> <filename> <iteration>" << std::endl;
+      << "Usage: ./RT_XD_velocity <input_file_prefix> <output_file_prefix> "
+      << "<iteration>" << std::endl;
 }
 
 
