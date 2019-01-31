@@ -37,7 +37,7 @@ cinch_add_unit(tree3d
   DEFINES
     -DEXT_GDIMENSION=2
   POLICY MPI
-  THREADS 4
+  #THREADS 4
 )
 
 #cinch_add_unit(tree_distributed

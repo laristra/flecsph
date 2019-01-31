@@ -949,29 +949,14 @@ public:
     EF&& ef,
     ARGS&&... args)
   {
-    //#define TEST
-    #ifdef TEST
-    std::cout<<working_branch->sub_entities()<<"= INTER list: "<<inter_list.size()<<std::endl;
-    std::vector<int> inter_used(inter_list.size(),0);
-    int total_inter_used = 0;
-    #endif
     std::vector<entity_t*> neighbors;
-
     // Apply to all sub entities
     for(int i = working_branch->begin_tree_entities();
       i <= working_branch->end_tree_entities(); ++i)
     {
       neighbors.clear();
-      #ifdef TEST
-      int sub_compare = 0;
-      int useless_branches = 0;
-      #endif
       for(int j = 0; j < inter_list.size(); ++j)
       {
-        #ifdef TEST
-        int useless = 0;
-        sub_compare+=inter_list[j]->sub_entities();
-        #endif
         for(int k = inter_list[j]->begin_tree_entities();
           k <= inter_list[j]->end_tree_entities(); ++k)
         {
@@ -980,35 +965,11 @@ public:
             tree_entities_[k].h(),tree_entities_[i].h()))
           {
             neighbors.push_back(tree_entities_[k].getBody());
-            #ifdef TEST
-            ++inter_used[j];
-            #endif
           }
-          #ifdef TEST
-          else{
-            ++useless;
-          }
-          #endif
         }
-        #ifdef TEST
-        if(useless)
-          ++useless_branches;
-        #endif
       }
-
-      #ifdef TEST
-      std::cout<<i<<" Neighbors="<<neighbors.size()<<" Compared="<<sub_compare<<" T/U:"<<inter_list.size()<<"/"<<useless_branches<<std::endl;
-      #endif
       ef(&(entities_w_[i]),neighbors,std::forward<ARGS>(args)...);
     }
-    #ifdef TEST
-    for(int i = 0 ; i < inter_list.size() ;++i){
-      if(inter_used[i] == 0){
-        ++total_inter_used;
-      }
-    }
-    std::cout<<"total used: "<<total_inter_used<<" / "<<inter_list.size()<<std::endl;
-    #endif
   }
 
   template<

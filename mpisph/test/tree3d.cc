@@ -163,27 +163,27 @@ TEST(tree_topology, neighbors_box_NORMAL) {
   for(size_t i = 0; i < n; ++i){
     auto ent = t.get(i);
 
-	for(size_t d = 0; d < gdimension; ++d ){
-		max[d] = ent->coordinates()[d]+HMAX;
-		min[d] = ent->coordinates()[d]-HMAX;
-	}
-    auto ns = t.find_in_box(min,max,tree_geometry_t::within_box);
+    for(size_t d = 0; d < gdimension; ++d ){
+    	max[d] = ent->coordinates()[d]+HMAX;
+    	min[d] = ent->coordinates()[d]-HMAX;
+    }
+      auto ns = t.find_in_box(min,max,tree_geometry_t::within_box);
 
-    set<body_holder*> s1;
-    s1.insert(ns.begin(), ns.end());
+      set<body_holder*> s1;
+      s1.insert(ns.begin(), ns.end());
 
-    set<body_holder*> s2;
+      set<body_holder*> s2;
 
-    for(size_t j = 0; j < n; ++j){
-      auto ej = t.get(j);
+      for(size_t j = 0; j < n; ++j){
+        auto ej = t.get(j);
 
-	  bool in_box = true;
-	  for(size_t d = 0; d < gdimension; ++d ){
-		if(ej->coordinates()[d] > max[d] || ej->coordinates()[d] < min[d]){
-			in_box = false;
-			break;
-		}
-	  }
+      bool in_box = true;
+      for(size_t d = 0; d < gdimension; ++d ){
+      	if(ej->coordinates()[d] > max[d] || ej->coordinates()[d] < min[d]){
+      		in_box = false;
+      		break;
+    	   }
+  	  }
 
       if(in_box){
         s2.insert(ej);
