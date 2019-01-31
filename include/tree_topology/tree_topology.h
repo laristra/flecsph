@@ -53,6 +53,7 @@
 #include <thread>
 
 #include "flecsi/geometry/point.h"
+#include "flecsi/concurrency/thread_pool.h"
 
 #include "key_id.h"
 
@@ -683,7 +684,7 @@ public:
         if(c->is_local() && c->sub_entities() <= criterion){
           search_list.push_back(c);
         }else{
-          for(int i=0; i<(1<<dimension);++i){
+          for(int i=(1<<dimension)-1; i >= 0 ;--i){
             if(!c->as_child(i))
               continue;
             auto next = child(c,i);
@@ -728,6 +729,9 @@ public:
 
     // Start with on thread more than the actual number of OMP threads
     // This thread will handle the communications
+
+    thread_pool handler;
+
     int done = omp_get_max_threads();
     #pragma omp parallel num_threads(omp_get_max_threads()+1)
     {
@@ -735,7 +739,7 @@ public:
       int tid = omp_get_thread_num();
 
       if(tid == nthreads-1){
-        handle_requests();
+       handle_requests();
       }else{
         traverse_sph(working_branches,
           remaining_branches,false,ef,std::forward<ARGS>(args)...);
@@ -785,11 +789,12 @@ public:
       std::vector<branch_t*> ignore;
       #pragma omp parallel
       {
-        traverse_sph(remaining_branches,ignore,true,ef,std::forward<ARGS>(args)...);
+        traverse_sph(remaining_branches,ignore,true,ef,
+          std::forward<ARGS>(args)...);
       }
     }
     // Copy back the results
-    //entities_ = entities_w_;
+    entities_ = entities_w_;
   } // apply_sub_cells
 
   /**
@@ -824,45 +829,35 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
-    std::vector<std::vector<branch_t*>> inter_list(vector_size);
-
-    int nelem = (working_branches.size()+vector_size-1)/vector_size;
-    int td = omp_get_thread_num();
-    int nt = omp_get_num_threads();
-    if(!assert_local){
-      --nt;
-    }
-    int start = td*nelem/nt;
-    int end = nelem*(td+1)/nt;
-    if(td == nt-1){
-      end = nelem;
-    }
-
-    std::vector<point_t> bmin(vector_size);
-    std::vector<point_t> bmax(vector_size);
+    int nelem = working_branches.size();
+    //int td = omp_get_thread_num();
+    //int nt = omp_get_num_threads();
+    //if(!assert_local){
+    //  --nt;
+    //}
+    //int start = td*nelem/nt;
+    //int end = nelem*(td+1)/nt;
+    //if(td == nt-1){
+    //  end = nelem;
+    //}
+    //std::cout<<"start = "<<start<<" end = "<<end<<std::endl;
     // For each branches handled by this thread
-    for(size_t i = start; i < end; ++i){
-      size_t start_branch = i*vector_size;
-      size_t end_branch = (i+1)*vector_size;
-      if(end_branch > working_branches.size())
-        end_branch = working_branches.size();
-      const int r_vector_size = end_branch-start_branch;
+    int start = omp_get_thread_num();
+    int incr = omp_get_num_threads();
+    if(!assert_local)
+      --incr;
+    int end = nelem;
+    // Group them
 
+    for(int i = start ; i < end; i+= incr){
+      std::vector<branch_t*> inter_list;
       std::vector<branch_t*> requests_branches;
-      for(int j = 0 ; j < r_vector_size; ++j){
-        inter_list[j].clear();
-      }
-      for(int j = 0 ; j < r_vector_size; ++j){
-        assert(j+start_branch<working_branches.size());
-        bmin[j] = working_branches[j+start_branch]->bmin();
-        bmax[j] = working_branches[j+start_branch]->bmax();
-      }
       // Compute the interaction list for this branch
-      if(interactions_branches(r_vector_size,bmin,bmax,inter_list,
+      if(interactions_branches(working_branches[i],inter_list,
         requests_branches))
       {
         // Sub traversal to apply to the particles
-        interactions_particles(r_vector_size,working_branches,start_branch,
+        interactions_particles(working_branches[i],
           inter_list,ef,std::forward<ARGS>(args)...);
       }else{
         assert(!assert_local);
@@ -900,25 +895,17 @@ public:
   */
   bool
   interactions_branches(
-    const int& r_vector_size,
-    const std::vector<point_t>& b_bmin,
-    const std::vector<point_t>& b_bmax,
-    std::vector<std::vector<branch_t*>>& inter_list,
+    branch_t* work_branch,
+    std::vector<branch_t*>& inter_list,
     std::vector<branch_t*>& non_local)
   {
     // Queues for the branches
     std::vector<branch_t*> queue;
     std::vector<branch_t*> new_queue;
-    std::vector<point_t> new_bmin, new_bmax, bmin, bmax;
-    std::vector<size_t> accepted;
 
     queue.push_back(root());
-    bmin.push_back(root()->bmin());
-    bmax.push_back(root()->bmax());
     while(!queue.empty()){
       new_queue.clear();
-      new_bmax.clear();
-      new_bmin.clear();
       // Add the next level in the queue
       for(int i = 0 ; i < queue.size(); ++i){
         branch_t *c = queue[i];
@@ -926,42 +913,24 @@ public:
         for(int d=0 ; d<(1<<dimension);++d){
           if(!c->as_child(d))
             continue;
-          branch_t* next = child(c,d);
-          new_queue.push_back(next);
-          new_bmax.push_back(next->bmax());
-          new_bmin.push_back(next->bmin());
+          new_queue.push_back(child(c,d));
         }
       }
       const int queue_size = new_queue.size();
       queue.clear();
-      bmin.clear();
-      bmax.clear();
-      accepted.clear();
-      accepted.resize(r_vector_size);
-
-      for(int j = 0 ; j < queue_size; ++j){
-        int accepted_total = 0;
-        branch_t* b = new_queue[j];
-        for(int i = 0 ; i < r_vector_size; ++i){
-          accepted[i] = geometry_t::intersects_box_box(
-            new_bmin[j],new_bmax[j],b_bmin[i],b_bmax[i]);
-        }
-        for(int i = 0 ; i < r_vector_size; ++i){
-          if(accepted[i]){
-            ++accepted_total;
-            if(b->is_leaf()){
-              if(b->is_local() || b->ghosts_local()){
-                inter_list[i].push_back(b);
-              }else if(accepted_total == 1){
-                non_local.push_back(b);
-              }
+      for(int i = 0 ; i < queue_size; ++i){
+        branch_t* b = new_queue[i];
+        if(geometry_t::intersects_box_box(
+          b->bmin(),b->bmax(),work_branch->bmin(),work_branch->bmax()))
+        {
+          if(b->is_leaf()){
+            if(b->is_local() || b->ghosts_local()){
+              inter_list.push_back(b);
             }else{
-              if(accepted_total == 1){
-                queue.push_back(new_queue[j]);
-                bmin.push_back(new_bmin[j]);
-                bmax.push_back(new_bmax[j]);
-              }
+              non_local.push_back(b);
             }
+          }else{
+            queue.push_back(new_queue[i]);
           }
         }
       }
@@ -969,43 +938,77 @@ public:
     return non_local.size() == 0;
   }
 
-  int total_search = 0;
-
   template<
     typename EF,
     typename... ARGS
   >
   void
   interactions_particles(
-    const int& r_vector_size,
-    const std::vector<branch_t*>& working_branches,
-    const size_t begin,
-    const std::vector<std::vector<branch_t*>>& inter_list,
+    branch_t* working_branch,
+    const std::vector<branch_t*>& inter_list,
     EF&& ef,
     ARGS&&... args)
   {
+    //#define TEST
+    #ifdef TEST
+    std::cout<<working_branch->sub_entities()<<"= INTER list: "<<inter_list.size()<<std::endl;
+    std::vector<int> inter_used(inter_list.size(),0);
+    int total_inter_used = 0;
+    #endif
     std::vector<entity_t*> neighbors;
-    neighbors.reserve(100);
-    // For all the branches in my vector
-    for(int i = 0; i < r_vector_size; ++i){
-      branch_t * b = working_branches[i+begin];
-      // For all sub elements create the neighbors list
-      for(int k = b->begin_tree_entities(); k <= b->end_tree_entities(); ++k){
-        neighbors.clear();
-        for(int j = 0 ; j < inter_list[i].size(); ++j){
-          // For all sub particles in the interaction list
-          for(auto nb: *(inter_list[i][j])){
-            if(geometry_t::within_square(
-              tree_entities_[nb].coordinates(),tree_entities_[k].coordinates(),
-              tree_entities_[nb].h(),tree_entities_[k].h()))
-            {
-              neighbors.push_back(tree_entities_[nb].getBody());
-            }
+
+    // Apply to all sub entities
+    for(int i = working_branch->begin_tree_entities();
+      i <= working_branch->end_tree_entities(); ++i)
+    {
+      neighbors.clear();
+      #ifdef TEST
+      int sub_compare = 0;
+      int useless_branches = 0;
+      #endif
+      for(int j = 0; j < inter_list.size(); ++j)
+      {
+        #ifdef TEST
+        int useless = 0;
+        sub_compare+=inter_list[j]->sub_entities();
+        #endif
+        for(int k = inter_list[j]->begin_tree_entities();
+          k <= inter_list[j]->end_tree_entities(); ++k)
+        {
+          if(geometry_t::within_square(
+            tree_entities_[k].coordinates(),tree_entities_[i].coordinates(),
+            tree_entities_[k].h(),tree_entities_[i].h()))
+          {
+            neighbors.push_back(tree_entities_[k].getBody());
+            #ifdef TEST
+            ++inter_used[j];
+            #endif
           }
+          #ifdef TEST
+          else{
+            ++useless;
+          }
+          #endif
         }
-        ef(&(entities_[k]),neighbors,std::forward<ARGS>(args)...);
+        #ifdef TEST
+        if(useless)
+          ++useless_branches;
+        #endif
+      }
+
+      #ifdef TEST
+      std::cout<<i<<" Neighbors="<<neighbors.size()<<" Compared="<<sub_compare<<" T/U:"<<inter_list.size()<<"/"<<useless_branches<<std::endl;
+      #endif
+      ef(&(entities_w_[i]),neighbors,std::forward<ARGS>(args)...);
+    }
+    #ifdef TEST
+    for(int i = 0 ; i < inter_list.size() ;++i){
+      if(inter_used[i] == 0){
+        ++total_inter_used;
       }
     }
+    std::cout<<"total used: "<<total_inter_used<<" / "<<inter_list.size()<<std::endl;
+    #endif
   }
 
   template<
@@ -1566,7 +1569,7 @@ public:
   }
 
   void
-  cofm(branch_t * start, element_t epsilon, bool local)
+  cofm(branch_t * start, element_t epsilon = 0, bool local = false)
   {
     nonlocal_branches_ = 0L;
     std::stack<branch_t*> stk1;
@@ -1614,8 +1617,6 @@ public:
       MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
       //typename branch_t::b_locality locality = branch_t::NONLOCAL;
-      point_t bcenter = {};
-      element_t diagonal = 0;
       element_t mass = 0;
       point_t bmax{}, bmin{};
       element_t radius = 0.;
@@ -1647,8 +1648,10 @@ public:
             element_t childmass = ent->mass();
             for(size_t d = 0 ; d < dimension ; ++d)
             {
-              bmax[d] = std::max(bmax[d],ent->coordinates()[d]+epsilon+ent->h());
-              bmin[d] = std::min(bmin[d],ent->coordinates()[d]-epsilon-ent->h());
+              bmax[d] = std::max(bmax[d],
+                ent->coordinates()[d]+epsilon+ent->h()/2.);
+              bmin[d] = std::min(bmin[d],
+                ent->coordinates()[d]-epsilon-ent->h()/2.);
             }
             coordinates += childmass * ent->coordinates();
             mass += childmass;
@@ -1731,20 +1734,12 @@ public:
         if(!local && nonlocal)
           b->set_locality(branch_t::NONLOCAL);
       }
-      for(size_t d = 0 ; d < dimension ; ++d){
-        diagonal += (bmax[d]-bmin[d])*(bmax[d]-bmin[d]);
-      }
-      bcenter = .5*(bmin+bmax);
-      diagonal = sqrt(diagonal);
-      assert(diagonal != 0);
       b->set_radius(radius);
       b->set_sub_entities(nchildren);
       b->set_coordinates(coordinates);
       b->set_mass(mass);
       b->set_bmin(bmin);
       b->set_bmax(bmax);
-      b->set_bcenter(bcenter);
-      b->set_diagonal(diagonal);
       assert(nchildren != 0);
       if(!b->is_local()) nonlocal_branches_add();
       b->set_begin_tree_entities(begin_te);
@@ -2278,7 +2273,6 @@ private:
 
   int64_t nonlocal_branches_;
 
-  const int vector_size = 16;
   const int ncritical = 32;
 };
 
