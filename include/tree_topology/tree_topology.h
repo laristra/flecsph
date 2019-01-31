@@ -727,30 +727,15 @@ public:
     // Remaining branches in case of non locality
     std::vector<branch_t*> remaining_branches;
 
-    // Start with on thread more than the actual number of OMP threads
-    // This thread will handle the communications
-
-    thread_pool handler;
-
-    int done = omp_get_max_threads();
-    #pragma omp parallel num_threads(omp_get_max_threads()+1)
-    {
-      int nthreads = omp_get_num_threads();
-      int tid = omp_get_thread_num();
-
-      if(tid == nthreads-1){
-       handle_requests();
-      }else{
-        traverse_sph(working_branches,
-          remaining_branches,false,ef,std::forward<ARGS>(args)...);
-        // Wait for other threads
-        #pragma omp critical
-        {
-          if(--done == 0)
-            MPI_Send(NULL, 0, MPI_INT, rank, MPI_DONE,MPI_COMM_WORLD);
-        }
-      }
-    }
+    // Start communication thread
+    std::thread handler(&tree_topology::handle_requests,this);
+    // Start tree traversal
+    traverse_sph(working_branches,
+      remaining_branches,false,ef,std::forward<ARGS>(args)...);
+    // Notify the communication thread that comms. are done
+    MPI_Send(NULL, 0, MPI_INT, rank, MPI_DONE,MPI_COMM_WORLD);
+    // Wait for communication thread
+    handler.join();
 
     if(size == 1)
       assert(remaining_branches.size() == 0);
@@ -787,11 +772,8 @@ public:
     // Vector useless because in this case no ghosts can be found
     if(remaining_branches.size() > 0){
       std::vector<branch_t*> ignore;
-      #pragma omp parallel
-      {
-        traverse_sph(remaining_branches,ignore,true,ef,
-          std::forward<ARGS>(args)...);
-      }
+      traverse_sph(remaining_branches,ignore,true,ef,
+        std::forward<ARGS>(args)...);
     }
     // Copy back the results
     entities_ = entities_w_;
@@ -830,35 +812,31 @@ public:
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
     int nelem = working_branches.size();
-    //int td = omp_get_thread_num();
-    //int nt = omp_get_num_threads();
-    //if(!assert_local){
-    //  --nt;
-    //}
-    //int start = td*nelem/nt;
-    //int end = nelem*(td+1)/nt;
-    //if(td == nt-1){
-    //  end = nelem;
-    //}
-    //std::cout<<"start = "<<start<<" end = "<<end<<std::endl;
-    // For each branches handled by this thread
-    int start = omp_get_thread_num();
-    int incr = omp_get_num_threads();
-    if(!assert_local)
-      --incr;
-    int end = nelem;
-    // Group them
 
-    for(int i = start ; i < end; i+= incr){
+    #pragma omp parallel for schedule(static,1)
+    for(int i = 0 ; i < nelem; ++i){
       std::vector<branch_t*> inter_list;
       std::vector<branch_t*> requests_branches;
+
       // Compute the interaction list for this branch
       if(interactions_branches(working_branches[i],inter_list,
         requests_branches))
       {
+        std::vector<std::vector<entity_t*>> neighbors;
+        neighbors.clear();
+        neighbors.resize(working_branches[i]->sub_entities());
         // Sub traversal to apply to the particles
         interactions_particles(working_branches[i],
-          inter_list,ef,std::forward<ARGS>(args)...);
+          inter_list,neighbors);
+        // Perform the computation in the same time for all the threads
+        int index = 0;
+        for(int j = working_branches[i]->begin_tree_entities();
+          j <= working_branches[i]->end_tree_entities(); ++j)
+        {
+          ef(&(entities_w_[j]),neighbors[index],std::forward<ARGS>(args)...);
+          ++index;
+        }
+
       }else{
         assert(!assert_local);
         std::vector<key_t> send;
@@ -938,23 +916,18 @@ public:
     return non_local.size() == 0;
   }
 
-  template<
-    typename EF,
-    typename... ARGS
-  >
   void
   interactions_particles(
     branch_t* working_branch,
     const std::vector<branch_t*>& inter_list,
-    EF&& ef,
-    ARGS&&... args)
+    std::vector<std::vector<entity_t*>>& neighbors)
   {
-    std::vector<entity_t*> neighbors;
+    //std::vector<entity_t*> neighbors;
     // Apply to all sub entities
+    int index = 0;
     for(int i = working_branch->begin_tree_entities();
       i <= working_branch->end_tree_entities(); ++i)
     {
-      neighbors.clear();
       for(int j = 0; j < inter_list.size(); ++j)
       {
         for(int k = inter_list[j]->begin_tree_entities();
@@ -964,11 +937,12 @@ public:
             tree_entities_[k].coordinates(),tree_entities_[i].coordinates(),
             tree_entities_[k].h(),tree_entities_[i].h()))
           {
-            neighbors.push_back(tree_entities_[k].getBody());
+            neighbors[index].push_back(tree_entities_[k].getBody());
           }
         }
       }
-      ef(&(entities_w_[i]),neighbors,std::forward<ARGS>(args)...);
+      ++index;
+      //ef(&(entities_w_[i]),neighbors,std::forward<ARGS>(args)...);
     }
   }
 
