@@ -16,6 +16,7 @@
 #include "density_profiles.h"
 #include "io.h"
 using namespace io;
+#include "bodies_system.h"
 
 #define SQ(x) ((x)*(x))
 #define CU(x) ((x)*(x)*(x))
@@ -174,6 +175,12 @@ int main(int argc, char * argv[]){
   // set simulation parameters
   param::mpi_read_params(argv[1]);
   set_derived_params();
+  body_system<double,gdimension> bs;
+  if (modify_initial_data) { 
+    bs.read_bodies(initial_data_prefix,output_h5data_prefix,
+                   initial_iteration);
+    SET_PARAM(nparticles, bs.getNBodies());
+  }
 
   // Initialize the arrays to be filled later
   // Position
@@ -203,10 +210,47 @@ int main(int argc, char * argv[]){
   // Timestep
   double* dt = new double[nparticles]();
 
-  // Generate the lattice
-  assert(nparticles ==
-      particle_lattice::generate(lattice_type,domain_type,
-      bbox_min,bbox_max,sph_separation,0, x, y, z));
+  if (not modify_initial_data) { 
+    // Generate the lattice
+    assert(nparticles ==
+        particle_lattice::generate(lattice_type,domain_type,
+        bbox_min,bbox_max,sph_separation,0, x, y, z));
+  }
+  else {
+    // Initialize lattice from file
+    int i = 0;
+    for (auto srch : bs.getLocalbodies()) {
+       point_t pos = srch.second.getPosition();
+       point_t vel = srch.second.getVelocity();
+       point_t acc = srch.second.getAcceleration();
+
+       x[i]  = pos[0];
+       vx[i] = vel[0];
+       ax[i] = acc[0];
+
+       if (gdimension > 1) {
+         y[i]  = pos[1];
+         vy[i] = vel[1];
+         ay[i] = acc[1];
+       }
+
+       if (gdimension > 2) {
+         z[i]  = pos[2];
+         vz[i] = vel[2];
+         az[i] = acc[2];
+       }
+
+       h[i] =  srch.second.getSmoothinglength();
+       rho[i]= srch.second.getDensity();
+       u[i] =  srch.second.getInternalenergy();
+       P[i] =  srch.second.getPressure();
+       m[i] =  srch.second.getMass();
+       id[i] = srch.second.getId();
+       dt[i] = srch.second.getDt();
+
+       ++i;
+    }
+  }
 
   // Particle id number
   int64_t posid = 0;
