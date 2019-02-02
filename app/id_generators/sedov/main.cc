@@ -177,8 +177,7 @@ int main(int argc, char * argv[]){
   set_derived_params();
   body_system<double,gdimension> bs;
   if (modify_initial_data) { 
-    bs.read_bodies(initial_data_prefix,output_h5data_prefix,
-                   initial_iteration);
+    bs.read_bodies(initial_data_prefix,"",0);
     SET_PARAM(nparticles, bs.getNBodies());
   }
 
@@ -191,10 +190,6 @@ int main(int argc, char * argv[]){
   double* vx = new double[nparticles]();
   double* vy = new double[nparticles]();
   double* vz = new double[nparticles]();
-  // Acceleration
-  double* ax = new double[nparticles]();
-  double* ay = new double[nparticles]();
-  double* az = new double[nparticles]();
   // Smoothing length
   double* h = new double[nparticles]();
   // Density
@@ -222,22 +217,18 @@ int main(int argc, char * argv[]){
     for (auto srch : bs.getLocalbodies()) {
        point_t pos = srch.second.getPosition();
        point_t vel = srch.second.getVelocity();
-       point_t acc = srch.second.getAcceleration();
 
        x[i]  = pos[0];
        vx[i] = vel[0];
-       ax[i] = acc[0];
 
-       if (gdimension > 1) {
+       if constexpr (gdimension > 1) {
          y[i]  = pos[1];
          vy[i] = vel[1];
-         ay[i] = acc[1];
        }
 
-       if (gdimension > 2) {
+       if constexpr (gdimension > 2) {
          z[i]  = pos[2];
          vz[i] = vel[2];
-         az[i] = acc[2];
        }
 
        h[i] =  srch.second.getSmoothinglength();
@@ -289,21 +280,15 @@ int main(int argc, char * argv[]){
       r = sqrt(SQ(x[part]) + SQ(y[part]) + SQ(z[part]));
     }
 
-    if (domain_type == 0) { // a box 
-      P[part] = pressure_initial;
-      rho[part] = rho_initial;
-      u[part] = uint_initial;
-      h[part] = sph_smoothing_length;
-    }
-    else { // a sphere / circle
-      rho[part] = rho_initial/rho0 
+    if (not modify_initial_data) {
+      rho[part] = rho_initial/rho0  // renormalize density profile
                 * density_profiles::spherical_density_profile(r/sphere_radius);
-      P[part] = K0*pow(rho[part], poly_gamma); 
-      u[part] = P[part]/(rho[part]*(poly_gamma-1));
       h[part] = sph_eta * kernels::kernel_width
                         * pow(mass_particle/rho[part],1./gdimension);
+      id[part] = posid++;
     }
-    id[part] = posid++;
+    P[part] = K0*pow(rho[part], poly_gamma); 
+    u[part] = P[part]/(rho[part]*(poly_gamma-1));
 
     if (r < r_blast) {
       u[part] = u[part] + sedov_blast_energy/particles_blast;
@@ -335,10 +320,15 @@ int main(int argc, char * argv[]){
 
   //H5PartSetNumParticles(dataFile,nparticles);
   H5P_writeDataset(dataFile,"x",x,nparticles);
-  H5P_writeDataset(dataFile,"y",y,nparticles);
-  H5P_writeDataset(dataFile,"z",z,nparticles);
   H5P_writeDataset(dataFile,"vx",vx,nparticles);
-  H5P_writeDataset(dataFile,"vy",vy,nparticles);
+  if constexpr (gdimension > 1) {
+    H5P_writeDataset(dataFile,"y",y,nparticles);
+    H5P_writeDataset(dataFile,"vy",vy,nparticles);
+  }
+  if constexpr (gdimension > 2) {
+    H5P_writeDataset(dataFile,"z",z,nparticles);
+    H5P_writeDataset(dataFile,"vz",vz,nparticles);
+  }
   H5P_writeDataset(dataFile,"h",h,nparticles);
   H5P_writeDataset(dataFile,"rho",rho,nparticles);
   H5P_writeDataset(dataFile,"u",u,nparticles);
@@ -347,7 +337,7 @@ int main(int argc, char * argv[]){
   H5P_writeDataset(dataFile,"id",id,nparticles);
 
   H5P_closeFile(dataFile);
-  delete[] x, y, z, vx, vy, vz, ax, ay, az, h, rho, u, P, m, id, dt;
+  delete[] x, y, z, vx, vy, vz, h, rho, u, P, m, id, dt;
 
   MPI_Finalize();
   return 0;
