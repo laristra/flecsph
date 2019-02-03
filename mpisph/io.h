@@ -47,6 +47,7 @@ hid_t IO_group_id; // Group id to keep track of the current step
 // Data for hyperslab
 hsize_t IO_offset;
 hsize_t IO_count;
+static int output_step = 0;
 const int MAX_FNAME_LEN = 256;
 // TODO: overload ostream instead, i.e.smth like, clog_exit << "ERROR!"
 #define FULLSTOP exit(MPI_Barrier(MPI_COMM_WORLD) && MPI_Finalize());
@@ -620,6 +621,7 @@ int H5P_removePrefix(const char * output_file_prefix,
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
   if (not param::out_h5data_separate_iterations) {
+    sprintf(output_filename, "%s.h5part",output_file_prefix);
     if (remove(output_filename) == 0) { // if successful 
       rank|| clog(warn) << "deleting old output file: "
                         << output_filename << std::endl;
@@ -706,7 +708,7 @@ void inputDataHDF5(
       // TODO: this loop better run over all timesteps
       const int64_t maxstep = 1000000;
       int64_t step;
-      for (step= 1; step<maxstep; ++step) {
+      for (step= 0; step<maxstep; ++step) {
         if (H5P_hasStep(dataFile,step)) {
           // Check iteration number
           H5P_setStep(dataFile,step);
@@ -759,6 +761,7 @@ void inputDataHDF5(
   // -> clear output
   if(strcmp(output_file_prefix,input_file_prefix) != 0) {
     H5P_removePrefix(output_file_prefix, -1);
+    output_step = 0;
   } 
   else { // --- output prefix == input prefix
     
@@ -797,6 +800,7 @@ void inputDataHDF5(
       }
       H5P_closeFile(outputFile);
     }
+    output_step = startStep;
   } // if input_prefix == output_prefix
 
   if(dataFile == 0){
@@ -897,7 +901,7 @@ void outputDataHDF5(
     double totaltime)
 {
 
-  int step = iteration/param::out_h5data_every;
+  int step = output_step++; //iteration/param::out_h5data_every;
 
   int size, rank;
   MPI_Comm_size(MPI_COMM_WORLD,&size);
@@ -928,7 +932,7 @@ void outputDataHDF5(
   // Put the step header
   H5P_setStep(dataFile,step);
   H5P_writeAttributeStep(dataFile,"time",&physics::totaltime);
-  H5P_writeAttributeStep(dataFile,"iteration",&physics::iteration);
+  H5P_writeAttributeStep(dataFile,"iteration",&iteration);
   H5P_writeAttributeStep(dataFile,"timestep",&physics::dt);
   //------------------STEP DATA------------------------------------------------
 

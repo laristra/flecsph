@@ -268,19 +268,17 @@ int main(int argc, char * argv[]){
     // set particle mass
     particle.setMass(mass_particle);
 
-    // set density, internal energy, smoothing length and id
-    double rho_a, u_a, h_a;
+    // set density, smoothing length and id
+    double rho_a, h_a;
     int64_t id_a;
     if (modify_initial_data) {
       rho_a = particle.getDensity();
-      u_a   = particle.getInternalenergy();
       h_a   = particle.getSmoothinglength();
       id_a  = particle.getId();
     }
     else {
       rho_a = rho_initial/rho0  // renormalize density profile
             * density_profiles::spherical_density_profile(r/sphere_radius);
-      u_a = K0*pow(rho_a,poly_gamma-1)/(poly_gamma-1);
       h_a = sph_eta * kernels::kernel_width
           * pow(mass_particle/rho_a,1./gdimension);
       id_a = a;
@@ -289,7 +287,8 @@ int main(int argc, char * argv[]){
       particle.setId(a);
     }
 
-    // add blast energy
+    // set internal energy
+    double u_a = K0*pow(rho_a,poly_gamma-1)/(poly_gamma-1);
     if (r < r_blast) 
       u_a += sedov_blast_energy/particles_blast;
     particle.setInternalenergy(u_a);
@@ -312,7 +311,8 @@ int main(int argc, char * argv[]){
   remove(initial_data_file);
   delete[] x, y, z;
 
-  bs.write_bodies(initial_data_prefix, initial_iteration, 0.0);
+  // write the file; iteration for initial data MUST BE zero!!
+  bs.write_bodies(initial_data_prefix, 0, 0.0);
   MPI_Finalize();
   return 0;
 }
