@@ -737,9 +737,6 @@ public:
     // Wait for communication thread
     handler.join();
 
-    if(size == 1)
-      assert(remaining_branches.size() == 0);
-
 #ifdef DEBUG
     int flag = 0;
     MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag,
@@ -766,17 +763,22 @@ public:
     // Prepare for the eventual next tree traversal, use other ghosts vector
     ++current_ghosts;
     assert(current_ghosts < max_traversal);
+
+    MPI_Barrier(MPI_COMM_WORLD);
     // Recompute the COFM because new entities are present in the tree
     cofm(root(), 0, false);
-
+    mpi_tree_traversal_graphviz(3);
+    MPI_Barrier(MPI_COMM_WORLD);
     // Vector useless because in this case no ghosts can be found
     if(remaining_branches.size() > 0){
       std::vector<branch_t*> ignore;
-      traverse_sph(remaining_branches,ignore,true,ef,
-        std::forward<ARGS>(args)...);
+      traverse_sph(remaining_branches,ignore,
+        true,ef,std::forward<ARGS>(args)...);
     }
     // Copy back the results
     entities_ = entities_w_;
+    MPI_Barrier(MPI_COMM_WORLD);
+
   } // apply_sub_cells
 
   /**
@@ -836,13 +838,12 @@ public:
           ef(&(entities_w_[j]),neighbors[index],std::forward<ARGS>(args)...);
           ++index;
         }
-
       }else{
         assert(!assert_local);
         std::vector<key_t> send;
         #pragma omp critical
         {
-          non_local_branches.push_back(requests_branches[i]);
+          non_local_branches.push_back(working_branches[i]);
           // Send branch key to request handler
           for(auto b: requests_branches){
             assert(b->owner() < size && b->owner() >= 0);
@@ -930,8 +931,9 @@ public:
     {
       for(int j = 0; j < inter_list.size(); ++j)
       {
-        for(int k = inter_list[j]->begin_tree_entities();
-          k <= inter_list[j]->end_tree_entities(); ++k)
+        for(auto k: *(inter_list[j]))
+        //for(int k = inter_list[j]->begin_tree_entities();
+        //  k <= inter_list[j]->end_tree_entities(); ++k)
         {
           if(geometry_t::within_square(
             tree_entities_[k].coordinates(),tree_entities_[i].coordinates(),
@@ -942,7 +944,6 @@ public:
         }
       }
       ++index;
-      //ef(&(entities_w_[i]),neighbors,std::forward<ARGS>(args)...);
     }
   }
 
@@ -1623,6 +1624,7 @@ public:
         ++leaves;
         children += nchildren;
         max_children = std::max(max_children,(size_t)nchildren);
+
       }else{
         bool local = false;
         bool nonlocal = false;
@@ -1820,7 +1822,7 @@ public:
       int rank;
       MPI_Comm_rank(MPI_COMM_WORLD,&rank);
       assert(rank != owner);
-      //clog(trace)<<rank<<" inserting branch: "<<key<<std::endl;
+      //std::cout<<rank<<" inserting branch: "<<key<<std::endl<<std::flush;
       // Check if this key already exists
       auto itr = branch_map_.find(key);
       // Case 1, branch does not exists localy
@@ -1830,7 +1832,6 @@ public:
         int last_bit = pk.last_value();
         pk.pop();
         while(branch_map_.find(pk) == branch_map_.end()){
-          //clog(trace)<<rank<<" adding parent: "<<pk<<std::endl;
           branch_map_.emplace(pk,pk);
           itr = branch_map_.find(pk);
           itr->second.set_ghosts_local(false);
@@ -1863,9 +1864,7 @@ public:
         itr->second.set_leaf(true);
       }else{
 
-        //clog(trace) <<rank << " key already exists" << std::endl;
         if(itr->second.sub_entities() == 0){
-          //clog(trace) <<rank<< " empty branch" << coordinates<< std::endl;
           itr->second.set_ghosts_local(false);
           itr->second.set_coordinates(coordinates);
           itr->second.set_mass(mass);

@@ -245,7 +245,7 @@ public:
   std::vector<branch_t*> search_branches;
   tree.find_sub_cells(
     tree.root(),
-    1,
+    0,
     search_branches);
 
   // Copy them localy
