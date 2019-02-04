@@ -6,6 +6,7 @@
 #include <iostream>
 #include <algorithm>
 #include <cassert>
+#include <random>
 #include <math.h>
 
 #include "user.h"
@@ -254,6 +255,7 @@ int main(int argc, char * argv[]){
   const double rho0 = density_profiles::spherical_density_profile(0);
   const double K0 = pressure_initial // polytropic constant
                   / pow(rho_initial, poly_gamma); 
+  std::default_random_engine generator;
   for(int64_t a=0; a<nparticles; ++a){
     body& particle = bodies[a].second;
 
@@ -263,28 +265,39 @@ int main(int argc, char * argv[]){
     particle.setAcceleration(zero);
 
     // radial distance from the origin
-    double r = norm2(particle.getPosition());
+    point_t rp(particle.getPosition());
+    double r = norm2(rp);
 
-    // set particle mass
-    particle.setMass(mass_particle);
-
-    // set density, smoothing length and id
-    double rho_a, h_a;
+    // set density, particle mass, smoothing length and id
+    double rho_a, m_a, h_a;
     int64_t id_a;
     if (modify_initial_data) {
       rho_a = particle.getDensity();
+      m_a   = particle.getMass();
       h_a   = particle.getSmoothinglength();
       id_a  = particle.getId();
     }
     else {
       rho_a = rho_initial/rho0  // renormalize density profile
             * density_profiles::spherical_density_profile(r/sphere_radius);
+      m_a = mass_particle;
       h_a = sph_eta * kernels::kernel_width
           * pow(mass_particle/rho_a,1./gdimension);
       id_a = a;
       particle.setDensity(rho_a);
+      particle.setMass(m_a);
       particle.setSmoothinglength(h_a);
       particle.setId(a);
+    }
+
+    if (lattice_perturbation_amplitude > 0.0) {
+    // add lattice perturbation
+      std::normal_distribution<double> 
+        distribution(0.,h_a*lattice_perturbation_amplitude);
+      for (unsigned short k=0; k<gdimension; ++k) { 
+        rp[k] += distribution(generator);
+      }
+      particle.setPosition(rp);
     }
 
     // set internal energy
@@ -299,6 +312,7 @@ int main(int argc, char * argv[]){
 
     // set timestep
     particle.setDt(initial_dt);
+
   }
 
   clog(info) << "Number of particles: " << nparticles << std::endl;

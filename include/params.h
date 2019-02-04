@@ -455,6 +455,12 @@ namespace param {
   DECLARE_PARAM(int,lattice_type,0)
 # endif
 
+// if >0: lattice is randomly perturbed with this amplitude
+// amplitude is in units of smoothing length (h)
+# ifndef lattice_perturbation_amplitude
+  DECLARE_PARAM(double,lattice_perturbation_amplitude,0.0)
+# endif
+
 // in several tests: initial velocity of the flow
 # ifndef flow_velocity
   DECLARE_PARAM(double,flow_velocity,0.0)
@@ -805,6 +811,10 @@ void set_param(const std::string& param_name,
 
 # ifndef lattice_type
   READ_NUMERIC_PARAM(lattice_type)
+# endif
+
+# ifndef lattice_perturbation_amplitude
+  READ_NUMERIC_PARAM(lattice_perturbation_amplitude)
 # endif
 
 # ifndef flow_velocity
