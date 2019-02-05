@@ -261,6 +261,11 @@ namespace param {
   DECLARE_STRING_PARAM(initial_data_prefix,"initial_data")
 #endif
 
+//- ID-generator-specific parameter to overwrite initial data
+#ifndef modify_initial_data
+  DECLARE_PARAM(bool,modify_initial_data,false)
+#endif
+
 //- file prefix for HDF5 output data file[s]
 #ifndef output_h5data_prefix
   DECLARE_STRING_PARAM(output_h5data_prefix,"output_data")
@@ -448,6 +453,12 @@ namespace param {
 // initial data lattice type:
 # ifndef lattice_type
   DECLARE_PARAM(int,lattice_type,0)
+# endif
+
+// if >0: lattice is randomly perturbed with this amplitude
+// amplitude is in units of smoothing length (h)
+# ifndef lattice_perturbation_amplitude
+  DECLARE_PARAM(double,lattice_perturbation_amplitude,0.0)
 # endif
 
 // in several tests: initial velocity of the flow
@@ -665,6 +676,10 @@ void set_param(const std::string& param_name,
   READ_STRING_PARAM(initial_data_prefix)
 # endif
 
+#ifndef modify_initial_data
+  READ_BOOLEAN_PARAM(modify_initial_data)
+#endif
+
 # ifndef output_h5data_prefix
   READ_STRING_PARAM(output_h5data_prefix)
 # endif
@@ -796,6 +811,10 @@ void set_param(const std::string& param_name,
 
 # ifndef lattice_type
   READ_NUMERIC_PARAM(lattice_type)
+# endif
+
+# ifndef lattice_perturbation_amplitude
+  READ_NUMERIC_PARAM(lattice_perturbation_amplitude)
 # endif
 
 # ifndef flow_velocity
