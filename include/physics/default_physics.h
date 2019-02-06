@@ -62,29 +62,31 @@ namespace physics{
   {
     double density = 0;
     const int n_nb = nbsh.size();
-    //mpi_assert(nbsh.size()>0);
+    mpi_assert(nbsh.size()>0);
     // Array of distances
     std::vector<double> distances(n_nb);
-    std::vector<double> kernels(n_nb);
     std::vector<double> masses(n_nb);
-    std::vector<point_t> nb_coordinates(n_nb);
     std::vector<double> nb_radius(n_nb);
     double radius = source->radius();
     point_t coordinates = source->coordinates();
 
     for(int i = 0 ; i < n_nb; ++i){
       masses[i] = nbsh[i]->mass();
-      nb_coordinates[i] = nbsh[i]->coordinates();
       nb_radius[i] = nbsh[i]->radius();
-      distances[i] = flecsi::distance(coordinates,nb_coordinates[i]);
+      distances[i] = flecsi::distance(coordinates,nbsh[i]->coordinates());
     }
     for(int i = 0 ; i < n_nb; ++i){
-      kernels[i] = kernels::kernel(distances[i],.5*(radius+nb_radius[i]));
-    }
-    for(int i = 0 ; i < n_nb; ++i){
-      density += kernels[i]*masses[i];
+      double kernel = 0;
+      if constexpr (gdimension == 1){
+        kernel = kernels::wendland_c6_1d(
+          distances[i],.5*(radius+nb_radius[i]));
+      }else{
+        kernel = kernels::wendland_c6_23d(
+          distances[i],.5*(radius+nb_radius[i]));
+      }
+      density += kernel*masses[i];
     } // for
-    //mpi_assert(density>0);
+    mpi_assert(density>0);
     source->setDensity(density);
   } // compute_density
 

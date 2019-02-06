@@ -77,7 +77,10 @@ namespace kernels{
   double sinc_sigma[3];
 
   /* This function sets up the sinc kernel normalization */
-  void set_sinc_kernel_normalization(const double si) {
+  void
+  set_sinc_kernel_normalization(
+    const double& si)
+  {
     double sq = sqrt(si);
     double s2 = si*si;
     sinc_sigma[0] = 2.*(si_b0[0] + si_b1[0]*sq + si_b2[0]*si + si_b3[0]/sq);
@@ -102,8 +105,8 @@ namespace kernels{
    */
   double
   cubic_spline(
-      const double r,
-      const double h)
+      const double& r,
+      const double& h)
   {
     double rh = 2.*r/h;
     double result = 0.;
@@ -131,8 +134,8 @@ namespace kernels{
    */
   point_t
   gradient_cubic_spline(
-      const point_t & vecP,
-      const double h)
+      const point_t& vecP,
+      const double& h)
   {
     double r = vector_norm(vecP);
     double rh = 2.*r/h;
@@ -167,8 +170,8 @@ namespace kernels{
    */
   double
   gaussian(
-    const double r,
-    const double h)
+    const double& r,
+    const double& h)
   {
     double rh = 3.*r/h;
 
@@ -192,8 +195,8 @@ namespace kernels{
    */
   point_t
   gradient_gaussian(
-    const point_t & vecP,
-    const double h)
+    const point_t& vecP,
+    const double& h)
   {
     double r = vector_norm(vecP);
     double rh = 3.*r/h;
@@ -222,8 +225,8 @@ namespace kernels{
    */
   double
   quintic_spline(
-    const double r,
-    const double h)
+    const double& r,
+    const double& h)
   {
     double rh = 3.*r/h;
 
@@ -254,8 +257,8 @@ namespace kernels{
    */
   point_t
   gradient_quintic_spline(
-    const point_t & vecP,
-    const double h)
+    const point_t& vecP,
+    const double& h)
   {
     const double r = vector_norm(vecP);
     double rh = 3.*r/h;
@@ -289,7 +292,11 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  double wendland_c2_1d(const double r, const double h) {
+  double
+  wendland_c2_1d(
+    const double& r,
+    const double& h)
+  {
     double rh = r/h;
     double result = 0.;
 
@@ -301,7 +308,11 @@ namespace kernels{
     return result;
   }
 
-  double wendland_c2_23d(const double r, const double h) {
+  double
+  wendland_c2_23d(
+    const double& r,
+    const double& h)
+  {
     double rh = r/h;
     double result = 0.;
 
@@ -325,7 +336,11 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  point_t gradient_wendland_c2_1d(const point_t & vecP, const double h) {
+  point_t
+  gradient_wendland_c2_1d(
+    const point_t& vecP,
+    const double& h)
+  {
     double r = vector_norm(vecP);
     double rh = r/h;
     point_t result = 0.0;
@@ -340,7 +355,11 @@ namespace kernels{
     return result;
   }
 
-  point_t gradient_wendland_c2_23d(const point_t & vecP, const double h) {
+  point_t
+  gradient_wendland_c2_23d(
+    const point_t& vecP,
+    const double& h)
+  {
     double r = vector_norm(vecP);
     double rh = r/h;
     point_t result = 0.0;
@@ -370,7 +389,11 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  double wendland_c4_1d(const double r, const double h) {
+  double
+  wendland_c4_1d(
+    const double& r,
+    const double& h)
+  {
     double rh = r/h;
     double result = 0.;
 
@@ -383,7 +406,11 @@ namespace kernels{
     return result;
   }
 
-  double wendland_c4_23d(const double r, const double h) {
+  double
+  wendland_c4_23d(
+    const double& r,
+    const double& h)
+  {
     double rh = r/h;
     double result = 0.;
 
@@ -409,7 +436,11 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  point_t gradient_wendland_c4_1d(const point_t & vecP, const double h) {
+  point_t
+  gradient_wendland_c4_1d(
+    const point_t & vecP,
+    const double& h)
+  {
     double r = vector_norm(vecP);
     double rh = r/h;
     point_t result = 0.0;
@@ -425,7 +456,11 @@ namespace kernels{
   }
 
 
-  point_t gradient_wendland_c4_23d(const point_t & vecP, const double h) {
+  point_t
+  gradient_wendland_c4_23d(
+    const point_t& vecP,
+    const double& h)
+  {
     double r = vector_norm(vecP);
     double rh = r/h;
     point_t result = 0.0;
@@ -458,7 +493,11 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  double wendland_c6_1d(const double r, const double h) {
+  double
+  wendland_c6_1d(
+    const double& r,
+    const double& h)
+  {
     double rh = r/h;
     double result = 0.;
 
@@ -472,7 +511,11 @@ namespace kernels{
     return result;
   }
 
-  double wendland_c6_23d(const double r, const double h) {
+  double
+  wendland_c6_23d(
+    const double& r,
+    const double& h)
+  {
     double rh = r/h;
     double result = 0.;
 
@@ -498,7 +541,11 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  point_t gradient_wendland_c6_1d(const point_t & vecP, const double h) {
+  point_t
+  gradient_wendland_c6_1d(
+    const point_t& vecP,
+    const double& h)
+  {
     double r = vector_norm(vecP);
     double rh = r/h;
     point_t result = 0.0;
@@ -513,7 +560,11 @@ namespace kernels{
     return result;
   }
 
-  point_t gradient_wendland_c6_23d(const point_t & vecP, const double h) {
+  point_t
+  gradient_wendland_c6_23d(
+    const point_t& vecP,
+    const double& h)
+  {
     double r = vector_norm(vecP);
     double rh = r/h;
     point_t result = 0.0;
@@ -550,8 +601,8 @@ namespace kernels{
    */
   double
   super_gaussian(
-    const double r,
-    const double h)
+    const double& r,
+    const double& h)
   {
     double rh = 3.*r/h, rh2 = rh*rh;
 
@@ -574,8 +625,8 @@ namespace kernels{
    */
   point_t
   gradient_super_gaussian(
-    const point_t & vecP,
-    const double h)
+    const point_t& vecP,
+    const double& h)
   {
     double r = vector_norm(vecP);
     double rh = 3.*r/h;
@@ -602,7 +653,11 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  double sinc_ker(const double r, const double h) {
+  double
+  sinc_ker(
+    const double& r,
+    const double& h)
+  {
     using namespace param;
     double rh = fabs(r/h), rh2;
     const double eps = 1e-24;
@@ -638,7 +693,11 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  point_t gradient_sinc_ker(const point_t & vecP, const double h) {
+  point_t
+  gradient_sinc_ker(
+    const point_t& vecP,
+    const double& h)
+  {
     using namespace param;
     double r = vector_norm(vecP);
     double rh = fabs(r/h), rh2;
@@ -670,8 +729,8 @@ namespace kernels{
   }
 
   // kernel function pointers
-  typedef double  (*kernel_function_t)(const double,    const double);
-  typedef point_t (*kernel_gradient_t)(const point_t &, const double);
+  typedef double  (*kernel_function_t)(const double&, const double&);
+  typedef point_t (*kernel_gradient_t)(const point_t &, const double&);
   kernel_function_t kernel = quintic_spline;
   kernel_gradient_t gradKernel = gradient_quintic_spline;
 
