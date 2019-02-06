@@ -428,6 +428,7 @@ struct tree_geometry<T, 3>
   /*!
     Return true if dist^2 < radius^2
    */
+  inline
   static
   bool
   within_square(

@@ -123,9 +123,8 @@ namespace analysis{
           bodies[i].getBody()->getInternalenergy();
         linear_velocity = bodies[i].getBody()->getVelocity();
         velocity_part = 0.;
-        for(size_t i = 0 ; i < gdimension ; ++i){
-          velocity_part += pow(linear_velocity[i],2);
-          part_position = bodies[i].getBody()->coordinates();
+        for(size_t j = 0 ; j < gdimension ; ++j){
+          velocity_part += pow(linear_velocity[j],2);
         }
         total_energy += 1./2.*velocity_part*bodies[i].getBody()->mass();
       }

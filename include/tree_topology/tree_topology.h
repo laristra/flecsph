@@ -396,6 +396,7 @@ public:
         // In this case just look if my body go in the neighbor branch
         if(neighbor_parent_depth < my_parent_depth)
         {
+          //std::cout<<rank<<" have highest branch: "<<my_keys[1]<<" vs "<<neighbor_keys[1]<<std::endl;
           // Is there a conflict: in this case compare the bodies
           key_t nb_key = neighbor_keys[0]; nb_key.truncate(my_parent_depth);
           key_t my_key = my_keys[0]; my_key.truncate(my_parent_depth);
@@ -438,6 +439,14 @@ public:
         // If my neighbor have the highest branch
         if(neighbor_parent_depth > my_parent_depth)
         {
+          // Refine to the neighbor's depth
+          while(my_parent_depth < neighbor_parent_depth){
+            //std::cout<<rank<<" - "<<my_parent_depth<<" vs "<<neighbor_parent_depth<<std::endl;
+            refine_(find_parent(neighbor_keys[0]));
+            ++my_parent_depth;
+          }
+          //std::cout<<rank<< " have lowest branch: "<<my_keys[1]<<" vs "<<neighbor_keys[1]<<std::endl;
+
           key_t my_key = my_keys[0]; my_key.truncate(neighbor_parent_depth);
           if(my_key == neighbor_keys[1])
           {
@@ -767,7 +776,7 @@ public:
     MPI_Barrier(MPI_COMM_WORLD);
     // Recompute the COFM because new entities are present in the tree
     cofm(root(), 0, false);
-    mpi_tree_traversal_graphviz(3);
+    //mpi_tree_traversal_graphviz(3);
     MPI_Barrier(MPI_COMM_WORLD);
     // Vector useless because in this case no ghosts can be found
     if(remaining_branches.size() > 0){
@@ -923,25 +932,38 @@ public:
     const std::vector<branch_t*>& inter_list,
     std::vector<std::vector<entity_t*>>& neighbors)
   {
-    //std::vector<entity_t*> neighbors;
-    // Apply to all sub entities
+    std::vector<point_t> inter_coordinates;
+    std::vector<element_t> inter_radius;
+    std::vector<entity_t*> inter_entities;
+    for(int j = 0; j < inter_list.size(); ++j){
+      for(auto k: *(inter_list[j])){
+        inter_coordinates.push_back(tree_entities_[k].coordinates());
+        inter_radius.push_back(tree_entities_[k].h());
+        inter_entities.push_back(tree_entities_[k].getBody());
+      }
+    }
+    const int nb_entities = inter_coordinates.size();
     int index = 0;
     for(int i = working_branch->begin_tree_entities();
       i <= working_branch->end_tree_entities(); ++i)
     {
-      for(int j = 0; j < inter_list.size(); ++j)
+      point_t coordinates = tree_entities_[i].coordinates();
+      element_t radius = tree_entities_[i].h();
+      size_t total = 0;
+      std::vector<size_t> accepted(nb_entities,0);
+      for(int j = 0 ; j < nb_entities; ++j)
       {
-        for(auto k: *(inter_list[j]))
-        //for(int k = inter_list[j]->begin_tree_entities();
-        //  k <= inter_list[j]->end_tree_entities(); ++k)
-        {
-          if(geometry_t::within_square(
-            tree_entities_[k].coordinates(),tree_entities_[i].coordinates(),
-            tree_entities_[k].h(),tree_entities_[i].h()))
-          {
-            neighbors[index].push_back(tree_entities_[k].getBody());
-          }
-        }
+        accepted[j] += geometry_t::within_square(
+          inter_coordinates[j],coordinates,
+          inter_radius[j],radius);
+        total += accepted[j];
+      }
+      neighbors[index].resize(total);
+      int index_add = 0;
+      for(int j = 0 ; j < nb_entities; ++j)
+      {
+        if(accepted[j])
+          neighbors[index][index_add++] = inter_entities[j];
       }
       ++index;
     }
@@ -2152,7 +2174,7 @@ private:
     /**
     * @brief Refine the current branch b if there is a conflict of children
     */
-     void
+    void
     refine_(
       branch_t& b
     )

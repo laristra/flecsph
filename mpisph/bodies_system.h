@@ -140,13 +140,9 @@ public:
   double
   getSmoothinglength()
   {
-    int rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    MPI_Comm_size(MPI_COMM_WORLD,&size);
-
     // Choose the smoothing length to be the biggest from everyone
     smoothinglength_ = 0;
-#pragma omp parallel for reduction(max:smoothinglength_)
+    #pragma omp parallel for reduction(max:smoothinglength_)
     for(size_t i = 0 ; i < tree_.entities().size(); ++i){
       if(smoothinglength_ < tree_.entity(i).radius()){
         smoothinglength_ = tree_.entity(i).radius();
@@ -344,11 +340,13 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
       oss << rank << " sub_entities after=";
       for(auto v: nentities){
         oss << v << ";";
-        assert(v == lentities);
-        assert(v == totalnbodies_);
       }
       oss << std::endl;
       clog_one(trace) << oss.str() << std::flush;
+      for(auto v: nentities){
+        assert(v == lentities);
+        assert(v == totalnbodies_);
+      }
     }
 #endif
 

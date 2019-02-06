@@ -45,9 +45,9 @@ namespace kernels{
    */
   double vector_norm(
     const point_t& p){
-    if (gdimension == 3)
+    if constexpr (gdimension == 3)
       return sqrt(p[0]*p[0] + p[1]*p[1] + p[2]*p[2]);
-    else if (gdimension == 2)
+    else if constexpr (gdimension == 2)
       return sqrt(p[0]*p[0] + p[1]*p[1]);
     else
       return abs(p[0]);
@@ -307,7 +307,7 @@ namespace kernels{
 
     if(rh < 1.0) {
       double hd = h*h;
-      if (gdimension == 3)
+      if constexpr (gdimension == 3)
         hd *= h;
 
       double rh2 = (1 - rh)*(1 - rh);
@@ -347,7 +347,7 @@ namespace kernels{
 
     if(rh < 1.0) {
       double hd1 = h*h*h;
-      if (gdimension == 3)
+      if constexpr (gdimension == 3)
         hd1 *= h;
 
       double rh2 = (1 - rh)*(1 - rh);
@@ -389,7 +389,7 @@ namespace kernels{
 
     if(rh < 1.0) {
       double hd = h*h;
-      if (gdimension == 3)
+      if constexpr (gdimension == 3)
         hd *= h;
 
       double rh1 = 1 - rh;
@@ -432,7 +432,7 @@ namespace kernels{
 
     if(rh < 1.0) {
       double hd1 = h*h*h;
-      if (gdimension==3)
+      if constexpr (gdimension==3)
         hd1*=h;
 
       double rh2 = (1 - rh)*(1 - rh);
@@ -478,7 +478,7 @@ namespace kernels{
 
     if(rh < 1.0) {
       double hd = h*h;
-      if (gdimension == 3)
+      if constexpr (gdimension == 3)
         hd *= h;
 
       double rh2 = (1 - rh)*(1 - rh);
@@ -520,7 +520,7 @@ namespace kernels{
 
     if(rh < 1.0) {
       double hd1 = h*h*h;
-      if (gdimension==3)
+      if constexpr (gdimension==3)
         hd1*=h;
 
       double rh2 = (1 - rh)*(1 - rh);
@@ -691,7 +691,7 @@ namespace kernels{
       kernel_width = 3.0;
     }
     else if (boost::iequals(kstr, "wendland c2")) {
-      if (gdimension == 1) {
+      if constexpr (gdimension == 1) {
         kernel = wendland_c2_1d;
         gradKernel = gradient_wendland_c2_1d;
       } else {
@@ -701,7 +701,7 @@ namespace kernels{
       kernel_width = 2.0;
     }
     else if (boost::iequals(kstr, "wendland c4")) {
-      if (gdimension == 1) {
+      if constexpr (gdimension == 1) {
         kernel = wendland_c4_1d;
         gradKernel = gradient_wendland_c4_1d;
       } else {
@@ -711,7 +711,7 @@ namespace kernels{
       kernel_width = 2.0;
     }
     else if (boost::iequals(kstr, "wendland c6")) {
-      if (gdimension == 1) {
+      if constexpr (gdimension == 1) {
         kernel = wendland_c6_1d;
         gradKernel = gradient_wendland_c6_1d;
       } else {
