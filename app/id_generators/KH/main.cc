@@ -21,7 +21,7 @@ using namespace io;
 // help message
 //
 void print_usage() {
-  clog(warn)
+  clog_one(warn)
       << "Initial data generator for KH test in"
       << gdimension << "D" << std::endl
       << "Usage: ./KD_XD_generator <parameter-file.par>" << std::endl;

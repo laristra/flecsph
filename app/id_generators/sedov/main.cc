@@ -215,20 +215,20 @@ int main(int argc, char * argv[]){
         bbox_min,bbox_max,sph_separation,0, x, y, z));
 
     for (int64_t a=0L; a<nparticles; ++a) {
-      body& particle = bodies[a].second;
+      body& particle = bodies[a];
       if constexpr (gdimension == 1) {
         point_t pos = {x[a]};
-        particle.setPosition(pos);
+        particle.set_coordinates(pos);
       }
 
       if constexpr (gdimension == 2) {
         point_t pos = {x[a],y[a]};
-        particle.setPosition(pos);
+        particle.set_coordinates(pos);
       }
 
       if constexpr (gdimension == 3) {
         point_t pos = {x[a],y[a],z[a]};
-        particle.setPosition(pos);
+        particle.set_coordinates(pos);
       }
     }
   }
@@ -242,8 +242,8 @@ int main(int argc, char * argv[]){
   // Count the number of particles and mass in the blast zone
   // The blast is centered at the origin ({0,0} or {0,0,0})
   for(int64_t a=0L; a<nparticles; ++a) {
-    body& particle = bodies[a].second;
-    double r = norm2(particle.getPosition());
+    body& particle = bodies[a];
+    double r = norm2(particle.coordinates());
     if (r < r_blast) {
        particles_blast++;
        mass_blast += mass_particle;
@@ -257,7 +257,7 @@ int main(int argc, char * argv[]){
                   / pow(rho_initial, poly_gamma); 
   std::default_random_engine generator;
   for(int64_t a=0; a<nparticles; ++a){
-    body& particle = bodies[a].second;
+    body& particle = bodies[a];
 
     // zero velocity for this test
     point_t zero = 0;
@@ -265,7 +265,7 @@ int main(int argc, char * argv[]){
     particle.setAcceleration(zero);
 
     // radial distance from the origin
-    point_t rp(particle.getPosition());
+    point_t rp(particle.coordinates());
     double r = norm2(rp);
 
     // set density, particle mass, smoothing length and id
@@ -273,9 +273,9 @@ int main(int argc, char * argv[]){
     int64_t id_a;
     if (modify_initial_data) {
       rho_a = particle.getDensity();
-      m_a   = particle.getMass();
-      h_a   = particle.getSmoothinglength();
-      id_a  = particle.getId();
+      m_a   = particle.mass();
+      h_a   = particle.radius();
+      id_a  = particle.id();
     }
     else {
       rho_a = rho_initial/rho0  // renormalize density profile
@@ -285,9 +285,9 @@ int main(int argc, char * argv[]){
           * pow(mass_particle/rho_a,1./gdimension);
       id_a = a;
       particle.setDensity(rho_a);
-      particle.setMass(m_a);
-      particle.setSmoothinglength(h_a);
-      particle.setId(a);
+      particle.set_mass(m_a);
+      particle.set_radius(h_a);
+      particle.set_id(a);
     }
 
     if (lattice_perturbation_amplitude > 0.0) {
@@ -297,7 +297,7 @@ int main(int argc, char * argv[]){
       for (unsigned short k=0; k<gdimension; ++k) { 
         rp[k] += distribution(generator);
       }
-      particle.setPosition(rp);
+      particle.set_coordinates(rp);
     }
 
     // set internal energy
@@ -315,10 +315,10 @@ int main(int argc, char * argv[]){
 
   }
 
-  clog(info) << "Number of particles: " << nparticles << std::endl;
-  clog(info) << "Mass of a single particle: " << mass_particle << std::endl;
-  clog(info) << "Total number of seeded blast particles: " << particles_blast << std::endl;
-  clog(info) << "Total blast energy (E_blast = u_blast * total mass): "
+  clog_one(info) << "Number of particles: " << nparticles << std::endl;
+  clog_one(info) << "Mass of a single particle: " << mass_particle << std::endl;
+  clog_one(info) << "Total number of seeded blast particles: " << particles_blast << std::endl;
+  clog_one(info) << "Total blast energy (E_blast = u_blast * total mass): "
                  << sedov_blast_energy * mass_blast << std::endl;
 
   // remove the previous file

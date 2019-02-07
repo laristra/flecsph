@@ -50,6 +50,7 @@ cinch_add_unit(tree
     ${FleCSI_RUNTIME}/runtime_driver.cc
   LIBRARIES
     ${FleCSPH_LIBRARIES}
+  POLICY MPI
 )
 
 #~---------------------------------------------------------------------------~-#

@@ -52,7 +52,7 @@ using namespace io;
 // help message
 //
 void print_usage() {
-  clog(warn)
+  clog_one(warn)
       << "Initial data generator for the " << gdimension << "D Noh collapse test"
       << std::endl << "Usage: ./noh_generator <parameter-file.par>" << std::endl;
 }
@@ -132,7 +132,7 @@ int main(int argc, char * argv[]){
 
   // check options list: exactly one option is allowed
   if (argc != 2) {
-    clog(error) << "ERROR: parameter file not specified!" << std::endl;
+    clog_one(error) << "ERROR: parameter file not specified!" << std::endl;
     print_usage();
     MPI_Finalize();
     exit(0);
@@ -142,7 +142,7 @@ int main(int argc, char * argv[]){
   param::mpi_read_params(argv[1]);
   set_derived_params();
 
-  clog(info) << "Sphere: r=" << sphere_radius << std::endl
+  clog_one(info) << "Sphere: r=" << sphere_radius << std::endl
                  << "origin: pos=["<<0<<";"<<0<<"]" << std::endl
                  << "Generating "  << nparticles << " particles in "
                  << gdimension << "D" << std::endl;

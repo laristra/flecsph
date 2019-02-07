@@ -9,9 +9,9 @@
 
 # For vectorization: -fopt-info-vec-missed/optimized/note/all
 set(CMAKE_CXX_FLAGS_DEBUG
-  "-DPARALLEL_IO -Wno-sign-compare -Wno-reorder -Wno-narrowing -Wno-deprecated-declaration -ftree-vectorize -ffast-math -msse2 -g -O2 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses")
+"-mavx2 -msse4 -ftree-vectorize -fopt-info-vec-all=\"missed.txt\" -march=native -pthread -lpthread -DPARALLEL_IO -Wno-sign-compare -Wno-reorder -Wno-narrowing -Wno-deprecated-declarations  -ffast-math -g -O3 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses")
 set(CMAKE_CXX_FLAGS_RELEASE
-  "-DPARALLEL_IO -Wno-sign-compare -Wno-reorder -Wno-narrowing -Wno-deprecated-declaration -ftree-vectorize -ffast-math -msse2 -O3 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses")
+  "-march=native -pthread -lpthread -DPARALLEL_IO -Wno-sign-compare -Wno-reorder -Wno-narrowing -Wno-deprecated-declarations -ftree-vectorize -ffast-math -msse2 -O3 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses")
 
 # includes
 
@@ -86,6 +86,8 @@ install(TARGETS newtonian_3d RUNTIME DESTINATION bin/drivers)
 # sodtube test, call the default parameter file
 #------------------------------------------------------------------------------#
 
+#[[
+
 cinch_add_unit(sodtube_test
   SOURCES
     test/sodtube.cc
@@ -98,7 +100,7 @@ cinch_add_unit(sodtube_test
   DEFINES
     -DEXT_GDIMENSION=1
   POLICY MPI
-  #THREADS 2
+  THREADS 2
 )
 
 if(ENABLE_UNIT_TESTS)
@@ -128,6 +130,7 @@ cinch_add_unit(RT_test
   DEFINES
     -DEXT_GDIMENSION=2
   POLICY MPI
+  #THREADS 2
 )
 
 if(ENABLE_UNIT_TESTS)
@@ -157,6 +160,7 @@ cinch_add_unit(sedov_test
   DEFINES
     -DEXT_GDIMENSION=2
   POLICY MPI
+  #THREADS 2
 )
 
 if(ENABLE_UNIT_TESTS)
@@ -185,6 +189,7 @@ cinch_add_unit(noh_test
   DEFINES
     -DEXT_GDIMENSION=2
   POLICY MPI
+  #THREADS 2
 )
 
 if(ENABLE_UNIT_TESTS)
@@ -213,6 +218,7 @@ cinch_add_unit(implosion_test
   DEFINES
     -DEXT_GDIMENSION=2
   POLICY MPI
+  #THREADS 2
 )
 
 if(ENABLE_UNIT_TESTS)
@@ -224,3 +230,5 @@ add_custom_target(
 )
 add_dependencies(implosion_test implosion_2d_generator_test)
 endif()
+
+]]#

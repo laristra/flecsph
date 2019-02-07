@@ -122,7 +122,7 @@ struct tree_geometry<T, 1>
   {
     element_t x2 = (origin[0]-center[0])*(origin[0]-center[0]);
     element_t dist_2 = x2;
-    return dist_2 - (r1+r2)*(r1+r2)/4. <= tol;
+    return dist_2 <= (r1+r2)*(r1+r2)*0.25;
   }
 
   /*!
@@ -198,6 +198,11 @@ struct tree_geometry<T, 1>
     return radius/distance(p1,p2) - MAC <= tol;
   }
 
+  /**
+  * @brief Multipole method acceptance based on MAC.
+  * The angle === l/r < MAC (l source box width, r distance sink -> source)
+  * Barnes & Hut 1986
+  */
   bool
   box_MAC(
     const point_t& position_source,
@@ -273,7 +278,7 @@ struct tree_geometry<T, 2>
     element_t x2 = (origin[0]-center[0])*(origin[0]-center[0]);
     element_t y2 = (origin[1]-center[1])*(origin[1]-center[1]);
     element_t dist_2 = x2 + y2;
-    return dist_2 - (r1+r2)*(r1+r2)/4. <= tol;
+    return dist_2 - (r1+r2)*(r1+r2)*0.25 <= tol;
   }
 
   /*!
@@ -369,8 +374,7 @@ struct tree_geometry<T, 2>
     double macangle)
   {
     double dmax = flecsi::distance(box_source_min,box_source_max);
-    double disttoc = flecsi::distance(
-        position_sink,position_source);
+    double disttoc = flecsi::distance(position_sink,position_source);
     return dmax/disttoc < macangle;
   }
 
@@ -424,19 +428,21 @@ struct tree_geometry<T, 3>
   /*!
     Return true if dist^2 < radius^2
    */
+  inline
   static
   bool
   within_square(
     const point_t& origin,
     const point_t& center,
-    element_t r1,
-    element_t r2)
+    const element_t& r1,
+    const element_t& r2)
   {
     element_t x2 = (origin[0]-center[0])*(origin[0]-center[0]);
     element_t y2 = (origin[1]-center[1])*(origin[1]-center[1]);
     element_t z2 = (origin[2]-center[2])*(origin[2]-center[2]);
     element_t dist_2 = x2 + y2 + z2;
-    return dist_2 - (r1+r2)*(r1+r2)/4. <= tol ;
+    element_t rp2 = (r1+r2)*(r1+r2)*0.25;
+    return dist_2 <= rp2 ;
   }
 
   static
@@ -450,6 +456,7 @@ struct tree_geometry<T, 3>
     return 2*asin(radius/distance(p1,p2)) - MAC <= tol;
   }
 
+  inline
   static
   bool
   intersects_box_box(
@@ -458,27 +465,7 @@ struct tree_geometry<T, 3>
     const point_t& min_b2,
     const point_t& max_b2)
   {
-    /*return
-      (inRange(min_b2[0],max_b2[0],min_b1[0]) || // minb2 minb1 maxb2
-      inRange(min_b1[0],max_b1[0],min_b2[0]) || // minb1 minb2 maxb1
-      inRange(min_b1[0],max_b1[0],min_b2[0]) || // minb1 minb2 maxb2 maxb1
-      inRange(min_b1[0],max_b1[0],max_b2[0]) ||
-      inRange(min_b2[0],max_b2[0],min_b1[0]) || // minb2 minb1 maxb1 maxb2
-      inRange(min_b2[0],max_b2[0],max_b1[0])) &&
-
-      (inRange(min_b2[1],max_b2[1],min_b1[1]) || // minb2 minb1 maxb2
-      inRange(min_b1[1],max_b1[1],min_b2[1]) || // minb1 minb2 maxb1
-      inRange(min_b1[1],max_b1[1],min_b2[1]) || // minb1 minb2 maxb2 maxb1
-      inRange(min_b1[1],max_b1[1],max_b2[1]) ||
-      inRange(min_b2[1],max_b2[1],min_b1[1]) || // minb2 minb1 maxb1 maxb2
-      inRange(min_b2[1],max_b2[1],max_b1[1])) &&
-
-      (inRange(min_b2[2],max_b2[2],min_b1[2]) || // minb2 minb1 maxb2
-      inRange(min_b1[2],max_b1[2],min_b2[2]) || // minb1 minb2 maxb1
-      inRange(min_b1[2],max_b1[2],min_b2[2]) || // minb1 minb2 maxb2 maxb1
-      inRange(min_b1[2],max_b1[2],max_b2[2]) ||
-      inRange(min_b2[2],max_b2[2],min_b1[2]) || // minb2 minb1 maxb1 maxb2
-      inRange(min_b2[2],max_b2[2],max_b1[2]));*/
+    /*
     return
       (min_b1[0] <= max_b2[0] && min_b1[0] >= min_b2[0] || // b2 b1 b2 b1
        min_b1[0] <= max_b2[0] && max_b1[0] >= min_b2[0] || // b1 b2 b1 b2
@@ -493,7 +480,12 @@ struct tree_geometry<T, 3>
       (min_b1[2] <= max_b2[2] && min_b1[2] >= min_b2[2] || // b2 b1 b2 b1
        max_b1[2] <= max_b2[2] && max_b1[2] >= min_b2[2] || // b1 b2 b1 b2
        max_b1[2] >= max_b2[2] && min_b1[2] <= min_b2[2] || // b1 b2 b2 b1
-       min_b1[2] >= min_b2[2] && max_b1[2] <= max_b2[2]);  // b2 b1 b1 b2
+       min_b1[2] >= min_b2[2] && max_b1[2] <= max_b2[2]);  // b2 b1 b1 b2*/
+    return
+    !((max_b1[0] < min_b2[0] || max_b1[1] < min_b2[1] || max_b1[2] < min_b2[2])
+    ||(max_b2[0] < min_b1[0] || max_b2[1] < min_b1[1] || max_b2[2] < min_b1[2]));
+
+
   }
 
 
@@ -527,7 +519,7 @@ struct tree_geometry<T, 3>
     return (c2[0]-c1[0])*(c2[0]-c1[0])+
       (c2[1]-c1[1])*(c2[1]-c1[1])+
       (c2[2]-c1[2])*(c2[2]-c1[2])
-        - (r1+r2)*(r1+r2) <= tol;
+        <= (r1+r2)*(r1+r2);
   }
 
 
@@ -539,15 +531,40 @@ struct tree_geometry<T, 3>
     const point_t& min,
     const point_t& max,
     const point_t& c,
-    const element_t r)
-  {
-    point_t x = point_t(
-        std::max(min[0],std::min(c[0],max[0])),
-        std::max(min[1],std::min(c[1],max[1])),
-        std::max(min[2],std::min(c[2],max[2])));
-    element_t dist = distance(x,c);
-    return dist - r <= tol;
-  }
+    const element_t& r)
+    {
+      point_t x = point_t(
+        c[0]<max[0]?c[0]:max[0],
+        c[1]<max[1]?c[1]:max[1],
+        c[2]<max[2]?c[2]:max[2]);
+      x = {
+        x[0]<min[0]?min[0]:x[0],
+        x[1]<min[1]?min[1]:x[1],
+        x[2]<min[2]?min[2]:x[2]};
+      element_t dist = (x[0]-c[0])*(x[0]-c[0])+
+        (x[1]-c[1])*(x[1]-c[1])+
+        (x[2]-c[2])*(x[2]-c[2]);
+      return dist <= r*r;
+      /*
+      point_t c;
+      element_t D = 0, d = 0;
+      c = {(maxs[j][0]+mins[j][0])*.5,(maxs[j][1]+mins[j][1])*.5,(maxs[j][2]+mins[j][2])*.5};
+      D = (maxs[j][0]-mins[j][0])*(maxs[j][0]-mins[j][0])+
+        (maxs[j][1]-mins[j][1])*(maxs[j][1]-mins[j][1])+
+        (maxs[j][2]-mins[j][2])*(maxs[j][2]-mins[j][2]);
+      d = (c[0]-coord[i][0])*(c[0]-coord[i][0])+
+        (c[1]-coord[i][1])*(c[1]-coord[i][1])+
+        (c[2]-coord[i][2])*(c[2]-coord[i][2]);
+      accepted[j] += D > h[i]*h[i]+d*.25;*/
+
+      /*
+      element_t D =
+        (coord[i][0]-new_bcenter[j][0])*(coord[i][0]-new_bcenter[j][0])+
+        (coord[i][1]-new_bcenter[j][1])*(coord[i][1]-new_bcenter[j][1])+
+        (coord[i][2]-new_bcenter[j][2])*(coord[i][2]-new_bcenter[j][2]);
+      accepted[j] += (D <= (h[i]*h[i] + new_diagonal[j]*new_diagonal[j]*.25));
+      */
+    }
 
   static
   bool
@@ -559,9 +576,8 @@ struct tree_geometry<T, 3>
     double macangle)
   {
     double dmax = flecsi::distance(box_source_min,box_source_max);
-    double disttoc = flecsi::distance(
-        position_sink,position_source);
-    return dmax/disttoc - macangle <= tol;
+    double disttoc = flecsi::distance(position_sink,position_source);
+    return dmax/disttoc < macangle ;
   }
 
 };

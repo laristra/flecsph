@@ -57,19 +57,34 @@ namespace physics{
    */
   void
   compute_density(
-      body_holder* srch,
-      std::vector<body_holder*>& nbsh)
+      body* source,
+      std::vector<body*>& nbsh)
   {
-    body* source = srch->getBody();
     double density = 0;
+    const int n_nb = nbsh.size();
     mpi_assert(nbsh.size()>0);
-    for(auto nbh : nbsh){
-      body* nb = nbh->getBody();
-      double dist = flecsi::distance(source->getPosition(),nb->getPosition());
-      mpi_assert(dist>=0.0);
-      double kernelresult = kernels::kernel(dist,
-            .5*(source->getSmoothinglength()+nb->getSmoothinglength()));
-      density += kernelresult*nb->getMass();
+    // Array of distances
+    std::vector<double> distances(n_nb);
+    std::vector<double> masses(n_nb);
+    std::vector<double> nb_radius(n_nb);
+    double radius = source->radius();
+    point_t coordinates = source->coordinates();
+
+    for(int i = 0 ; i < n_nb; ++i){
+      masses[i] = nbsh[i]->mass();
+      nb_radius[i] = nbsh[i]->radius();
+      distances[i] = flecsi::distance(coordinates,nbsh[i]->coordinates());
+    }
+    for(int i = 0 ; i < n_nb; ++i){
+      double kernel = 0;
+      if constexpr (gdimension == 1){
+        kernel = kernels::wendland_c6_1d(
+          distances[i],.5*(radius+nb_radius[i]));
+      }else{
+        kernel = kernels::wendland_c6_23d(
+          distances[i],.5*(radius+nb_radius[i]));
+      }
+      density += kernel*masses[i];
     } // for
     mpi_assert(density>0);
     source->setDensity(density);
@@ -81,9 +96,8 @@ namespace physics{
    * @param      srch  The source's body holder
    */
   void set_total_energy (body_holder* srch) {
-    assert(srch->is_local());
     body* source = srch->getBody();
-    const point_t pos = source->getPosition(),
+    const point_t pos = source->coordinates(),
                   vel = source->getVelocity();
     const double eint = source->getInternalenergy(),
                  epot = external_force::potential(pos);
@@ -100,9 +114,8 @@ namespace physics{
    *             to recover internal energy
    * @param      srch  The source's body holder
    */
-  void recover_internal_energy (body_holder* srch) {
-    body* source = srch->getBody();
-    const point_t pos = source->getPosition(),
+  void recover_internal_energy (body* source) {
+    const point_t pos = source->coordinates(),
                   vel = source->getVelocity();
     const double etot = source->getTotalenergy(),
                  epot = external_force::potential(pos);
@@ -113,7 +126,7 @@ namespace physics{
     const double eint = etot - ekin - epot;
     if (eint < 0.0) {
       std::cerr << "ERROR: internal energy is negative!" << std::endl
-                << "particle id: " << source->getId()    << std::endl
+                << "particle id: " << source->id()    << std::endl
                 << "total energy: " << etot              << std::endl
                 << "kinetic energy: " << ekin            << std::endl
                 << "particle position: " << pos          << std::endl;
@@ -132,14 +145,14 @@ namespace physics{
    */
   void
   compute_density_pressure_soundspeed(
-    body_holder* srch,
-    std::vector<body_holder*>& nbsh)
+    body* source,
+    std::vector<body*>& nbsh)
   {
-    compute_density(srch,nbsh);
+    compute_density(source,nbsh);
     if (thermokinetic_formulation)
-      recover_internal_energy(srch);
-    eos::compute_pressure(srch);
-    eos::compute_soundspeed(srch);
+      recover_internal_energy(source);
+    eos::compute_pressure(source);
+    eos::compute_soundspeed(source);
   }
 
 
@@ -152,49 +165,62 @@ namespace physics{
    */
   void
   compute_acceleration(
-    body_holder* srch,
-    std::vector<body_holder*>& ngbsh)
+    body* source,
+    std::vector<body*>& ngbsh)
   {
     using namespace param;
-    body* source = srch->getBody();
-
     // Reset the accelerastion
     // \TODO add a function to reset in main_driver
     point_t acceleration = {};
     point_t hydro = {};
-    const double h_s = source->getSmoothinglength();
+    const double h_s = source->radius();
+    const point_t coordinates = source->coordinates();
+    const double density = source->getDensity();
+    const double pressure = source->getPressure();
     source->setMumax(0.0);
+    const int n_nb = ngbsh.size();
 
-    for(auto nbh : ngbsh){
-      body* nb = nbh->getBody();
+    double viscosities[n_nb];
+    point_t sourcekernelgradient[n_nb];
 
-      if(nb->getPosition() == source->getPosition())
-        continue;
+    double densities[n_nb];
+    double pressures[n_nb];
+    point_t positions[n_nb];
+    double radii[n_nb];
+    double masses[n_nb];
 
-      // Compute viscosity
-      double visc = viscosity::viscosity(source,nb);
+    int index=-1;
+    for(int i = 0 ; i < n_nb; ++i){
+      densities[i] = ngbsh[i]->getDensity();
+      pressures[i] = ngbsh[i]->getPressure();
+      positions[i] = ngbsh[i]->coordinates();
+      radii[i] = ngbsh[i]->radius();
+      masses[i] = ngbsh[i]->mass();
+      if(positions[i]==coordinates)
+        index=i;
+    }
 
-      // Hydro force
-      point_t vecPosition = source->getPosition() - nb->getPosition();
-      double rho_a = source->getDensity();
-      double rho_b = nb->getDensity();
-      double pressureDensity
-          = source->getPressure()/(rho_a*rho_a)
-          + nb->getPressure()/(rho_b*rho_b);
-
+    for(int i = 0 ; i < n_nb; ++i){ // not vectorized
+      viscosities[i] = viscosity::viscosity(source,ngbsh[i]);
+    }
+    for(int i = 0 ; i < n_nb; ++i){ // Not vectorized due to Kernel
       // Kernel computation
-      const double h_n = nb->getSmoothinglength();
-      point_t sourcekernelgradient = kernels::gradKernel(
-          vecPosition,(h_s+h_n)*.5);
-      point_t resultkernelgradient = sourcekernelgradient;
-
-      hydro += nb->getMass()*(pressureDensity + visc)
-        *resultkernelgradient;
-
+      point_t vecPosition = coordinates - positions[i];
+      sourcekernelgradient[i] = kernels::gradKernel(
+          vecPosition,(h_s+radii[i])*.5);
+    }
+    //ignore itself
+    sourcekernelgradient[index]={};
+    viscosities[index]=0;
+    for(int i = 0 ; i < n_nb; ++i){ // Vectorized
+      double pressureDensity = pressure/(density*density)
+          + pressures[i]/(densities[i]*densities[i]);
+      hydro += masses[i]*(pressureDensity + viscosities[i])
+        *sourcekernelgradient[i];
     }
     hydro = -1.0*hydro;
     acceleration += hydro;
-    acceleration += external_force::acceleration(srch);
+    acceleration += external_force::acceleration(source);
     source->setAcceleration(acceleration);
   } // compute_hydro_acceleration
 
@@ -221,20 +247,16 @@ namespace physics{
    * @param      nbsh  The neighbors' body holders
    */
   void compute_dudt(
-      body_holder* srch,
-      std::vector<body_holder*>& ngbsh)
+      body* source,
+      std::vector<body*>& ngbsh)
   {
-    body* source = srch->getBody();
-
     double dudt = 0;
     double dudt_pressure = 0.;
     double dudt_visc = 0.;
-    const double h_s = source->getSmoothinglength();
+    const double h_s = source->radius();
 
-    for(auto nbh: ngbsh){
-      body* nb = nbh->getBody();
-
-      if(nb->getPosition() == source->getPosition()){
+    for(auto nb: ngbsh){
+      if(nb->coordinates() == source->coordinates()){
         continue;
       }
 
@@ -242,8 +264,8 @@ namespace physics{
       double visc = viscosity::viscosity(source,nb);
 
       // Compute the gradKernel ij
-      const double h_n = nb->getSmoothinglength();
-      point_t vecPosition = source->getPosition()-nb->getPosition();
+      const double h_n = nb->radius();
+      point_t vecPosition = source->coordinates()-nb->coordinates();
       point_t sourcekernelgradient = kernels::gradKernel(
           vecPosition,(h_s+h_n)*.5);
       space_vector_t resultkernelgradient =
@@ -253,9 +275,9 @@ namespace physics{
       space_vector_t vecVelocity = flecsi::point_to_vector(
           source->getVelocity() - nb->getVelocity());
 
-      dudt_pressure += nb->getMass()*
+      dudt_pressure += nb->mass()*
         flecsi::dot(vecVelocity,resultkernelgradient);
-      dudt_visc += visc*nb->getMass()*
+      dudt_visc += visc*nb->mass()*
         flecsi::dot(vecVelocity,resultkernelgradient);
     }
 
@@ -282,52 +304,72 @@ namespace physics{
    * @param      nbsh  The neighbors' body holders
    */
   void compute_dedt(
-      body_holder* srch,
-      std::vector<body_holder*>& ngbsh)
+      body* source,
+      std::vector<body*>& ngbsh)
   {
-    body* source = srch->getBody();
 
     double dedt = 0;
 
-    const point_t pos_a = source->getPosition(),
+    const point_t pos_a = source->coordinates(),
                   vel_a = source->getVelocity();
-    const double h_a = source->getSmoothinglength(),
+    const double h_a = source->radius(),
                  P_a = source->getPressure(),
                  rho_a = source->getDensity();
     const double Prho2_a = P_a/(rho_a*rho_a);
 
-    for(auto nbh: ngbsh){
-      body* nb = nbh->getBody();
-      const point_t pos_b = nb->getPosition();
-      if(pos_a == pos_b)
-        continue;
+    const int n_nb = ngbsh.size();
+    point_t pos_b[n_nb];
+    double h_b[n_nb];
+    point_t vel_b[n_nb];
+    double rho_b[n_nb];
+    double P_b[n_nb];
+    double m_b[n_nb];
 
-      const double h_b = nb->getSmoothinglength();
-      // Compute the \nabla_a W_ab
-      const point_t Da_Wab = kernels::gradKernel(pos_a - pos_b, (h_a+h_b)*.5),
-                    vel_b = nb->getVelocity();
+    point_t Da_Wab[n_nb];
+    double Pi_ab[n_nb];
 
-      // va*DaWab and vb*DaWab
-      double va_dot_DaWab = vel_a[0]*Da_Wab[0];
-      double vb_dot_DaWab = vel_b[0]*Da_Wab[0];
-      for (unsigned short i=1; i<gdimension; ++i) {
-        va_dot_DaWab += vel_a[i]*Da_Wab[i],
-        vb_dot_DaWab += vel_b[i]*Da_Wab[i];
-      }
 
-      const double m_b = nb->getMass(),
-                   P_b = nb->getPressure(),
-                   rho_b = nb->getDensity();
-      const double Prho2_b = P_b/(rho_b*rho_b),
-                   Pi_ab = viscosity::viscosity(source,nb);
-
-      // add this neighbour's contribution
-      dedt -= m_b*( Prho2_a*vb_dot_DaWab + Prho2_b*va_dot_DaWab
-                + .5*Pi_ab*(va_dot_DaWab + vb_dot_DaWab));
+    int index=-1;
+    for(int i = 0 ; i < n_nb; ++i){
+      rho_b[i] = ngbsh[i]->getDensity();
+      P_b[i] = ngbsh[i]->getPressure();
+      pos_b[i] = ngbsh[i]->coordinates();
+      h_b[i] = ngbsh[i]->radius();
+      vel_b[i] = ngbsh[i]->getVelocity();
+      m_b[i] = ngbsh[i]->mass();
+      if(pos_b[i]==pos_a)
+        index=i;
     }
 
+    for(int i = 0 ; i < n_nb; ++i){
+      // Compute the \nabla_a W_ab
+      Da_Wab[i] = kernels::gradKernel(pos_a - pos_b[i], (h_a+h_b[i])*.5);
+      Pi_ab[i] = viscosity::viscosity(source,ngbsh[i]);
+    }
+
+    // To avoid the same particle
+    m_b[index] = 0;
+    Da_Wab[index] = {};
+    Pi_ab[index] = 0;
+
+    for(int i = 0 ; i < n_nb; ++i){ // Vectorized
+      // va*DaWab and vb*DaWab
+      point_t tmp_a = vel_a*Da_Wab[i];
+      point_t tmp_b = vel_b[i]*Da_Wab[i];
+      double va_dot_DaWab = tmp_a[0];
+      double vb_dot_DaWab = tmp_b[0];
+      for(unsigned int j = 1 ; j < gdimension ; ++j){
+        va_dot_DaWab += tmp_a[j];
+        vb_dot_DaWab += tmp_b[j];
+      }
+      const double Prho2_b = P_b[i]/(rho_b[i]*rho_b[i]);
+      // add this neighbour's contribution
+      dedt -= m_b[i]*( Prho2_a*vb_dot_DaWab + Prho2_b*va_dot_DaWab
+                + .5*Pi_ab[i]*(va_dot_DaWab + vb_dot_DaWab));
+    }
     source->setDedt(dedt);
   } // compute_dedt
+
 
 
   /**
@@ -360,7 +402,7 @@ namespace physics{
     const double mc   = 0.6; // constant in denominator for viscosity
 
     // particles separation around this particle
-    const double dx = source->getSmoothinglength()
+    const double dx = source->radius()
                     / (sph_eta*kernels::kernel_width);
 
     // timestep based on particle velocity
@@ -384,7 +426,7 @@ namespace physics{
     // timestep based on positivity of internal energy
     if (thermokinetic_formulation) {
       const double eint = source->getInternalenergy();
-      const point_t pos = source->getPosition();
+      const point_t pos = source->coordinates();
       const double epot = external_force::potential(pos);
       double epot_next;
       int i;
@@ -436,9 +478,9 @@ namespace physics{
       for(size_t i = 0 ; i < bodies.size(); ++i){
         if(!bodies[i].is_local()) continue;
         auto particle = bodies[i].getBody();
-        double m_b   = particle->getMass();
+        double m_b   = particle->mass();
         double rho_b = particle->getDensity();
-        particle->setSmoothinglength(
+        particle->set_radius(
           m_b/rho_b * sph_eta*kernels::kernel_width);
       }
     }
@@ -447,9 +489,9 @@ namespace physics{
       for(size_t i = 0 ; i < bodies.size(); ++i){
         if(!bodies[i].is_local()) continue;
         auto particle = bodies[i].getBody();
-        double m_b   = particle->getMass();
+        double m_b   = particle->mass();
         double rho_b = particle->getDensity();
-        particle->setSmoothinglength(
+        particle->set_radius(
           sqrt(m_b/rho_b) * sph_eta*kernels::kernel_width);
       }
     }
@@ -458,9 +500,9 @@ namespace physics{
       for(size_t i = 0 ; i < bodies.size(); ++i){
         if(!bodies[i].is_local()) continue;
         auto particle = bodies[i].getBody();
-        double m_b   = particle->getMass();
+        double m_b   = particle->mass();
         double rho_b = particle->getDensity();
-        particle->setSmoothinglength(
+        particle->set_radius(
           cbrt(m_b/rho_b) * sph_eta*kernels::kernel_width);
       }
     } // if gdimension
@@ -483,7 +525,7 @@ namespace physics{
     for(size_t i = 0 ; i < bodies.size(); ++i)
     {
       if(!bodies[i].is_local()) continue;
-      total += bodies[i].getBody()->getSmoothinglength();
+      total += bodies[i].getBody()->radius();
     }
 
     // Add up with all the processes
@@ -494,7 +536,7 @@ namespace physics{
     #pragma omp parallel for
     for(size_t i = 0 ; i < bodies.size(); ++i){
       if(!bodies[i].is_local()) continue;
-      bodies[i].getBody()->setSmoothinglength(new_h);
+      bodies[i].getBody()->set_radius(new_h);
     }
   }
 }; // physics

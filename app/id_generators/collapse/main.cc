@@ -83,7 +83,7 @@ void set_derived_params() {
 
   // total mass
   if (gdimension < 3) {
-    clog(error) << "This test must be run in 3D" << std::endl;
+    clog_one(error) << "This test must be run in 3D" << std::endl;
     print_usage();
     MPI_Finalize();
     exit(0);
@@ -133,7 +133,7 @@ int main(int argc, char * argv[]){
 
   // check options list: exactly one option is allowed
   if (argc != 2) {
-    clog(error) << "ERROR: parameter file not specified!" << std::endl;
+    clog_one(error) << "ERROR: parameter file not specified!" << std::endl;
     print_usage();
     MPI_Finalize();
     exit(0);

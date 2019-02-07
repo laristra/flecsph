@@ -4,7 +4,7 @@
  *~--------------------------------------------------------------------------~*/
 
  /*~--------------------------------------------------------------------------~*
- * 
+ *
  * /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
  * /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
  * /@@       /@@  @@@@@  @@    // /@@       /@@   /@@/@@     /@@
@@ -12,7 +12,7 @@
  * /@@////   /@@/@@@@@@@/@@       ////////@@/@@////  /@@//////@@
  * /@@       /@@/@@//// //@@    @@       /@@/@@      /@@     /@@
  * /@@       @@@//@@@@@@ //@@@@@@  @@@@@@@@ /@@      /@@     /@@
- * //       ///  //////   //////  ////////  //       //      //  
+ * //       ///  //////   //////  ////////  //       //      //
  *
  *~--------------------------------------------------------------------------~*/
 
@@ -55,10 +55,9 @@ namespace eos {
    * @brief      Compute the pressure for ideal gas EOS
    * @param      srch  The source's body holder
    */
-  void compute_pressure_ideal(body_holder* srch) { 
+  void compute_pressure_ideal(body* source) {
     using namespace param;
-    body* source = srch->getBody();
-    double pressure = (poly_gamma-1.0)*source->getDensity() 
+    double pressure = (poly_gamma-1.0)*source->getDensity()
                                       *source->getInternalenergy();
     source->setPressure(pressure);
   }
@@ -68,24 +67,22 @@ namespace eos {
    * @brief      Compute the pressure based on adiabatic index
    * @param      srch  The source's body holder
    */
-  void compute_pressure_adiabatic( body_holder* srch)
-  { 
+  void compute_pressure_adiabatic( body* source)
+  {
     using namespace param;
-    body* source = srch->getBody();
     double pressure = source->getAdiabatic()*
       pow(source->getDensity(),poly_gamma);
     source->setPressure(pressure);
   }
 
   /**
-   * @brief      Zero temperature EOS from Chandrasechkar's 
+   * @brief      Zero temperature EOS from Chandrasechkar's
    * 		     This can be used for a cold white dwarf
    *
    * @param      srch  The srch
    */
-  void compute_pressure_wd( body_holder* srch)
-  { 
-    body* source = srch->getBody();
+  void compute_pressure_wd(body* source)
+  {
     double A_wd = 6.00288e22;
     double B_wd = 9.81011e5;
 
@@ -102,34 +99,30 @@ namespace eos {
 
 #if 0
   void
-  EOS_prep(body_holder* srch)
+  EOS_prep(body* source)
   {
-    body* source = srch->getBody();
     EOS_SC_fill(source->getDensity(), source->getInternalenergy(),
-                source->getElectronfraction(), 
+                source->getElectronfraction(),
                 1.0//This field should be field for eos cache);
   //May need different source field?
   }
 #endif
   void
-  compute_pressure_sc(
-      body_holder* srch)
-  { 
+  compute_pressure_sc(body* source)
+  {
     using namespace param;
-    body* source = srch->getBody();
     //double pressure = EOS_pressure_rho0_u(source->eoscache());
     //source->setPressure(pressure)
   } // compute_pressure_sc
 
   /**
    * @brief      Compute sound speed for ideal fluid or polytropic eos
-   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics 
-   * 
+   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics
+   *
    * @param      srch  The source's body holder
    */
-  void compute_soundspeed_ideal(body_holder* srch) {
+  void compute_soundspeed_ideal(body* source) {
     using namespace param;
-    body* source = srch->getBody();
     double soundspeed = sqrt(poly_gamma*source->getPressure()
                                        /source->getDensity());
     source->setSoundspeed(soundspeed);
@@ -137,12 +130,11 @@ namespace eos {
 
   /**
    * @brief      Compute sound speed for wd eos
-   * 
+   *
    * @param      srch  The source's body holder
    */
-  void compute_soundspeed_wd(body_holder* srch) {
+  void compute_soundspeed_wd(body* source) {
     using namespace param;
-    body* source = srch->getBody();
     double A_wd = 6.00288e22;
     double B_wd = 9.81011e5;
     double x_wd = pow((source->getDensity())/B_wd,1./3.);
@@ -150,20 +142,22 @@ namespace eos {
     double numer = 8.*source->getDensity()*x_wd - 3.*B_wd;
     double deno = 3*B_wd*B_wd*x_wd*x_wd*sqrt(x_wd*x_wd+1);
 
-    double soundspeed = A_wd*(numer/deno + 
+    double soundspeed = A_wd*(numer/deno +
                               x_wd/(3.*source->getDensity()
                                     *sqrt(1-x_wd*x_wd)));
     source->setSoundspeed(soundspeed);
   }
-  
+
   // eos function types and pointers
-  typedef void (*compute_quantity_t)(body_holder*);
-  compute_quantity_t init = init_ideal;
+  typedef void (*compute_quantity_t)(body*);
   compute_quantity_t compute_pressure = compute_pressure_ideal;
   compute_quantity_t compute_soundspeed = compute_soundspeed_ideal;
 
+  typedef void (*eos_init_t)(body_holder*);
+  eos_init_t init = init_ideal;
+
 /**
- * @brief  Installs the 'compute_pressure' and 'compute_soundspeed' 
+ * @brief  Installs the 'compute_pressure' and 'compute_soundspeed'
  *         function pointers, depending on the value of eos_type
  */
 void select(const std::string& eos_type) {

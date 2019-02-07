@@ -4,7 +4,7 @@
  * ~--------------------------------------------------------------------------~*/
 
  /*~--------------------------------------------------------------------------~*
-  *  
+  *
   * /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
   * /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
   * /@@       /@@  @@@@@  @@    // /@@       /@@   /@@/@@     /@@
@@ -37,7 +37,7 @@
 
 namespace star_tracker{
 
-  //Need to: 
+  //Need to:
   //     find particle's max density
   //     find star's center of mass
   //     find whole system's center of mass
@@ -79,7 +79,7 @@ namespace star_tracker{
     } else
       return abs(p2[0]-p1[0]);
   }
- 
+
   // Input need to estimate of center and radius of star
   void find_maxRho_parts(body_holder* srch, const double *center, double radius) {
 
@@ -91,16 +91,16 @@ namespace star_tracker{
 
     for(const body* p=srch->ColPart(); p < srch->ColPart() + srch->nobj() ;p++) {
         if(p->getDensity() > max_density) {
-	   vec_dist = get_vec_dist(source->getPosition(),center)
+	   vec_dist = get_vec_dist(source->coordinates(),center)
            if(vec_dist < radius){
              max_density_part = p;
              max_density = p->getDensity();
            }
         }
     }
-    
+
     return max_density_part;
-  
+
   }
 
   void find_starRho(body_holder* srch, singleStarData_t* star) {

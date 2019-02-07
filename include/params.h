@@ -343,7 +343,7 @@ namespace param {
 
 //- maximum mass per cell
 # ifndef fmm_max_cell_mass
-  DECLARE_PARAM(double,fmm_max_cell_mass, 1.0e-4)
+  DECLARE_PARAM(double,fmm_max_cell_mass, 0.)
 # endif
 
 //
@@ -860,11 +860,11 @@ void set_param(const std::string& param_name,
 
   // unknown parameter -------------------------------
   if (unknown_param) {
-    clog(error) << "ERROR: unknown parameter " << param_name << endl;
+    clog_one(error) << "ERROR: unknown parameter " << param_name << endl;
     exit(2);
   }
 
-  rank || clog(trace) << param_name << ": " << param_value << endl;
+  clog_one(trace) << param_name << ": " << param_value << endl;
 }
 
 /**
@@ -964,7 +964,7 @@ void mpi_read_params(const char * parameter_file) {
   MPI_Bcast(&len, 1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(parfile, len+1, MPI_CHAR, 0, MPI_COMM_WORLD);
 
-  rank || clog(trace) << "Parameter file name on rank " << rank << " over "<<
+  clog_one(trace) << "Parameter file name on rank " << rank << " over "<<
               size << ": " << parfile << std::endl << std::flush;
 
   // queue ranks to read the parfile sequentially;

@@ -145,7 +145,7 @@ namespace mpi_utils{
     typename M>
   void
   mpi_alltoallv_p2p(
-      std::vector<int> sendcount,
+      std::vector<int>& sendcount,
       std::vector<M>& sendbuffer,
       std::vector<M>& recvbuffer
     )
@@ -339,6 +339,77 @@ namespace mpi_utils{
     out << oss_data.str();
     out.close();
   }
+
+  /**
+  * @brief Communication to one other rank
+  * @param [in] rank my rank for this communication
+  * @param [in] partner my partner for this communication
+  * @param [in] buffer The buffer used to send and store the data
+  * @param [in] nsend The number of data to send, avoiding sending the received
+  * ones
+  * @param [in] last The place of the last data received
+  * @return void
+  */
+  template<
+    typename T
+  >
+  void
+  mpi_one_to_one(
+    const int rank,
+    const int partner,
+    std::vector<T>& buffer,
+    const int nsend,
+    int& last
+  )
+  {
+    int size;
+    const int sizeofT = sizeof(T);
+    MPI_Comm_size(MPI_COMM_WORLD,&size);
+
+    MPI_Request request;
+    if(partner < size){
+      // I send
+      if(rank < partner){
+        // Send size
+        MPI_Isend(&(buffer[0]),nsend*sizeofT,MPI_BYTE,partner,1,
+          MPI_COMM_WORLD,&request);
+      }else{
+        MPI_Status status;
+        // Read the size of the message
+        MPI_Probe(partner,1,MPI_COMM_WORLD,&status);
+        // Get the size
+        int nrecv = 0;
+        MPI_Get_count(&status, MPI_BYTE, &nrecv);
+        buffer.resize(buffer.size()+nrecv/sizeofT);
+        MPI_Recv(&(buffer[last]), nrecv, MPI_BYTE, partner, 1,
+           MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        last = buffer.size();
+      }
+      // Other rank send
+      if(rank > partner){
+        // Send size
+        MPI_Isend(&(buffer[0]),nsend*sizeofT,MPI_BYTE,partner,1,
+          MPI_COMM_WORLD,&request);
+      }else{
+        MPI_Status status;
+        // Read the size of the message
+        MPI_Probe(partner,1,MPI_COMM_WORLD,&status);
+        // Get the size
+        int nrecv = 0;
+        MPI_Get_count(&status, MPI_BYTE, &nrecv);
+        buffer.resize(buffer.size()+nrecv/sizeofT);
+        MPI_Recv(&(buffer[last]), nrecv, MPI_BYTE, partner, 1,
+           MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        last = buffer.size();
+      }
+      //Wait for request
+      MPI_Status status;
+      MPI_Wait(&request,&status);
+    }
+  }// mpi_one_to_one
+
+
+
 
 }; // utils
 

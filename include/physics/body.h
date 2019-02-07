@@ -28,67 +28,23 @@
 
 #define OUTPUT
 
-#include "tree_topology/tree_topology.h" // CHANGE TO FLECSI ONE!!!
 #include "flecsi/geometry/point.h"
-#include "flecsi/geometry/space_vector.h"
-
+#include "tree_topology/entity.h"
 #include "user.h"
 
 enum particle_type_t : int {NORMAL = 0 ,WALL = 1};
 
-class body{
+class body : public flecsi::topology::entity<type_t,uint64_t,gdimension> {
 
   static const size_t dimension = gdimension;
   using element_t = type_t;
   using point_t = flecsi::point__<element_t, dimension>;
 
-
 public:
 
-  body(const point_t& position,
-      const point_t& velocity,
-      const point_t& velocityhalf,
-      const point_t& acceleration,
-      const double density,
-      const double pressure,
-      const double entropy,
-      const double electronfraction,
-      const double mass,
-      const double smoothinglength
-  ):  position_(position),
-      velocity_(velocity),
-      velocityhalf_(velocityhalf),
-      acceleration_(acceleration),
-      density_(density),
-      pressure_(pressure),
-      entropy_(entropy),
-      electronfraction_(electronfraction),
-      mass_(mass),
-      smoothinglength_(smoothinglength),
-      soundspeed_(0.0)
-      ,internalenergy_(0.0)
-      ,totalenergy_(0.0)
-      ,dudt_(0.0)
-      ,dedt_(0.0)
-      ,adiabatic_(0.0)
-      ,dadt_(0.0)
-      ,type_(NORMAL)
-      //gravforce_(point_t{}),
-      //hydroforce_(point_t{})
+   body(): entity(), type_(NORMAL)
    {};
 
-   body(): type_(NORMAL)
-   {};
-
-  inline bool operator==(const body& a)
-  {
-    return a.id_ == this->id_;
-  }
-
-  const point_t& coordinates() const{return position_;}
-  const point_t& getPosition() const{return position_;}
-  double getMass() const{return mass_;}
-  double getSmoothinglength() const{return smoothinglength_;}
   double getPressure() const{return pressure_;}
   double getSoundspeed() const{return soundspeed_;}
   double getEntropy() const{return entropy_;}
@@ -107,16 +63,12 @@ public:
     }
     return res;
   };
-  const flecsi::topology::entity_id_t getId() const {return id_;};
-  flecsi::topology::entity_id_t id(){return id_;};
   double getDt(){return dt_;};
   double getMumax(){return mumax_;}
   const particle_type_t getType() const {return type_;};
-
   bool is_wall(){return type_ == 1;};
 
   void set_neighbors(uint64_t neighbors){neighbors_ = neighbors;}
-  void setPosition(point_t position){position_ = position;}
   void setAcceleration(point_t acceleration){acceleration_ = acceleration;}
   void setVelocity(point_t velocity){velocity_ = velocity;}
   void setVelocityhalf(point_t velocityhalf){velocityhalf_ = velocityhalf;}
@@ -125,12 +77,8 @@ public:
   void setEntropy(double entropy){entropy_ = entropy;}
   void setElectronfraction(double electronfraction){electronfraction_ = electronfraction;}
   void setDensity(double density){density_ = density;}
-  void setMass(double mass){mass_ = mass;};
-  void setSmoothinglength(double smoothinglength)
-    {smoothinglength_=smoothinglength;};
   void setDt(double dt){dt_ = dt;};
   void setMumax(double mumax){mumax_ = mumax;};
-  void setId(flecsi::topology::entity_id_t id){id_ = id;};
   void setType(particle_type_t type){type_ = type;};
   void setType(int type){type_= static_cast<particle_type_t>(type);};
 
@@ -152,24 +100,21 @@ public:
   friend std::ostream& operator<<(std::ostream& os, const body& b){
     // TODO change regarding to dimension
     os << std::setprecision(10);
-    os << "Particle: Pos: " <<b.position_ << " rho: " << b.density_;
-    os << " h: " << b.smoothinglength_;
+    os << "Particle: Pos: " <<b.coordinates_ << " rho: " << b.density_;
+    os << " h: " << b.radius_;
     os << " P: " << b.pressure_;
-    os << " v: " << b.velocity_ ;//<< " VelH: " << b.velocityhalf_;
+    os << " v: " << b.velocity_ ;
     os << " m: " << b.mass_;
-    #ifdef INTERNAL_ENERGY
-      os << " u: " << b.internalenergy_;
-    #endif
+    os << " u: " << b.internalenergy_;
     os << " cs: " << b.soundspeed_;
-    //os << " Force: hyd: " << b.hydroforce_;
-    //os << " grav: " << b.gravforce_;
     os << " a: " << b.acceleration_;
     os << " id: " << b.id_;
+    os << " key: "<<b.key_;
+    os << " owner: "<<b.owner_;
     return os;
   }
 
 private:
-  point_t position_;
   point_t velocity_;
   point_t velocityhalf_;
   point_t acceleration_;
@@ -177,8 +122,6 @@ private:
   double pressure_;
   double entropy_;
   double electronfraction_;
-  double mass_;
-  double smoothinglength_;
   double soundspeed_;
   double internalenergy_;
   double totalenergy_;
@@ -188,7 +131,6 @@ private:
   double dadt_;
   double dt_;
   double mumax_;
-  flecsi::topology::entity_id_t id_;
   particle_type_t type_;
   int64_t neighbors_;
 }; // class body

@@ -6,6 +6,7 @@
 
 #include "tree.h"
 
+// Number of particles
 #define N 2000
 #define RMINX 0.
 #define RMINY 0.
@@ -59,17 +60,21 @@ TEST(tree_topology, neighbors_sphere_NORMAL) {
     t.insert(e);
   }
 
+  std::cout<<"Computing cofm";
 
-  t.post_order_traversal(t.root(),traversal_t::update_COM,
-      0.00001,false);
+  t.cofm(t.root(),0,false);
+
+  std::cout<<".done"<<std::endl;
 
   ASSERT_TRUE(t.root()->mass() == n*mass);
 
   for(size_t i = 0; i < n; ++i){
     auto ent = t.get(i);
 
+    //std::cout<<"Entity "<<i+1<<"/"<<n<<" = "<<ent->key();
     auto ns = t.find_in_radius(ent->coordinates(), HMAX,
         tree_geometry_t::within);
+    //std:cout<<" -> "<<ns.size()<<" nbrs.done"<<std::endl;
 
     set<body_holder*> s1;
     s1.insert(ns.begin(), ns.end());
@@ -98,6 +103,7 @@ TEST(tree_topology, neighbors_sphere_VARIABLE) {
   range_t range = {point_t{RMINX,RMINY,RMINZ},point_t{RMAXX,RMAXY,RMAXZ}};
   std::cout<<"Range: "<<range[0]<<"-"<<range[1]<<std::endl;
 
+
   for(size_t i = 0; i < n; ++i){
     point_t p = {uniform(RMINX, RMAXX), uniform(RMINY, RMAXY),
         uniform(RMINZ, RMAXZ)};
@@ -105,9 +111,7 @@ TEST(tree_topology, neighbors_sphere_VARIABLE) {
     t.insert(e);
   }
 
-
-  t.post_order_traversal(t.root(),traversal_t::update_COM,
-      0.00001,false);
+  t.cofm(t.root(),0,false);
 
   ASSERT_TRUE(t.root()->mass() == n*mass);
 
@@ -152,35 +156,34 @@ TEST(tree_topology, neighbors_box_NORMAL) {
     t.insert(e);
   }
 
-  t.post_order_traversal(t.root(),traversal_t::update_COM,
-      0.00001,false);
+  t.cofm(t.root(),0,false);
 
   ASSERT_TRUE(t.root()->mass() == n*mass);
 
   for(size_t i = 0; i < n; ++i){
     auto ent = t.get(i);
 
-	for(size_t d = 0; d < gdimension; ++d ){
-		max[d] = ent->coordinates()[d]+HMAX;
-		min[d] = ent->coordinates()[d]-HMAX;
-	}
-    auto ns = t.find_in_box(min,max,tree_geometry_t::within_box);
+    for(size_t d = 0; d < gdimension; ++d ){
+    	max[d] = ent->coordinates()[d]+HMAX;
+    	min[d] = ent->coordinates()[d]-HMAX;
+    }
+      auto ns = t.find_in_box(min,max,tree_geometry_t::within_box);
 
-    set<body_holder*> s1;
-    s1.insert(ns.begin(), ns.end());
+      set<body_holder*> s1;
+      s1.insert(ns.begin(), ns.end());
 
-    set<body_holder*> s2;
+      set<body_holder*> s2;
 
-    for(size_t j = 0; j < n; ++j){
-      auto ej = t.get(j);
+      for(size_t j = 0; j < n; ++j){
+        auto ej = t.get(j);
 
-	  bool in_box = true;
-	  for(size_t d = 0; d < gdimension; ++d ){
-		if(ej->coordinates()[d] > max[d] || ej->coordinates()[d] < min[d]){
-			in_box = false;
-			break;
-		}
-	  }
+      bool in_box = true;
+      for(size_t d = 0; d < gdimension; ++d ){
+      	if(ej->coordinates()[d] > max[d] || ej->coordinates()[d] < min[d]){
+      		in_box = false;
+      		break;
+    	   }
+  	  }
 
       if(in_box){
         s2.insert(ej);
@@ -210,8 +213,7 @@ TEST(tree_topology, neighbors_box_VARIABLE) {
     t.insert(e);
   }
 
-  t.post_order_traversal(t.root(),traversal_t::update_COM,
-      0.00001,false);
+  t.cofm(t.root(),0,false);
 
   ASSERT_TRUE(t.root()->mass() == n*mass);
 

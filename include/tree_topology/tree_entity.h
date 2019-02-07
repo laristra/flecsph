@@ -38,17 +38,15 @@
 #include <stack>
 #include <math.h>
 #include <float.h>
+#include <mpi.h>
 
 #include "flecsi/geometry/point.h"
-#include "flecsi/concurrency/thread_pool.h"
-#include "flecsi/data/storage.h"
-#include "flecsi/data/data_client.h"
-#include "flecsi/topology/index_space.h"
 
 #include "tree_entity_id.h"
 #include "key_id.h"
 #include "tree_branch.h"
 #include "tree_geometry.h"
+#include "entity.h"
 
 namespace flecsi {
 namespace topology {
@@ -58,26 +56,46 @@ namespace topology {
 template<
   typename TT,
   typename T,
-  size_t D
+  size_t D,
+  typename ENT
 >
 class tree_entity{
 public:
 
+  using type_t = TT;
   using id_t = entity_id_t;
   using key_id_t = key_id__<T,D>;
   using point_t = point__<TT,D>;
-  //using key_id_t = morton_id<T, D>;
   using range_t = std::array<point_t,2>;
+  using entity_t = ENT;
 
 protected:
   enum e_locality_ {LOCAL=0,NONLOCAL=1,SHARED=2,EXCL=3,GHOST=4};
 
 public:
 
+  tree_entity(
+    const key_id_t& key,
+    const point_t& coordinates,
+    entity_t* entity_ptr,
+    const int64_t owner,
+    const type_t& mass,
+    const entity_id_t& id,
+    const type_t& radius
+  ):key_id_(key),coordinates_(coordinates),entity_ptr_(entity_ptr),
+  owner_(owner),mass_(mass),id_(id),radius_(radius)
+  {
+    locality_ = entity_ptr_==nullptr?NONLOCAL:EXCL;
+    global_id_ = id;
+  };
+
   tree_entity()
   : key_id_(key_id_t::null()),
   locality_(NONLOCAL)
-  {}
+  {
+    owner_ = -1;
+    global_id_ = {};
+  }
 
   tree_entity(
     const key_id_t& key,
@@ -89,6 +107,12 @@ public:
 
   key_id_t
   get_entity_key() const
+  {
+    return key_id_;
+  }
+
+  key_id_t
+  key() const
   {
     return key_id_;
   }
@@ -132,13 +156,9 @@ public:
   bool
   is_local() const
   {
-    return (locality_ == LOCAL || locality_ == EXCL || locality_ == SHARED);
-  }
-
-  bool
-  is_shared() const
-  {
-    return locality_==SHARED;
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    return owner_ == rank;
   }
 
   void
@@ -178,6 +198,33 @@ public:
     coordinates_=coordinates;
   };
 
+  type_t mass(){return mass_;};
+  void set_h(type_t h){radius_=h;};
+  type_t h(){return radius_;};
+
+  void set_shared(){locality_ = SHARED;};
+
+  friend std::ostream& operator<<(std::ostream& os, const tree_entity& b){
+    os << std::setprecision(10);
+    os << "Tree entity. Pos: " <<b.coordinates_ << " Mass: "<< b.mass_ << " ";
+    if(b.locality_ == LOCAL || b.locality_ == EXCL || b.locality_ == SHARED)
+    {
+      os<< "LOCAL";
+    }else{
+      os << "NONLOCAL";
+    }
+    os << " owner: " << b.owner_;
+    os << " id: " << b.id_;
+    return os;
+  }
+
+  entity_t* getBody()
+  { return entity_ptr_; }
+
+  void setBody(entity_t* entity_ptr){
+    entity_ptr_ = entity_ptr;
+  }
+
 
 protected:
   template<class P>
@@ -207,12 +254,16 @@ protected:
     key_id_ = bid;
   }
 
+  type_t mass_;
+  type_t radius_;
   point_t coordinates_;
   key_id_t key_id_;
   entity_id_t id_;
   entity_id_t global_id_;
   e_locality_ locality_;
   int64_t owner_;
+
+  entity_t* entity_ptr_;
 };
 
 } // namespace topology
