@@ -302,6 +302,10 @@ public:
   * \brief Share the edge particles to my direct neighbors
   * regarding the key ordering: 0 <-> 1 <-> 2 <-> 3 for 4 processes
   */
+  /**
+  * \brief Share the edge particles to my direct neighbors
+  * regarding the key ordering: 0 <-> 1 <-> 2 <-> 3 for 4 processes
+  */
   void
   share_edge()
   {
@@ -396,7 +400,6 @@ public:
         // In this case just look if my body go in the neighbor branch
         if(neighbor_parent_depth < my_parent_depth)
         {
-          //std::cout<<rank<<" have highest branch: "<<my_keys[1]<<" vs "<<neighbor_keys[1]<<std::endl;
           // Is there a conflict: in this case compare the bodies
           key_t nb_key = neighbor_keys[0]; nb_key.truncate(my_parent_depth);
           key_t my_key = my_keys[0]; my_key.truncate(my_parent_depth);
@@ -439,13 +442,13 @@ public:
         // If my neighbor have the highest branch
         if(neighbor_parent_depth > my_parent_depth)
         {
+
           // Refine to the neighbor's depth
           while(my_parent_depth < neighbor_parent_depth){
             //std::cout<<rank<<" - "<<my_parent_depth<<" vs "<<neighbor_parent_depth<<std::endl;
-            refine_(find_parent(neighbor_keys[0]));
+            refine_(find_parent(my_keys[0]));
             ++my_parent_depth;
           }
-          //std::cout<<rank<< " have lowest branch: "<<my_keys[1]<<" vs "<<neighbor_keys[1]<<std::endl;
 
           key_t my_key = my_keys[0]; my_key.truncate(neighbor_parent_depth);
           if(my_key == neighbor_keys[1])
@@ -750,9 +753,9 @@ public:
         remaining_branches,false,ef,std::forward<ARGS>(args)...);
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace)<<"First traversal done"<<std::endl;
-    MPI_Barrier(MPI_COMM_WORLD);
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //clog_one(trace)<<"First traversal done"<<std::endl;
+    //MPI_Barrier(MPI_COMM_WORLD);
 
 #ifdef DEBUG
     int flag = 0;
@@ -778,11 +781,11 @@ public:
       find_parent(g.key()).set_ghosts_local(true);
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace)<<"Ghosts added"<<std::endl;
-    MPI_Barrier(MPI_COMM_WORLD);
-    std::cout<<rank<<" #ghosts: "<<ghosts_entities_[current_ghosts].size()<<std::endl;
-    MPI_Barrier(MPI_COMM_WORLD);
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //clog_one(trace)<<"Ghosts added"<<std::endl;
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //std::cout<<rank<<" #ghosts: "<<ghosts_entities_[current_ghosts].size()<<std::endl;
+    //MPI_Barrier(MPI_COMM_WORLD);
 
     // Prepare for the eventual next tree traversal, use other ghosts vector
     ++current_ghosts;
@@ -801,7 +804,7 @@ public:
     }
     // Copy back the results
     entities_ = entities_w_;
-    MPI_Barrier(MPI_COMM_WORLD);
+    //MPI_Barrier(MPI_COMM_WORLD);
 
   } // apply_sub_cells
 
@@ -839,11 +842,11 @@ public:
 
     int nelem = working_branches.size();
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace)<<" Starting traversal"<<std::endl;
-    MPI_Barrier(MPI_COMM_WORLD);
-    std::cout<<rank<<" #working: "<<nelem<<std::endl;
-    MPI_Barrier(MPI_COMM_WORLD);
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //clog_one(trace)<<" Starting traversal"<<std::endl;
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //std::cout<<rank<<" #working: "<<nelem<<std::endl;
+    //MPI_Barrier(MPI_COMM_WORLD);
 
     #pragma omp parallel for
     for(int i = 0 ; i < nelem; ++i){
@@ -862,9 +865,9 @@ public:
           inter_list,neighbors);
         // Perform the computation in the same time for all the threads
         int index = 0;
-        for(auto j: *(working_branches[i]))
-        //for(int j = working_branches[i]->begin_tree_entities();
-        //  j <= working_branches[i]->end_tree_entities(); ++j)
+        //for(auto j: *(working_branches[i]))
+        for(int j = working_branches[i]->begin_tree_entities();
+          j <= working_branches[i]->end_tree_entities(); ++j)
         {
           if(tree_entities_[j].is_local())
             ef(&(entities_w_[j]),neighbors[index],std::forward<ARGS>(args)...);
@@ -968,9 +971,9 @@ public:
     }
     const int nb_entities = inter_coordinates.size();
     int index = 0;
-    for(auto i: *(working_branch))
-    //for(int i = working_branch->begin_tree_entities();
-    //  i <= working_branch->end_tree_entities(); ++i)
+    //for(auto i: *(working_branch))
+    for(int i = working_branch->begin_tree_entities();
+      i <= working_branch->end_tree_entities(); ++i)
     {
       point_t coordinates = tree_entities_[i].coordinates();
       element_t radius = tree_entities_[i].h();
@@ -1616,9 +1619,19 @@ public:
       if(b->is_leaf()){
         // For local branches, compute the radius
         if(b->is_local()){
+          int start = -1;
+          int end = -1;
           for(auto child: *b)
           {
+
             auto ent = get(child);
+
+            if(ent->is_local()){
+              if(start == -1)
+                start = child;
+              end = child;
+            }
+
             owner = ent->owner();
             if(local_only && !ent->is_local()){
               continue;
@@ -1648,8 +1661,8 @@ public:
           //  radius = std::max(radius,
           //      distance(ent->coordinates(),coordinates)  + epsilon + ent->h());
           //}
-          begin_te = *(b->begin());
-          end_te = *(b->begin()+(b->size()-1));
+          begin_te = start;
+          end_te = end;
         }else{
           // For non local particles use existing value from remote
           coordinates = b->coordinates();
