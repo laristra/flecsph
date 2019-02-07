@@ -9,9 +9,14 @@
 
 # For vectorization: -fopt-info-vec-missed/optimized/note/all
 set(CMAKE_CXX_FLAGS_DEBUG
-"-mavx2 -msse4 -ftree-vectorize -fopt-info-vec-all=\"missed.txt\" -march=native -pthread -lpthread -DPARALLEL_IO -Wno-sign-compare -Wno-reorder -Wno-narrowing -Wno-deprecated-declarations  -ffast-math -g -O3 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses")
+  "-mavx2 -msse4 -ftree-vectorize -fopt-info-vec-all=\"missed.txt\" -march=native \
+  -pthread -lpthread -DPARALLEL_IO -Wno-sign-compare -Wno-reorder -Wno-narrowing \
+  -Wno-deprecated-declarations  -ffast-math -g -O3 -Wall -Wno-return-type \
+-Wno-unused -Wno-comment -Wno-parentheses -lm")
 set(CMAKE_CXX_FLAGS_RELEASE
-  "-march=native -pthread -lpthread -DPARALLEL_IO -Wno-sign-compare -Wno-reorder -Wno-narrowing -Wno-deprecated-declarations -ftree-vectorize -ffast-math -msse2 -O3 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses")
+ "-march=native -pthread -lpthread -DPARALLEL_IO -Wno-sign-compare -Wno-reorder \
+  -Wno-narrowing -Wno-deprecated-declarations -ftree-vectorize -ffast-math -msse2 \
+  -O3 -Wall -Wno-return-type -Wno-unused -Wno-comment -Wno-parentheses")
 
 # includes
 

@@ -35,24 +35,6 @@
 
 namespace kernels{
 
-  /**
-   * @brief      Compute the size of the vector
-   * needed in the computation of the gradients
-   *
-   * @param      p     The vector, in point_t shape
-   *
-   * @return     The size of the vector
-   */
-  double vector_norm(
-    const point_t& p){
-    if constexpr (gdimension == 3)
-      return sqrt(p[0]*p[0] + p[1]*p[1] + p[2]*p[2]);
-    else if constexpr (gdimension == 2)
-      return sqrt(p[0]*p[0] + p[1]*p[1]);
-    else
-      return abs(p[0]);
-  }
-
   // Coefficient for the kernels in 1d, 2d and 3d without h
   // h depends of the dimension and is added in the kernel
   const double cubic_spline_sigma[3] = {4./3.,40./(7.*M_PI),8./M_PI};
@@ -137,7 +119,7 @@ namespace kernels{
       const point_t& vecP,
       const double& h)
   {
-    double r = vector_norm(vecP);
+    double r = flecsi::norm2(vecP);
     double rh = 2.*r/h;
 
     point_t result = 0.0;
@@ -198,7 +180,7 @@ namespace kernels{
     const point_t& vecP,
     const double& h)
   {
-    double r = vector_norm(vecP);
+    double r = flecsi::norm2(vecP);
     double rh = 3.*r/h;
 
     point_t result = 0.0;
@@ -260,7 +242,7 @@ namespace kernels{
     const point_t& vecP,
     const double& h)
   {
-    const double r = vector_norm(vecP);
+    const double r = flecsi::norm2(vecP);
     double rh = 3.*r/h;
 
     point_t result = 0.0;
@@ -341,7 +323,7 @@ namespace kernels{
     const point_t& vecP,
     const double& h)
   {
-    double r = vector_norm(vecP);
+    double r = flecsi::norm2(vecP);
     double rh = r/h;
     point_t result = 0.0;
 
@@ -360,7 +342,7 @@ namespace kernels{
     const point_t& vecP,
     const double& h)
   {
-    double r = vector_norm(vecP);
+    double r = flecsi::norm2(vecP);
     double rh = r/h;
     point_t result = 0.0;
 
@@ -441,7 +423,7 @@ namespace kernels{
     const point_t & vecP,
     const double& h)
   {
-    double r = vector_norm(vecP);
+    double r = flecsi::norm2(vecP);
     double rh = r/h;
     point_t result = 0.0;
 
@@ -461,7 +443,7 @@ namespace kernels{
     const point_t& vecP,
     const double& h)
   {
-    double r = vector_norm(vecP);
+    double r = flecsi::norm2(vecP);
     double rh = r/h;
     point_t result = 0.0;
 
@@ -546,7 +528,7 @@ namespace kernels{
     const point_t& vecP,
     const double& h)
   {
-    double r = vector_norm(vecP);
+    double r = flecsi::norm2(vecP);
     double rh = r/h;
     point_t result = 0.0;
 
@@ -565,7 +547,7 @@ namespace kernels{
     const point_t& vecP,
     const double& h)
   {
-    double r = vector_norm(vecP);
+    double r = flecsi::norm2(vecP);
     double rh = r/h;
     point_t result = 0.0;
 
@@ -628,7 +610,7 @@ namespace kernels{
     const point_t& vecP,
     const double& h)
   {
-    double r = vector_norm(vecP);
+    double r = flecsi::norm2(vecP);
     double rh = 3.*r/h;
 
     point_t result = 0.0;
@@ -699,7 +681,7 @@ namespace kernels{
     const double& h)
   {
     using namespace param;
-    double r = vector_norm(vecP);
+    double r = flecsi::norm2(vecP);
     double rh = fabs(r/h), rh2;
     const double eps = 1e-24;
     const double eps_root = sqrt(eps);

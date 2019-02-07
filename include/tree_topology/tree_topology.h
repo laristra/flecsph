@@ -750,6 +750,10 @@ public:
         remaining_branches,false,ef,std::forward<ARGS>(args)...);
     }
 
+    MPI_Barrier(MPI_COMM_WORLD);
+    clog_one(trace)<<"First traversal done"<<std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+
 #ifdef DEBUG
     int flag = 0;
     MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag,
@@ -773,6 +777,13 @@ public:
       // Set the parent to local for the search
       find_parent(g.key()).set_ghosts_local(true);
     }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    clog_one(trace)<<"Ghosts added"<<std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+    std::cout<<rank<<" #ghosts: "<<ghosts_entities_[current_ghosts].size()<<std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+
     // Prepare for the eventual next tree traversal, use other ghosts vector
     ++current_ghosts;
     assert(current_ghosts < max_traversal);
@@ -828,6 +839,12 @@ public:
 
     int nelem = working_branches.size();
 
+    MPI_Barrier(MPI_COMM_WORLD);
+    clog_one(trace)<<" Starting traversal"<<std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+    std::cout<<rank<<" #working: "<<nelem<<std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+
     #pragma omp parallel for
     for(int i = 0 ; i < nelem; ++i){
       std::vector<branch_t*> inter_list;
@@ -845,10 +862,12 @@ public:
           inter_list,neighbors);
         // Perform the computation in the same time for all the threads
         int index = 0;
-        for(int j = working_branches[i]->begin_tree_entities();
-          j <= working_branches[i]->end_tree_entities(); ++j)
+        for(auto j: *(working_branches[i]))
+        //for(int j = working_branches[i]->begin_tree_entities();
+        //  j <= working_branches[i]->end_tree_entities(); ++j)
         {
-          ef(&(entities_w_[j]),neighbors[index],std::forward<ARGS>(args)...);
+          if(tree_entities_[j].is_local())
+            ef(&(entities_w_[j]),neighbors[index],std::forward<ARGS>(args)...);
           ++index;
         }
       }else{
@@ -944,12 +963,14 @@ public:
         inter_coordinates.push_back(tree_entities_[k].coordinates());
         inter_radius.push_back(tree_entities_[k].h());
         inter_entities.push_back(tree_entities_[k].getBody());
+        assert(inter_entities.back() != nullptr);
       }
     }
     const int nb_entities = inter_coordinates.size();
     int index = 0;
-    for(int i = working_branch->begin_tree_entities();
-      i <= working_branch->end_tree_entities(); ++i)
+    for(auto i: *(working_branch))
+    //for(int i = working_branch->begin_tree_entities();
+    //  i <= working_branch->end_tree_entities(); ++i)
     {
       point_t coordinates = tree_entities_[i].coordinates();
       element_t radius = tree_entities_[i].h();
@@ -1581,7 +1602,7 @@ public:
       //typename branch_t::b_locality locality = branch_t::NONLOCAL;
       element_t mass = 0;
       point_t bmax{}, bmin{};
-      element_t radius = 0.;
+      //element_t radius = 0.;
       point_t coordinates{};
       uint64_t nchildren = 0;
       int owner = b->owner();
@@ -1621,12 +1642,12 @@ public:
           if(mass > element_t(0))
             coordinates /= mass;
           // Compute the radius
-          for(auto child: *b)
-          {
-            auto ent = get(child);
-            radius = std::max(radius,
-                distance(ent->coordinates(),coordinates)  + epsilon + ent->h());
-          }
+          //for(auto child: *b)
+          //{
+          //  auto ent = get(child);
+          //  radius = std::max(radius,
+          //      distance(ent->coordinates(),coordinates)  + epsilon + ent->h());
+          //}
           begin_te = *(b->begin());
           end_te = *(b->begin()+(b->size()-1));
         }else{
@@ -1682,14 +1703,14 @@ public:
         if(mass > element_t(0))
           coordinates /= mass;
         // Compute the radius
-        for(int i = 0 ; i < (1<<dimension); ++i)
-        {
-          if(!b->as_child(i))
-            continue;
-          auto branch = child(b,i);
-          radius = std::max(radius,
-              distance(coordinates,branch->coordinates()) + branch->radius());
-        }
+        //for(int i = 0 ; i < (1<<dimension); ++i)
+        //{
+        //  if(!b->as_child(i))
+        //    continue;
+        //  auto branch = child(b,i);
+        //  radius = std::max(radius,
+        //      distance(coordinates,branch->coordinates()) + branch->radius());
+        //}
         if(local && nonlocal)
           b->set_locality(branch_t::SHARED);
         if(local && !nonlocal)
@@ -1697,7 +1718,7 @@ public:
         if(!local && nonlocal)
           b->set_locality(branch_t::NONLOCAL);
       }
-      b->set_radius(radius);
+      //b->set_radius(radius);
       b->set_sub_entities(nchildren);
       b->set_coordinates(coordinates);
       b->set_mass(mass);
@@ -2203,7 +2224,6 @@ private:
 
       b.set_leaf(false);
       b.clear();
-      b.reset();
       b.set_bit_child(bit_child);
     }
 

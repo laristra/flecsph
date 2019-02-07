@@ -206,9 +206,14 @@ namespace physics{
     for(int i = 0 ; i < n_nb; ++i){ // Not vectorized due to Kernel
       // Kernel computation
       point_t vecPosition = coordinates - positions[i];
-      sourcekernelgradient[i] = kernels::gradKernel(
+      if constexpr (gdimension == 1 ){
+        sourcekernelgradient[i] = kernels::gradient_wendland_c6_1d(
           vecPosition,(h_s+radii[i])*.5);
-    }
+      }else{
+        sourcekernelgradient[i] = kernels::gradient_wendland_c6_23d(
+          vecPosition,(h_s+radii[i])*.5);
+      }
+    } // for 
     //ignore itself
     sourcekernelgradient[index]={};
     viscosities[index]=0;
