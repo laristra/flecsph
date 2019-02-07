@@ -261,6 +261,11 @@ namespace param {
   DECLARE_STRING_PARAM(initial_data_prefix,"initial_data")
 #endif
 
+//- ID-generator-specific parameter to overwrite initial data
+#ifndef modify_initial_data
+  DECLARE_PARAM(bool,modify_initial_data,false)
+#endif
+
 //- file prefix for HDF5 output data file[s]
 #ifndef output_h5data_prefix
   DECLARE_STRING_PARAM(output_h5data_prefix,"output_data")
@@ -342,28 +347,28 @@ namespace param {
 # endif
 
 //
-// Drag force parameters
+// Parameters for particle relaxation, used to relax configurations
+// by applying negative drag force against the direction of velocity
+// for each particle:
+//  f_relax = - (beta + gamma*v^2) * v
 //
-// HL : These parameters are used to relax star from
-//      initial star in both single and binary system.
-//      Drag force is applied to acceleration computation
-//      during beginning of steps.
-//      If we have some IDs that do not require relaxation,
-//      this can be neglected
-//
-//- apply drag force?
-#ifndef do_drag
-  DECLARE_PARAM(bool,do_drag,false)
-#endif
+// Simple tests which are set up on regular rectangular lattices do not
+// require particle relaxation term.
+// 
 
-//- relaxation steps
-# ifndef relax_steps
-  DECLARE_PARAM(int,relax_steps,10)
+//- apply relaxation for this many steps (non-inclusive); 
+//  if set to zero (default), do not apply relaxation.
+# ifndef relaxation_steps
+  DECLARE_PARAM(int,relaxation_steps,0)
 # endif
 
-//- Drag force coefficients.
-# ifndef drag_coeff
-  DECLARE_PARAM(double,drag_coeff,1.e-6)
+//- relaxation coefficients beta and gamma (both must be positive)
+# ifndef relaxation_beta
+  DECLARE_PARAM(double,relaxation_beta,1.e-6)
+# endif
+
+# ifndef relaxation_gamma
+  DECLARE_PARAM(double,relaxation_gamma,0.0)
 # endif
 
 
@@ -414,7 +419,12 @@ namespace param {
   DECLARE_PARAM(bool,equal_mass,true)
 #endif
 
-// characteristic density for an initial conditions
+// for some spherically- or axi-symmetric configurations:
+#ifndef density_profile
+  DECLARE_STRING_PARAM(density_profile,"constant")
+#endif
+
+// characteristic density for initial conditions
 # ifndef rho_initial
   DECLARE_PARAM(double,rho_initial,1.0)
 # endif
@@ -443,6 +453,12 @@ namespace param {
 // initial data lattice type:
 # ifndef lattice_type
   DECLARE_PARAM(int,lattice_type,0)
+# endif
+
+// if >0: lattice is randomly perturbed with this amplitude
+// amplitude is in units of smoothing length (h)
+# ifndef lattice_perturbation_amplitude
+  DECLARE_PARAM(double,lattice_perturbation_amplitude,0.0)
 # endif
 
 // in several tests: initial velocity of the flow
@@ -660,6 +676,10 @@ void set_param(const std::string& param_name,
   READ_STRING_PARAM(initial_data_prefix)
 # endif
 
+#ifndef modify_initial_data
+  READ_BOOLEAN_PARAM(modify_initial_data)
+#endif
+
 # ifndef output_h5data_prefix
   READ_STRING_PARAM(output_h5data_prefix)
 # endif
@@ -718,20 +738,20 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(fmm_max_cell_mass)
 # endif
 
-  // drag force parameters ---------------------------------------------------
-#ifndef do_drag
-  READ_BOOLEAN_PARAM(do_drag)
-#endif
-
-# ifndef relax_steps
-  READ_NUMERIC_PARAM(relax_steps)
+  // relaxation parameters  --------------------------------------------------
+# ifndef relaxation_steps
+  READ_NUMERIC_PARAM(relaxation_steps)
 # endif
 
-# ifndef drag_coeff
-  READ_NUMERIC_PARAM(drag_coeff)
+# ifndef relaxation_beta
+  READ_NUMERIC_PARAM(relaxation_beta)
 # endif
 
-// external force  --------------------------------------------------------
+# ifndef relaxation_gamma
+  READ_NUMERIC_PARAM(relaxation_gamma)
+# endif
+
+  // external force  --------------------------------------------------------
 # ifndef thermokinetic_formulation
   READ_BOOLEAN_PARAM(thermokinetic_formulation)
 # endif
@@ -756,7 +776,7 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(gravity_acceleration_constant)
 # endif
 
-// specific apps  ---------------------------------------------------------
+  // specific apps  ---------------------------------------------------------
 # ifndef sodtest_num
   READ_NUMERIC_PARAM(sodtest_num)
 # endif
@@ -764,6 +784,10 @@ void set_param(const std::string& param_name,
 #ifndef equal_mass
   READ_BOOLEAN_PARAM(equal_mass)
 #endif
+
+# ifndef density_profile
+  READ_STRING_PARAM(density_profile)
+# endif
 
 # ifndef rho_initial
   READ_NUMERIC_PARAM(rho_initial)
@@ -787,6 +811,10 @@ void set_param(const std::string& param_name,
 
 # ifndef lattice_type
   READ_NUMERIC_PARAM(lattice_type)
+# endif
+
+# ifndef lattice_perturbation_amplitude
+  READ_NUMERIC_PARAM(lattice_perturbation_amplitude)
 # endif
 
 # ifndef flow_velocity

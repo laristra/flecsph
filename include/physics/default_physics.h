@@ -231,6 +231,20 @@ namespace physics{
 
 
   /**
+   * @brief      Adds drag force to acceleration
+   * @param      srch  The source's body holder
+   */
+  void add_drag_acceleration( body_holder* srch) {
+    using namespace param;
+    body* source = srch->getBody();
+    point_t       acc = source->getAcceleration();
+    const point_t vel = source->getVelocity();
+    acc += external_force::acceleration_drag(vel);
+    source->setAcceleration(acc);
+  } // add_drag_acceleration
+
+
+  /**
    * @brief      Calculates the dudt, time derivative of internal energy.
    * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics
    *
@@ -276,8 +290,8 @@ namespace physics{
     double rho_a = source->getDensity();
     dudt = P_a/(rho_a*rho_a)*dudt_pressure + .5*dudt_visc;
 
-    //Do not change internal energy during relaxation
-    if(do_drag && iteration <= relax_steps){
+    // Do not change internal energy in relaxation phase
+    if(iteration < relaxation_steps){
        dudt = 0.0;
     }
 
@@ -361,6 +375,24 @@ namespace physics{
     source->setDedt(dedt);
   } // compute_dedt
 
+
+
+  /**
+   * @brief      Adds energy dissipation rate due to artificial
+   *             particle relaxation drag force
+   * @param      srch  The source's body holder
+   */
+  void add_drag_dedt( body_holder* srch) {
+    using namespace param;
+    body* source = srch->getBody();
+    const point_t vel = source->getVelocity();
+    const point_t acc = external_force::acceleration_drag(vel);
+    double va = vel[0]*acc[0];
+    for (short int i=1; i<gdimension; ++i)
+      va += vel[i]*acc[i];
+    double dedt = source->getDedt();
+    source->setDedt(dedt + va);
+  } // add_drag_dedt
 
 
   /**

@@ -28,6 +28,7 @@
 
 #include "tree.h"
 #include "params.h"
+#include "density_profiles.h"
 #define SQ(x) ((x)*(x))
 
 namespace external_force {
@@ -112,6 +113,52 @@ namespace external_force {
     r = sqrt(r);
     if (r > sphere_radius)
       phi = pw_a*pow(r - sphere_radius, pw_n);
+    return phi;
+  }
+
+
+  /**
+   * @brief      External force support for parabolic 
+   *             sphericall-symmetric density
+   * @param      srch  The source's body holder
+   */
+  point_t acceleration_spherical_density_support (body* source) {
+    using namespace param;
+    point_t a = 0.0;
+    static const double 
+        K0 = pressure_initial / pow(rho_initial, poly_gamma),
+        rho0 = density_profiles::spherical_density_profile(0.);
+    point_t rp = source->coordinates();
+    double r = rp[0]*rp[0];
+    for (unsigned short i=1; i<gdimension; ++i)
+      r += rp[i]*rp[i];
+    r = sqrt(r);
+    const double x = r / sphere_radius;
+    if (x > 1e-12) {
+      double rho = rho_initial / rho0
+                 * density_profiles::spherical_density_profile(x);
+      double drhodr = rho_initial / (rho0 * sphere_radius)
+                    * density_profiles::spherical_drho_dr(x);
+      double a_r = K0*poly_gamma*pow(rho,poly_gamma-2)*drhodr;
+      for (short int i=0; i<gdimension; ++i) 
+        a[i] = a_r*rp[i] / r;
+    }
+    return a;
+  }
+
+  double potential_spherical_density_support(const point_t& rp) {
+    using namespace param;
+    static const double 
+        K0 = pressure_initial / pow(rho_initial, poly_gamma),
+        rho0 = density_profiles::spherical_density_profile(0.);
+    double r = rp[0]*rp[0];
+    for (unsigned short i=1; i<gdimension; ++i)
+      r += rp[i]*rp[i];
+    r = sqrt(r);
+    const double x = r / sphere_radius;
+    double rho = rho_initial / rho0
+               * density_profiles::spherical_density_profile(x);
+    double phi = -K0*poly_gamma*pow(rho,poly_gamma-1.) / (poly_gamma-1.);
     return phi;
   }
 
@@ -218,25 +265,6 @@ namespace external_force {
   }
 
   /**
-   * @brief      Drag case : apply drag force to
-   * 	         relax the initial star during initial
-   * 	         few steps
-   * @param      srch  The source's body holder
-   */
-  point_t acceleration_do_drag(body* source) {
-    using namespace param;
-    int64_t iteration = 0;
-    point_t a = 0.0;
-    if(do_drag && iteration <= relax_steps){
-      //Redefine drag coefficient with dt
-      double drag_coeff_dt = drag_coeff/initial_dt;
-      a -=drag_coeff_dt*source->getVelocity();
-    }
-    return a;
-  }
-
-
-  /**
    * @brief      Constant potential shift
    * @param      rp  Point coordinates
    */
@@ -296,6 +324,11 @@ namespace external_force {
         vec_potentials.push_back(potential_airfoil);
         vec_accelerations.push_back(acceleration_airfoil);
       }
+      else if (boost::iequals(*it,"spherical density support")) {
+        density_profiles::select();
+        vec_potentials.push_back(potential_spherical_density_support);
+        vec_accelerations.push_back(acceleration_spherical_density_support);
+      }
       else if (boost::iequals(*it,"gravity")) {
         vec_potentials.push_back(potential_gravity);
         vec_accelerations.push_back(acceleration_gravity);
@@ -328,10 +361,6 @@ namespace external_force {
           }
         }
       }
-      else if (boost::iequals(*it,"drag")) {
-        // drag force
-        vec_accelerations.push_back(acceleration_do_drag);
-      }
       else if (boost::iequals(*it,"poison")) {
         // zero potential shift
         vec_potentials.push_back(potential_poison);
@@ -342,6 +371,24 @@ namespace external_force {
     } // for it in split_efstr
 
   } // select()
+
+
+  /**
+   * @brief      Artificial drag force - used for 
+   *             particle relaxation
+   * @param      srch  The source's body holder
+   */
+  point_t acceleration_drag(const point_t& vel) {
+    using namespace param;
+    point_t acc = 0.0;
+    double v2 = vel[0]*vel[0];
+    for (short int i=1; i<gdimension; ++i)
+      v2 += vel[i]*vel[i];
+
+    acc -= (relaxation_beta + relaxation_gamma*v2) * vel;
+    return acc;
+  }
+
 
 } // namespace external_force
 

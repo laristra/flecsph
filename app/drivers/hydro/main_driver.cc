@@ -48,7 +48,6 @@
 
 #define OUTPUT_ANALYSIS
 
-static std::string initial_data_file;  // = initial_data_prefix  + ".h5part"
 static std::string output_h5data_file; // = output_h5data_prefix + ".h5part"
 
 void set_derived_params() {
@@ -62,8 +61,6 @@ void set_derived_params() {
 
   // filenames (this will change for multiple files output)
   std::ostringstream oss;
-  oss << initial_data_prefix << ".h5part";
-  initial_data_file = oss.str();
   oss << output_h5data_prefix << ".h5part";
   output_h5data_file = oss.str();
 
@@ -98,9 +95,9 @@ mpi_init_task(const char * parameter_file){
   // remove output file
   //remove(output_h5data_file.c_str());
 
-  // read input file
+  // read input file and initialize equation of state
   body_system<double,gdimension> bs;
-  bs.read_bodies(initial_data_file.c_str(),
+  bs.read_bodies(initial_data_prefix,
       output_h5data_prefix,initial_iteration);
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -113,6 +110,7 @@ mpi_init_task(const char * parameter_file){
 
       clog_one(trace)<<"First iteration"<<std::endl << std::flush;
       bs.update_iteration();
+      bs.apply_all(eos::init);
 
       if(thermokinetic_formulation) {
         // compute total energy for every particle
@@ -137,6 +135,13 @@ mpi_init_task(const char * parameter_file){
       }
       clog_one(trace) << ".done" << std::endl;
 
+      if (physics::iteration < relaxation_steps) {
+        rank|| clog(trace) << "add relaxation terms" << std::flush;
+        bs.apply_all(physics::add_drag_acceleration);
+        if (thermokinetic_formulation)
+          bs.apply_all(physics::add_drag_dedt);
+        rank|| clog(trace) << ".done" << std::endl;
+      }
     }
     else {
       clog_one(trace) << "leapfrog: kick one" << std::flush;
@@ -162,6 +167,8 @@ mpi_init_task(const char * parameter_file){
 
       clog_one(trace) << "leapfrog: kick two (velocity)" << std::flush<<std::endl;
       bs.apply_in_smoothinglength(physics::compute_acceleration);
+      if (physics::iteration < relaxation_steps) 
+        bs.apply_all(physics::add_drag_acceleration);
       bs.apply_all(integration::leapfrog_kick_v);
       clog_one(trace) << ".done" << std::endl;
 
@@ -172,6 +179,8 @@ mpi_init_task(const char * parameter_file){
       if (thermokinetic_formulation) {
         clog_one(trace) << "compute dedt" << std::flush;
         bs.apply_in_smoothinglength(physics::compute_dedt);
+        if (physics::iteration < relaxation_steps) 
+          bs.apply_all(physics::add_drag_dedt);
         bs.apply_all(integration::leapfrog_kick_e);
       }
       else {
@@ -201,23 +210,9 @@ mpi_init_task(const char * parameter_file){
       clog_one(trace) << ".done" << std::endl;
     }
 
-    // Output the scalar values
-    if(out_scalar_every > 0 && physics::iteration % out_scalar_every == 0){
-      // Compute the analysis values based on physics
-      bs.get_all(analysis::compute_lin_momentum);
-      bs.get_all(analysis::compute_total_mass);
-      bs.get_all(analysis::compute_total_energy);
-      bs.get_all(analysis::compute_total_ang_mom);
-      // Only add the header in the first iteration
-      analysis::scalar_output("scalar_reductions.dat");
-    }
-
-    // Output the diagnostic
-    if(out_diagnostic_every > 0 && physics::iteration%out_diagnostic_every==0){
-      bs.get_all(diagnostic::compute_smoothinglength_stats,bs.getNBodies());
-      bs.get_all(diagnostic::compute_velocity_stats,bs.getNBodies());
-      diagnostic::output("diagnostic.dat");
-    }
+    // Compute and output scalar reductions and diagnostic
+    analysis::scalar_output(bs,rank);
+    diagnostic::output(bs,rank);
 
     if(out_h5data_every > 0 && physics::iteration % out_h5data_every == 0){
       bs.write_bodies(output_h5data_prefix,physics::iteration,

@@ -96,17 +96,19 @@ public:
    * @brief      Read the bodies from H5part file Compute also the total to
    *             check for mass lost
    *
-   * @param[in]  filename        The filename
+   * @param[in]  input_prefix    Input filename without format extension or 
+   *                             step number (i.e. sim_00000.h5part -> "sim")
+   * @param[in]  output_prefix   Output filename prefix
    * @param[in]  startiteration  The iteration from which load the data
    */
   void
   read_bodies(
-      const char * filename,
-      const char * output_filename,
+      const char * input_prefix,
+      const char * output_prefix,
       const int startiteration)
   {
 
-    io::inputDataHDF5(tree_.entities(),filename,output_filename,
+    io::inputDataHDF5(tree_.entities(),input_prefix,output_prefix,
         totalnbodies_,localnbodies_,startiteration);
   }
 
@@ -117,17 +119,17 @@ public:
    *             of multiple
    *             files output
    *
-   * @param[in]  filename       The outut file prefix
+   * @param[in]  output_prefix  The output file prefix
    * @param[in]  iter           The iteration of output
    * @param[in]  do_diff_files  Generate a file for each steps
    */
   void
   write_bodies(
-      const char * filename,
+      const char * output_prefix,
       int iter,
       double totaltime)
   {
-    io::outputDataHDF5(tree_.entities(),filename,iter,totaltime);
+    io::outputDataHDF5(tree_.entities(),output_prefix,iter,totaltime);
   }
 
 

@@ -48,10 +48,12 @@
 #include "user.h"
 #include "tree.h"
 #include <math.h>
+#include "density_profiles.h"
 
-namespace particle_lattice {
 #define SQ(x) ((x)*(x))
 #define CU(x) ((x)*(x)*(x))
+
+namespace particle_lattice {
 const double b_tol = 1e-12; // boundary tolerance
 
 /**
@@ -306,7 +308,8 @@ int64_t npart_icosahedral_sphere(const int k) {
  *             concentric shells, centered at the origin.
  *             Depending on the count_only switch--count total number of particles
  *             or assign the positions to the position arrays
- *             Returns int64_t: total particle number
+ *             Uses current spherical density profile from density_profiles.h
+ *             Returns int64_t: total particle number.
  *
  * @param      Refer to inputs section in introduction
  */
@@ -345,7 +348,7 @@ int64_t generator_icosahedral_lattice(const int lattice_type,
     
   int i,k,m,n,v1,v2,v3,NN,mm,m1,m2;
   double x1,x2,y1,y2,z1,z2,x_p,y_p,z_p,r,f,f1,f2,f3,ff[3],tan3;
-  double xt,yt,x1t,y1t;
+  double xt,yt,x1t,y1t,Mk;
   double ico_vtx[12][3];
   const int ico_edg[30][2] = {
       {1,2}  ,  {1,3}  ,  {1,4}  ,  {1,5}  ,  {1,6},
@@ -362,14 +365,15 @@ int64_t generator_icosahedral_lattice(const int lattice_type,
 
 
   // compute K_rad: number of shells
-  const double M_shells = 1.0;
   const double R_shells = (xmax - xmin)/2.0;
   const int K_rad = (int)(R_shells/dr) + 1;
-  const double rho0 = 3.0*M_shells/ (4*pi*CU(R_shells));
-  const double m0 = M_shells / npart_icosahedral_sphere(K_rad);
+  const double m0 = 1.0 / npart_icosahedral_sphere(K_rad);
+  double rho0 = density_profiles::spherical_density_profile(0.0) 
+              / CU(R_shells);
 
   double rk = 0.0, rk12;
-  double rk12p = pow(3.0*m0/(4*pi*rho0), 1./3.);
+  double rk12p = 1.2*cbrt(3.0*m0/(4*pi*rho0));
+  double mrk12p = m0, mrk12;
 
   for (int NN=0; NN<=K_rad; ++NN) {
 
@@ -532,12 +536,30 @@ int64_t generator_icosahedral_lattice(const int lattice_type,
     } // for i from 0 to 20
 
     // update radius
-    rk12 = rk12p*pow(1.0 + 3*m0*npart_icosahedral_shell(NN+1)
-                            /(4*pi*rho0*CU(rk12p)),1./3.);
+    // 
+    // Find rk12 such that m0*npart(NN+1) == m(rk12) - m(rk12p)
+    //
+    Mk = m0*npart_icosahedral_shell(NN+1); // mass of the shell
+    x1 = 0.5*(rk12p/R_shells + 1.0);
+    mrk12  = 1.0;
+    if (mrk12 - mrk12p > Mk) {
+      for (int nrit=0;  nrit<10; ++nrit) {
+        mrk12 = density_profiles::spherical_mass_profile(x1);
+        f = mrk12 - mrk12p - Mk;
+        f1 = 4.0*pi*(x1*x1) * density_profiles::spherical_density_profile(x1);
+        x2 = x1 - f/f1;
+        if (abs(x2-x1)<1e-12) break;
+        x1 = x2;
+      }
+    }
+    rk12 = x1*R_shells;
+
     rk = 0.5*(rk12p + rk12);
     rk12p= rk12;
+    mrk12p= mrk12;
 
   } //  NN
+//  exit(0);
 
   return (posid - posid_starting);
 }
@@ -644,7 +666,7 @@ void select() {
 }
 
 
-#undef SQ
-#undef CU
 } // namespace particle_lattice
 
+#undef SQ
+#undef CU

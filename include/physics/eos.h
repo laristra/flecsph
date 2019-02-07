@@ -36,6 +36,22 @@ namespace eos {
   using namespace param;
 
   /**
+   * @brief      Equation-of-state intializer:
+   *             computes missing quantities etc.
+   * @param      srch  The source's body holder
+   */
+  void init_ideal(body_holder* srch) { return; } // do nothing
+  void init_polytropic(body_holder* srch) { 
+    using namespace param;
+    body* source = srch->getBody();
+    double K = source->getPressure() 
+             / pow(source->getDensity(),poly_gamma);
+    source->setAdiabatic(K);
+    return;
+  }
+
+
+  /**
    * @brief      Compute the pressure for ideal gas EOS
    * @param      srch  The source's body holder
    */
@@ -133,10 +149,12 @@ namespace eos {
   }
 
   // eos function types and pointers
-  typedef void (*compute_pressure_t)(body*);
-  typedef void (*compute_soundspeed_t)(body*);
-  compute_pressure_t compute_pressure = compute_pressure_ideal;
-  compute_soundspeed_t compute_soundspeed = compute_soundspeed_ideal;
+  typedef void (*compute_quantity_t)(body*);
+  compute_quantity_t compute_pressure = compute_pressure_ideal;
+  compute_quantity_t compute_soundspeed = compute_soundspeed_ideal;
+
+  typedef void (*eos_init_t)(body_holder*);
+  eos_init_t init = init_ideal;
 
 /**
  * @brief  Installs the 'compute_pressure' and 'compute_soundspeed'
@@ -144,18 +162,22 @@ namespace eos {
  */
 void select(const std::string& eos_type) {
   if(boost::iequals(eos_type, "ideal fluid")) {
+    init = init_ideal;  
     compute_pressure = compute_pressure_ideal;
     compute_soundspeed = compute_soundspeed_ideal;
   }
   else if(boost::iequals(eos_type, "polytropic")) {
+    init = init_polytropic;  
     compute_pressure = compute_pressure_adiabatic;
     compute_soundspeed = compute_soundspeed_ideal;
   }
   else if(boost::iequals(eos_type, "white dwarf")) {
+    init = init_ideal;  // TODO
     compute_pressure = compute_pressure_wd;
     compute_soundspeed = compute_soundspeed_wd;
   }
   else if(boost::iequals(eos_type, "stellar collapse")) {
+    init = init_ideal;  // TODO
     compute_pressure = compute_pressure_sc;
     compute_soundspeed = compute_soundspeed_ideal;
   }

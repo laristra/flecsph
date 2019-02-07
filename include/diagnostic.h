@@ -170,15 +170,21 @@ namespace diagnostic {
    * @brief Periodic file output
    */
   void
-  output(const char * filename = NULL)
+  output(body_system<double,gdimension>& bs, const int rank)
   {
     static bool first_time = true;
+    if (param::out_diagnostic_every <= 0 
+      || physics::iteration % param::out_diagnostic_every!=0) 
+      return;
+
+    // compute diagnostic quantities
+    // bs.get_all(compute_neighbors_stats,bs.tree(),bs.getNBodies());
+    bs.get_all(compute_smoothinglength_stats,bs.getNBodies());
+    bs.get_all(compute_velocity_stats,bs.getNBodies());
 
     // output only from rank #0
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-
     if (rank != 0) return;
+    const char * filename = "diagnostic.dat";
 
     if (first_time) {
       // Generate and output the header
