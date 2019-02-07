@@ -141,18 +141,18 @@ public:
   getSmoothinglength()
   {
     // Choose the smoothing length to be the biggest from everyone
-    smoothinglength_ = 0;
-    #pragma omp parallel for reduction(max:smoothinglength_)
+    double smoothinglength = 0;
+    #pragma omp parallel for reduction(max:smoothinglength)
     for(size_t i = 0 ; i < tree_.entities().size(); ++i){
-      if(smoothinglength_ < tree_.entity(i).radius()){
-        smoothinglength_ = tree_.entity(i).radius();
+      if(smoothinglength < tree_.entity(i).radius()){
+        smoothinglength = tree_.entity(i).radius();
       }
     }
 
-    MPI_Allreduce(MPI_IN_PLACE,&smoothinglength_,1,MPI_DOUBLE,MPI_MAX,
+    MPI_Allreduce(MPI_IN_PLACE,&smoothinglength,1,MPI_DOUBLE,MPI_MAX,
         MPI_COMM_WORLD);
 
-    return smoothinglength_;
+    return smoothinglength;
 
   }
 
@@ -202,8 +202,8 @@ public:
     if(param::periodic_boundary_x || param::periodic_boundary_y ||
       param::periodic_boundary_z){
       // Choose the smoothing length to be the biggest from everyone
-      smoothinglength_ = getSmoothinglength();
-      boundary::pboundary_generate(tree_.entities(),2.5*smoothinglength_);
+      double smoothinglength = getSmoothinglength();
+      boundary::pboundary_generate(tree_.entities(),2.5*smoothinglength);
       localnbodies_ = tree_.entities().size();
       MPI_Allreduce(&localnbodies_,&totalnbodies_,1,MPI_INT64_T,MPI_SUM,
         MPI_COMM_WORLD);
@@ -517,7 +517,6 @@ private:
   std::vector<range_t> rangeposproc_;
   tree_colorer<T,D> tcolorer_;
   tree_topology_t tree_;     // The particle tree data structure
-  double smoothinglength_;    // Keep track of the biggest smoothing length
   double epsilon_ = 0.;
 };
 

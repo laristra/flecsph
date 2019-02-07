@@ -737,14 +737,18 @@ public:
     std::vector<branch_t*> remaining_branches;
 
     // Start communication thread
-    std::thread handler(&tree_topology::handle_requests,this);
-    // Start tree traversal
-    traverse_sph(working_branches,
-      remaining_branches,false,ef,std::forward<ARGS>(args)...);
-    // Notify the communication thread that comms. are done
-    MPI_Send(NULL, 0, MPI_INT, rank, MPI_DONE,MPI_COMM_WORLD);
-    // Wait for communication thread
-    handler.join();
+    if(size != 1){
+      std::thread handler(&tree_topology::handle_requests,this);
+      // Start tree traversal
+      traverse_sph(working_branches,
+        remaining_branches,false,ef,std::forward<ARGS>(args)...);
+      MPI_Send(NULL, 0, MPI_INT, rank, MPI_DONE,MPI_COMM_WORLD);
+      // Wait for communication thread
+      handler.join();
+    }else{
+      traverse_sph(working_branches,
+        remaining_branches,false,ef,std::forward<ARGS>(args)...);
+    }
 
 #ifdef DEBUG
     int flag = 0;
@@ -824,7 +828,7 @@ public:
 
     int nelem = working_branches.size();
 
-    #pragma omp parallel for schedule(static,1)
+    #pragma omp parallel for
     for(int i = 0 ; i < nelem; ++i){
       std::vector<branch_t*> inter_list;
       std::vector<branch_t*> requests_branches;

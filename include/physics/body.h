@@ -53,8 +53,8 @@ public:
   point_t getVelocity() const{return velocity_;}
   point_t getVelocityhalf() const{return velocityhalf_;}
   point_t getAcceleration() const{return acceleration_;}
-  const uint64_t neighbors() const {return neighbors_;}
-  const particle_type_t type() const {return type_;};
+  uint64_t neighbors() const {return neighbors_;}
+  particle_type_t type() const {return type_;};
 
   point_t getLinMomentum() const {
     point_t res = {};
@@ -65,7 +65,7 @@ public:
   };
   double getDt(){return dt_;};
   double getMumax(){return mumax_;}
-  const particle_type_t getType() const {return type_;};
+  particle_type_t getType() const {return type_;};
   bool is_wall(){return type_ == 1;};
 
   void set_neighbors(uint64_t neighbors){neighbors_ = neighbors;}

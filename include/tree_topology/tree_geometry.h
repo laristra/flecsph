@@ -78,14 +78,14 @@ struct tree_geometry<T, 1>
   static constexpr element_t tol =
     std::numeric_limits<element_t>::epsilon()*10.;
 
-  static inline const bool isEqual(
+  static inline bool isEqual(
       const element_t& a,
       const element_t& b)
   {
     return abs(a-b) < abs(a)*tol;
   }
 
-  static inline const bool inRange(
+  static inline bool inRange(
       const element_t& dmin,
       const element_t& dmax,
       const T& a)
@@ -234,14 +234,14 @@ struct tree_geometry<T, 2>
   static constexpr element_t tol =
     std::numeric_limits<element_t>::epsilon()*10.;
 
-  static inline const bool isEqual(
+  static inline bool isEqual(
       const element_t& a,
       const element_t& b)
   {
     return abs(a-b) < abs(a)*tol;
   }
 
-  static inline const bool inRange(
+  static inline bool inRange(
       const element_t& dmin,
       const element_t& dmax,
       const T& a)
@@ -395,14 +395,14 @@ struct tree_geometry<T, 3>
   static constexpr element_t tol =
     std::numeric_limits<element_t>::epsilon()*10.;
 
-  static inline const bool isEqual(
+  static inline bool isEqual(
       const element_t& a,
       const element_t& b)
   {
     return abs(a-b) < abs(a)*tol;
   }
 
-  static inline const bool inRange(
+  static inline bool inRange(
       const element_t& dmin,
       const element_t& dmax,
       const T& a)
