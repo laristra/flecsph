@@ -781,21 +781,12 @@ public:
       find_parent(g.key()).set_ghosts_local(true);
     }
 
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //clog_one(trace)<<"Ghosts added"<<std::endl;
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //std::cout<<rank<<" #ghosts: "<<ghosts_entities_[current_ghosts].size()<<std::endl;
-    //MPI_Barrier(MPI_COMM_WORLD);
-
     // Prepare for the eventual next tree traversal, use other ghosts vector
     ++current_ghosts;
     assert(current_ghosts < max_traversal);
 
-    MPI_Barrier(MPI_COMM_WORLD);
     // Recompute the COFM because new entities are present in the tree
     cofm(root(), 0, false);
-    //mpi_tree_traversal_graphviz(3);
-    MPI_Barrier(MPI_COMM_WORLD);
     // Vector useless because in this case no ghosts can be found
     if(remaining_branches.size() > 0){
       std::vector<branch_t*> ignore;
@@ -1008,16 +999,16 @@ public:
       branch_t * b,
       double maxmasscell,
       const double MAC,
-      FC f_fc,
-      DFCDR f_dfcdr,
-      DFCDRDR f_dfcdrdr,
-      C2P f_c2p
+      FC&& f_fc,
+      DFCDR&& f_dfcdr,
+      DFCDRDR&& f_dfcdrdr,
+      C2P&& f_c2p
     )
   {
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    int rank;
+    int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Comm_size(MPI_COMM_WORLD,&size);
     clog_one(trace) << "FMM : maxmasscell: "<<maxmasscell<<" MAC: "<<
       MAC<<std::endl;
 
@@ -1026,50 +1017,22 @@ public:
     std::stack<branch_t*> stk;
     stk.push(b);
     std::vector<branch_t*> work_branch;
-    // Only work on local branches
-    // 1. Gather the cells
-    while(!stk.empty()){
-      branch_t* c = stk.top();
-      stk.pop();
-      if(c->is_leaf() && c->is_local()){
-        work_branch.push_back(c);
-      }else{
-        if(c->is_local() && c->mass() <= maxmasscell){
-          work_branch.push_back(c);
-        }else{
-          for(int i=0; i<(1<<dimension);++i){
-            if(!c->as_child(i))
-              continue;
-            auto next = child(c,i);
-            assert(next != nullptr);
-            if(next->is_local()){
-              stk.push(next);
-            }
-          }
-        }
-      }
-    }
+    std::vector<branch_t*> remaining_branches;
+    find_sub_cells(b,32,work_branch);
 
-    int done = omp_get_max_threads();
-    #pragma omp parallel num_threads(omp_get_max_threads()+1)
-    {
-      int nthreads = omp_get_num_threads();
-      int tid = omp_get_thread_num();
 
-      if(tid == nthreads-1){
-        handle_requests();
-      }else{
-        traversal_fmm(work_branch,MAC,
-          f_fc,f_dfcdr,f_dfcdrdr,f_c2p);
-        // Wait for other threads
-        #pragma omp critical
-        {
-          if(--done == 0){
-            MPI_Send(NULL, 0, MPI_INT, rank, MPI_DONE,MPI_COMM_WORLD);
-          }
-          assert(done >= 0);
-        }
-      }
+
+    if(size != 1){
+      std::thread handler(&tree_topology::handle_requests,this);
+      // Start tree traversal
+      traversal_fmm(work_branch,remaining_branches,MAC,
+        f_fc,f_dfcdr,f_dfcdrdr,f_c2p);
+      MPI_Send(NULL, 0, MPI_INT, rank, MPI_DONE,MPI_COMM_WORLD);
+      // Wait for communication thread
+      handler.join();
+    }else{
+      traversal_fmm(work_branch,remaining_branches,MAC,
+        f_fc,f_dfcdr,f_dfcdrdr,f_c2p);
     }
 
     // Check if no message remainig
@@ -1099,11 +1062,14 @@ public:
     cofm(root(), 0, false);
 
     // compute the particle to particle interaction on each sub-branches
-    #pragma omp parallel for
-    for(int i = 0 ; i < work_branch.size(); ++i)
-    {
-      traversal_p2p(work_branch[i],MAC,f_fc);
+    if(size != 1){
+      std::vector<branch_t*> ignore;
+      traversal_fmm(remaining_branches,ignore,MAC,
+        f_fc,f_dfcdr,f_dfcdrdr,f_c2p);
+    }else{
+      assert(remaining_branches.size() == 0);
     }
+    entities_ = entities_w_;
   } // apply_sub_cells
 
   /**
@@ -1119,38 +1085,33 @@ public:
   void
   traversal_fmm(
     std::vector<branch_t*>& work_branch,
+    std::vector<branch_t*>& remaining_branches,
     const double MAC,
-    FC f_fc,
-    DFCDR f_dfcdr,
-    DFCDRDR f_dfcdrdr,
-    C2P f_c2p
+    FC&& f_fc,
+    DFCDR&& f_dfcdr,
+    DFCDRDR&& f_dfcdrdr,
+    C2P&& f_c2p
   )
   {
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
-    int nelem = work_branch.size();
-    int td = omp_get_thread_num();
-    int nt = omp_get_num_threads();
-    // Do not count the thread handling the requests
-    --nt;
-    int start = td*nelem/nt;
-    int end = nelem*(td+1)/nt;
-    if(td == nt-1){
-      end = nelem;
-    }
-    for(size_t i = start; i < end; ++i){
+    size_t nelem = work_branch.size();
+
+    #pragma omp parallel for schedule(static,1)
+    for(size_t i = 0; i < nelem; ++i){
       std::vector<branch_t*> inter_list;
       std::vector<branch_t*> requests_branches;
       // Sub traversal and compute the MAC
 
-      if(traversal_c2c_c2p(work_branch[i],requests_branches,MAC,
+      if(traversal_c2c_c2p_p2p(work_branch[i],requests_branches,MAC,
         f_fc,f_dfcdr,f_dfcdrdr,f_c2p))
       {
         std::vector<key_t> send;
         #pragma omp critical
         {
+          remaining_branches.push_back(work_branch[i]);
           // Send branch key to request handler
           for(auto b: requests_branches){
             assert(b->owner() < size && b->owner() >= 0);
@@ -1179,163 +1140,88 @@ public:
     typename F_C2P
   >
   bool
-  traversal_c2c_c2p(
+  traversal_c2c_c2p_p2p(
     branch_t* b,
     std::vector<branch_t*>& non_local,
     const double MAC,
-    FC f_fc, DFCDR f_dfcdr,DFCDRDR f_dfcdrdr, F_C2P f_c2p
+    FC&& f_fc, DFCDR&& f_dfcdr,DFCDRDR&& f_dfcdrdr, F_C2P&& f_c2p
   )
   {
     point_t fc = 0.;
     double dfcdr[9] = {0.};
     double dfcdrdr[27] = {0.};
 
-    std::stack<branch_t*> stk;
-    stk.push(root());
-    while(!stk.empty()){
-      branch_t* c = stk.top();
-      stk.pop();
-      if(c->is_leaf()){
-        if(geometry_t::box_MAC(
-          b->coordinates(),c->coordinates(),
-          c->bmin(),c->bmax(),MAC)
-        ) {
-          // Compute the matrices
-          f_fc(fc,b->coordinates(),c->coordinates(),c->mass());
-          f_dfcdr(dfcdr,b->coordinates(),c->coordinates(),c->mass());
-          f_dfcdrdr(dfcdrdr,b->coordinates(),c->coordinates(),c->mass());
-        }else if(!c->is_local() && !c->ghosts_local()){
-          // Request the sub-particles of this leaf
-          non_local.push_back(c);
-        }
-      }else{
-        for(int i=0 ; i<(1<<dimension);++i){
-          if(!c->as_child(i))
-            continue;
-          auto branch = child(c,i);
-          assert(branch != nullptr);
+    point_t coordinates = b->coordinates();
+
+    std::vector<branch_t*> queue;
+    std::vector<branch_t*> new_queue;
+    std::vector<point_t> c2c_coordinates;
+    std::vector<double> c2c_mass;
+
+    // Keep track of the leaves to interact with in N^2
+    std::vector<branch_t*> interactions_leaves;
+
+    queue.push_back(root());
+    while(!queue.empty()){
+      new_queue.clear();
+      const int queue_size = queue.size();
+      for(int i = 0 ; i < queue_size; ++i){
+        branch_t *q = queue[i];
+        for(int d=0 ; d<(1<<dimension);++d){
+          if(!q->as_child(d)) continue;
+          branch_t* c = child(q,d);
           if(geometry_t::box_MAC(
-            b->coordinates(),
-            branch->coordinates(),
-            branch->bmin(),
-            branch->bmax(),MAC))
+            coordinates,c->coordinates(),c->bmin(),c->bmax(),MAC))
           {
-            f_fc(fc,b->coordinates(),branch->coordinates(),branch->mass());
-            f_dfcdr(dfcdr,b->coordinates(),branch->coordinates(),
-              branch->mass());
-            f_dfcdrdr(dfcdrdr,b->coordinates(),branch->coordinates(),
-              branch->mass());
+            c2c_coordinates.push_back(c->coordinates());
+            c2c_mass.push_back(c->mass());
+          }else if(!c->is_leaf()){
+            new_queue.push_back(c);
+          }else if(!c->is_local() && !c->ghosts_local()){
+            non_local.push_back(c);
           }else{
-            stk.push(branch);
+            interactions_leaves.push_back(c);
           }
         }
       }
+      queue.clear();
+      queue = new_queue;
     }
 
-    // Propagate this information to the sub-particles for C2P
-    stk.push(b);
-    while(!stk.empty()){
-      branch_t* c = stk.top();
-      stk.pop();
-      if(c->is_leaf()){
-        // For every bodies propagate
-        for(auto id: *b){
-          auto child = &(tree_entities_[id]);
-          if(child->is_local()){
-            // reset acceleration
-            f_c2p(fc,dfcdr,dfcdrdr,b->coordinates(),child);
-          }
+    //#pragma omp critical
+    //std::cout<<"#c2c: "<<c2c_coordinates.size()<<" #leaves: "<<interactions_leaves.size()<<std::endl;
+
+    for(int i = 0 ; i < c2c_coordinates.size(); ++i){
+      // Compute the matrices
+      f_fc(fc,coordinates,c2c_coordinates[i],c2c_mass[i]);
+      f_dfcdr(dfcdr,coordinates,c2c_coordinates[i],c2c_mass[i]);
+      f_dfcdrdr(dfcdrdr,coordinates,c2c_coordinates[i],c2c_mass[i]);
+    }
+
+    if(non_local.size() == 0){
+      // Propagate this information to the sub-particles for C2P
+      for(int i = b->begin_tree_entities(); i <= b->end_tree_entities(); ++i){
+        if(tree_entities_[i].is_local()){
+          f_c2p(fc,dfcdr,dfcdrdr,b->coordinates(),&(entities_w_[i]));
         }
-      }else{
-        for(int i=0 ; i<(1<<dimension);++i){
-          if(!c->as_child(i))
-            continue;
-          auto branch = child(c,i);
-          assert(branch != nullptr);
-          stk.push(branch);
+      }
+      // Apply the P2P for the local particles
+      for(int l = 0 ; l < interactions_leaves.size(); ++l){
+        for(auto k: *(interactions_leaves[l])){
+          for(int i = b->begin_tree_entities(); i < b->end_tree_entities() ; ++i){
+            if(tree_entities_[k].id() != tree_entities_[i].id()){
+              // N square computation
+              point_t fc;
+              entities_w_[i].setAcceleration(
+                entities_w_[i].getAcceleration()+
+                f_fc(fc,entities_w_[i].coordinates(),
+                  tree_entities_[k].coordinates(),tree_entities_[k].mass()));
+            }
+          }
         }
       }
     }
     return non_local.size() > 0;
-  }
-
-  /**
-  * @brief Compute the particle to particle interction for this branch with
-  * the other branches that does not fit in the MAC criterion.
-  */
-  template<typename F_FC>
-  void
-  traversal_p2p(
-    branch_t* b,
-    element_t MAC,
-    F_FC f_fc
-  )
-  {
-    // Collect all sub-entities
-    std::vector<tree_entity_t*> local_entities;
-    std::stack<branch_t*> stk;
-    stk.push(b);
-    while(!stk.empty()){
-      branch_t* c = stk.top();
-      stk.pop();
-      if(c->is_leaf() && c->is_local()){
-        for(auto id: *b){
-          auto child = &(tree_entities_[id]);
-          if(child->is_local())
-            local_entities.push_back(child);
-        }
-      }else{
-        for(int i=0 ; i<(1<<dimension);++i){
-          if(!c->as_child(i))
-            continue;
-          auto branch = child(c,i);
-          assert(branch != nullptr);
-          stk.push(branch);
-        }
-      }
-    }
-
-    stk.push(root());
-    while(!stk.empty()){
-      branch_t* c = stk.top();
-      stk.pop();
-      if(c->is_leaf()){
-        if(!geometry_t::box_MAC(
-          b->coordinates(),c->coordinates(),
-          c->bmin(),c->bmax(),MAC))
-        {
-          for(auto id: *c){
-            auto child = &(tree_entities_[id]);
-            for(auto& loc: local_entities)
-            {
-              if(child->id() != loc->id()){
-                // N square computation
-                point_t fc;
-                loc->getBody()->setAcceleration(
-                  loc->getBody()->getAcceleration() +
-                  f_fc(fc,loc->coordinates(),child->coordinates(),child->mass())
-                );
-              }
-            }
-          }
-        }
-      }else{
-        for(int i=0 ; i<(1<<dimension);++i){
-          if(!c->as_child(i))
-            continue;
-          auto branch = child(c,i);
-          assert(branch != nullptr);
-          if(!geometry_t::box_MAC(
-            b->coordinates(),
-            branch->coordinates(),
-            branch->bmin(),
-            branch->bmax(),MAC))
-          {
-            stk.push(branch);
-          }
-        }
-      }
-    }
   }
 
 /**

@@ -37,6 +37,7 @@ namespace fmm {
   * The Sink is the one on which I compute the fc, dfcdr, dfcdrdr
   * The Source is the distant box
   */
+  inline
   point_t gravitation_fc(
     point_t & fc,
     const point_t& sink_coordinates,
@@ -54,6 +55,7 @@ namespace fmm {
   /*
   * @brief Compute the Jacobian (dfcdr) matrix on the Sink from the Source
   */
+  inline
   void gravitation_dfcdr(
     double dfcdr[9],
     const point_t& sink_coordinates,
@@ -62,26 +64,20 @@ namespace fmm {
   )
   {
     double dist = flecsi::distance(sink_coordinates,source_coordinates);
-    assert(dist > 0.0);
+    double dist_2 = dist*dist;
     point_t diffPos =  sink_coordinates - source_coordinates;
-    double jacobicoeff = -source_mass/(dist*dist*dist);
-    for(size_t i=0;i<gdimension;++i){
-      for(size_t j=0;j<gdimension;++j){
-        double valjacobian = 0.;
-        if(i==j){
-          valjacobian = jacobicoeff*(1-3*diffPos[i]*diffPos[j]/(dist*dist));
-        }else{
-          valjacobian = jacobicoeff*(-3*diffPos[i]*diffPos[j]/(dist*dist));
-        }
-        assert(!std::isnan(valjacobian));
-        dfcdr[i*gdimension+j] += valjacobian;
-      }
+    double jacobicoeff = -source_mass/(dist_2*dist);
+    for(int i = 0; i < 9; ++i){
+      int a = i/3; int b = i%3;
+      double valjacobian = jacobicoeff*((a==b)-3*diffPos[a]*diffPos[b]/(dist_2));
+      dfcdr[i] += valjacobian;
     }
   }
 
   /*
   * @brief Compute the Hessian (dfcdrdr) matrix on the Sink from the Source
   */
+  inline
   void gravitation_dfcdrdr(
     double dfcdrdr[27],
     const point_t& sink_coordinates,
@@ -89,31 +85,32 @@ namespace fmm {
     const double& source_mass
   )
   {
+
     double dist = flecsi::distance(sink_coordinates,source_coordinates);
-    assert(dist > 0.0);
+    double dist_2 = dist*dist;
     point_t diffPos =  sink_coordinates - source_coordinates;
-    double hessiancoeff = -3.0*source_mass/(dist*dist*dist*dist*dist);
+    double hessiancoeff = -3.0*source_mass/(dist_2*dist_2*dist);
+    for(int i = 0 ; i < 27 ; ++i){
+      int a = i/9; int b = (i%9)/3; int c = i%3;
+      double term_1 = (a==b)*diffPos[c]+(c==a)*diffPos[b]+(b==c)*diffPos[a];
+      double valhessian = hessiancoeff *
+        ( 5.0/(dist_2)*diffPos[a]*diffPos[b]*diffPos[c] - term_1) ;
+      dfcdrdr[i] += valhessian;
+    }
+
+/*
     for(size_t i=0;i<gdimension;++i){
-      int matrixPos = i*gdimension*gdimension;
+      size_t matrixPos = i*gdimension*gdimension;
       for(size_t j=0;j<gdimension;++j){
         for(size_t k=0;k<gdimension;++k){
-          int position = matrixPos+j*gdimension+k;
-          double firstterm = 0.0;
-          if(i==j){
-            firstterm += diffPos[k];
-          } // if
-          if(j==k){
-            firstterm += diffPos[i];
-          } // if
-          if(k==i){
-            firstterm += diffPos[j];
-          } // if
+          size_t position = matrixPos+j*gdimension+k;
+          double term_1 = (i==j)*diffPos[k]+(j==k)*diffPos[i]+(k==i)*diffPos[j];
           double valhessian = hessiancoeff *
-            ( 5.0/(dist*dist)*diffPos[i]*diffPos[j]*diffPos[k] - firstterm) ;
+            ( 5.0/(dist_2)*diffPos[i]*diffPos[j]*diffPos[k] - term_1) ;
           dfcdrdr[position] += valhessian;
         } // for
       } // for
-    } // for
+    } // for*/
   }
 
   /*
@@ -125,10 +122,10 @@ namespace fmm {
     double dfcdr[9],
     double dfcdrdr[27],
     point_t cofm_coordinates,
-    body_holder* sink
+    body* sink
   )
   {
-    point_t part_coordinates = sink->getBody()->coordinates();
+    point_t part_coordinates = sink->coordinates();
 
     point_t diffPos = part_coordinates - cofm_coordinates;
     point_t grav = fc;
@@ -157,7 +154,7 @@ namespace fmm {
     for(size_t i=0;i<gdimension;++i){
       grav[i] += 0.5*tmpVector[i];
     } // for
-    sink->getBody()->setAcceleration(grav+sink->getBody()->getAcceleration());
+    sink->setAcceleration(grav+sink->getAcceleration());
   }
 
 } // namespace fmm
