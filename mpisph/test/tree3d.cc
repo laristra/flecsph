@@ -194,7 +194,7 @@ TEST(tree_topology, neighbors_box_NORMAL) {
   }
 }
 
-
+#if 0
 TEST(tree_topology, neighbors_box_VARIABLE) {
   tree_topology_t t;
 
@@ -242,3 +242,4 @@ TEST(tree_topology, neighbors_box_VARIABLE) {
     ASSERT_TRUE(s1 == s2);
   }
 }
+#endif 

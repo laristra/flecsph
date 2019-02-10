@@ -1158,9 +1158,8 @@ public:
     std::vector<point_t> c2c_coordinates;
     std::vector<double> c2c_mass;
 
-    // Keep track of the leaves to interact with in N^2
+    // -------- 1. C2C interactions, keep track of the leaves non interacted
     std::vector<branch_t*> interactions_leaves;
-
     queue.push_back(root());
     while(!queue.empty()){
       new_queue.clear();
@@ -1188,9 +1187,7 @@ public:
       queue = new_queue;
     }
 
-    //#pragma omp critical
-    //std::cout<<"#c2c: "<<c2c_coordinates.size()<<" #leaves: "<<interactions_leaves.size()<<std::endl;
-
+    // Compute the C2C
     for(int i = 0 ; i < c2c_coordinates.size(); ++i){
       // Compute the matrices
       f_fc(fc,coordinates,c2c_coordinates[i],c2c_mass[i]);
@@ -1198,6 +1195,7 @@ public:
       f_dfcdrdr(dfcdrdr,coordinates,c2c_coordinates[i],c2c_mass[i]);
     }
 
+    // If all the sub particles are present 
     if(non_local.size() == 0){
       // Propagate this information to the sub-particles for C2P
       for(int i = b->begin_tree_entities(); i <= b->end_tree_entities(); ++i){

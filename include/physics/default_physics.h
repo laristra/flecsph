@@ -76,14 +76,7 @@ namespace physics{
       distances[i] = flecsi::distance(coordinates,nbsh[i]->coordinates());
     }
     for(int i = 0 ; i < n_nb; ++i){
-      double kernel = 0;
-      if constexpr (gdimension == 1){
-        kernel = kernels::wendland_c6_1d(
-          distances[i],.5*(radius+nb_radius[i]));
-      }else{
-        kernel = kernels::wendland_c6_23d(
-          distances[i],.5*(radius+nb_radius[i]));
-      }
+      double kernel = kernels::kernel(distances[i],.5*(radius+nb_radius[i]));
       density += kernel*masses[i];
     } // for
     mpi_assert(density>0);
@@ -206,14 +199,9 @@ namespace physics{
     for(int i = 0 ; i < n_nb; ++i){ // Not vectorized due to Kernel
       // Kernel computation
       point_t vecPosition = coordinates - positions[i];
-      if constexpr (gdimension == 1 ){
-        sourcekernelgradient[i] = kernels::gradient_wendland_c6_1d(
+      sourcekernelgradient[i] = kernels::gradKernel(
           vecPosition,(h_s+radii[i])*.5);
-      }else{
-        sourcekernelgradient[i] = kernels::gradient_wendland_c6_23d(
-          vecPosition,(h_s+radii[i])*.5);
-      }
-    } // for 
+    } // for
     //ignore itself
     sourcekernelgradient[index]={};
     viscosities[index]=0;
