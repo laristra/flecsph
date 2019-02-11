@@ -77,7 +77,7 @@ namespace physics{
       distances[i] = flecsi::distance(coordinates,nbsh[i]->coordinates());
     }
     for(int i = 0 ; i < n_nb; ++i){ // Vectorized
-      double Wab = kernels::kernel<kernel_type,gdimension>(
+      double Wab = kernels::kernel<kernels::kernel_type,gdimension>(
           distances[i],.5*(radius+nb_radius[i]));
       density += Wab*masses[i];
     } // for
@@ -202,7 +202,7 @@ namespace physics{
       // Kernel computation
       point_t vecPosition = coordinates - positions[i];
       sourcekernelgradient[i] = 
-          kernels::kernel_gradient<kernel_type,gdimension>(
+          kernels::kernel_gradient<kernels::kernel_type,gdimension>(
           vecPosition,(h_s+radii[i])*.5);
     } // for
     //ignore itself
@@ -263,7 +263,7 @@ namespace physics{
       const double h_n = nb->radius();
       point_t vecPosition = source->coordinates()-nb->coordinates();
       point_t sourcekernelgradient = 
-          kernels::kernel_gradient<kernel_type,gdimension>(
+          kernels::kernel_gradient<kernels::kernel_type,gdimension>(
           vecPosition,(h_s+h_n)*.5);
       space_vector_t resultkernelgradient =
           flecsi::point_to_vector(sourcekernelgradient);

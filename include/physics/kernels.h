@@ -807,9 +807,9 @@ namespace kernels{
   }
 
 
-}; // kernel
-
 // hardcoded kernel for now
-static const kernels::kernel_t kernel_type = kernels::wendland_c4; 
+static const kernels::kernel_t kernel_type = wendland_c4; 
+
+}; // kernel
 
 #endif // _physics_kernel_h_
