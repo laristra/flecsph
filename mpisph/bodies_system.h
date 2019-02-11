@@ -96,7 +96,7 @@ public:
    * @brief      Read the bodies from H5part file Compute also the total to
    *             check for mass lost
    *
-   * @param[in]  input_prefix    Input filename without format extension or 
+   * @param[in]  input_prefix    Input filename without format extension or
    *                             step number (i.e. sim_00000.h5part -> "sim")
    * @param[in]  output_prefix   Output filename prefix
    * @param[in]  startiteration  The iteration from which load the data

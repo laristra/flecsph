@@ -753,10 +753,6 @@ public:
         remaining_branches,false,ef,std::forward<ARGS>(args)...);
     }
 
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //clog_one(trace)<<"First traversal done"<<std::endl;
-    //MPI_Barrier(MPI_COMM_WORLD);
-
 #ifdef DEBUG
     int flag = 0;
     MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag,
@@ -795,7 +791,6 @@ public:
     }
     // Copy back the results
     entities_ = entities_w_;
-    //MPI_Barrier(MPI_COMM_WORLD);
 
   } // apply_sub_cells
 
@@ -832,12 +827,6 @@ public:
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
     int nelem = working_branches.size();
-
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //clog_one(trace)<<" Starting traversal"<<std::endl;
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //std::cout<<rank<<" #working: "<<nelem<<std::endl;
-    //MPI_Barrier(MPI_COMM_WORLD);
 
     #pragma omp parallel for
     for(int i = 0 ; i < nelem; ++i){
@@ -1195,7 +1184,7 @@ public:
       f_dfcdrdr(dfcdrdr,coordinates,c2c_coordinates[i],c2c_mass[i]);
     }
 
-    // If all the sub particles are present 
+    // If all the sub particles are present
     if(non_local.size() == 0){
       // Propagate this information to the sub-particles for C2P
       for(int i = b->begin_tree_entities(); i <= b->end_tree_entities(); ++i){
@@ -2027,7 +2016,6 @@ public:
      }
      output<<"}"<<std::endl;
      output.close();
-     //MPI_Barrier(MPI_COMM_WORLD);
    }
 
       /**
