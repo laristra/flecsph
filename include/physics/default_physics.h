@@ -37,6 +37,7 @@ namespace physics{
 
 #include "params.h"
 #include "utils.h"
+#include "user.h"
 #include "kernels.h"
 #include "tree.h"
 #include "eforce.h"
@@ -76,8 +77,9 @@ namespace physics{
       distances[i] = flecsi::distance(coordinates,nbsh[i]->coordinates());
     }
     for(int i = 0 ; i < n_nb; ++i){ // Vectorized
-      double kernel = kernels::wendland_c6_1d(distances[i],.5*(radius+nb_radius[i]));
-      density += kernel*masses[i];
+      double Wab = kernels::kernel<kernel_type,gdimension>(
+          distances[i],.5*(radius+nb_radius[i]));
+      density += Wab*masses[i];
     } // for
     mpi_assert(density>0);
     source->setDensity(density);
@@ -196,10 +198,11 @@ namespace physics{
     for(int i = 0 ; i < n_nb; ++i){ // not vectorized
       viscosities[i] = viscosity::viscosity(*source,*ngbsh[i]);
     }
-    for(int i = 0 ; i < n_nb; ++i){ // Not vectorized due to Kernel
+    for(int i = 0 ; i < n_nb; ++i){ // Vectorized due to Kernel
       // Kernel computation
       point_t vecPosition = coordinates - positions[i];
-      sourcekernelgradient[i] = kernels::gradKernel(
+      sourcekernelgradient[i] = 
+          kernels::kernel_gradient<kernel_type,gdimension>(
           vecPosition,(h_s+radii[i])*.5);
     } // for
     //ignore itself
@@ -259,7 +262,8 @@ namespace physics{
       // Compute the gradKernel ij
       const double h_n = nb->radius();
       point_t vecPosition = source->coordinates()-nb->coordinates();
-      point_t sourcekernelgradient = kernels::gradKernel(
+      point_t sourcekernelgradient = 
+          kernels::kernel_gradient<kernel_type,gdimension>(
           vecPosition,(h_s+h_n)*.5);
       space_vector_t resultkernelgradient =
           flecsi::point_to_vector(sourcekernelgradient);
@@ -340,7 +344,9 @@ namespace physics{
     for(int i = 0 ; i < n_nb; ++i){ // Vectorized
       // Compute the \nabla_a W_ab
       double mu_ab = viscosity::mu(h_a,h_b[i],vel_a,vel_b[i],pos_a,pos_b[i]);
-      Da_Wab[i] = kernels::gradient_wendland_c6_1d(pos_a - pos_b[i], (h_a+h_b[i])*.5);
+      Da_Wab[i] = 
+          kernels::kernel_gradient<kernels::kernel_type,gdimension>( 
+          pos_a - pos_b[i], (h_a+h_b[i])*.5);
       Pi_ab[i] = viscosity::artificial_viscosity(rho_a,rho_b[i],c_a,c_b[i],mu_ab);
     }
 

@@ -58,6 +58,18 @@ namespace kernels{
   const double si_b3[3] = { 7.3658324e-2, -6.1642906e-3, 4.7013839e-2};
   double sinc_sigma[3];
 
+  // Kernel types enum
+  typedef enum kernel_type_enum {
+    cubic_spline,
+    quintic_spline,
+    wendland_c2,
+    wendland_c4,
+    wendland_c6,
+    gaussian,
+    super_gaussian,
+    sinc_ker
+  } kernel_t;
+
   /* This function sets up the sinc kernel normalization */
   void
   set_sinc_kernel_normalization(
@@ -71,7 +83,17 @@ namespace kernels{
   }
 
   // Connection to the sph_eta parameter
-  static double kernel_width = 1.0;
+  static double kernel_width = 2.0;
+
+  // Generic template: kernel
+  template<kernel_t K, int D> 
+  double 
+  kernel(const double & r, const double & h);
+
+  // Generic template: kernel gradient
+  template<kernel_t K, int D> 
+  point_t
+  kernel_gradient(const point_t & pos, const double & h);
 
 /*============================================================================*/
 /*   Cubic spline                                                             */
@@ -85,8 +107,8 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  double
-  cubic_spline(
+  template<> double
+  kernel<cubic_spline,gdimension>(
       const double& r,
       const double& h)
   {
@@ -114,8 +136,8 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  point_t
-  gradient_cubic_spline(
+  template<> point_t
+  kernel_gradient<cubic_spline,gdimension>(
       const point_t& vecP,
       const double& h)
   {
@@ -150,8 +172,8 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  double
-  gaussian(
+  template<> double
+  kernel<gaussian,gdimension>(
     const double& r,
     const double& h)
   {
@@ -175,8 +197,8 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  point_t
-  gradient_gaussian(
+  template<> point_t
+  kernel_gradient<gaussian,gdimension>(
     const point_t& vecP,
     const double& h)
   {
@@ -205,8 +227,8 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  double
-  quintic_spline(
+  template<> double
+  kernel<quintic_spline,gdimension>(
     const double& r,
     const double& h)
   {
@@ -237,8 +259,8 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  point_t
-  gradient_quintic_spline(
+  template<> point_t
+  kernel_gradient<quintic_spline,gdimension>(
     const point_t& vecP,
     const double& h)
   {
@@ -274,41 +296,44 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  double
-  wendland_c2_1d(
+  template<> double
+  kernel<wendland_c2,1>(
     const double& r,
     const double& h)
   {
     double rh = r/h;
-    double result = 0.;
-
-    if(rh < 1.0) {
-      double rh2 = (1 - rh)*(1 - rh);
-      double sigma = wendland_c2_sigma[0]/h;
-      result = sigma*rh2*(1 - rh)*(3*rh + 1);
-    }
-    return result;
+    double rh2 = (1 - rh)*(1 - rh);
+    double sigma = wendland_c2_sigma[0]/h;
+    double result = sigma*rh2*(1 - rh)*(3*rh + 1);
+    return result*(rh<1.0);
   }
 
-  double
-  wendland_c2_23d(
+  template<> double
+  kernel<wendland_c2,2> (
     const double& r,
     const double& h)
   {
     double rh = r/h;
-    double result = 0.;
-
-    if(rh < 1.0) {
-      double hd = h*h;
-      if constexpr (gdimension == 3)
-        hd *= h;
-
-      double rh2 = (1 - rh)*(1 - rh);
-      double sigma = wendland_c2_sigma[gdimension-1] / hd;
-      result = sigma*rh2*rh2*(4*rh + 1);
-    }
-    return result;
+    double hd = h*h;
+    double rh2 = (1 - rh)*(1 - rh);
+    double sigma = wendland_c2_sigma[1] / hd;
+    double result = sigma*rh2*rh2*(4*rh + 1);
+    return result*(rh<1.0);
   }
+
+  template<> double
+  kernel<wendland_c2,3>(
+    const double& r,
+    const double& h)
+  {
+    double rh = r/h;
+    double hd = h*h*h;
+    double rh2 = (1 - rh)*(1 - rh);
+    double sigma = wendland_c2_sigma[2] / hd;
+    double result = sigma*rh2*rh2*(4*rh + 1);
+    return result*(rh<1.0);
+  }
+
 
   /**
    * @brief      Gradient of Wendland kernel
@@ -318,45 +343,48 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  point_t
-  gradient_wendland_c2_1d(
+  template<> point_t
+  kernel_gradient<wendland_c2,1>(
     const point_t& vecP,
     const double& h)
   {
     double r = flecsi::norm2(vecP);
     double rh = r/h;
-    point_t result = 0.0;
-
-    if(rh < 1.0) {
-      double rh2 = (1 - rh)*(1 - rh);
-      double sigma = wendland_c2_sigma[0]/(h*h);
-      double dWdr = -12.*rh*rh2;
-      result = vecP*sigma*dWdr/r;
-    }
-
-    return result;
+    double rh2 = (1 - rh)*(1 - rh);
+    double sigma = wendland_c2_sigma[0]/(h*h);
+    double dWdr = -12.*rh*rh2;
+    point_t result = vecP*sigma*dWdr/r;
+    return result*(rh<1.0);
   }
 
-  point_t
-  gradient_wendland_c2_23d(
+  template<> point_t
+  kernel_gradient<wendland_c2,2>(
     const point_t& vecP,
     const double& h)
   {
     double r = flecsi::norm2(vecP);
     double rh = r/h;
-    point_t result = 0.0;
+    double hd1 = h*h*h;
+    double rh2 = (1 - rh)*(1 - rh);
+    double sigma = 2.*wendland_c2_sigma[1]/hd1;
+    double dWdr = -10.*rh*rh2*(1 - rh);
+    point_t result = vecP*sigma*dWdr/r;
+    return result*(rh<1.0);
+  }
 
-    if(rh < 1.0) {
-      double hd1 = h*h*h;
-      if constexpr (gdimension == 3)
-        hd1 *= h;
-
-      double rh2 = (1 - rh)*(1 - rh);
-      double sigma = 2.*wendland_c2_sigma[gdimension-1]/hd1;
-      double dWdr = -10.*rh*rh2*(1 - rh);
-      result = vecP*sigma*dWdr/r;
-    }
-    return result;
+  template<> point_t
+  kernel_gradient<wendland_c2,3>(
+    const point_t& vecP,
+    const double& h)
+  {
+    double r = flecsi::norm2(vecP);
+    double rh = r/h;
+    double hd1 = h*h*h*h;
+    double rh2 = (1 - rh)*(1 - rh);
+    double sigma = 2.*wendland_c2_sigma[2]/hd1;
+    double dWdr = -10.*rh*rh2*(1 - rh);
+    point_t result = vecP*sigma*dWdr/r;
+    return result*(rh<1.0);
   }
 
 /*============================================================================*/
@@ -371,43 +399,47 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  double
-  wendland_c4_1d(
+  template<> double
+  kernel<wendland_c4,1>(
     const double& r,
     const double& h)
   {
     double rh = r/h;
-    double result = 0.;
-
-    if(rh < 1.0) {
-      double rh2 = (1 - rh)*(1 - rh);
-      double rh3 = rh2*(1 - rh);
-      double sigma = wendland_c4_sigma[0]/h;
-      result = sigma*rh3*rh2*(1 + rh*(5 + rh*8));
-    }
-    return result;
+    double rh2 = (1 - rh)*(1 - rh);
+    double rh3 = rh2*(1 - rh);
+    double sigma = wendland_c4_sigma[0]/h;
+    double result = sigma*rh3*rh2*(1 + rh*(5 + rh*8));
+    return result*(rh<1.0);
   }
 
-  double
-  wendland_c4_23d(
+  template<> double
+  kernel<wendland_c4,2>(
     const double& r,
     const double& h)
   {
     double rh = r/h;
-    double result = 0.;
+    double hd = h*h;
+    double rh1 = 1 - rh;
+    double rh2 = rh1*rh1;
+    double rh6 = rh2*rh2*rh2;
+    double sigma = wendland_c4_sigma[2]/hd;
+    double result = sigma*rh6*(1 + rh*(6 + rh*35/3));
+    return result*(rh<1.0);
+  }
 
-    if(rh < 1.0) {
-      double hd = h*h;
-      if constexpr (gdimension == 3)
-        hd *= h;
-
-      double rh1 = 1 - rh;
-      double rh2 = rh1*rh1;
-      double rh6 = rh2*rh2*rh2;
-      double sigma = wendland_c4_sigma[gdimension-1]/hd;
-      result = sigma*rh6*(1 + rh*(6 + rh*35/3));
-    }
-    return result;
+  template<> double
+  kernel<wendland_c4,3>(
+    const double& r,
+    const double& h)
+  {
+    double rh = r/h;
+    double hd = h*h*h;
+    double rh1 = 1 - rh;
+    double rh2 = rh1*rh1;
+    double rh6 = rh2*rh2*rh2;
+    double sigma = wendland_c4_sigma[gdimension-1]/hd;
+    double result = sigma*rh6*(1 + rh*(6 + rh*35/3));
+    return result*(rh<1.0);
   }
 
   /**
@@ -418,8 +450,8 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  point_t
-  gradient_wendland_c4_1d(
+  template<> point_t
+  kernel_gradient<wendland_c4,1> (
     const point_t & vecP,
     const double& h)
   {
@@ -438,27 +470,56 @@ namespace kernels{
   }
 
 
-  point_t
-  gradient_wendland_c4_23d(
+  template<> point_t
+  kernel_gradient<wendland_c4,2>(
     const point_t& vecP,
     const double& h)
   {
     double r = flecsi::norm2(vecP);
     double rh = r/h;
-    point_t result = 0.0;
+    double hd1 = h*h*h;
+    double rh2 = (1 - rh)*(1 - rh);
+    double rh3 = rh2*(1 - rh);
+    double sigma = 14.*wendland_c4_sigma[1]/hd1;
+    double dWdr = -4./3.*rh*rh3*rh2*(1 + 5.*rh);
+    point_t result = vecP*sigma*dWdr/r;
+    return result*(rh<1.0);
+  }
 
-    if(rh < 1.0) {
-      double hd1 = h*h*h;
-      if constexpr (gdimension==3)
-        hd1*=h;
 
-      double rh2 = (1 - rh)*(1 - rh);
-      double rh3 = rh2*(1 - rh);
-      double sigma = 14.*wendland_c4_sigma[gdimension-1]/hd1;
-      double dWdr = -4./3.*rh*rh3*rh2*(1 + 5.*rh);
+  template<> inline point_t
+  kernel_gradient<wendland_c4,3>(
+    const point_t& vecP,
+    const double& h)
+  {
+    double r = flecsi::norm2(vecP);
+    double rh = r/h;
+    double hd1 = h*h*h*h;
+    double rh2 = (1 - rh)*(1 - rh);
+    double rh3 = rh2*(1 - rh);
+    double sigma = 14.*wendland_c4_sigma[2]/hd1;
+    double dWdr = -4./3.*rh*rh3*rh2*(1 + 5.*rh);
+    point_t result = vecP;
+    result = (rh<1.0)*(sigma*dWdr/r)*result;
+    return result*(rh<1.0);
+  }
 
-      result = vecP*sigma*dWdr/r;
-    }
+  //template<> point_t
+  //kernel_gradient<wendland_c4,3>(
+  inline point_t
+  kernel_gradient_wendland_c4_3d(
+    const point_t& p,
+    const double& h)
+  {
+    double r = flecsi::norm2(p);
+    double rh = r/h;
+    double hd1 = h*h*h*h;
+    double rh2 = (1 - rh)*(1 - rh);
+    double rh3 = rh2*(1 - rh);
+    double sigma = 14.*wendland_c4_sigma[2]/hd1;
+    double dWdr = -4./3.*rh*rh3*rh2*(1 + 5.*rh);
+    point_t result = p;
+    result = (rh<1.0)*(sigma*dWdr/r)*result;
     return result;
   }
 
@@ -475,43 +536,48 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  inline double
-  wendland_c6_1d(
+  template<> double
+  kernel<wendland_c6, 1>(
     const double& r,
     const double& h)
   {
     double rh = r/h;
-    double result = 0.;
-
-    if(rh < 1.0) {
-      double rh2 = (1 - rh)*(1 - rh);
-      double rh3 = rh2*(1 - rh);
-      double rh4 = rh2*rh2;
-      double sigma = wendland_c6_sigma[0]/h;
-      result = sigma*rh3*rh4*(1 + rh*(7 + rh*(19 + rh*21)));
-    }
-    return result;
+    double rh2 = (1 - rh)*(1 - rh);
+    double rh3 = rh2*(1 - rh);
+    double rh4 = rh2*rh2;
+    double sigma = wendland_c6_sigma[0]/h;
+    double result = sigma*rh3*rh4*(1 + rh*(7 + rh*(19 + rh*21)));
+    return result*(rh<1.0);
   }
 
-  double
-  wendland_c6_23d(
+  template<> double
+  kernel<wendland_c6, 2>(
     const double& r,
     const double& h)
   {
     double rh = r/h;
-    double result = 0.;
 
-    if(rh < 1.0) {
-      double hd = h*h;
-      if constexpr (gdimension == 3)
-        hd *= h;
+    double hd = h*h;
+    double rh2 = (1 - rh)*(1 - rh);
+    double rh4 = rh2*rh2;
+    double sigma = wendland_c6_sigma[1]/hd;
+    double result = sigma*rh4*rh4*(1 + rh*(8 + rh*(25 + rh*32)));
+    return result*(rh<1.0);
+  }
 
-      double rh2 = (1 - rh)*(1 - rh);
-      double rh4 = rh2*rh2;
-      double sigma = wendland_c6_sigma[gdimension-1]/hd;
-      result = sigma*rh4*rh4*(1 + rh*(8 + rh*(25 + rh*32)));
-    }
-    return result;
+
+  template<> double
+  kernel<wendland_c6, 3>(
+    const double& r,
+    const double& h)
+  {
+    double rh = r/h;
+    double hd = h*h*h;
+    double rh2 = (1 - rh)*(1 - rh);
+    double rh4 = rh2*rh2;
+    double sigma = wendland_c6_sigma[2]/hd;
+    double result = sigma*rh4*rh4*(1 + rh*(8 + rh*(25 + rh*32)));
+    return result*(rh<1.0);
   }
 
 
@@ -523,48 +589,53 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  point_t
-  gradient_wendland_c6_1d(
+  template<> point_t
+  kernel_gradient<wendland_c6, 1>(
     const point_t& vecP,
     const double& h)
   {
     double r = flecsi::norm2(vecP);
     double rh = r/h;
-    point_t result = 0.0;
-
-    if(rh < 1.0) {
-      double rh2 = (1 - rh)*(1 - rh);
-      double rh3 = rh2*(1 - rh);
-      double sigma = wendland_c6_sigma[0]/(h*h);
-      double dWdr  = -6.*rh*rh3*rh3*(3 + rh*(18 + rh*35));
-      result = vecP*sigma*dWdr/r;
-    }
-    return result;
+    double rh2 = (1 - rh)*(1 - rh);
+    double rh3 = rh2*(1 - rh);
+    double sigma = wendland_c6_sigma[0]/(h*h);
+    double dWdr  = -6.*rh*rh3*rh3*(3 + rh*(18 + rh*35));
+    point_t  result = vecP*sigma*dWdr/r;
+    return result*(rh<1.0);
   }
 
-  point_t
-  gradient_wendland_c6_23d(
+  template<> point_t
+  kernel_gradient<wendland_c6, 2> (
     const point_t& vecP,
     const double& h)
   {
     double r = flecsi::norm2(vecP);
     double rh = r/h;
-    point_t result = 0.0;
+    double hd1 = h*h*h;
+    double rh2 = (1 - rh)*(1 - rh);
+    double rh3 = rh2*(1 - rh);
+    double rh4 = rh2*rh2;
+    double sigma = wendland_c6_sigma[1]/hd1;
+    double dWdr  = -22.*rh*rh4*rh3*(1 + rh*(7 + rh*16));
+    point_t result = vecP*sigma*dWdr/r;
+    return result*(rh<1.0);
+  }
 
-    if(rh < 1.0) {
-      double hd1 = h*h*h;
-      if constexpr (gdimension==3)
-        hd1*=h;
-
-      double rh2 = (1 - rh)*(1 - rh);
-      double rh3 = rh2*(1 - rh);
-      double rh4 = rh2*rh2;
-      double sigma = wendland_c6_sigma[gdimension-1]/hd1;
-      double dWdr  = -22.*rh*rh4*rh3*(1 + rh*(7 + rh*16));
-      result = vecP*sigma*dWdr/r;
-    }
-
-    return result;
+  template<> point_t
+  kernel_gradient<wendland_c6, 3> (
+    const point_t& vecP,
+    const double& h)
+  {
+    double r = flecsi::norm2(vecP);
+    double rh = r/h;
+    double hd1 = h*h*h*h;
+    double rh2 = (1 - rh)*(1 - rh);
+    double rh3 = rh2*(1 - rh);
+    double rh4 = rh2*rh2;
+    double sigma = wendland_c6_sigma[2]/hd1;
+    double dWdr  = -22.*rh*rh4*rh3*(1 + rh*(7 + rh*16));
+    point_t result = vecP*sigma*dWdr/r;
+    return result*(rh<1.0);
   }
 
 
@@ -581,8 +652,8 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  double
-  super_gaussian(
+  template<> double
+  kernel<super_gaussian,gdimension>(
     const double& r,
     const double& h)
   {
@@ -605,8 +676,8 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  point_t
-  gradient_super_gaussian(
+  template<> point_t
+  kernel_gradient<super_gaussian,gdimension>(
     const point_t& vecP,
     const double& h)
   {
@@ -635,8 +706,8 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  double
-  sinc_ker(
+  template<> double
+  kernel<sinc_ker,gdimension>(
     const double& r,
     const double& h)
   {
@@ -675,8 +746,8 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  point_t
-  gradient_sinc_ker(
+  template<> point_t
+  kernel_gradient<sinc_ker,gdimension>(
     const point_t& vecP,
     const double& h)
   {
@@ -710,72 +781,25 @@ namespace kernels{
     return result;
   }
 
-  // kernel function pointers
-  typedef double  (*kernel_function_t)(const double&, const double&);
-  typedef point_t (*kernel_gradient_t)(const point_t &, const double&);
-  kernel_function_t kernel = quintic_spline;
-  kernel_gradient_t gradKernel = gradient_quintic_spline;
-
   /**
    * @brief      Kernel selector: types, global variables and the function
    * @param      kstr     Kernel string descriptor
    */
   void select(const std::string& kstr) {
-    if (boost::iequals(kstr,"cubic spline")) {
-      kernel = cubic_spline;
-      gradKernel = gradient_cubic_spline;
+    if (boost::iequals(kstr,"cubic spline") 
+        or boost::iequals(kstr, "wendland c2") 
+        or boost::iequals(kstr, "wendland c4") 
+        or boost::iequals(kstr, "wendland c6")) {
       kernel_width = 2.0;
-    }
-    else if (boost::iequals(kstr, "quintic spline")) {
-      kernel = quintic_spline;
-      gradKernel = gradient_quintic_spline;
-      kernel_width = 3.0;
-    }
-    else if (boost::iequals(kstr, "wendland c2")) {
-      if constexpr (gdimension == 1) {
-        kernel = wendland_c2_1d;
-        gradKernel = gradient_wendland_c2_1d;
-      } else {
-        kernel = wendland_c2_23d;
-        gradKernel = gradient_wendland_c2_23d;
-      }
-      kernel_width = 2.0;
-    }
-    else if (boost::iequals(kstr, "wendland c4")) {
-      if constexpr (gdimension == 1) {
-        kernel = wendland_c4_1d;
-        gradKernel = gradient_wendland_c4_1d;
-      } else {
-        kernel = wendland_c4_23d;
-        gradKernel = gradient_wendland_c4_23d;
-      }
-      kernel_width = 2.0;
-    }
-    else if (boost::iequals(kstr, "wendland c6")) {
-      if constexpr (gdimension == 1) {
-        kernel = wendland_c6_1d;
-        gradKernel = gradient_wendland_c6_1d;
-      } else {
-        kernel = wendland_c6_23d;
-        gradKernel = gradient_wendland_c6_23d;
-      }
-      kernel_width = 2.0;
-    }
-    else if (boost::iequals(kstr, "gaussian")) {
-      kernel = gaussian;
-      gradKernel = gradient_gaussian;
-      kernel_width = 3.0;
-    }
-    else if (boost::iequals(kstr, "super gaussian")) {
-      kernel = super_gaussian;
-      gradKernel = gradient_super_gaussian;
-      kernel_width = 3.0;
     }
     else if (boost::iequals(kstr, "sinc")) {
       set_sinc_kernel_normalization(param::sph_sinc_index);
-      kernel = sinc_ker;
-      gradKernel = gradient_sinc_ker;
       kernel_width = 2.0;
+    }
+    else if (boost::iequals(kstr, "quintic spline") 
+             or boost::iequals(kstr, "gaussian") 
+             or boost::iequals(kstr, "super gaussian")) {
+      kernel_width = 3.0;
     }
     else {
       clog_fatal("Bad kernel parameter" << std::endl);
@@ -784,5 +808,8 @@ namespace kernels{
 
 
 }; // kernel
+
+// hardcoded kernel for now
+static const kernels::kernel_t kernel_type = kernels::wendland_c4; 
 
 #endif // _physics_kernel_h_
