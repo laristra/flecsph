@@ -475,7 +475,7 @@ namespace kernels{
    *
    * @return     Contribution from the particle
    */
-  double
+  inline double
   wendland_c6_1d(
     const double& r,
     const double& h)

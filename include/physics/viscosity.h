@@ -47,28 +47,28 @@ namespace viscosity{
    *
    * @uses       epsilon  global parameter
    */
-  double
+  inline double
   mu(
-      const body* source,
-      const body* nb)
+      const double & h_a,
+      const double & h_b,
+      const point_t & vel_a,
+      const point_t & vel_b,
+      const point_t & pos_a,
+      const point_t & pos_b)
   {
 
     using namespace param;
     double result = 0.0;
-    double h_ij = .5*(source->radius()+nb->radius());
-    space_vector_t vecVelocity = flecsi::point_to_vector(
-        source->getVelocityhalf() - nb->getVelocityhalf());
-    space_vector_t vecPosition = flecsi::point_to_vector(
-        source->coordinates() - nb->coordinates());
+    double h_ab = .5*(h_a + h_b);
+    space_vector_t vecVelocity = flecsi::point_to_vector(vel_a - vel_b);
+    space_vector_t vecPosition = flecsi::point_to_vector(pos_a - pos_b);
     double dotproduct = flecsi::dot(vecVelocity,vecPosition);
 
-    if(dotproduct >= 0.0)
-      return result;
-    double dist = flecsi::distance(source->coordinates(),nb->coordinates());
-    result = h_ij*dotproduct / (dist*dist + sph_viscosity_epsilon*h_ij*h_ij);
+    double dist = flecsi::distance(pos_a, pos_b);
+    result = h_ab*dotproduct / (dist*dist + sph_viscosity_epsilon*h_ab*h_ab);
 
-    mpi_assert(result < 0.0);
-    return result;
+    //mpi_assert(result < 0.0);
+    return result*(dotproduct >= 0.0);
   } // mu
 
 
@@ -82,24 +82,25 @@ namespace viscosity{
    *
    * @return     The artificial viscosity contribution
    */
-  double
+  inline double
   artificial_viscosity(
-    const body* source,
-    const body* nb)
+    const double & rho_a, 
+    const double & rho_b,
+    const double & c_a,
+    const double & c_b,
+    const double & mu_ab)
   {
     using namespace param;
-    double rho_ij = (1./2.)*(source->getDensity()+nb->getDensity());
-    double c_ij = (1./2.)*
-        (source->getSoundspeed()+nb->getSoundspeed());
-    double mu_ij = mu(source,nb);
-    double res = ( -sph_viscosity_alpha*c_ij*mu_ij
-                  + sph_viscosity_beta*mu_ij*mu_ij)/rho_ij;
-    mpi_assert(res>=0.0);
+    double rho_ab = .5*(rho_a + rho_b);
+    double c_ab = .5*(c_a + c_b);
+    double res = ( -sph_viscosity_alpha*c_ab
+                  + sph_viscosity_beta*mu_ab)*mu_ab/rho_ab;
+    //mpi_assert(res>=0.0);
     return res;
   }
 
-  typedef double (*viscosity_function_t)(const body*, const body *);
-  viscosity_function_t viscosity = artificial_viscosity;
+  typedef double (*viscosity_function_t)(const body &, const body &);
+  viscosity_function_t viscosity = nullptr; //artificial_viscosity;
 
   /**
    * @brief Viscosity selector
@@ -108,7 +109,7 @@ namespace viscosity{
   void select(const std::string& kstr)
   {
     if (boost::iequals(kstr,"artificial_viscosity")){
-      viscosity = artificial_viscosity;
+      viscosity = nullptr; //artificial_viscosity;
     }else{
       clog_fatal("Bad viscosity parameter"<<std::endl);
     }

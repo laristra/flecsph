@@ -75,8 +75,8 @@ namespace physics{
       nb_radius[i] = nbsh[i]->radius();
       distances[i] = flecsi::distance(coordinates,nbsh[i]->coordinates());
     }
-    for(int i = 0 ; i < n_nb; ++i){
-      double kernel = kernels::kernel(distances[i],.5*(radius+nb_radius[i]));
+    for(int i = 0 ; i < n_nb; ++i){ // Vectorized
+      double kernel = kernels::wendland_c6_1d(distances[i],.5*(radius+nb_radius[i]));
       density += kernel*masses[i];
     } // for
     mpi_assert(density>0);
@@ -194,7 +194,7 @@ namespace physics{
     }
 
     for(int i = 0 ; i < n_nb; ++i){ // not vectorized
-      viscosities[i] = viscosity::viscosity(source,ngbsh[i]);
+      viscosities[i] = viscosity::viscosity(*source,*ngbsh[i]);
     }
     for(int i = 0 ; i < n_nb; ++i){ // Not vectorized due to Kernel
       // Kernel computation
@@ -254,7 +254,7 @@ namespace physics{
       }
 
       // Artificial viscosity
-      double visc = viscosity::viscosity(source,nb);
+      double visc = viscosity::viscosity(*source,*nb);
 
       // Compute the gradKernel ij
       const double h_n = nb->radius();
@@ -307,37 +307,41 @@ namespace physics{
                   vel_a = source->getVelocity();
     const double h_a = source->radius(),
                  P_a = source->getPressure(),
-                 rho_a = source->getDensity();
+                 rho_a = source->getDensity(),
+                 c_a = source->getSoundspeed();
     const double Prho2_a = P_a/(rho_a*rho_a);
+    const body pt_a = (*source);
 
     const int n_nb = ngbsh.size();
     point_t pos_b[n_nb];
     double h_b[n_nb];
     point_t vel_b[n_nb];
     double rho_b[n_nb];
+    double c_b[n_nb];
     double P_b[n_nb];
     double m_b[n_nb];
 
     point_t Da_Wab[n_nb];
     double Pi_ab[n_nb];
 
-
     int index=-1;
-    for(int i = 0 ; i < n_nb; ++i){
+    for(int i = 0 ; i < n_nb; ++i){ 
       rho_b[i] = ngbsh[i]->getDensity();
       P_b[i] = ngbsh[i]->getPressure();
       pos_b[i] = ngbsh[i]->coordinates();
       h_b[i] = ngbsh[i]->radius();
       vel_b[i] = ngbsh[i]->getVelocity();
       m_b[i] = ngbsh[i]->mass();
+      c_b[i] = ngbsh[i]->getSoundspeed();
       if(pos_b[i]==pos_a)
         index=i;
     }
 
-    for(int i = 0 ; i < n_nb; ++i){
+    for(int i = 0 ; i < n_nb; ++i){ // Vectorized
       // Compute the \nabla_a W_ab
-      Da_Wab[i] = kernels::gradKernel(pos_a - pos_b[i], (h_a+h_b[i])*.5);
-      Pi_ab[i] = viscosity::viscosity(source,ngbsh[i]);
+      double mu_ab = viscosity::mu(h_a,h_b[i],vel_a,vel_b[i],pos_a,pos_b[i]);
+      Da_Wab[i] = kernels::gradient_wendland_c6_1d(pos_a - pos_b[i], (h_a+h_b[i])*.5);
+      Pi_ab[i] = viscosity::artificial_viscosity(rho_a,rho_b[i],c_a,c_b[i],mu_ab);
     }
 
     // To avoid the same particle
