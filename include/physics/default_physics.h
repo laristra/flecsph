@@ -166,58 +166,58 @@ namespace physics{
     using namespace param;
     // Reset the accelerastion
     // \TODO add a function to reset in main_driver
-    point_t acceleration = {};
-    point_t hydro = {};
-    const double h_s = source->radius();
-    const point_t coordinates = source->coordinates();
-    const double density = source->getDensity();
-    const double pressure = source->getPressure();
+    point_t acc_a = {};
+    point_t acc_hydro = {};
+    const double    h_a = source->radius();
+    const point_t pos_a = source->coordinates();
+    const point_t vel_a = source->getVelocity();
+    const double  rho_a = source->getDensity();
+    const double    P_a = source->getPressure();
+    const double    c_a = source->getSoundspeed();
     source->setMumax(0.0);
     const int n_nb = ngbsh.size();
 
-    double viscosities[n_nb];
-    point_t sourcekernelgradient[n_nb];
+    double Pi_ab[n_nb];
+    point_t DiWab[n_nb];
 
-    double densities[n_nb];
-    double pressures[n_nb];
-    point_t positions[n_nb];
-    double radii[n_nb];
-    double masses[n_nb];
+    double rho_b[n_nb], P_b[n_nb], h_b[n_nb], m_b[n_nb], c_b[n_nb];
+    point_t pos_b[n_nb], vel_b[n_nb];
 
     int index=-1;
     for(int i = 0 ; i < n_nb; ++i){
-      densities[i] = ngbsh[i]->getDensity();
-      pressures[i] = ngbsh[i]->getPressure();
-      positions[i] = ngbsh[i]->coordinates();
-      radii[i] = ngbsh[i]->radius();
-      masses[i] = ngbsh[i]->mass();
-      if(positions[i]==coordinates)
+      rho_b[i] = ngbsh[i]->getDensity();
+      P_b[i]   = ngbsh[i]->getPressure();
+      pos_b[i] = ngbsh[i]->coordinates();
+      vel_b[i] = ngbsh[i]->getVelocity();
+      c_b[i]   = ngbsh[i]->getSoundspeed();
+      h_b[i]   = ngbsh[i]->radius();
+      m_b[i]   = ngbsh[i]->mass();
+      if(pos_b[i]==pos_a)
         index=i;
     }
 
     for(int i = 0 ; i < n_nb; ++i){ // not vectorized
-      viscosities[i] = viscosity::viscosity(*source,*ngbsh[i]);
+      double mu_ab = viscosity::mu(h_a,h_b[i],vel_a,vel_b[i],pos_a,pos_b[i]);
+      Pi_ab[i] = viscosity::artificial_viscosity(rho_a,rho_b[i],c_a,c_b[i],mu_ab);
     }
     for(int i = 0 ; i < n_nb; ++i){ // Vectorized due to Kernel
       // Kernel computation
-      point_t vecPosition = coordinates - positions[i];
-      sourcekernelgradient[i] = 
+      point_t pos_ab = pos_a - pos_b[i];
+      DiWab[i] = 
           kernels::kernel_gradient<kernels::kernel_type,gdimension>(
-          vecPosition,(h_s+radii[i])*.5);
+          pos_ab,(h_a+h_b[i])*.5);
     } // for
-    //ignore itself
-    sourcekernelgradient[index]={};
-    viscosities[index]=0;
+    //ignore self
+    DiWab[index]={};
+    Pi_ab[index]=0;
     for(int i = 0 ; i < n_nb; ++i){ // Vectorized
-      double pressureDensity = pressure/(density*density)
-          + pressures[i]/(densities[i]*densities[i]);
-      hydro += masses[i]*(pressureDensity + viscosities[i])
-        *sourcekernelgradient[i];
+      double pressureDensity = P_a/(rho_a*rho_a) + P_b[i]/(rho_b[i]*rho_b[i]);
+      acc_hydro += m_b[i]*(pressureDensity + Pi_ab[i])*DiWab[i];
     }
-    hydro = -1.0*hydro;
-    acceleration += hydro;
-    acceleration += external_force::acceleration(source);
-    source->setAcceleration(acceleration);
+    acc_hydro = -1.0*acc_hydro;
+    acc_a += acc_hydro;
+    acc_a += external_force::acceleration(source);
+    source->setAcceleration(acc_a);
   } // compute_hydro_acceleration
 
 

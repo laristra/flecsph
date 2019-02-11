@@ -177,7 +177,7 @@ namespace param {
 
 //- which kernel to use
 #ifndef sph_kernel
-  DECLARE_STRING_PARAM(sph_kernel,"Wendland C2")
+  DECLARE_STRING_PARAM(sph_kernel,"Wendland C4")
 #endif
 
 //- sinc kernel power index

@@ -24,7 +24,7 @@
   airfoil_anchor_y = -0.3
 
 # evolution parameters:
-  sph_kernel = "Quintic Spline"
+  #sph_kernel = "Quintic Spline"
   initial_dt = 2e-3 # TODO: better use Courant factor X sph_separation
   final_iteration = 5000
   out_screen_every = 1

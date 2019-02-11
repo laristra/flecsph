@@ -24,7 +24,7 @@
   #eos_type = "stellar collapse"
 
 # evolution parameters:
-  sph_kernel = "quintic spline"
+  #sph_kernel = "quintic spline"
   initial_dt = 5.e-4  # TODO: better use Courant factor X sph_separation
   final_iteration = 1100
   out_screen_every = 1

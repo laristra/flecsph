@@ -353,8 +353,9 @@ namespace kernels{
     double rh2 = (1 - rh)*(1 - rh);
     double sigma = wendland_c2_sigma[0]/(h*h);
     double dWdr = -12.*rh*rh2;
-    point_t result = vecP*sigma*dWdr/r;
-    return result*(rh<1.0);
+    point_t result = vecP;
+    result = (rh<1.0)*(sigma*dWdr/r)*result;
+    return result;
   }
 
   template<> point_t
@@ -368,8 +369,9 @@ namespace kernels{
     double rh2 = (1 - rh)*(1 - rh);
     double sigma = 2.*wendland_c2_sigma[1]/hd1;
     double dWdr = -10.*rh*rh2*(1 - rh);
-    point_t result = vecP*sigma*dWdr/r;
-    return result*(rh<1.0);
+    point_t result = vecP;
+    result = (rh<1.0)*(sigma*dWdr/r)*result;
+    return result;
   }
 
   template<> point_t
@@ -383,7 +385,8 @@ namespace kernels{
     double rh2 = (1 - rh)*(1 - rh);
     double sigma = 2.*wendland_c2_sigma[2]/hd1;
     double dWdr = -10.*rh*rh2*(1 - rh);
-    point_t result = vecP*sigma*dWdr/r;
+    point_t result = vecP;
+    result = (rh<1.0)*(sigma*dWdr/r)*result;
     return result*(rh<1.0);
   }
 
@@ -457,15 +460,13 @@ namespace kernels{
   {
     double r = flecsi::norm2(vecP);
     double rh = r/h;
-    point_t result = 0.0;
 
-    if(rh < 1.0) {
-      double rh2 = (1 - rh)*(1 - rh);
-      double sigma = 14.*wendland_c4_sigma[0]/(h*h);
-      double dWdr = -rh*rh2*rh2*(1 + 4.*rh);
+    double rh2 = (1 - rh)*(1 - rh);
+    double sigma = 14.*wendland_c4_sigma[0]/(h*h);
+    double dWdr = -rh*rh2*rh2*(1 + 4.*rh);
 
-      result = vecP*sigma*dWdr/r;
-    }
+    point_t result = vecP;
+    result = (rh<1.0)*(vecP*sigma*dWdr/r)*result;
     return result;
   }
 
@@ -482,7 +483,8 @@ namespace kernels{
     double rh3 = rh2*(1 - rh);
     double sigma = 14.*wendland_c4_sigma[1]/hd1;
     double dWdr = -4./3.*rh*rh3*rh2*(1 + 5.*rh);
-    point_t result = vecP*sigma*dWdr/r;
+    point_t result = vecP;
+    result = (rh<1.0)*(sigma*dWdr/r)*result;
     return result*(rh<1.0);
   }
 
@@ -503,26 +505,6 @@ namespace kernels{
     result = (rh<1.0)*(sigma*dWdr/r)*result;
     return result*(rh<1.0);
   }
-
-  //template<> point_t
-  //kernel_gradient<wendland_c4,3>(
-  inline point_t
-  kernel_gradient_wendland_c4_3d(
-    const point_t& p,
-    const double& h)
-  {
-    double r = flecsi::norm2(p);
-    double rh = r/h;
-    double hd1 = h*h*h*h;
-    double rh2 = (1 - rh)*(1 - rh);
-    double rh3 = rh2*(1 - rh);
-    double sigma = 14.*wendland_c4_sigma[2]/hd1;
-    double dWdr = -4./3.*rh*rh3*rh2*(1 + 5.*rh);
-    point_t result = p;
-    result = (rh<1.0)*(sigma*dWdr/r)*result;
-    return result;
-  }
-
 
 /*============================================================================*/
 /*   Wendland C6                                                              */
@@ -600,8 +582,9 @@ namespace kernels{
     double rh3 = rh2*(1 - rh);
     double sigma = wendland_c6_sigma[0]/(h*h);
     double dWdr  = -6.*rh*rh3*rh3*(3 + rh*(18 + rh*35));
-    point_t  result = vecP*sigma*dWdr/r;
-    return result*(rh<1.0);
+    point_t result = vecP;
+    result = (sigma*dWdr/r)*(rh<1.0)*result;
+    return result;
   }
 
   template<> point_t
@@ -617,8 +600,9 @@ namespace kernels{
     double rh4 = rh2*rh2;
     double sigma = wendland_c6_sigma[1]/hd1;
     double dWdr  = -22.*rh*rh4*rh3*(1 + rh*(7 + rh*16));
-    point_t result = vecP*sigma*dWdr/r;
-    return result*(rh<1.0);
+    point_t result = vecP;
+    result = sigma*dWdr/r * (rh<1.0) * result;
+    return result;
   }
 
   template<> point_t
@@ -634,8 +618,9 @@ namespace kernels{
     double rh4 = rh2*rh2;
     double sigma = wendland_c6_sigma[2]/hd1;
     double dWdr  = -22.*rh*rh4*rh3*(1 + rh*(7 + rh*16));
-    point_t result = vecP*sigma*dWdr/r;
-    return result*(rh<1.0);
+    point_t result = vecP;
+    result = sigma*dWdr/r * (rh<1.0) * result;
+    return result;
   }
 
 
@@ -659,13 +644,10 @@ namespace kernels{
   {
     double rh = 3.*r/h, rh2 = rh*rh;
 
-    double result = 0.;
-    if(fabs(rh) < 3.){
-      double sigma = super_gaussian_sigma[gdimension-1]
-                   / pow(h,gdimension);
-      result = sigma*exp(-rh2)*(gdimension/2.0 + 1 - rh2);
-    }
-    return result;
+    double sigma = super_gaussian_sigma[gdimension-1]
+                 / pow(h,gdimension);
+    double result = sigma*exp(-rh2)*(gdimension/2.0 + 1 - rh2);
+    return result*(fabs(rh)<3.);
   }
 
   /**
@@ -683,14 +665,11 @@ namespace kernels{
   {
     double r = flecsi::norm2(vecP);
     double rh = 3.*r/h;
-
-    point_t result = 0.0;
-    if (rh < 3.0) {
-      double sigma = 3.*super_gaussian_sigma[gdimension-1]
-                   / pow(h,gdimension+1);
-      double dWdr = exp(-rh*rh)*(2.*pow(rh,3.) - (gdimension+4.)*rh);
-      result = vecP*sigma*dWdr/r;
-    }
+    double sigma = 3.*super_gaussian_sigma[gdimension-1]
+                 / pow(h,gdimension+1);
+    double dWdr = exp(-rh*rh)*(2.*pow(rh,3.) - (gdimension+4.)*rh);
+    point_t result = vecP;
+    result = sigma*dWdr/r * (rh<3.0) * result;
     return result;
   }
 
