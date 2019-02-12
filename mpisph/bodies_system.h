@@ -345,10 +345,10 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
       }
       oss << std::endl;
       clog_one(trace) << oss.str() << std::flush;
-      for(auto v: nentities){
-        assert(v == lentities);
-        assert(v == totalnbodies_);
-      }
+      //for(auto v: nentities){
+      //  assert(v == lentities);
+      //  assert(v == totalnbodies_);
+      //}
     }
 #endif
 

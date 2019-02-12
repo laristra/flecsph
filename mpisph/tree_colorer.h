@@ -245,7 +245,7 @@ public:
   std::vector<branch_t*> search_branches;
   tree.find_sub_cells(
     tree.root(),
-    0,
+    10000,
     search_branches);
 
   // Copy them localy
@@ -253,94 +253,94 @@ public:
   #pragma omp parallel for
   for(int i = 0 ; i < search_branches.size(); ++i){
     assert(search_branches[i]->sub_entities() > 0);
-    branches[i] = mpi_branch_t
-      {
-        search_branches[i]->coordinates(),
-        search_branches[i]->mass(),
-        search_branches[i]->bmin(),
-        search_branches[i]->bmax(),
-        search_branches[i]->id(),
-        search_branches[i]->owner(),
-        search_branches[i]->sub_entities()
-      };
+    branches[i] = mpi_branch_t{
+        search_branches[i]->coordinates(),search_branches[i]->mass(),
+        search_branches[i]->bmin(),search_branches[i]->bmax(),
+        search_branches[i]->id(),search_branches[i]->owner(),
+        search_branches[i]->sub_entities()};
   }
 
-  // Do the hypercube communciation to share the branches
-  // Add them in the tree in the same time
-  int dim = log2(size);
-  bool non_power_2 = false;
-  // In case of non power two, consider dim + 1
-  // In this case all rank also take size + 1 rank
-  int ghosts_rank = -1;
-  if(1<<dim < size){
-    non_power_2 = true;
-    dim++;
-    ghosts_rank = rank + (1<<dim-1);
-    if(ghosts_rank > (1<<dim)-1)
-      ghosts_rank = rank;
-  }
+  // Gather pointers on my local leaves
+  std::vector<branch_t*> leaves;
+  tree.get_leaves(leaves);
 
-  std::vector<mpi_branch_t> ghosts_branches;
-  int ghosts_nsend;
-  int ghosts_last = 0;
+  std::vector<mpi_branch_t> branches_nb;
+  std::vector<int> nbranches_nb(size);
+  mpi_utils::mpi_allgatherv(branches,branches_nb,nbranches_nb);
+  // Prefix sum
+  std::vector<int> nbranches_offset(size);
+  std::partial_sum(nbranches_nb.begin(),nbranches_nb.end(),
+    &nbranches_offset[0]);
+  nbranches_offset.insert(nbranches_offset.begin(),0);
 
-  int nsend;
-  int last = branches.size();
-  for(int i = 0; i < dim; ++i){
-    nsend = branches.size();
-    int partner = rank ^ (1<<i);
-    assert(partner != rank);
-    mpi_one_to_one(rank,partner,branches,nsend,last);
-    // Handle the non power two cases
-    if(non_power_2)
-    {
-      // If this ghosts_rank exists for a real rank don't use it
-      if(rank != ghosts_rank && ghosts_rank <= size-1)
-        continue;
-      ghosts_nsend = ghosts_branches.size();
-      assert(ghosts_rank != -1);
-      int ghosts_partner = ghosts_rank ^ (1<<i);
-      partner = ghosts_partner;
-      // Case already handled before
-      if(ghosts_rank == rank && partner < size)
-        continue;
-      if(partner >= size){
-        partner -= (1<<dim-1);
-      }
-      if(partner == rank){
-        // Add into the buffer, no communication needed
-        branches.insert(branches.end(),ghosts_branches.begin(),
-          ghosts_branches.end());
-      }else{
-        assert(partner != rank);
-        if(ghosts_rank == rank){
-          mpi_one_to_one(rank,partner,branches,nsend,last);
-        }else{
-          mpi_one_to_one(rank,partner,ghosts_branches,ghosts_nsend,
-            ghosts_last);
+  size_t interact = 0;
+  // Search for all my leaves that interact with other ranks
+  std::vector<std::vector<mpi_branch_t>> interact_leaves(size);
+  #pragma omp parallel for
+  for(int i = 0 ; i < size; ++i){
+    if( i == rank ) continue;
+    for(int j = nbranches_offset[i] ; j < nbranches_offset[i+1]; ++j){
+      for(int k = 0 ; k < leaves.size(); ++k){
+        assert(branches_nb[j].owner != rank);
+        if(flecsi::topology::tree_geometry<type_t,gdimension>::
+          intersects_box_box(
+            leaves[k]->bmin(),leaves[k]->bmax(),
+            branches_nb[j].min,branches_nb[j].max))
+        {
+          interact_leaves[i].push_back(mpi_branch_t{
+                leaves[k]->coordinates(),leaves[k]->mass(),leaves[k]->bmin(),
+                leaves[k]->bmax(),leaves[k]->id(),leaves[k]->owner(),
+                leaves[k]->sub_entities()});
+          ++interact;
         }
       }
     }
   }
-  // Total branches
-  clog_one(trace)<<rank<<"total branches: "<<branches.size()<<std::endl;
 
-#if DEBUG
-  // Check if everyone have the same number
-  int nbranches = branches.size();
-  int result;
-  MPI_Reduce(&nbranches, &result, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-  if(rank == 0){
-    assert(result == branches.size()*size);
+  std::vector<std::vector<mpi_branch_t>> recv_branches(size);
+  std::vector<MPI_Request> requests_size(size);
+  std::vector<MPI_Request> requests_particles(size);
+  std::vector<int> send_size(size);
+
+  // Send to the other rank and add to the local tree
+  #pragma omp parallel for
+  for(int i = 0 ; i < size; ++i ){
+    if ( i == rank ) continue;
+    if(interact_leaves[i].size() > 0){
+      // Send the size
+      send_size[i] = interact_leaves[i].size();
+      MPI_Isend(&(send_size[i]),1,MPI_INT,i,1,MPI_COMM_WORLD,&(requests_size[i]));
+      // Send the branches
+      MPI_Isend(&(interact_leaves[i][0]),sizeof(mpi_branch_t)*send_size[i],
+        MPI_BYTE,i,2,MPI_COMM_WORLD,&(requests_particles[i]));
+    }
   }
-#endif
+  // Be sure every request have been sent
+  MPI_Barrier(MPI_COMM_WORLD);
+  #pragma omp parallel for
+  for(int i = 0 ; i < size; ++i){
+    if ( i == rank ) continue;
+    // Probe the reception
+    int flag;
+    MPI_Iprobe(i,1,MPI_COMM_WORLD,&flag,MPI_STATUS_IGNORE);
+    if(flag){
+      int count;
+      // Recv the size
+      MPI_Recv(&count,1,MPI_INT,i,1,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+      recv_branches[i].resize(count);
+      MPI_Recv(&(recv_branches[i][0]),sizeof(mpi_branch_t)*count,MPI_BYTE,
+        i,2,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+    }
+  }
 
   // Add these branches informations in the tree
-  for(auto b: branches){
-    //clog(trace)<<rank<<" owner: "<<b.owner<<" insert "<<b.key<<std::endl;
-    if(b.owner != rank){
-      tree.insert_branch(b.coordinates,b.mass,b.min,b.max,b.key,
-        b.owner,b.sub_entities);
+  for(int i = 0 ; i < size; ++i){
+    for(auto b: recv_branches[i]){
+      //clog(trace)<<rank<<" owner: "<<b.owner<<" insert "<<b.key<<std::endl;
+      if(b.owner != rank){
+        tree.insert_branch(b.coordinates,b.mass,b.min,b.max,b.key,
+          b.owner,b.sub_entities);
+      }
     }
   }
 

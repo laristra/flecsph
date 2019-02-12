@@ -272,6 +272,8 @@ public:
     cofm(root(),0,false);
   }
 
+
+
   /**
   * \brief Share the edge particles to my direct neighbors
   * regarding the key ordering: 0 <-> 1 <-> 2 <-> 3 for 4 processes
@@ -1421,6 +1423,7 @@ public:
 
     // Work in parallel on the sub branches
     const int nwork = working_branches.size();
+
     #pragma omp parallel for
     for(int b = 0 ; b < nwork; ++b){
       // Find the leave in order in these sub branches
@@ -1676,6 +1679,17 @@ public:
       }
     }
     return ents;
+  }
+
+  void
+  get_leaves(
+    std::vector<branch_t*>& leaves
+  ){
+    for(auto& it:  branch_map_){
+      if(it.second.is_leaf()){
+        leaves.push_back(&(it.second));
+      }
+    }
   }
 
 
