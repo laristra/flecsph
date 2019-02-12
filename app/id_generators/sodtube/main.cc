@@ -21,7 +21,7 @@ using namespace io;
 // help message
 //
 void print_usage() {
-  clog(warn)
+  clog_one(warn)
       << "Initial data generator for Sod shocktube test in"
       << gdimension << "D" << std::endl
       << "Usage: ./sodtube_generator <parameter-file.par>" << std::endl;
@@ -105,7 +105,7 @@ void set_derived_params() {
       break;
 
     default:
-      clog(error) << "ERROR: invalid test (" << sodtest_num << ")." << endl;
+      clog_one(error) << "ERROR: invalid test (" << sodtest_num << ")." << endl;
       MPI_Finalize();
       exit(-1);
 
@@ -150,9 +150,8 @@ int main(int argc, char * argv[]){
 
   // screen output
   std::cout << "Sod test #" << sodtest_num << " in " << gdimension
-       << "D:" << std::endl << " - number of particles: " << nparticles
-       << std::endl << " - particles per core:  " << nparticlesproc << std::endl
-       << " - generated initial data file: " << initial_data_file << std::endl;
+       << "D:" << std::endl <<
+       " - generated initial data file: " << initial_data_file << std::endl;
 
   // allocate arrays
   int64_t tparticles = 0;
@@ -302,7 +301,7 @@ int main(int argc, char * argv[]){
 
     } // for part=0..nparticles
   }
-  clog_one(info) << "Actual number of particles: " << tparticles << std::endl
+  std::cout << "Actual number of particles: " << tparticles << std::endl
     << std::flush;
   // delete the output file if exists
   remove(initial_data_file.c_str());

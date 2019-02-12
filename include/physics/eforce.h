@@ -65,7 +65,7 @@ namespace external_force {
   point_t acceleration_square_well(body* source) {
     using namespace param;
     point_t a = 0.0;
-    point_t rp = source->getPosition();
+    point_t rp = source->coordinates();
     const static double
        box[3] = {.5*box_length,.5*box_width,.5*box_height},
        pw_n = extforce_wall_powerindex,
@@ -87,7 +87,7 @@ namespace external_force {
   point_t acceleration_spherical_wall(body* source) {
     using namespace param;
     point_t a = 0.0;
-    point_t rp = source->getPosition();
+    point_t rp = source->coordinates();
     const double pw_n = extforce_wall_powerindex;
     const double pw_a = extforce_wall_steepness;
     double r = rp[0]*rp[0];
@@ -128,7 +128,7 @@ namespace external_force {
     static const double 
         K0 = pressure_initial / pow(rho_initial, poly_gamma),
         rho0 = density_profiles::spherical_density_profile(0.);
-    point_t rp = source->getPosition();
+    point_t rp = source->coordinates();
     double r = rp[0]*rp[0];
     for (unsigned short i=1; i<gdimension; ++i)
       r += rp[i]*rp[i];
@@ -211,7 +211,7 @@ namespace external_force {
     point_t a = 0.0;
     assert (gdimension > 1);
 
-    point_t rp =  source->getPosition();
+    point_t rp =  source->coordinates();
     const double x1 = rp[0] - airfoil_anchor_x,
                  y1 = rp[1] - airfoil_anchor_y,
                  alpha = airfoil_attack_angle*M_PI/180.0,
@@ -244,7 +244,7 @@ namespace external_force {
     double phi = 0.0;
     assert (gdimension > 1);
 
-    static const double             
+    static const double
                  alpha = airfoil_attack_angle*M_PI/180.0,
                  pw_n = extforce_wall_powerindex,
                  pw_a = extforce_wall_steepness;
@@ -276,9 +276,8 @@ namespace external_force {
    * @brief      Total external force at a point 'srch'
    * @param      srch  The source's body holder
    */
-  point_t acceleration(body_holder* srch) {
+  point_t acceleration(body* source) {
     point_t a = 0.0;
-    body* source = srch->getBody();
     for (auto p : vec_accelerations)
       a += (*p)(source);
     return a;
@@ -357,7 +356,7 @@ namespace external_force {
             vec_accelerations.push_back(acceleration_walls_z);
             break;
           default:
-            clog_one(fatal) << "ERROR: bad external_force_type" << std::endl;
+            clog_fatal("ERROR: bad external_force_type" << std::endl);
             assert(false);
           }
         }
@@ -367,7 +366,7 @@ namespace external_force {
         vec_potentials.push_back(potential_poison);
       }
       else {
-        clog_one(fatal) << "ERROR: bad external_force_type" << std::endl;
+        clog_fatal("ERROR: bad external_force_type" << std::endl);
       }
     } // for it in split_efstr
 

@@ -31,7 +31,7 @@ Astron. Soc. 392, 346 (2009).
 // help message
 //
 void print_usage() {
-  clog(warn)
+  clog_one(warn)
       << "Initial data generator for the " << gdimension << "D Implosion"
       << std::endl << "Usage: ./implosion_generator <parameter-file.par>"
       << std::endl;
@@ -221,8 +221,8 @@ int main(int argc, char * argv[]){
     }
   }
 
-  clog(info) << "Number of particles: " << nparticles << std::endl;
-  clog(info) << "Total number of seeded blast particles: " << particles_blast << std::endl;
+  clog_one(info) << "Number of particles: " << nparticles << std::endl;
+  clog_one(info) << "Total number of seeded blast particles: " << particles_blast << std::endl;
   //  clog(info) << "Total blast energy (E_blast = u_blast * total mass): "
   //                 << sedov_blast_energy * mass_blast << std::endl;
   // remove the previous file

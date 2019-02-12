@@ -64,7 +64,7 @@ namespace analysis{
       if(!bodies[i].is_local()) continue;
       body* bp = bodies[i].getBody();
       if(bp->type() != NORMAL)  continue;
-      linear_momentum += bp->getMass()*bp->getVelocity();
+      linear_momentum += bp->mass()*bp->getVelocity();
     }
     mpi_utils::reduce_sum(linear_momentum);
   }
@@ -84,7 +84,7 @@ namespace analysis{
       if(!bodies[i].is_local()) continue;
       body* bp = bodies[i].getBody();
       if(bp->type() != NORMAL)  continue;
-      total_mass += bp->getMass();
+      total_mass += bp->mass();
     }
     mpi_utils::reduce_sum(total_mass);
   }
@@ -107,7 +107,7 @@ namespace analysis{
         if(!bodies[i].is_local()) continue;
         body* bp = bodies[i].getBody();
         if(bp->type() != NORMAL)  continue;
-        total_energy += bp->getMass()*bp->getTotalenergy();
+        total_energy += bp->mass()*bp->getTotalenergy();
       }
     }
     else {
@@ -116,7 +116,7 @@ namespace analysis{
         if(!bodies[i].is_local()) continue;
         body* bp = bodies[i].getBody();
         if(bp->type() != NORMAL)  continue;
-        double m = bp->getMass(), 
+        double m = bp->mass(), 
             eint = bp->getInternalenergy();
         total_energy += m*eint;
         point_t v = bp->getVelocity();
@@ -146,7 +146,7 @@ namespace analysis{
       if(!bodies[i].is_local()) continue;
       body* bp = bodies[i].getBody();
       if(bp->type() != NORMAL)  continue;
-      double m = bp->getMass();
+      double m = bp->mass();
       point_t v = bp->getVelocity();
       double v2 = v[0]*v[0];
       for(unsigned short int k=1; k<gdimension; ++k)
@@ -172,7 +172,7 @@ namespace analysis{
       if(!bodies[i].is_local()) continue;
       body* bp = bodies[i].getBody();
       if(bp->type() != NORMAL)  continue;
-      total_internal_energy += bp->getMass() * bp->getInternalenergy();
+      total_internal_energy += bp->mass() * bp->getInternalenergy();
     }
     mpi_utils::reduce_sum(total_internal_energy);
   }
@@ -193,9 +193,9 @@ namespace analysis{
         if(!bodies[i].is_local()) continue;
         body* bp = bodies[i].getBody();
         if(bp->type() != NORMAL)  continue;
-        const double m = bp->getMass();
+        const double m = bp->mass();
         const point_t v = bp->getVelocity();
-        const point_t r = bp->getPosition();
+        const point_t r = bp->coordinates();
         total_ang_mom[0] += m*(r[0]*v[1] - r[1]*v[0]);
       }
       mpi_utils::reduce_sum(total_ang_mom);
@@ -207,9 +207,9 @@ namespace analysis{
         if(!bodies[i].is_local()) continue;
         body* bp = bodies[i].getBody();
         if(bp->type() != NORMAL)  continue;
-        const double m = bp->getMass();
+        const double m = bp->mass();
         const point_t v = bp->getVelocity();
-        const point_t r = bp->getPosition();
+        const point_t r = bp->coordinates();
         total_ang_mom[0] += m*(r[1]*v[2] - r[2]*v[1]);
         total_ang_mom[1] += m*(r[2]*v[0] - r[0]*v[2]);
         total_ang_mom[2] += m*(r[0]*v[1] - r[1]*v[0]);
@@ -230,8 +230,8 @@ namespace analysis{
     const int screen_length = 40;
     if (out_screen_every > 0 || physics::iteration % out_screen_every == 0) {
       (++count-1)%screen_length  ||
-      rank || clog(info)<< "#-- iteration:               time:" <<std::endl;
-      rank || clog(info)
+      clog_one(info)<< "#-- iteration:               time:" <<std::endl;
+      clog_one(info)
         << std::setw(14) << physics::iteration
         << std::setw(20) << std::scientific << std::setprecision(12)
         << physics::totaltime << std::endl;
@@ -346,20 +346,20 @@ namespace analysis{
   {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    rank || clog(info) << "Checking conservation of: ";
+    clog_one(info) << "Checking conservation of: ";
     for(auto c: check){
       switch(c){
         case MASS:
-          rank || clog(info) << " MASS ";
+          clog_one(info) << " MASS ";
           break;
         case ENERGY:
-          rank || clog(info) << " ENERGY ";
+          clog_one(info) << " ENERGY ";
           break;
         case MOMENTUM:
-          rank || clog(info) << " MOMENTUM ";
+          clog_one(info) << " MOMENTUM ";
           break;
         case ANG_MOMENTUM:
-          rank || clog(info) << " ANG_MOMENTUM ";
+          clog_one(info) << " ANG_MOMENTUM ";
           break;
         default:
           break;
@@ -433,6 +433,8 @@ namespace analysis{
         } // switch
       } // for
     } // while
+    // Close the file
+    inFile.close();
     return true;
   } // conservation check
 

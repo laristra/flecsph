@@ -55,6 +55,8 @@ const int MAX_FNAME_LEN = 256;
 int64_t IO_nparticlesproc;
 int64_t IO_nparticles;
 
+MPI_Comm comm_ = MPI_COMM_WORLD;
+
 template<
   typename T>
 hid_t
@@ -70,7 +72,8 @@ H5P_getType(T* data)
     type = H5T_NATIVE_ULLONG;
   } else {
     std::cout<<"Unknown type: "<<typeid(T).name()<<std::endl;
-    FULLSTOP;
+    MPI_Barrier(comm_);
+    MPI_Finalize();
   }
   return type;
 }
@@ -78,7 +81,7 @@ H5P_getType(T* data)
 hid_t
 H5P_openFile(const char * filename,	unsigned int flags )
 {
-  MPI_Comm comm  = MPI_COMM_WORLD;
+  MPI_Comm comm  = comm_;
   MPI_Info info  = MPI_INFO_NULL;
   /* Set up file access property list with parallel I/O access */
   hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
@@ -285,7 +288,7 @@ H5P_readDataset(
   hid_t type = H5P_getType(data);
 
   int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  MPI_Comm_rank(comm_,&rank);
   hid_t status = 1;
   /* Open the dataset*/
   hid_t dset_id = H5Dopen (IO_group_id, dsname, H5P_DEFAULT);
@@ -324,7 +327,7 @@ H5P_readDataset(
 template<
   typename T>
 void H5P_bodiesReadDataset(
-  std::vector<std::pair<entity_key_t,body>>& bodies,
+  std::vector<body>& bodies,
   hid_t& file_id,
   const char * dsname,
   T* data,
@@ -346,57 +349,57 @@ void H5P_bodiesReadDataset(
   // assign corresponding field in bodies
   if (!strcmp(dsname,"type")) {
     for(int64_t i=0; i<IO_nparticlesproc; ++i)
-      bodies[i].second.setType(data[i]);
+      bodies[i].setType(data[i]);
   }
   else if (!strcmp(dsname,"id")) {
     if (err == 0) {
       // set existing IDs from file
       for(int64_t i=0; i<IO_nparticlesproc; ++i)
-          bodies[i].second.setId(data[i]);
+          bodies[i].set_id(data[i]);
     }
     else {
       // generate the ids
       rank|| clog(trace)<<"Setting ID for particles"<<std::endl;
       int64_t start = (IO_nparticles/size)*rank+1;
       for(int64_t i=0; i<IO_nparticlesproc; ++i){
-        bodies[i].second.setId(start+i);
+        bodies[i].set_id(start+i);
       }
       if(rank == size - 1) // last rank
-        assert(IO_nparticles == bodies.back().second.getId());
+        assert(IO_nparticles == bodies.back().id());
     }
   }
   else if (!strcmp(dsname,"m")) {
     for(int64_t i=0; i<IO_nparticlesproc; ++i)
-      bodies[i].second.setMass(data[i]);
+      bodies[i].set_mass(data[i]);
   }
   else if (!strcmp(dsname,"rho")) {
     for(int64_t i=0; i<IO_nparticlesproc; ++i)
-      bodies[i].second.setDensity(data[i]);
+      bodies[i].setDensity(data[i]);
   }
   else if (!strcmp(dsname,"h")) {
     for(int64_t i=0; i<IO_nparticlesproc; ++i)
-      bodies[i].second.setSmoothinglength(data[i]);
+      bodies[i].set_radius(data[i]);
   }
   else if (!strcmp(dsname,"P")) {
     for(int64_t i=0; i<IO_nparticlesproc; ++i)
-      bodies[i].second.setPressure(data[i]);
+      bodies[i].setPressure(data[i]);
   }
   #ifdef INTERNAL_ENERGY
   else if (!strcmp(dsname,"u")) {
     for(int64_t i=0; i<IO_nparticlesproc; ++i)
-      bodies[i].second.setInternalenergy(data[i]);
+      bodies[i].setInternalenergy(data[i]);
   }
   #endif
   else if (!strcmp(dsname,"dt")) {
     for(int64_t i=0; i<IO_nparticlesproc; ++i)
-      bodies[i].second.setDt(data[i]);
+      bodies[i].setDt(data[i]);
   }
   else if constexpr (std::is_same_v<T,double>) {
     if (!strcmp(dsname,"x")) {
       if constexpr (gdimension == 1) {
         for(int64_t i=0; i<IO_nparticlesproc; ++i) {
           point_t pos = {data[i]};
-          bodies[i].second.setPosition(pos);
+          bodies[i].set_coordinates(pos);
         }
       }
       if constexpr (gdimension == 2) {
@@ -405,7 +408,7 @@ void H5P_bodiesReadDataset(
         H5P_readDataset(file_id, "y", data + IO_nparticlesproc);
         for(int64_t i=0; i<IO_nparticlesproc; ++i) {
           point_t pos = {data[i],data[IO_nparticlesproc+i]};
-          bodies[i].second.setPosition(pos);
+          bodies[i].set_coordinates(pos);
         }
       }
       if constexpr (gdimension == 3) {
@@ -416,7 +419,7 @@ void H5P_bodiesReadDataset(
         for(int64_t i=0; i<IO_nparticlesproc; ++i) {
           point_t pos = {data[i],data[IO_nparticlesproc   + i],
                                  data[IO_nparticlesproc*2 + i]};
-          bodies[i].second.setPosition(pos);
+          bodies[i].set_coordinates(pos);
         }
       } 
     }
@@ -424,7 +427,7 @@ void H5P_bodiesReadDataset(
       if constexpr (gdimension == 1) {
         for(int64_t i=0; i<IO_nparticlesproc; ++i) {
           point_t vel = {data[i]};
-          bodies[i].second.setVelocity(vel);
+          bodies[i].setVelocity(vel);
         }
       }
       if constexpr (gdimension == 2) {
@@ -433,7 +436,7 @@ void H5P_bodiesReadDataset(
         H5P_readDataset(file_id, "vy", data + IO_nparticlesproc);
         for(int64_t i=0; i<IO_nparticlesproc; ++i) {
           point_t vel = {data[i],data[IO_nparticlesproc+i]};
-          bodies[i].second.setVelocity(vel);
+          bodies[i].setVelocity(vel);
         }
       }
       if constexpr (gdimension == 3) {
@@ -444,7 +447,7 @@ void H5P_bodiesReadDataset(
         for(int64_t i=0; i<IO_nparticlesproc; ++i) {
           point_t vel = {data[i],data[IO_nparticlesproc   + i],
                                  data[IO_nparticlesproc*2 + i]};
-          bodies[i].second.setVelocity(vel);
+          bodies[i].setVelocity(vel);
         }
       } // switch gdimension
     } // if dsname 
@@ -457,14 +460,14 @@ size_t
 H5P_setNumParticles(const int64_t& nparticlesproc)
 {
   int rank, size;
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  MPI_Comm_size(MPI_COMM_WORLD,&size);
+  MPI_Comm_rank(comm_,&rank);
+  MPI_Comm_size(comm_,&size);
   // Compute arrays for hyperslab
 
   IO_nparticlesproc = nparticlesproc;
   std::vector<int64_t> offcount(size+1);
   MPI_Allgather(&nparticlesproc,1,MPI_INT64_T,
-    &offcount[0],1,MPI_INT64_T,MPI_COMM_WORLD);
+    &offcount[0],1,MPI_INT64_T,comm_);
 
   for(int i = 1 ; i < size; ++i)
     offcount[i] += offcount[i-1];
@@ -659,18 +662,19 @@ int H5P_removePrefix(const char * output_file_prefix,
 
 // Input data fro HDF5 File
 void inputDataHDF5(
-  std::vector<std::pair<entity_key_t,body>>& bodies,
+  std::vector<body>& bodies,
   const char * input_file_prefix,
   const char * output_file_prefix,
   int64_t& totalnbodies,
   int64_t& nbodies,
-  int startIteration)
+  int startIteration,
+  MPI_Comm comm = MPI_COMM_WORLD)
 {
 
+  comm_ = comm;
   char input_filename[MAX_FNAME_LEN];
 
   // add the .h5part extension
-  // TODO: automatically detect single-/multiple-file input
   sprintf(input_filename,"%s.h5part",input_file_prefix);
   bool input_single_file = H5P_fileExists(input_file_prefix);  
   hid_t dataFile;
@@ -682,10 +686,10 @@ void inputDataHDF5(
   //H5SetVerbosityLevel  (0);
 
   int rank, size;
-  MPI_Comm_size(MPI_COMM_WORLD,&size);
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  MPI_Comm_size(comm_,&size);
+  MPI_Comm_rank(comm_,&rank);
 
-  rank|| clog(trace)<<"Input particles" << std::endl;
+  clog_one(trace)<<"Input particles" << std::endl;
 
 
   // ------------- START FROM ITERATION ZERO: OVERWRITE OUTPUT  --------
@@ -714,7 +718,7 @@ void inputDataHDF5(
           H5P_setStep(dataFile,step);
           int64_t iteration;
           if(0 != H5P_readAttributeStep(dataFile,"iteration",&iteration)){
-            rank || clog(error)<<"Cannot find attribute 'iteration' in Step#"
+            clog_one(error)<<"Cannot find attribute 'iteration' in Step#"
               <<step<<" in file "<< input_filename <<std::endl; FULLSTOP;
           }
           if(iteration == startIteration) 
@@ -722,11 +726,11 @@ void inputDataHDF5(
         }
       }
       if(step == maxstep) {
-        rank || clog(error)<<"Cannot find iteration "<<startIteration<<" in "
+        clog_one(error)<<"Cannot find iteration "<<startIteration<<" in "
           <<input_filename<<std::endl; FULLSTOP;
       }
       startStep = step;
-      rank ||clog(info)<<"Found iteration "<<startIteration<<" at step Step#"
+      clog_one(info)<<"Found iteration "<<startIteration<<" at step Step#"
                        <<startStep<<" in "<<input_filename<<std::endl;
     }
     else { // ---- multiple-file mode ---
@@ -736,7 +740,7 @@ void inputDataHDF5(
                                     param::initial_iteration);
       // file doesn't exist: complain and exit
       if (step < 0) {
-        rank || clog(error) << "Cannot find iteration " 
+        clog_one(error) << "Cannot find iteration " 
                             << param::initial_iteration 
                             <<" in prefix " << input_file_prefix
                             << std::endl; FULLSTOP;
@@ -745,7 +749,7 @@ void inputDataHDF5(
       // open it
       char step_filename[128];
       sprintf(step_filename,"%s_%05d.h5part",input_file_prefix,step);
-      rank || clog(warn) <<"Reading from file "<< step_filename <<std::endl;
+      clog_one(warn) <<"Reading from file "<< step_filename <<std::endl;
 
       // set dataFile and startStep 
       dataFile = H5P_openFile(step_filename,H5F_ACC_RDONLY);
@@ -769,7 +773,7 @@ void inputDataHDF5(
     if (param::out_h5data_separate_iterations){
 
       if(param::initial_iteration == 0) { // invalid input
-        rank || clog(error) << "Invalid combination: cannot have "
+        clog_one(error) << "Invalid combination: cannot have "
          << "initial_iteration = 0 and input prefix == output prefix "
          << "at the same time"<<std::endl; FULLSTOP
       }
@@ -791,12 +795,13 @@ void inputDataHDF5(
       int lastStep = startStep;
       while(H5P_hasStep(outputFile,lastStep)){lastStep++;}
       --lastStep;
-      rank || clog(trace)<<"startStep: "<<startStep<<" lastStep: "
+      clog_one(trace)<<"startStep: "<<startStep<<" lastStep: "
         <<lastStep<<std::endl;
       if(startStep != lastStep){
-        rank || clog(error) << "First step not last step in output"<<std::endl;
+        clog_one(error) << "First step not last step in output"<<std::endl;
         H5P_closeFile(outputFile);
-        FULLSTOP
+        MPI_Barrier(comm_);
+        MPI_Finalize();
       }
       H5P_closeFile(outputFile);
     }
@@ -804,7 +809,9 @@ void inputDataHDF5(
   } // if input_prefix == output_prefix
 
   if(dataFile == 0){
-    rank || clog(error) << "Cannot find data file"<<std::endl; FULLSTOP;
+    clog_one(error) << "Cannot find data file"<<std::endl;
+    MPI_Barrier(comm_);
+    MPI_Finalize();
   }
 
   int val = H5P_hasStep(dataFile,startStep);
@@ -847,13 +854,13 @@ void inputDataHDF5(
     if(0 == H5P_readAttributeStep(dataFile,"timestep",&timestep)){
       physics::dt = timestep;
     }else{
-      rank || clog(warn)<<"Attribute 'timestep' missing in input file"
+      clog_one(warn)<<"Attribute 'timestep' missing in input file"
                         <<input_filename<<std::endl;
     }
     if(0 == H5P_readAttributeStep(dataFile,"time",&totaltime)){
       physics::totaltime = totaltime;
     }else{
-      rank || clog(warn)<<"Attribute 'totaltime' missing in input file"
+      clog_one(warn)<<"Attribute 'totaltime' missing in input file"
                         <<input_filename<<std::endl;
     }
   }
@@ -883,11 +890,11 @@ void inputDataHDF5(
   delete[] dataInt;
   delete[] dataInt32;
 
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(comm_);
   H5Fclose(dataFile);
   //H5CloseFile(dataFile);
 
-  rank|| clog(trace)<<"Input particles.done"<<std::endl;
+  clog_one(trace)<<"Input particles.done"<<std::endl;
 
 
 }// inputDataHDF5
@@ -895,20 +902,22 @@ void inputDataHDF5(
 // Output data in HDF5 format
 // Generate the associate XDMF file
 void outputDataHDF5(
-    std::vector<std::pair<entity_key_t,body>>& bodies,
+    std::vector<body>& bodies,
     const char* fileprefix,
     int64_t iteration,
-    double totaltime)
+    double totaltime,
+    MPI_Comm comm = MPI_COMM_WORLD)
 {
 
-  int step = output_step++; //iteration/param::out_h5data_every;
+  comm_ = comm;
+  int step = output_step++;
 
   int size, rank;
-  MPI_Comm_size(MPI_COMM_WORLD,&size);
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  MPI_Comm_size(comm_,&size);
+  MPI_Comm_rank(comm_,&rank);
 
-  MPI_Barrier(MPI_COMM_WORLD);
-  rank|| clog(trace)<<"Output particles"<<std::flush;
+  MPI_Barrier(comm_);
+  clog_one(trace)<<"Output particles"<<std::flush;
 
   char filename[128];
   if (param::out_h5data_separate_iterations)
@@ -917,7 +926,7 @@ void outputDataHDF5(
     sprintf(filename,"%s.h5part",fileprefix);
 
   // Wait for removing the file before writing in
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(comm_);
   // Check if file exists
   hid_t dataFile = H5P_openFile(filename,H5F_ACC_RDWR);
 
@@ -949,14 +958,14 @@ void outputDataHDF5(
   int64_t pos = 0L;
   // Extract data from bodies
   for(auto bi: bodies){
-    b1[pos] = bi.second.getPosition()[0];
+    b1[pos] = bi.coordinates()[0];
     if(gdimension>1){
-      b2[pos] = bi.second.getPosition()[1];
+      b2[pos] = bi.coordinates()[1];
     }else{
       b2[pos] = 0.;
     }
     if(gdimension>2){
-      b3[pos++] = bi.second.getPosition()[2];
+      b3[pos++] = bi.coordinates()[2];
     }else{
       b3[pos++] = 0.;
     }
@@ -970,14 +979,14 @@ void outputDataHDF5(
   pos = 0L;
   // Extract data from bodies
   for(auto bi: bodies){
-    b1[pos] = bi.second.getVelocity()[0];
+    b1[pos] = bi.getVelocity()[0];
     if(gdimension>1){
-      b2[pos] = bi.second.getVelocity()[1];
+      b2[pos] = bi.getVelocity()[1];
     }else{
       b2[pos] = 0;
     }
     if(gdimension>2){
-      b3[pos++] = bi.second.getVelocity()[2];
+      b3[pos++] = bi.getVelocity()[2];
     }else{
       b3[pos++] = 0.;
     }
@@ -990,14 +999,14 @@ void outputDataHDF5(
   pos = 0L;
   // Extract data from bodies
   for(auto bi: bodies){
-    b1[pos] = bi.second.getAcceleration()[0];
+    b1[pos] = bi.getAcceleration()[0];
     if(gdimension>1){
-      b2[pos] = bi.second.getAcceleration()[1];
+      b2[pos] = bi.getAcceleration()[1];
     }else{
       b2[pos] = 0.;
     }
     if(gdimension>2){
-      b3[pos++] = bi.second.getAcceleration()[2];
+      b3[pos++] = bi.getAcceleration()[2];
     }else{
       b3[pos++] = 0.;
     }
@@ -1010,10 +1019,10 @@ void outputDataHDF5(
   pos = 0L;
   // Extract data from bodies
   for(auto bi: bodies){
-    b1[pos] = bi.second.getSmoothinglength();
-    b2[pos] = bi.second.getDensity();
+    b1[pos] = bi.radius();
+    b2[pos] = bi.getDensity();
     #ifdef INTERNAL_ENERGY
-    b3[pos] = bi.second.getInternalenergy();
+    b3[pos] = bi.getInternalenergy();
     #endif
     pos++;
   }
@@ -1027,11 +1036,11 @@ void outputDataHDF5(
   pos = 0L;
   // Extract data from bodies
   for(auto bid: bodies){
-    b1[pos] = bid.second.getPressure();
-    b2[pos] = bid.second.getMass();
-    b3[pos] = bid.second.getDt();
-    bi[pos] = bid.second.getId();
-    bint[pos++] = bid.second.getType();
+    b1[pos] = bid.getPressure();
+    b2[pos] = bid.mass();
+    b3[pos] = bid.getDt();
+    bi[pos] = bid.id();
+    bint[pos++] = bid.getType();
   }
   H5P_writeDataset(dataFile,"P",b1);
   H5P_writeDataset(dataFile,"m",b2);
@@ -1045,7 +1054,7 @@ void outputDataHDF5(
 
   pos = 0L;
   for(auto bid: bodies){
-    bi[pos++] = bid.first.value_();
+    bi[pos++] = bid.key().value_();
   }
   H5P_writeDataset(dataFile,"key",bi);
 
@@ -1057,9 +1066,11 @@ void outputDataHDF5(
   delete[] bi;
   delete[] bint;
 
-  rank|| clog(trace)<<".done"<<std::endl;
+  clog_one(trace)<<".done"<<std::endl;
+
 
 }// outputDataHDF5
+
 } // namespace io
 
 #undef FULLSTOP
