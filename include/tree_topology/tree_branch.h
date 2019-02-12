@@ -160,7 +160,11 @@ public:
   ~tree_branch(){ents_.clear();}
   auto begin(){return ents_.begin();}
   auto end(){return ents_.end();}
-  auto clear(){ents_.clear();}
+  auto clear(){
+    ents_.clear();
+    requested_ = false;
+    ghosts_local_ = false; 
+  }
 
   char bit_child(){return bit_child_;};
   void add_bit_child(int i){

@@ -187,11 +187,9 @@ public:
     //reset_ghosts();
     branch_map_.clear();
     tree_entities_.clear();
-    ghosts_id_.clear();
     ghosts_entities_.clear();
     current_ghosts = 0;
     shared_entities_.clear();
-    nonlocal_branches_ = 0;
   }
 
   /**
@@ -202,17 +200,16 @@ public:
   {
     branch_map_.clear();
     tree_entities_.clear();
-    ghosts_id_.clear();
     for(int i = 0 ; i <= current_ghosts; ++i)
       ghosts_entities_[i].clear();
     current_ghosts = 0;
     shared_entities_.clear();
-    nonlocal_branches_ = 0;
 
     branch_map_.emplace(branch_id_t::root(),branch_id_t::root());
     root_ = branch_map_.find(branch_id_t::root());
     assert(root_ != branch_map_.end());
     max_depth_ = 0;
+    ghosts_branches_.clear();
   }
 
   /**
@@ -225,28 +222,9 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
     if(size == 1) return;
-    //clog(trace)<<"Reset the ghosts: "<<ghosts_entities_.size()<<std::endl;
-    // Remove the ghosts, all the parent have to be non local
-    for(int i = 0 ; i <= current_ghosts; ++i)
-    {
-      for(auto& g: ghosts_entities_[i])
-      {
-        // Find the parent and change the status
-        key_t k = g.key();
-        auto& b = find_parent(k);
-        assert(!b.is_local());
-        for(auto eid: b)
-        {
-          auto ent = get(eid);
-          assert(ent->owner() != rank);
-          ent->setBody(nullptr);
-        }
-        b.clear();
-        b.set_ghosts_local(false);
-        b.set_requested(false);
-      }
-    }
+
     // Same for the shared_edge
+    // More complex because we need to find them and remove elements
     for(auto& s: shared_entities_)
     {
       // Find the parent and change the status
@@ -271,31 +249,27 @@ public:
       }
     }
 
-    if(tree_entities_.size() != 0)
-    {
-      // Find the first ghosts
-      auto start_ghosts = tree_entities_.begin();
-      while(start_ghosts->is_local())
-      {
-        start_ghosts++;
-      }
-      // Remove all the associate tree branches
-      if(start_ghosts != tree_entities_.end())
-      tree_entities_.erase(start_ghosts,tree_entities_.end());
-      // Clear ghosts informations
-      ghosts_id_.clear();
-      for(int i = 0 ; i <= current_ghosts; ++i)
-        ghosts_entities_[i].clear();
-      current_ghosts = 0;
-      shared_entities_.clear();
-
-      //mpi_tree_traversal_graphviz(11);
-      share_edge();
-      cofm(root(),0,false);
-      //mpi_tree_traversal_graphviz(12);
+    // Find the first position of ghosts in tree_entities_
+    // Empty the ghosts arrays
+    size_t index_ghosts = tree_entities_.size();
+    for(int i = 0 ; i <= current_ghosts; ++i){
+      index_ghosts-=ghosts_entities_[i].size();
+      ghosts_entities_[i].clear();
     }
-    //mpi_tree_traversal_graphviz(8);
-    // Do the local branch sharing
+    index_ghosts-=shared_entities_.size();
+    shared_entities_.clear();
+    assert(!tree_entities_[index_ghosts].is_local());
+
+    // Clean the ghosts leaves
+    #pragma omp parallel for
+    for(int i = 0 ; i < ghosts_branches_.size(); ++i){
+      ghosts_branches_[i]->clear();
+    }
+
+    tree_entities_.erase(tree_entities_.begin()+
+      index_ghosts,tree_entities_.end());
+    share_edge();
+    cofm(root(),0,false);
   }
 
   /**
@@ -761,19 +735,14 @@ public:
 #endif
 
     // Add the eventual ghosts in the tree for remaining branches
-    for(size_t i = 0; i < ghosts_entities_[current_ghosts].size(); ++i)
-    {
+    for(size_t i = 0; i < ghosts_entities_[current_ghosts].size(); ++i){
       entity_t& g = ghosts_entities_[current_ghosts][i];
       auto id = make_entity(g.key(),g.coordinates(),
         nullptr,g.owner(),g.mass(),g.id(),g.radius());
       // Assert the parent exists and is non local
-      assert(!find_parent(g.key()).is_local());
       insert(id);
       auto nbi = get(id);
       nbi->setBody(&g);
-      assert(nbi->global_id() == g.id());
-      assert(nbi->getBody() != nullptr);
-      // Set the parent to local for the search
       find_parent(g.key()).set_ghosts_local(true);
     }
 
@@ -950,7 +919,6 @@ public:
     }
     const int nb_entities = inter_coordinates.size();
     int index = 0;
-    //for(auto i: *(working_branch))
     for(int i = working_branch->begin_tree_entities();
       i <= working_branch->end_tree_entities(); ++i)
     {
@@ -1035,19 +1003,14 @@ public:
       entity_t& g = ghosts_entities_[current_ghosts][i];
       auto id = make_entity(g.key(),g.coordinates(),
         nullptr,g.owner(),g.mass(),g.id(),g.radius());
-      // Assert the parent exists and is non local
-      assert(!find_parent(g.key()).is_local());
       insert(id);
       auto nbi = get(id);
       nbi->setBody(&g);
-      assert(nbi->global_id() == g.id());
-      assert(nbi->getBody() != nullptr);
       // Set the parent to local for the search
       find_parent(g.key()).set_ghosts_local(true);
     }
     ++current_ghosts;
     assert(current_ghosts < max_traversal);
-    cofm(root(), 0, false);
 
     // compute the particle to particle interaction on each sub-branches
     if(size != 1){
@@ -1284,14 +1247,12 @@ public:
         case SOURCE_REPLY:
         {
           assert(nrecv != 0);
-          std::vector<entity_t> received(nrecv/sizeof(entity_t));
-          MPI_Recv(&(received[0]),nrecv,MPI_BYTE,source,
-            SOURCE_REPLY,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-          //assert(is_unique(received));
-          ghosts_entities_[current_ghosts].insert(
-            ghosts_entities_[current_ghosts].end(),received.begin(),
-              received.end());
-          //assert(is_unique(ghosts_entities_[current_ghosts]));
+          //std::vector<entity_t> received(nrecv/sizeof(entity_t));
+          int current = ghosts_entities_[current_ghosts].size();
+          ghosts_entities_[current_ghosts].resize(
+            current+nrecv/sizeof(entity_t));
+          MPI_Recv(&(ghosts_entities_[current_ghosts][current]),nrecv,MPI_BYTE,
+            source,SOURCE_REPLY,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
           --request_counter;
         }
         break;
@@ -1340,7 +1301,6 @@ public:
             // Add this request to vector
             requests[owner][current_requests[owner]].push_back(k);
             if(requests[owner][current_requests[owner]].size() >= max_size){
-              //assert(is_unique(requests[owner][current_requests[owner]]));
               MPI_Isend(&(requests[owner][current_requests[owner]++][0]),
                 max_size*sizeof(key_t),MPI_BYTE,owner,SOURCE_REQUEST,
                 MPI_COMM_WORLD,&(mpi_requests[current_mpi_requests++]));
@@ -1427,7 +1387,6 @@ public:
         }
       }
     }
-    //clog(trace)<<"Handler done"<<std::endl;
   }
 
   void
@@ -1437,7 +1396,7 @@ public:
     std::vector<branch_t*> working_branches;
     std::stack<branch_t*> stk_remaining;
     // in 3d: 8^3 branches maximum (512)
-    int level = 4;
+    int level = 5;
     std::stack<branch_t*> stk; stk.push(root());
     while(!stk.empty()){
       branch_t* c = stk.top();
@@ -1459,35 +1418,30 @@ public:
         }
       }
     }
-    //std::cout <<" #threads: "<<omp_get_max_threads() << " #entities: "<< entities_.size() <<" #branches: "<<working_branches.size()<<std::endl;
 
     // Work in parallel on the sub branches
+    const int nwork = working_branches.size();
     #pragma omp parallel for
-    for(int b= 0 ; b < working_branches.size(); ++b){
+    for(int b = 0 ; b < nwork; ++b){
       // Find the leave in order in these sub branches
-      nonlocal_branches_ = 0L;
       std::stack<branch_t*> stk1;
       std::stack<branch_t*> stk2;
       stk1.push(working_branches[b]);
-      while(!stk1.empty())
-      {
+      while(!stk1.empty()){
         branch_t * cur = stk1.top();
         stk1.pop();
         stk2.push(cur);
         // Push children to stk1
         if(!cur->is_leaf()){
-          for(int i = 0 ; i < (1<<dimension) ; ++i)
-          {
-            if(!cur->as_child(i))
-              continue;
+          for(int i = 0 ; i < (1<<dimension) ; ++i){
+            if(!cur->as_child(i)) continue;
             branch_t * next = child(cur,i);
             stk1.push(next);
           }
         }
       }
       // Finish the highest part of the tree in serial
-      while(!stk2.empty())
-      {
+      while(!stk2.empty()){
         branch_t * cur = stk2.top();
         stk2.pop();
         update_COM(cur,epsilon,local);
@@ -1621,7 +1575,6 @@ public:
       b->set_bmin(bmin);
       b->set_bmax(bmax);
       assert(nchildren != 0);
-      if(!b->is_local()) nonlocal_branches_add();
       b->set_begin_tree_entities(begin_te);
       b->set_end_tree_entities(end_te);
     }
@@ -1743,9 +1696,6 @@ public:
       // Size -1 to start at 0
       entity_id_t id = tree_entities_.size()-1;
       ent->set_id_(id);
-      if(!ent->is_local()){
-        ghosts_id_.insert(std::make_pair(ent->global_id(),id));
-      }
       return id;
     }
 
@@ -1805,24 +1755,13 @@ public:
         itr->second.set_sub_entities(sub_entities);
         itr->second.set_locality(branch_t::NONLOCAL);
         itr->second.set_leaf(true);
+        ghosts_branches_.push_back(&(itr->second));
       }else{
-
-        if(itr->second.sub_entities() == 0){
-          itr->second.set_ghosts_local(false);
-          itr->second.set_coordinates(coordinates);
-          itr->second.set_mass(mass);
-          itr->second.set_bmin(bmin);
-          itr->second.set_bmax(bmax);
-          itr->second.set_owner(owner);
-          itr->second.set_sub_entities(sub_entities);
-          itr->second.set_locality(branch_t::NONLOCAL);
-          itr->second.set_leaf(true);
-        }else{
-          if(itr->second.owner() == rank)
-            assert(itr->second.is_shared());
-          else
-            assert(!itr->second.is_shared());
-          // Check if same children exists
+        if(itr->second.owner() == rank)
+          assert(itr->second.is_shared());
+        else{
+          assert(!itr->second.is_shared());
+          ghosts_branches_.push_back(&(itr->second));
         }
       }
       // Add this branch if does not exists
@@ -1895,12 +1834,6 @@ public:
       return &root_->second;
     }
 
-    void
-    nonlocal_branches_add()
-    {
-      ++nonlocal_branches_;
-    }
-
     /**
     * @brief Generic information for the tree topology
     */
@@ -1909,7 +1842,6 @@ public:
      os<<"Tree topology: "<<"#branches: "<<t.branch_map_.size()<<
        " #entities: "<<t.tree_entities_.size();
      os <<" #root_subentities: "<<t.root()->sub_entities();
-     os <<" #nonlocal_branches: "<<t.nonlocal_branches_;
      os <<" depth: "<<t.max_depth_;
      return os;
    }
@@ -2142,11 +2074,10 @@ private:
 
   const size_t max_traversal = 5;
   std::vector<std::vector<entity_t>> ghosts_entities_;
+  std::vector<branch_t*> ghosts_branches_;
   size_t current_ghosts = 0;
 
   std::vector<entity_t> shared_entities_;
-
-  int64_t nonlocal_branches_;
 
   const int ncritical = 32;
 };
