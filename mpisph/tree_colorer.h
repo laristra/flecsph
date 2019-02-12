@@ -243,13 +243,11 @@ public:
   // Send them 2 by 2
   // Use hypercube communication
   std::vector<branch_t*> search_branches;
-  tree.find_sub_cells(
-    tree.root(),
-    10000,
-    search_branches);
+  tree.find_sub_cells(tree.root(),10000,search_branches);
 
   // Copy them localy
   std::vector<mpi_branch_t> branches(search_branches.size());
+
   #pragma omp parallel for
   for(int i = 0 ; i < search_branches.size(); ++i){
     assert(search_branches[i]->sub_entities() > 0);
@@ -273,7 +271,6 @@ public:
     &nbranches_offset[0]);
   nbranches_offset.insert(nbranches_offset.begin(),0);
 
-  size_t interact = 0;
   // Search for all my leaves that interact with other ranks
   std::vector<std::vector<mpi_branch_t>> interact_leaves(size);
   #pragma omp parallel for
@@ -291,7 +288,6 @@ public:
                 leaves[k]->coordinates(),leaves[k]->mass(),leaves[k]->bmin(),
                 leaves[k]->bmax(),leaves[k]->id(),leaves[k]->owner(),
                 leaves[k]->sub_entities()});
-          ++interact;
         }
       }
     }
@@ -330,6 +326,16 @@ public:
       recv_branches[i].resize(count);
       MPI_Recv(&(recv_branches[i][0]),sizeof(mpi_branch_t)*count,MPI_BYTE,
         i,2,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+    }
+  }
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  for(int i = 0 ; i < size; ++i){
+    if(i == rank) continue;
+    if(interact_leaves[i].size() > 0){
+      int flag;
+      MPI_Test(&(requests_particles[i]),&flag,MPI_STATUS_IGNORE);
+      assert(flag);
     }
   }
 
