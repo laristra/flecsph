@@ -230,6 +230,7 @@ int main(int argc, char * argv[]){
   H5P_writeDataset(dataFile,"z",z,nparticles);
   H5P_writeDataset(dataFile,"vx",vx,nparticles);
   H5P_writeDataset(dataFile,"vy",vy,nparticles);
+  H5P_writeDataset(dataFile,"vz",vz,nparticles);
   H5P_writeDataset(dataFile,"h",h,nparticles);
   H5P_writeDataset(dataFile,"rho",rho,nparticles);
   H5P_writeDataset(dataFile,"u",u,nparticles);

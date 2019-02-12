@@ -782,7 +782,6 @@ public:
     assert(current_ghosts < max_traversal);
 
     // Recompute the COFM because new entities are present in the tree
-    cofm(root(), 0, false);
     // Vector useless because in this case no ghosts can be found
     if(remaining_branches.size() > 0){
       std::vector<branch_t*> ignore;
@@ -1308,6 +1307,10 @@ public:
           for(auto k: received){
             auto branch = branch_map_.find(k);
             assert(branch != branch_map_.end());
+            //for(int i = branch->second.begin_tree_entities();
+            //  i < branch->second.end_tree_entities(); ++i){
+            //  reply[source][current_reply[source]].push_back(entities_[i]);
+            //}
             get_sub_entities(&(branch->second),
               reply[source][current_reply[source]]);
           }
@@ -1430,35 +1433,71 @@ public:
   void
   cofm(branch_t * start, element_t epsilon = 0, bool local = false)
   {
-    nonlocal_branches_ = 0L;
-    std::stack<branch_t*> stk1;
-    std::stack<branch_t*> stk2;
-    stk1.push(start);
-    while(!stk1.empty())
-    {
-      branch_t * cur = stk1.top();
-      stk1.pop();
-      stk2.push(cur);
-      // Push children to stk1
-      if(!cur->is_leaf()){
-        for(int i = 0 ; i < (1<<dimension) ; ++i)
-        {
-          if(!cur->as_child(i))
-            continue;
-          branch_t * next = child(cur,i);
-          stk1.push(next);
+    // Find the sub particles on which we want to work
+    std::vector<branch_t*> working_branches;
+    std::stack<branch_t*> stk_remaining;
+    // in 3d: 8^3 branches maximum (512)
+    int level = 4;
+    std::stack<branch_t*> stk; stk.push(root());
+    while(!stk.empty()){
+      branch_t* c = stk.top();
+      int cur_level = c->id().depth();
+      stk.pop();
+      if(c->is_leaf() && c->is_local()){
+        working_branches.push_back(c);
+      }else{
+        if(c->is_local() && cur_level == level){
+          working_branches.push_back(c);
+        }else{
+          stk_remaining.push(c);
+          for(int i=(1<<dimension)-1; i >= 0 ;--i){
+            if(!c->as_child(i))
+              continue;
+            auto next = child(c,i);
+            stk.push(next);
+          }
         }
       }
     }
-    // Unstack stack 2
-    size_t children = 0;
-    size_t leaves = 0;
-    size_t max_children = 0;
-    while(!stk2.empty())
-    {
-      branch_t * cur = stk2.top();
-      stk2.pop();
-      update_COM(cur,children,leaves,max_children,epsilon,local);
+    //std::cout <<" #threads: "<<omp_get_max_threads() << " #entities: "<< entities_.size() <<" #branches: "<<working_branches.size()<<std::endl;
+
+    // Work in parallel on the sub branches
+    #pragma omp parallel for
+    for(int b= 0 ; b < working_branches.size(); ++b){
+      // Find the leave in order in these sub branches
+      nonlocal_branches_ = 0L;
+      std::stack<branch_t*> stk1;
+      std::stack<branch_t*> stk2;
+      stk1.push(working_branches[b]);
+      while(!stk1.empty())
+      {
+        branch_t * cur = stk1.top();
+        stk1.pop();
+        stk2.push(cur);
+        // Push children to stk1
+        if(!cur->is_leaf()){
+          for(int i = 0 ; i < (1<<dimension) ; ++i)
+          {
+            if(!cur->as_child(i))
+              continue;
+            branch_t * next = child(cur,i);
+            stk1.push(next);
+          }
+        }
+      }
+      // Finish the highest part of the tree in serial
+      while(!stk2.empty())
+      {
+        branch_t * cur = stk2.top();
+        stk2.pop();
+        update_COM(cur,epsilon,local);
+      }
+    }
+    // Finish the high part of the tree on one thread
+    while(!stk_remaining.empty()){
+      branch_t * cur = stk_remaining.top();
+      stk_remaining.pop();
+      update_COM(cur,epsilon,local);
     }
   }
 
@@ -1466,9 +1505,6 @@ public:
    void
    update_COM(
         branch_t * b,
-        size_t& children,
-        size_t& leaves,
-        size_t& max_children,
         element_t epsilon = element_t(0),
         bool local_only = false)
     {
@@ -1494,17 +1530,13 @@ public:
         if(b->is_local()){
           int start = -1;
           int end = -1;
-          for(auto child: *b)
-          {
-
+          for(auto child: *b){
             auto ent = get(child);
-
             if(ent->is_local()){
               if(start == -1)
                 start = child;
               end = child;
             }
-
             owner = ent->owner();
             if(local_only && !ent->is_local()){
               continue;
@@ -1527,13 +1559,6 @@ public:
           }
           if(mass > element_t(0))
             coordinates /= mass;
-          // Compute the radius
-          //for(auto child: *b)
-          //{
-          //  auto ent = get(child);
-          //  radius = std::max(radius,
-          //      distance(ent->coordinates(),coordinates)  + epsilon + ent->h());
-          //}
           begin_te = start;
           end_te = end;
         }else{
@@ -1554,10 +1579,6 @@ public:
         else
           b->set_locality(branch_t::NONLOCAL);
 
-        ++leaves;
-        children += nchildren;
-        max_children = std::max(max_children,(size_t)nchildren);
-
       }else{
         bool local = false;
         bool nonlocal = false;
@@ -1575,8 +1596,7 @@ public:
             local = nonlocal = true;
           if(branch->mass() > 0)
           {
-            for(size_t d = 0 ; d < dimension ; ++d)
-            {
+            for(size_t d = 0 ; d < dimension ; ++d){
               bmax[d] = std::max(bmax[d],branch->bmax()[d]);
               bmin[d] = std::min(bmin[d],branch->bmin()[d]);
             }
@@ -1588,15 +1608,6 @@ public:
         }
         if(mass > element_t(0))
           coordinates /= mass;
-        // Compute the radius
-        //for(int i = 0 ; i < (1<<dimension); ++i)
-        //{
-        //  if(!b->as_child(i))
-        //    continue;
-        //  auto branch = child(b,i);
-        //  radius = std::max(radius,
-        //      distance(coordinates,branch->coordinates()) + branch->radius());
-        //}
         if(local && nonlocal)
           b->set_locality(branch_t::SHARED);
         if(local && !nonlocal)
@@ -1604,7 +1615,6 @@ public:
         if(!local && nonlocal)
           b->set_locality(branch_t::NONLOCAL);
       }
-      //b->set_radius(radius);
       b->set_sub_entities(nchildren);
       b->set_coordinates(coordinates);
       b->set_mass(mass);
