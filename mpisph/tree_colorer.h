@@ -271,8 +271,11 @@ public:
     &nbranches_offset[0]);
   nbranches_offset.insert(nbranches_offset.begin(),0);
 
+  std::vector<int> ninteract_leaves(size);
+
   // Search for all my leaves that interact with other ranks
   std::vector<std::vector<mpi_branch_t>> interact_leaves(size);
+  ninteract_leaves[rank] = 0;
   #pragma omp parallel for
   for(int i = 0 ; i < size; ++i){
     if( i == rank ) continue;
@@ -288,56 +291,15 @@ public:
                 leaves[k]->coordinates(),leaves[k]->mass(),leaves[k]->bmin(),
                 leaves[k]->bmax(),leaves[k]->id(),leaves[k]->owner(),
                 leaves[k]->sub_entities()});
+
         }
       }
     }
+    ninteract_leaves[i] = interact_leaves[i].size();
   }
 
   std::vector<std::vector<mpi_branch_t>> recv_branches(size);
-  std::vector<MPI_Request> requests_size(size);
-  std::vector<MPI_Request> requests_particles(size);
-  std::vector<int> send_size(size);
-
-  // Send to the other rank and add to the local tree
-  #pragma omp parallel for
-  for(int i = 0 ; i < size; ++i ){
-    if ( i == rank ) continue;
-    if(interact_leaves[i].size() > 0){
-      // Send the size
-      send_size[i] = interact_leaves[i].size();
-      MPI_Isend(&(send_size[i]),1,MPI_INT,i,1,MPI_COMM_WORLD,&(requests_size[i]));
-      // Send the branches
-      MPI_Isend(&(interact_leaves[i][0]),sizeof(mpi_branch_t)*send_size[i],
-        MPI_BYTE,i,2,MPI_COMM_WORLD,&(requests_particles[i]));
-    }
-  }
-  // Be sure every request have been sent
-  MPI_Barrier(MPI_COMM_WORLD);
-  #pragma omp parallel for
-  for(int i = 0 ; i < size; ++i){
-    if ( i == rank ) continue;
-    // Probe the reception
-    int flag;
-    MPI_Iprobe(i,1,MPI_COMM_WORLD,&flag,MPI_STATUS_IGNORE);
-    if(flag){
-      int count;
-      // Recv the size
-      MPI_Recv(&count,1,MPI_INT,i,1,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-      recv_branches[i].resize(count);
-      MPI_Recv(&(recv_branches[i][0]),sizeof(mpi_branch_t)*count,MPI_BYTE,
-        i,2,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-    }
-  }
-  MPI_Barrier(MPI_COMM_WORLD);
-
-  for(int i = 0 ; i < size; ++i){
-    if(i == rank) continue;
-    if(interact_leaves[i].size() > 0){
-      int flag;
-      MPI_Test(&(requests_particles[i]),&flag,MPI_STATUS_IGNORE);
-      assert(flag);
-    }
-  }
+  mpi_utils::mpi_alltoallv_p2p(ninteract_leaves,interact_leaves,recv_branches);
 
   // Add these branches informations in the tree
   for(int i = 0 ; i < size; ++i){

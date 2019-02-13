@@ -195,6 +195,53 @@ namespace mpi_utils{
     }
 } // mpi_alltoallv_p2p
 
+template<
+  typename M>
+void
+mpi_alltoallv_p2p(
+    std::vector<int>& sendcount,
+    std::vector<std::vector<M>>& sendbuffer,
+    std::vector<std::vector<M>>& recvbuffer
+  )
+{
+  int rank, size;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  MPI_Comm_size(MPI_COMM_WORLD,&size);
+
+  std::vector<int> recvcount(size), recvoffsets(size), sendoffsets(size);
+  // Exchange the send count
+  MPI_Alltoall(&sendcount[0],1,MPI_INT,&recvcount[0],1,MPI_INT,
+    MPI_COMM_WORLD);
+  // Set the recvbuffer to the right size
+  //recvbuffer.resize(recvoffsets.back());
+  // Transform the offsets for bytes
+#pragma omp parallel for
+  for(int i=0;i<size;++i){
+    recvbuffer[i].resize(recvcount[i]);
+    sendcount[i] *= sizeof(M);assert(sendcount[i]>=0);
+    recvcount[i] *= sizeof(M);assert(recvcount[i]>=0);
+  } // for
+  std::vector<MPI_Status> status(size);
+  std::vector<MPI_Request> request(size);
+#pragma omp parallel for
+  for(int i = 0 ; i < size; ++i){
+    if(sendcount[i] != 0 && rank != i ){
+      MPI_Isend(&(sendbuffer[i][0]),sendcount[i],MPI_BYTE,
+          i,0,MPI_COMM_WORLD,&request[i]);
+    }
+  }
+#pragma omp parallel for
+  for(int i = 0 ; i < size; ++i){
+    if(recvcount[i] != 0 && rank != i){
+      MPI_Recv(&(recvbuffer[i][0]),recvcount[i],MPI_BYTE,
+          i,MPI_ANY_TAG,MPI_COMM_WORLD,&status[i]);
+    }
+    if(sendcount[i] != 0){
+      MPI_Wait(&request[i],&status[i]);
+    }
+  }
+} // mpi_alltoallv_p2p
+
 
 
   // MIN REDUCTION MPI -------------------
