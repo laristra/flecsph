@@ -57,7 +57,7 @@ namespace kernels{
   const double si_b2[3] = {-4.6519576e-4,  1.9358485e-2, 3.7451957e-3};
   const double si_b3[3] = { 7.3658324e-2, -6.1642906e-3, 4.7013839e-2};
   double sinc_sigma[3];
-  const double TINY = 1e-24; // TODO: use machine precision macro instead
+  static const double TINY = 1e10*DBL_MIN;
 
   // Kernel types enum
   typedef enum kernel_type_enum {

@@ -32,7 +32,7 @@
 
 namespace viscosity{
   using namespace param;
-  static const double TINY = 1e-24;
+  static const double TINY = 1e10*DBL_MIN;
 
 
 
@@ -85,7 +85,7 @@ namespace viscosity{
     using namespace param;
     double res = ( -sph_viscosity_alpha*c_ab
                   + sph_viscosity_beta*mu_ab)*mu_ab/rho_ab;
-    mpi_assert(res>=0.0);
+    //mpi_assert(res>=0.0);
     return res;
   }
 
