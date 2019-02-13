@@ -32,6 +32,7 @@
 
 namespace viscosity{
   using namespace param;
+  static const double TINY = 1e-24;
 
 
 
@@ -49,26 +50,19 @@ namespace viscosity{
    */
   inline double
   mu(
-      const double & h_a,
-      const double & h_b,
-      const point_t & vel_a,
-      const point_t & vel_b,
-      const point_t & pos_a,
-      const point_t & pos_b)
+      const double & h_ab,
+      const space_vector_t & vel_ab,
+      const space_vector_t & pos_ab)
   {
 
     using namespace param;
     double result = 0.0;
-    double h_ab = .5*(h_a + h_b);
-    space_vector_t vecVelocity = flecsi::point_to_vector(vel_a - vel_b);
-    space_vector_t vecPosition = flecsi::point_to_vector(pos_a - pos_b);
-    double dotproduct = flecsi::dot(vecVelocity,vecPosition);
-
-    double dist = flecsi::distance(pos_a, pos_b);
-    result = h_ab*dotproduct / (dist*dist + sph_viscosity_epsilon*h_ab*h_ab);
+    double dotproduct = flecsi::dot(vel_ab, pos_ab);
+    double dist2 = flecsi::dot(pos_ab,pos_ab);
+    result = h_ab*dotproduct / (dist2 + sph_viscosity_epsilon*h_ab*h_ab + TINY);
 
     //mpi_assert(result < 0.0);
-    return result*(dotproduct >= 0.0);
+    return result*(dotproduct < 0.0);
   } // mu
 
 
@@ -84,18 +78,14 @@ namespace viscosity{
    */
   inline double
   artificial_viscosity(
-    const double & rho_a, 
-    const double & rho_b,
-    const double & c_a,
-    const double & c_b,
+    const double & rho_ab, 
+    const double & c_ab,
     const double & mu_ab)
   {
     using namespace param;
-    double rho_ab = .5*(rho_a + rho_b);
-    double c_ab = .5*(c_a + c_b);
     double res = ( -sph_viscosity_alpha*c_ab
                   + sph_viscosity_beta*mu_ab)*mu_ab/rho_ab;
-    //mpi_assert(res>=0.0);
+    mpi_assert(res>=0.0);
     return res;
   }
 

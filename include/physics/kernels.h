@@ -57,6 +57,7 @@ namespace kernels{
   const double si_b2[3] = {-4.6519576e-4,  1.9358485e-2, 3.7451957e-3};
   const double si_b3[3] = { 7.3658324e-2, -6.1642906e-3, 4.7013839e-2};
   double sinc_sigma[3];
+  const double TINY = 1e-24; // TODO: use machine precision macro instead
 
   // Kernel types enum
   typedef enum kernel_type_enum {
@@ -154,7 +155,7 @@ namespace kernels{
       else
         dWdr = -.75*(2-rh)*(2-rh);
 
-      result = vecP*sigma*dWdr/r;
+      result = vecP*sigma*dWdr/(r + TINY);
     }
     return result;
 
@@ -210,7 +211,7 @@ namespace kernels{
       double sigma = 3.*gaussian_sigma[gdimension-1]
                    / pow(h,gdimension+1);
       double dWdr = -2.*rh*exp(-rh*rh);
-      result = vecP*sigma*dWdr/r;
+      result = vecP*sigma*dWdr/(r+TINY);
     }
     return result;
   }
@@ -278,7 +279,7 @@ namespace kernels{
       if(rh < 1.)
         dWdr += -75.*pow(1-rh,4);
 
-      result = vecP*sigma*dWdr/r;
+      result = vecP*sigma*dWdr/(r+TINY);
     }
 
     return result;
@@ -354,7 +355,7 @@ namespace kernels{
     double sigma = wendland_c2_sigma[0]/(h*h);
     double dWdr = -12.*rh*rh2;
     point_t result = vecP;
-    result *= (rh<1.0)*(sigma*dWdr/r);
+    result *= (rh<1.0)*(sigma*dWdr/(r+TINY));
     return result;
   }
 
@@ -370,7 +371,7 @@ namespace kernels{
     double sigma = 2.*wendland_c2_sigma[1]/hd1;
     double dWdr = -10.*rh*rh2*(1 - rh);
     point_t result = vecP;
-    result *= (rh<1.0)*(sigma*dWdr/r);
+    result *= (rh<1.0)*(sigma*dWdr/(r+TINY));
     return result;
   }
 
@@ -386,7 +387,7 @@ namespace kernels{
     double sigma = 2.*wendland_c2_sigma[2]/hd1;
     double dWdr = -10.*rh*rh2*(1 - rh);
     point_t result = vecP;
-    result *= (rh<1.0)*(sigma*dWdr/r);
+    result *= (rh<1.0)*(sigma*dWdr/(r+TINY));
     return result;
   }
 
@@ -466,7 +467,7 @@ namespace kernels{
     double dWdr = -rh*rh2*rh2*(1 + 4.*rh);
 
     point_t result = vecP;
-    result *= (rh<1.0)*(sigma*dWdr/r);
+    result *= (rh<1.0)*(sigma*dWdr/(r+TINY));
     return result;
   }
 
@@ -484,7 +485,7 @@ namespace kernels{
     double sigma = 14.*wendland_c4_sigma[1]/hd1;
     double dWdr = -4./3.*rh*rh3*rh2*(1 + 5.*rh);
     point_t result = vecP;
-    result *= (rh<1.0)*(sigma*dWdr/r);
+    result *= (rh<1.0)*(sigma*dWdr/(r+TINY));
     return result;
   }
 
@@ -502,7 +503,7 @@ namespace kernels{
     double sigma = 14.*wendland_c4_sigma[2]/hd1;
     double dWdr = -4./3.*rh*rh3*rh2*(1 + 5.*rh);
     point_t result = vecP;
-    result *= (rh<1.0)*(sigma*dWdr/r);
+    result *= (rh<1.0)*(sigma*dWdr/(r+TINY));
     return result;
   }
 
@@ -583,7 +584,7 @@ namespace kernels{
     double sigma = wendland_c6_sigma[0]/(h*h);
     double dWdr  = -6.*rh*rh3*rh3*(3 + rh*(18 + rh*35));
     point_t result = vecP;
-    result *= (sigma*dWdr/r)*(rh<1.0);
+    result *= (sigma*dWdr/(r+TINY))*(rh<1.0);
     return result;
   }
 
@@ -601,7 +602,7 @@ namespace kernels{
     double sigma = wendland_c6_sigma[1]/hd1;
     double dWdr  = -22.*rh*rh4*rh3*(1 + rh*(7 + rh*16));
     point_t result = vecP;
-    result *= (rh<1.0)*(sigma*dWdr/r);
+    result *= (rh<1.0)*(sigma*dWdr/(r+TINY));
     return result;
   }
 
@@ -619,7 +620,7 @@ namespace kernels{
     double sigma = wendland_c6_sigma[2]/hd1;
     double dWdr  = -22.*rh*rh4*rh3*(1 + rh*(7 + rh*16));
     point_t result = vecP;
-    result *= (rh<1.0)*(sigma*dWdr/r);
+    result *= (rh<1.0)*(sigma*dWdr/(r+TINY));
     return result;
   }
 
@@ -669,7 +670,7 @@ namespace kernels{
                  / pow(h,gdimension+1);
     double dWdr = exp(-rh*rh)*(2.*pow(rh,3.) - (gdimension+4.)*rh);
     point_t result = vecP;
-    result *= (rh<3.0)*(sigma*dWdr/r);
+    result *= (rh<3.0)*(sigma*dWdr/(r+TINY));
     return result;
   }
 
@@ -755,7 +756,7 @@ namespace kernels{
         dWdr = -sph_sinc_index * rh/3. * M_PI
                                * (1 - .5*rh2*(.2 - (sph_sinc_index-1)/18));
       }
-      result = vecP*sigma*dWdr/r;
+      result = vecP*sigma*dWdr/(r+TINY);
     }
     return result;
   }

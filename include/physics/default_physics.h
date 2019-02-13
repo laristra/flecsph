@@ -186,19 +186,19 @@ namespace physics{
                  P_a = particle->getPressure(),
                  c_a = particle->getSoundspeed();
     const point_t pos_a = particle->coordinates(),
-                  vel_a = particle->getVelocity();
+                  v12_a = particle->getVelocityhalf();
 
     // neighbor particles (index 'b')
     const int n_nb = nbs.size();
     double rho_[n_nb],P_[n_nb],h_[n_nb],m_[n_nb],c_[n_nb],Pi_a_[n_nb];
-    point_t pos_[n_nb], vel_[n_nb], DiWa_[n_nb];
+    point_t pos_[n_nb], v12_[n_nb], DiWa_[n_nb];
 
     for(int b = 0; b < n_nb; ++b) {
       const body * const nb = nbs[b];
       rho_[b] = nb->getDensity();
       P_[b]   = nb->getPressure();
       pos_[b] = nb->coordinates();
-      vel_[b] = nb->getVelocity();
+      v12_[b] = nb->getVelocityhalf();
       c_[b]   = nb->getSoundspeed();
       h_[b]   = nb->radius();
       m_[b]   = nb->mass() * (pos_[b]!=pos_a); // if same particle, m_b->0
@@ -207,11 +207,12 @@ namespace physics{
     // precompute viscosity and kernel gradients
     particle->setMumax(0.0);  // needed for adaptive timestep calculation
     for(int b = 0 ; b < n_nb; ++b){ // Vectorized
-      double mu_ab = mu(h_a,h_[b],vel_a,vel_[b],pos_a,pos_[b]);
-      Pi_a_[b] = artificial_viscosity(rho_a,rho_[b],c_a,c_[b],mu_ab);
-      point_t pos_ab = pos_a - pos_[b];
-      DiWa_[b] = 
-          kernel_gradient<kernel_type,gdimension>(pos_ab, .5*(h_a + h_[b]));
+      const space_vector_t v12_ab = point_to_vector(v12_a - v12_[b]);
+      const space_vector_t pos_ab = point_to_vector(pos_a - pos_[b]);
+      double h_ab = .5*(h_a + h_[b]);
+      double mu_ab = mu(h_ab, v12_ab, pos_ab);
+      Pi_a_[b] = artificial_viscosity(.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
+      DiWa_[b] = kernel_gradient<kernel_type,gdimension>(pos_a - pos_[b],h_ab);
     }
 
     // compute the final answer
@@ -270,14 +271,15 @@ namespace physics{
                  P_a = particle->getPressure(),
                  c_a = particle->getSoundspeed();
     const point_t pos_a = particle->coordinates(),
-                  vel_a = particle->getVelocity();
+                  vel_a = particle->getVelocity(),
+                  v12_a = particle->getVelocityhalf();
 
 
     // neighbor particles (index 'b')
     const int n_nb = nbs.size();
     double rho_[n_nb],P_[n_nb],h_[n_nb],m_[n_nb],c_[n_nb],Pi_a_[n_nb];
     double vab_dot_DiWa_[n_nb];
-    point_t pos_[n_nb], vel_[n_nb];
+    point_t pos_[n_nb], vel_[n_nb], v12_[n_nb];
 
     for(int b = 0; b < n_nb; ++b) {
       const body * const nb = nbs[b];
@@ -285,6 +287,7 @@ namespace physics{
       P_[b]   = nb->getPressure();
       pos_[b] = nb->coordinates();
       vel_[b] = nb->getVelocity();
+      v12_[b] = nb->getVelocityhalf();
       c_[b]   = nb->getSoundspeed();
       h_[b]   = nb->radius();
       m_[b]   = nb->mass() * (pos_[b]!=pos_a);
@@ -292,12 +295,14 @@ namespace physics{
 
     // precompute viscosity and kernel gradients
     for(int b = 0 ; b < n_nb; ++b){ // Vectorized
-      double mu_ab = mu(h_a,h_[b],vel_a,vel_[b],pos_a,pos_[b]);
-      Pi_a_[b] = artificial_viscosity(rho_a,rho_[b],c_a,c_[b],mu_ab);
       point_t        pos_ab = pos_a - pos_[b];
+      space_vector_t v12_ab = point_to_vector(v12_a - v12_[b]);
       space_vector_t vel_ab = point_to_vector(vel_a - vel_[b]);
+      double h_ab = .5*(h_a + h_[b]);
+      double mu_ab = mu(h_ab, v12_ab, point_to_vector(pos_ab));
+      Pi_a_[b] = artificial_viscosity(.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
       space_vector_t DiWab  = point_to_vector (
-          kernel_gradient<kernel_type,gdimension>(pos_ab,.5*(h_a+h_[b])));
+          kernel_gradient<kernel_type,gdimension>(pos_ab,h_ab));
       vab_dot_DiWa_[b] = dot(vel_ab, DiWab);
     }
 
@@ -341,13 +346,14 @@ namespace physics{
                  P_a = particle->getPressure(),
                  c_a = particle->getSoundspeed();
     const point_t pos_a = particle->coordinates(),
-                  vel_a = particle->getVelocity();
+                  vel_a = particle->getVelocity(),
+                  v12_a = particle->getVelocityhalf();
 
     // neighbor particles (index 'b')
     const int n_nb = nbs.size();
     double rho_[n_nb],P_[n_nb],h_[n_nb],m_[n_nb],c_[n_nb],Pi_a_[n_nb];
     double va_dot_DiWa_[n_nb], vb_dot_DiWa_[n_nb];
-    point_t pos_[n_nb], vel_[n_nb];
+    point_t pos_[n_nb], vel_[n_nb], v12_[n_nb];
 
     for(int b = 0; b < n_nb; ++b) {
       const body * const nb = nbs[b];
@@ -355,6 +361,7 @@ namespace physics{
       P_[b]   = nb->getPressure();
       pos_[b] = nb->coordinates();
       vel_[b] = nb->getVelocity();
+      v12_[b] = nb->getVelocityhalf();
       c_[b]   = nb->getSoundspeed();
       h_[b]   = nb->radius();
       m_[b]   = nb->mass() * (pos_[b]!=pos_a);
@@ -362,11 +369,15 @@ namespace physics{
 
     // precompute viscosity and kernel gradients
     for(int b = 0 ; b < n_nb; ++b){ // Vectorized
-      double mu_ab = mu(h_a,h_[b],vel_a,vel_[b],pos_a,pos_[b]);
-      Pi_a_[b] = artificial_viscosity(rho_a,rho_[b],c_a,c_[b],mu_ab);
       point_t        pos_ab = pos_a - pos_[b];
+      space_vector_t v12_ab = point_to_vector(v12_a - v12_[b]);
+      space_vector_t vel_ab = point_to_vector(vel_a - vel_[b]);
+      double h_ab = .5*(h_a + h_[b]);
+      double mu_ab = mu(h_ab, v12_ab, point_to_vector(pos_ab));
+      Pi_a_[b] = artificial_viscosity(.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
+
       space_vector_t DiWab  = point_to_vector (
-          kernel_gradient<kernel_type,gdimension>(pos_ab,.5*(h_a+h_[b])));
+          kernel_gradient<kernel_type,gdimension>(pos_ab,h_ab));
       va_dot_DiWa_[b] = dot(point_to_vector(vel_a), DiWab);
       vb_dot_DiWa_[b] = dot(point_to_vector(vel_[b]), DiWab);
     }
