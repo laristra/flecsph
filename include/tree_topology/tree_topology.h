@@ -707,6 +707,9 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
+    std::cout<<"TRAVERSAL"<<std::endl;
+    MPI_Barrier(MPI_COMM_WORLD); 
+
     entities_w_ = entities_;
 
     std::vector<branch_t*> working_branches;
@@ -722,8 +725,11 @@ public:
       traverse_sph(working_branches,
         remaining_branches,false,ef,std::forward<ARGS>(args)...);
       MPI_Send(NULL, 0, MPI_INT, rank, MPI_DONE,MPI_COMM_WORLD);
+      std::cout<<rank<<" done traversal"<<std::endl;
+
       // Wait for communication thread
       handler.join();
+      std::cout<<rank<<" thread joined"<<std::endl;
     }else{
       traverse_sph(working_branches,
         remaining_branches,false,ef,std::forward<ARGS>(args)...);
@@ -735,6 +741,12 @@ public:
       MPI_STATUS_IGNORE);
     assert(flag == 0);
 #endif
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    std::cout<<"DONE TRAVERSAL"<<std::endl;
+    MPI_Barrier(MPI_COMM_WORLD); 
+
+
 
     // Add the eventual ghosts in the tree for remaining branches
     for(size_t i = 0; i < ghosts_entities_[current_ghosts].size(); ++i){
@@ -798,52 +810,74 @@ public:
 
     int nelem = working_branches.size();
 
-    #pragma omp parallel for
-    for(int i = 0 ; i < nelem; ++i){
-      std::vector<branch_t*> inter_list;
-      std::vector<branch_t*> requests_branches;
+    size_t max_send = 20; 
 
-      // Compute the interaction list for this branch
-      if(interactions_branches(working_branches[i],inter_list,
-        requests_branches))
-      {
-        std::vector<std::vector<entity_t*>> neighbors;
-        neighbors.clear();
-        neighbors.resize(working_branches[i]->sub_entities());
-        // Sub traversal to apply to the particles
-        interactions_particles(working_branches[i],
-          inter_list,neighbors);
-        // Perform the computation in the same time for all the threads
-        int index = 0;
-        //for(auto j: *(working_branches[i]))
-        for(int j = working_branches[i]->begin_tree_entities();
-          j <= working_branches[i]->end_tree_entities(); ++j)
+    // Set of branch pointers 
+    //
+
+    #pragma omp parallel
+    {
+      std::vector<branch_t*> omp_non_local;
+      std::vector<key_t> send; 
+      #pragma omp for schedule(static) 
+      for(int i = 0 ; i < nelem; ++i){
+        std::vector<branch_t*> inter_list;
+        std::vector<branch_t*> requests_branches;
+
+        // Compute the interaction list for this branch
+        if(interactions_branches(working_branches[i],inter_list,
+          requests_branches))
         {
-          if(tree_entities_[j].is_local())
-            ef(&(entities_w_[j]),neighbors[index],std::forward<ARGS>(args)...);
-          ++index;
-        }
-      }else{
-        assert(!assert_local);
-        std::vector<key_t> send;
-        #pragma omp critical
-        {
-          non_local_branches.push_back(working_branches[i]);
-          // Send branch key to request handler
-          for(auto b: requests_branches){
-            assert(b->owner() < size && b->owner() >= 0);
-            assert(b->owner() != rank);
-            if(!b->requested()){
-              send.push_back(b->id());
-              b->set_requested(true);
-            }
+          std::vector<std::vector<entity_t*>> neighbors;
+          neighbors.clear();
+          neighbors.resize(working_branches[i]->sub_entities());
+          // Sub traversal to apply to the particles
+          interactions_particles(working_branches[i],
+            inter_list,neighbors);
+          // Perform the computation in the same time for all the threads
+          int index = 0;
+          //for(auto j: *(working_branches[i]))
+          for(int j = working_branches[i]->begin_tree_entities();
+            j <= working_branches[i]->end_tree_entities(); ++j)
+          {
+            if(tree_entities_[j].is_local())
+              ef(&(entities_w_[j]),neighbors[index],std::forward<ARGS>(args)...);
+            ++index;
           }
-        } // omp critical
+        }else{
+          assert(!assert_local);
+          omp_non_local.push_back(working_branches[i]); 
+          #pragma omp critical
+          {
+            // Send branch key to request handler
+            for(auto b: requests_branches){
+              if(!b->requested()){
+                send.push_back(b->id());
+                b->set_requested(true);
+              }
+            }
+          } // omp critical
+          if(send.size() >= max_send){
+            MPI_Request request;
+            MPI_Send(&(send[0]),send.size()*sizeof(key_t),MPI_BYTE,rank,
+              LOCAL_REQUEST,MPI_COMM_WORLD);
+            // Reset send 
+            send.clear(); 
+          }
+        }  // if else
+      } // for
+      // Finish the send 
+      if(send.size() > 0){
         MPI_Request request;
         MPI_Send(&(send[0]),send.size()*sizeof(key_t),MPI_BYTE,rank,
-          LOCAL_REQUEST,MPI_COMM_WORLD);
-      }  // if else
-    } // for
+        LOCAL_REQUEST,MPI_COMM_WORLD);
+        // Reset send 
+        send.clear(); 
+      }
+      #pragma omp critical 
+      non_local_branches.insert(non_local_branches.begin(),omp_non_local.begin(),
+         omp_non_local.end()); 
+      } // omp parallel
   } // traverse_sph
 
 
@@ -866,6 +900,8 @@ public:
     // Queues for the branches
     std::vector<branch_t*> queue;
     std::vector<branch_t*> new_queue;
+
+    bool missing_branch = false; 
 
     queue.push_back(root());
     while(!queue.empty()){
@@ -891,7 +927,9 @@ public:
             if(b->is_local() || b->ghosts_local()){
               inter_list.push_back(b);
             }else{
-              non_local.push_back(b);
+              missing_branch = true; 
+              if(!b->requested())
+                non_local.push_back(b);
             }
           }else{
             queue.push_back(new_queue[i]);
@@ -899,7 +937,7 @@ public:
         }
       }
     }
-    return non_local.size() == 0;
+    return !missing_branch;
   }
 
   void
@@ -1181,7 +1219,7 @@ public:
   void
   handle_requests()
   {
-    int max_size = 1000;
+    int max_size = 500;
     int max_requests = 1000;
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);

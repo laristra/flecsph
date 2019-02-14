@@ -243,7 +243,7 @@ public:
   // Send them 2 by 2
   // Use hypercube communication
   std::vector<branch_t*> search_branches;
-  tree.find_sub_cells(tree.root(),10000,search_branches);
+  tree.find_sub_cells(tree.root(),100000,search_branches);
 
   // Copy them localy
   std::vector<mpi_branch_t> branches(search_branches.size());
