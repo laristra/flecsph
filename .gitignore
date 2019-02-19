@@ -8,3 +8,4 @@ bld
 ._*
 *.a
 *.swp
+.DS_Store
