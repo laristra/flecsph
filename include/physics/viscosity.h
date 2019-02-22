@@ -49,22 +49,22 @@ namespace viscosity{
    */
   double
   mu(
-      const body* source,
-      const body* nb)
+      const body& source,
+      const body& nb)
   {
 
     using namespace param;
     double result = 0.0;
-    double h_ij = .5*(source->radius()+nb->radius());
+    double h_ij = .5*(source.radius()+nb.radius());
     space_vector_t vecVelocity = flecsi::point_to_vector(
-        source->getVelocityhalf() - nb->getVelocityhalf());
+        source.getVelocityhalf() - nb.getVelocityhalf());
     space_vector_t vecPosition = flecsi::point_to_vector(
-        source->coordinates() - nb->coordinates());
+        source.coordinates() - nb.coordinates());
     double dotproduct = flecsi::dot(vecVelocity,vecPosition);
 
     if(dotproduct >= 0.0)
       return result;
-    double dist = flecsi::distance(source->coordinates(),nb->coordinates());
+    double dist = flecsi::distance(source.coordinates(),nb.coordinates());
     result = h_ij*dotproduct / (dist*dist + sph_viscosity_epsilon*h_ij*h_ij);
 
     mpi_assert(result < 0.0);
@@ -84,13 +84,13 @@ namespace viscosity{
    */
   double
   artificial_viscosity(
-    const body* source,
-    const body* nb)
+    const body& source,
+    const body& nb)
   {
     using namespace param;
-    double rho_ij = (1./2.)*(source->getDensity()+nb->getDensity());
+    double rho_ij = (1./2.)*(source.getDensity()+nb.getDensity());
     double c_ij = (1./2.)*
-        (source->getSoundspeed()+nb->getSoundspeed());
+        (source.getSoundspeed()+nb.getSoundspeed());
     double mu_ij = mu(source,nb);
     double res = ( -sph_viscosity_alpha*c_ij*mu_ij
                   + sph_viscosity_beta*mu_ij*mu_ij)/rho_ij;
@@ -98,7 +98,7 @@ namespace viscosity{
     return res;
   }
 
-  typedef double (*viscosity_function_t)(const body*, const body *);
+  typedef double (*viscosity_function_t)(const body&, const body&);
   viscosity_function_t viscosity = artificial_viscosity;
 
   /**

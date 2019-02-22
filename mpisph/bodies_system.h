@@ -427,12 +427,10 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
       EF&& ef,
       ARGS&&... args)
   {
-    int64_t nelem = tree_.tree_entities().size();
+    int64_t nelem = tree_.entities().size();
     #pragma omp parallel for
     for(int64_t i=0; i<nelem; ++i){
-        auto ent = tree_.get(i);
-        if(ent->is_local())
-          ef(ent,std::forward<ARGS>(args)...);
+      ef(tree_.entities()[i],std::forward<ARGS>(args)...);
     }
   }
 
@@ -453,7 +451,7 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
     EF&& ef,
     ARGS&&... args)
   {
-    ef(tree_.tree_entities(),std::forward<ARGS>(args)...);
+    ef(tree_.entities(),std::forward<ARGS>(args)...);
   }
 
 

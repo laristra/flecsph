@@ -850,7 +850,7 @@ public:
           j <= working_branches[i]->end_tree_entities(); ++j)
         {
           if(tree_entities_[j].is_local())
-            ef(&(entities_w_[j]),neighbors[index],std::forward<ARGS>(args)...);
+            ef(entities_w_[j],neighbors[index],std::forward<ARGS>(args)...);
           ++index;
         }
       }else{
