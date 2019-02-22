@@ -85,8 +85,9 @@ time mpirun -n $num --bind-by socket --map-by socket ../../../bin/drivers/hydro_
 echo "Done $num"
 
 EOL
-  ls
-  #sbatch task.sh
+  sbatch task.sh
   num=$(($((2*$num))))
   START_NPART=$(($START_NPART+$START_NPART/4))
 done
+
+ls $dir
