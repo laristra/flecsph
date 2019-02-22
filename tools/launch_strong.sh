@@ -7,12 +7,14 @@ START_NPART=500
 OMP_THREADS=18
 CORES=18
 
+PER_NODE=2
+
 # max 6=32 7=64 8=128 9=256 10=512
 num=1
 max=10
 
-MAX_NODES=32
-MAX_PROC=64
+MAX_NODES=$(bc <<< "2^($max-2)")
+MAX_PROC=$(bc <<< "$MAX_NODES*$PER_NODE")
 
 NITER=50
 NOUTPUT=1000
@@ -75,7 +77,7 @@ for i in `seq 1 $max`; do
   cat >> task.sh <<EOL
 
 echo "Computation: $num"
-time mpirun -n $num --bind-by socket --map-by socket ../../../bin/drivers/hydro_3d ./sodtube_n$NPARTS.par
+time mpirun -n $num --bind-to socket --map-by socket ../../../bin/drivers/hydro_3d ./sodtube_n$NPARTS.par
 echo "Done $num"
 
 EOL
