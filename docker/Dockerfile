@@ -79,7 +79,7 @@ RUN make install DESTDIR=${PWD}/install && rm -rf ${PWD}/install
 ENV LD_LIBRARY_PATH="/usr/local/lib64/:${LD_LIBRARY_PATH}"
 ENV LD_LIBRARY_PATH="/usr/local/lib/:${LD_LIBRARY_PATH}"
 RUN echo $LD_LIBRARY_PATH
-RUN make test
+RUN make test ARGS="-V"
 RUN cd .. && if [ ${COVERAGE} ]; then \
   if [ ${CC} = clang ]; then \
     $HOME/.local/bin/codecov -F "${CC}" --gcov-exec "llvm-cov gcov"; \

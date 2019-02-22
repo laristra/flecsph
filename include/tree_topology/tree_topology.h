@@ -810,9 +810,6 @@ public:
 
     size_t max_send = 20;
 
-    // Set of branch pointers
-    //
-
     #pragma omp parallel
     {
       std::vector<branch_t*> omp_non_local;
@@ -839,7 +836,7 @@ public:
             j <= working_branches[i]->end_tree_entities(); ++j)
           {
             if(tree_entities_[j].is_local())
-              ef(&(entities_w_[j]),neighbors[index],
+              ef(entities_w_[j],neighbors[index],
                 std::forward<ARGS>(args)...);
             ++index;
           }
