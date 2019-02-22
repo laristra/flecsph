@@ -79,8 +79,8 @@ time mpirun -n $num --bind-by socket --map-by socket ../../../bin/drivers/hydro_
 echo "Done $num"
 
 EOL
-  sbatch task.sh
   num=$(($((2*$num))))
 done
 
+sbatch task.sh
 ls
