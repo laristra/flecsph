@@ -141,18 +141,18 @@ public:
       return;
     } // if
 
-    std::vector<std::pair<entity_key_t,int64_t>> splitters;
+    splitters_.clear();
     std::vector<int> scount(size);
-    generate_splitters_samples(splitters,rbodies,totalnbodies);
+    generate_splitters_samples(splitters_,rbodies,totalnbodies);
 
     int cur_proc = 0;
 
-    assert(splitters.size() == size-1+2);
+    assert(splitters_.size() == size-1+2);
 
     int64_t nbodies = rbodies.size();
     for(size_t i = 0L ; i < nbodies; ++i){
-      if(rbodies[i].key() >= splitters[cur_proc].first &&
-        rbodies[i].key() < splitters[cur_proc+1].first){
+      if(rbodies[i].key() >= splitters_[cur_proc].first &&
+        rbodies[i].key() < splitters_[cur_proc+1].first){
           scount[cur_proc]++;
         }else{
           i--;
@@ -217,15 +217,11 @@ public:
    *
    * @param      tree             The tree
    * @param      rbodies          The rbodies, local bodies of this process
-   * @param      ranges           The ranges, the key range of all the processes
-   * @param      range_total      The range total of all the particles
    */
   void
   mpi_branches_exchange(
     tree_topology_t& tree,
-    std::vector<body>& rbodies,
-    std::vector<std::array<point_t,2>>& ranges,
-    std::array<point_t,2>& range_total
+    std::vector<body>& rbodies
   )
   {
 
@@ -240,10 +236,9 @@ public:
     #endif
 #endif
 
-  // Send them 2 by 2
-  // Use hypercube communication
+  // Gather the branches of a specific level of the tree
   std::vector<branch_t*> search_branches;
-  tree.find_sub_cells(tree.root(),100000,search_branches);
+  tree.find_level(tree.root(),3,search_branches);
 
   // Copy them localy
   std::vector<mpi_branch_t> branches(search_branches.size());
@@ -279,20 +274,20 @@ public:
   #pragma omp parallel for
   for(int i = 0 ; i < size; ++i){
     if( i == rank ) continue;
-    for(int j = nbranches_offset[i] ; j < nbranches_offset[i+1]; ++j){
-      for(int k = 0 ; k < leaves.size(); ++k){
+    for(int k = 0 ; k < leaves.size(); ++k){
+      bool accepted = false;
+      for(int j = nbranches_offset[i] ; j < nbranches_offset[i+1]; ++j){
         assert(branches_nb[j].owner != rank);
-        if(flecsi::topology::tree_geometry<type_t,gdimension>::
-          intersects_box_box(
-            leaves[k]->bmin(),leaves[k]->bmax(),
-            branches_nb[j].min,branches_nb[j].max))
-        {
-          interact_leaves[i].push_back(mpi_branch_t{
-                leaves[k]->coordinates(),leaves[k]->mass(),leaves[k]->bmin(),
-                leaves[k]->bmax(),leaves[k]->id(),leaves[k]->owner(),
-                leaves[k]->sub_entities()});
-
-        }
+        accepted = accepted ||
+          flecsi::topology::tree_geometry<type_t,gdimension>::intersects_box_box
+            (leaves[k]->bmin(),leaves[k]->bmax(),
+            branches_nb[j].min,branches_nb[j].max);
+      }
+      if(accepted){
+        interact_leaves[i].push_back(mpi_branch_t{
+          leaves[k]->coordinates(),leaves[k]->mass(),
+          leaves[k]->bmin(),leaves[k]->bmax(),leaves[k]->id(),
+          leaves[k]->owner(),leaves[k]->sub_entities()});
       }
     }
     ninteract_leaves[i] = interact_leaves[i].size();
@@ -300,11 +295,13 @@ public:
 
   std::vector<std::vector<mpi_branch_t>> recv_branches(size);
   mpi_utils::mpi_alltoallv_p2p(ninteract_leaves,interact_leaves,recv_branches);
+  assert(recv_branches[rank].size() == 0);
 
   // Add these branches informations in the tree
   for(int i = 0 ; i < size; ++i){
+    if(rank == i ) continue;
     for(auto b: recv_branches[i]){
-      //clog(trace)<<rank<<" owner: "<<b.owner<<" insert "<<b.key<<std::endl;
+      //std::cout<<rank<<" owner: "<<b.owner<<" insert "<<b.key<<std::endl;
       if(b.owner != rank){
         tree.insert_branch(b.coordinates,b.mass,b.min,b.max,b.key,
           b.owner,b.sub_entities);
@@ -502,6 +499,10 @@ public:
     MPI_Bcast(&splitters[0],(size-1+2)*sizeof(std::pair<entity_key_t,int64_t>)
     ,MPI_BYTE,0,MPI_COMM_WORLD);
   }
+
+private:
+  // Key track of the splitter to know first and last key
+  std::vector<std::pair<entity_key_t,int64_t>> splitters_;
 
 }; // class tree_colorer
 

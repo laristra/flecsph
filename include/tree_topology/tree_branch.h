@@ -156,6 +156,11 @@ public:
     assert(itr != ents_.end());
     ents_.erase(itr);
   }
+  void remove_bit(const int& bit){
+    assert(bit_child_ & (1 << bit));
+    bit_child_ ^= 1<<bit;
+    assert(!(bit_child_ & (1 << bit)));
+  }
 
   ~tree_branch(){ents_.clear();}
   auto begin(){return ents_.begin();}
@@ -163,7 +168,7 @@ public:
   auto clear(){
     ents_.clear();
     requested_ = false;
-    ghosts_local_ = false; 
+    ghosts_local_ = false;
   }
 
   char bit_child(){return bit_child_;};
