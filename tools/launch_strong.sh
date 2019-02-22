@@ -28,7 +28,6 @@ cat > task.sh <<EOL
 #!/bin/bash" >> task.sh
 #SBATCH --time=10:00:00
 #SBATCH -N $MAX_NODES
-#SBATCH -p scaling
 #SBATCH -n $MAX_PROC
 #SBATCH -c $CORES
 #SBATCH --output=out
@@ -84,4 +83,4 @@ EOL
   num=$(($((2*$num))))
 done
 
-ls $dir
+ls

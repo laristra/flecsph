@@ -30,7 +30,6 @@ cat > task.sh <<EOL
 #!/bin/bash" >> task.sh
 #SBATCH --time=10:00:00
 #SBATCH -N $MAX_NODES
-#SBATCH -p scaling
 #SBATCH -n $MAX_PROC
 #SBATCH -c $CORES
 #SBATCH --output=out
@@ -90,4 +89,4 @@ EOL
   START_NPART=$(($START_NPART+$START_NPART/4))
 done
 
-ls $dir
+ls
