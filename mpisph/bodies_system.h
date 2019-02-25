@@ -508,7 +508,7 @@ private:
   tree_topology_t tree_;     // The particle tree data structure
   double epsilon_ = 0.;
 
-  const int refresh_tree = 10;
+  const int refresh_tree = 0;
   int current_refresh = refresh_tree;
 };
 
