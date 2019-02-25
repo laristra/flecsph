@@ -1231,7 +1231,6 @@ public:
     int current_mpi_replies = 0;
     int request_counter = 0;
     std::vector<bool> rank_done(size,false);
-    bool done_rank = false;
 
     while(!done)
     {
@@ -1387,21 +1386,19 @@ public:
         }
         done = done && done_replies && done_requests;
         // Just do this step once to send the last requests
-        if(done && (!done_rank))
+        if(done && (!rank_done[rank]))
         {
-          done_rank = true;
+          rank_done[rank] = true;
           // Send rank done
-          for(int i = 0 ; i < size; ++i){
+          for(size_t i = 0 ; i < size; ++i){
             if(i == rank) continue;
             MPI_Isend(NULL,0,MPI_INT,i,MPI_RANK_DONE,MPI_COMM_WORLD,
                 &(mpi_requests[current_mpi_requests++]));
-            if(current_mpi_requests > max_requests)
-            {
+            if(current_mpi_requests > max_requests){
                 clog_one(error)<<rank<<
                   ": Exceeding number of requests requests"<<std::endl;
             }
           }
-          rank_done[rank] = true;
         }
         for(size_t i = 0 ; i < size; ++i){
           done = done && rank_done[i];
