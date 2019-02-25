@@ -98,7 +98,7 @@ class tree_topology : public P, public data::data_client_t
   enum mpi_comm: int {
     LOCAL_REQUEST = 1,
     SOURCE_REQUEST = 2,
-    MPI_DONE =3,
+    MPI_DONE = 3,
     SOURCE_REPLY = 5,
     MPI_RANK_DONE = 6,
     FAILED_PROBE = 7
@@ -184,7 +184,6 @@ public:
    */
   ~tree_topology()
   {
-    //reset_ghosts();
     branch_map_.clear();
     tree_entities_.clear();
     ghosts_entities_.clear();
@@ -204,7 +203,6 @@ public:
       ghosts_entities_[i].clear();
     current_ghosts = 0;
     shared_entities_.clear();
-
     branch_map_.emplace(branch_id_t::root(),branch_id_t::root());
     root_ = branch_map_.find(branch_id_t::root());
     assert(root_ != branch_map_.end());
@@ -282,8 +280,6 @@ public:
     }
     cofm(root(),0,false);
   }
-
-
 
   /**
   * \brief Share the edge particles to my direct neighbors
@@ -743,7 +739,7 @@ public:
     int flag = 0;
     MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag,
       MPI_STATUS_IGNORE);
-    assert(flag == 0);
+    if(flag != 0){ std::cerr<< "FLAG="<<flag <<std::endl; }; assert(flag == 0);
 #endif
 
     // Add the eventual ghosts in the tree for remaining branches
@@ -854,9 +850,8 @@ public:
             }
           } // omp critical
           if(send.size() >= max_send){
-            MPI_Request request;
-            MPI_Send(&(send[0]),send.size()*sizeof(key_t),MPI_BYTE,rank,
-              LOCAL_REQUEST,MPI_COMM_WORLD);
+            MPI_Send(&(send[0]),send.size()*sizeof(key_t),MPI_BYTE,rank,LOCAL_REQUEST,
+              MPI_COMM_WORLD);
             // Reset send
             send.clear();
           }
@@ -864,16 +859,14 @@ public:
       } // for
       // Finish the send
       if(send.size() > 0){
-        MPI_Request request;
-        MPI_Send(&(send[0]),send.size()*sizeof(key_t),MPI_BYTE,rank,
-        LOCAL_REQUEST,MPI_COMM_WORLD);
+        MPI_Send(&(send[0]),send.size()*sizeof(key_t),MPI_BYTE,rank,LOCAL_REQUEST,MPI_COMM_WORLD);
         // Reset send
         send.clear();
       }
       #pragma omp critical
       non_local_branches.insert(non_local_branches.begin(),
         omp_non_local.begin(),omp_non_local.end());
-      } // omp parallel
+    } // omp parallel
   } // traverse_sph
 
 
@@ -1214,14 +1207,13 @@ public:
   void
   handle_requests()
   {
-    int max_size = 500;
-    int max_requests = 1000;
+    const int max_size = 500;
+    const int max_requests = 1000;
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
     bool done_traversal = false;
     bool done = false;
-    //std::vector<bool> true_nghs(size,false);
 
     // Maintain a request array for all neighbors
     std::vector<std::vector<std::vector<key_t>>> requests(size);
@@ -1266,8 +1258,7 @@ public:
           tag = FAILED_PROBE;
         }
       }
-      //if(tag != LOCAL_REQUEST)
-      //  clog(trace)<<rank<<" received: "<<tag<<" from "<< source <<std::endl;
+
       switch(tag)
       {
         case MPI_RANK_DONE:
@@ -1282,10 +1273,7 @@ public:
         // ------------------------------------------------------------------ //
         case SOURCE_REPLY:
         {
-          //true_nghs[source] = true;
-
           assert(nrecv != 0);
-          //std::vector<entity_t> received(nrecv/sizeof(entity_t));
           int current = ghosts_entities_[current_ghosts].size();
           ghosts_entities_[current_ghosts].resize(
             current+nrecv/sizeof(entity_t));
@@ -1299,23 +1287,15 @@ public:
         // ------------------------------------------------------------------ //
         case SOURCE_REQUEST:
         {
-          //true_nghs[source] = true;
-
           std::vector<key_t> received(nrecv/sizeof(key_t));
           MPI_Recv(&(received[0]), nrecv, MPI_BYTE, source, SOURCE_REQUEST,
             MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-          //assert(is_unique(received));
           for(auto k: received){
             auto branch = branch_map_.find(k);
             assert(branch != branch_map_.end());
-            //for(int i = branch->second.begin_tree_entities();
-            //  i < branch->second.end_tree_entities(); ++i){
-            //  reply[source][current_reply[source]].push_back(entities_[i]);
-            //}
             get_sub_entities(&(branch->second),
               reply[source][current_reply[source]]);
           }
-          //assert(is_unique(reply[source][current_reply[source]]));
           int ncount = reply[source][current_reply[source]].size();
           MPI_Isend(&(reply[source][current_reply[source]++][0]),
             ncount*sizeof(entity_t),MPI_BYTE,source,SOURCE_REPLY,MPI_COMM_WORLD,
@@ -1331,6 +1311,7 @@ public:
         // ------------------------------------------------------------------ //
         case LOCAL_REQUEST:
         {
+          assert(done_traversal == false);
           std::vector<key_t> keys(nrecv/sizeof(key_t));
           MPI_Recv(&(keys[0]), nrecv, MPI_BYTE, rank, LOCAL_REQUEST,
             MPI_COMM_WORLD,MPI_STATUS_IGNORE);
@@ -1371,8 +1352,8 @@ public:
                 &(mpi_requests[current_mpi_requests++]));
               if(current_mpi_requests > max_requests)
               {
-                  clog_one(error)<<rank<<
-                    ": Exceeding number of requests requests"<<std::endl;
+                clog_one(error)<<rank<<
+                  ": Exceeding number of requests requests"<<std::endl;
               }
               ++request_counter;
             }
@@ -1386,26 +1367,26 @@ public:
 
         default:
           {assert(false);}
-        break;
+          break;
       }
 
       if(done_traversal)
       {
         // Check if all requests have been answered
-        done = request_counter==0?true:false;
+        done = request_counter==0;
         bool done_requests = true;
         int flag;
         for(size_t i = 0 ; i < current_mpi_requests; ++i){
           MPI_Test(&(mpi_requests[i]),&flag,MPI_STATUS_IGNORE);
           done_requests = done_requests && flag;
         }
-        done = done && done_requests;
         bool done_replies = true;
         for(size_t i = 0 ; i < current_mpi_replies; ++i){
           MPI_Test(&(mpi_replies[i]),&flag,MPI_STATUS_IGNORE);
-          done_replies = done_requests && flag;
+          done_replies = done_replies && flag;
         }
-        done = done && done_replies;
+        done = done && done_replies && done_requests;
+        // Just do this step once to send the last requests
         if(done && (!done_rank))
         {
           done_rank = true;
