@@ -136,7 +136,7 @@ void set_derived_params() {
   mass_particle = total_mass / nparticles;
 
   // set kernel
-  kernels::select(sph_kernel);
+  kernels::select();
 
   // smoothing length
   const double sph_h = sph_eta * kernels::kernel_width

@@ -28,6 +28,7 @@
 
 #include <vector>
 
+
 // Basic elements for the physics
 namespace physics{
   double dt = 0.0;
@@ -37,6 +38,7 @@ namespace physics{
 
 #include "params.h"
 #include "utils.h"
+#include "user.h"
 #include "kernels.h"
 #include "tree.h"
 #include "eforce.h"
@@ -50,37 +52,41 @@ namespace physics{
   using namespace param;
 
   /**
-   * @brief      Compute the density
-   * Based on Fryer/05 eq(10)
-   * @param      srch  The source's body holder
-   * @param      nbsh  The neighbors' body holders
+   * @brief      Computes the density in "vanilla sph" formulation
+   *             [Rosswog'09, eq.(13)]:
+   *             
+   *             $\rho_a =\sum_b {m_b W_ab(r_ab, (h_a + h_b)/2)}$
+   *
+   * @param      particle  The particle body 
+   * @param      nbs       Vector of neighbor particles
    */
   void
   compute_density(
-      body& source,
-      std::vector<body*>& nbsh)
+      body& particle,
+      std::vector<body*>& nbs)
   {
-    double density = 0;
-    const int n_nb = nbsh.size();
-    mpi_assert(nbsh.size()>0);
-    // Array of distances
-    std::vector<double> distances(n_nb);
-    std::vector<double> masses(n_nb);
-    std::vector<double> nb_radius(n_nb);
-    double radius = source.radius();
-    point_t coordinates = source.coordinates();
+    using namespace kernels;
+    const double h_a = particle.radius();
+    const point_t pos_a = particle.coordinates();
+    const int n_nb = nbs.size();
+    mpi_assert(n_nb>0);
 
-    for(int i = 0 ; i < n_nb; ++i){
-      masses[i] = nbsh[i]->mass();
-      nb_radius[i] = nbsh[i]->radius();
-      distances[i] = flecsi::distance(coordinates,nbsh[i]->coordinates());
+    double r_a_[n_nb], m_[n_nb], h_[n_nb];
+    for(int b = 0 ; b < n_nb; ++b){
+      const body * const nb = nbs[b];
+      m_[b]  = nb->mass();
+      h_[b]  = nb->radius();
+      point_t pos_b = nb->coordinates();
+      r_a_[b] = flecsi::distance(pos_a, pos_b);
     }
-    for(int i = 0 ; i < n_nb; ++i){
-      double kernel = kernels::kernel(distances[i],.5*(radius+nb_radius[i]));
-      density += kernel*masses[i];
+
+    double rho_a = 0.0;
+    for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+      double Wab =  sph_kernel_function(r_a_[b],.5*(h_a+h_[b]));
+      rho_a += m_[b]*Wab;
     } // for
-    mpi_assert(density>0);
-    source.setDensity(density);
+    mpi_assert(rho_a>0);
+    particle.setDensity(rho_a);
   } // compute_density
 
 
@@ -88,16 +94,18 @@ namespace physics{
    * @brief      Calculates total energy for every particle
    * @param      srch  The source's body holder
    */
-  void set_total_energy (body& source) {
-    const point_t pos = source.coordinates(),
-                  vel = source.getVelocity();
-    const double eint = source.getInternalenergy(),
+  void set_total_energy (body& particle) {
+    const point_t pos = particle.coordinates(),
+                  vel = particle.getVelocity();
+    const double eint = particle.getInternalenergy(),
                  epot = external_force::potential(pos);
+    //const space_vector_t & svel = *reinterpret_cast<const space_vector_t *> (&vel);
+    //double ekin = flecsi::dot(vel,vel)/2.0;
     double ekin = vel[0]*vel[0];
     for (unsigned short i=1; i<gdimension; ++i)
       ekin += vel[i]*vel[i];
     ekin *= .5;
-    source.setTotalenergy(eint + epot + ekin);
+    particle.setTotalenergy(eint + epot + ekin);
   } // set_total_energy
 
 
@@ -106,10 +114,10 @@ namespace physics{
    *             to recover internal energy
    * @param      srch  The source's body holder
    */
-  void recover_internal_energy (body& source) {
-    const point_t pos = source.coordinates(),
-                  vel = source.getVelocity();
-    const double etot = source.getTotalenergy(),
+  void recover_internal_energy (body& particle) {
+    const point_t pos = particle.coordinates(),
+                  vel = particle.getVelocity();
+    const double etot = particle.getTotalenergy(),
                  epot = external_force::potential(pos);
     double ekin = vel[0]*vel[0];
     for (unsigned short i=1; i<gdimension; ++i)
@@ -118,13 +126,13 @@ namespace physics{
     const double eint = etot - ekin - epot;
     if (eint < 0.0) {
       std::cerr << "ERROR: internal energy is negative!" << std::endl
-                << "particle id: " << source.id()    << std::endl
+                << "particle id: " << particle.id()      << std::endl
                 << "total energy: " << etot              << std::endl
                 << "kinetic energy: " << ekin            << std::endl
                 << "particle position: " << pos          << std::endl;
       mpi_assert(false);
     }
-    source.setInternalenergy(eint);
+    particle.setInternalenergy(eint);
   } // recover_internal_energy
 
 
@@ -132,88 +140,89 @@ namespace physics{
    * @brief      Compute the density, EOS and spundspeed in the same function
    * reduce time to gather the neighbors
    *
-   * @param      srch  The source's body holder
-   * @param      nbsh  The neighbors' body holders
+   * @param      particle  The particle body 
+   * @param      nbs       Vector of neighbor particles
    */
   void
   compute_density_pressure_soundspeed(
-    body& source,
-    std::vector<body*>& nbsh)
+    body& particle,
+    std::vector<body*>& nbs)
   {
-    compute_density(source,nbsh);
+    compute_density(particle,nbs);
     if (thermokinetic_formulation)
-      recover_internal_energy(source);
-    eos::compute_pressure(source);
-    eos::compute_soundspeed(source);
+      recover_internal_energy(particle);
+    eos::compute_pressure(particle);
+    eos::compute_soundspeed(particle);
   }
 
 
   /**
-   * @brief      Calculates the hydro acceleration
-   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics
+   * @brief      Calculates the hydro acceleration ("vanilla ice")
+   *             [Rosswog'09, eqs.(29,55)]:
    *
-   * @param      srch  The source's body holder
-   * @param      nbsh  The neighbors' body holders
+   *     (dv_a)                (  P_a       P_b            )
+   *     (----)   = -sum_b m_b ( -----  +  -----   + Pi_ab ) D_i Wab  + ext_i
+   *     ( dt )_i              (rho_a^2   rho_b^2          )
+   * 
+   * @param      particle  The particle body 
+   * @param      nbs       Vector of neighbor particles
    */
   void
   compute_acceleration(
-    body& source,
-    std::vector<body*>& ngbsh)
+    body& particle,
+    std::vector<body*>& nbs)
   {
     using namespace param;
+    using namespace viscosity;
+    using namespace kernels;
+
     // Reset the accelerastion
     // \TODO add a function to reset in main_driver
-    point_t acceleration = {};
-    point_t hydro = {};
-    const double h_s = source.radius();
-    const point_t coordinates = source.coordinates();
-    const double density = source.getDensity();
-    const double pressure = source.getPressure();
-    source.setMumax(0.0);
-    const int n_nb = ngbsh.size();
 
-    double viscosities[n_nb];
-    point_t sourcekernelgradient[n_nb];
+    // this particle (index 'a')
+    const double h_a = particle.radius(),
+               rho_a = particle.getDensity(),
+                 P_a = particle.getPressure(),
+                 c_a = particle.getSoundspeed();
+    const point_t pos_a = particle.coordinates(),
+                  v12_a = particle.getVelocityhalf();
 
-    double densities[n_nb];
-    double pressures[n_nb];
-    point_t positions[n_nb];
-    double radii[n_nb];
-    double masses[n_nb];
+    // neighbor particles (index 'b')
+    const int n_nb = nbs.size();
+    double rho_[n_nb],P_[n_nb],h_[n_nb],m_[n_nb],c_[n_nb],Pi_a_[n_nb];
+    point_t pos_[n_nb], v12_[n_nb], DiWa_[n_nb];
 
-    int index=-1;
-    for(int i = 0 ; i < n_nb; ++i){
-      densities[i] = ngbsh[i]->getDensity();
-      pressures[i] = ngbsh[i]->getPressure();
-      positions[i] = ngbsh[i]->coordinates();
-      radii[i] = ngbsh[i]->radius();
-      masses[i] = ngbsh[i]->mass();
-      if(positions[i]==coordinates)
-        index=i;
+    for(int b = 0; b < n_nb; ++b) {
+      const body * const nb = nbs[b];
+      rho_[b] = nb->getDensity();
+      P_[b]   = nb->getPressure();
+      pos_[b] = nb->coordinates();
+      v12_[b] = nb->getVelocityhalf();
+      c_[b]   = nb->getSoundspeed();
+      h_[b]   = nb->radius();
+      m_[b]   = nb->mass() * (pos_[b]!=pos_a); // if same particle, m_b->0
     }
 
-    for(int i = 0 ; i < n_nb; ++i){ // not vectorized
-      viscosities[i] = viscosity::viscosity(source,*ngbsh[i]);
+    // precompute viscosity and kernel gradients
+    particle.setMumax(0.0);  // needed for adaptive timestep calculation
+    for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+      const space_vector_t v12_ab = point_to_vector(v12_a - v12_[b]);
+      const space_vector_t pos_ab = point_to_vector(pos_a - pos_[b]);
+      double h_ab = .5*(h_a + h_[b]);
+      double mu_ab = mu(h_ab, v12_ab, pos_ab);
+      Pi_a_[b] = artificial_viscosity(.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
+      DiWa_[b] = sph_kernel_gradient(pos_a - pos_[b],h_ab);
     }
-    for(int i = 0 ; i < n_nb; ++i){ // Not vectorized due to Kernel
-      // Kernel computation
-      point_t vecPosition = coordinates - positions[i];
-      sourcekernelgradient[i] = kernels::gradKernel(
-          vecPosition,(h_s+radii[i])*.5);
-    } // for
-    //ignore itself
-    sourcekernelgradient[index]={};
-    viscosities[index]=0;
-    for(int i = 0 ; i < n_nb; ++i){ // Vectorized
-      double pressureDensity = pressure/(density*density)
-          + pressures[i]/(densities[i]*densities[i]);
-      hydro += masses[i]*(pressureDensity + viscosities[i])
-        *sourcekernelgradient[i];
+
+    // compute the final answer
+    const double Prho2_a = P_a/(rho_a*rho_a);
+    point_t acc_a = 0.0;
+    for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+      const double Prho2_b = P_[b]/(rho_[b]*rho_[b]);
+      acc_a += -m_[b]*(Prho2_a + Prho2_b + Pi_a_[b])*DiWa_[b];
     }
-    hydro = -1.0*hydro;
-    acceleration += hydro;
-    acceleration += external_force::acceleration(source);
-    source.setAcceleration(acceleration);
+    acc_a += external_force::acceleration(particle);
+    particle.setAcceleration(acc_a);
   } // compute_hydro_acceleration
 
 
@@ -221,67 +230,89 @@ namespace physics{
    * @brief      Adds drag force to acceleration
    * @param      srch  The source's body holder
    */
-  void add_drag_acceleration( body& source) {
+  void add_drag_acceleration( body& particle) {
     using namespace param;
-    point_t       acc = source.getAcceleration();
-    const point_t vel = source.getVelocity();
+    point_t       acc = particle.getAcceleration();
+    const point_t vel = particle.getVelocity();
     acc += external_force::acceleration_drag(vel);
-    source.setAcceleration(acc);
+    particle.setAcceleration(acc);
   } // add_drag_acceleration
 
 
   /**
    * @brief      Calculates the dudt, time derivative of internal energy.
-   * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics
+   *             [Rosswog'09, eqs.(29,55)]:
    *
-   * @param      srch  The source's body holder
-   * @param      nbsh  The neighbors' body holders
+   *             du_a             (  P_a      1       )
+   *             ---- = sum_b m_b ( -----  +  - Pi_ab ) (D_i Wab . v_ab)
+   *              dt              (rho_a^2    2       )
+   * 
+   * @param      particle  The particle body 
+   * @param      nbs       Vector of neighbor particles
    */
   void compute_dudt(
-      body& source,
-      std::vector<body*>& ngbsh)
+      body& particle,
+      std::vector<body*>& nbs)
   {
-    double dudt = 0;
-    double dudt_pressure = 0.;
-    double dudt_visc = 0.;
-    const double h_s = source.radius();
-
-    for(auto nb: ngbsh){
-      if(nb->coordinates() == source.coordinates()){
-        continue;
-      }
-
-      // Artificial viscosity
-      double visc = viscosity::viscosity(source,*nb);
-
-      // Compute the gradKernel ij
-      const double h_n = nb->radius();
-      point_t vecPosition = source.coordinates()-nb->coordinates();
-      point_t sourcekernelgradient = kernels::gradKernel(
-          vecPosition,(h_s+h_n)*.5);
-      space_vector_t resultkernelgradient =
-          flecsi::point_to_vector(sourcekernelgradient);
-
-      // Velocity vector
-      space_vector_t vecVelocity = flecsi::point_to_vector(
-          source.getVelocity() - nb->getVelocity());
-
-      dudt_pressure += nb->mass()*
-        flecsi::dot(vecVelocity,resultkernelgradient);
-      dudt_visc += visc*nb->mass()*
-        flecsi::dot(vecVelocity,resultkernelgradient);
-    }
-
-    double P_a = source.getPressure();
-    double rho_a = source.getDensity();
-    dudt = P_a/(rho_a*rho_a)*dudt_pressure + .5*dudt_visc;
-
     // Do not change internal energy in relaxation phase
     if(iteration < relaxation_steps){
-       dudt = 0.0;
+       particle.setDudt(0.0);
+       return;
     }
 
-    source.setDudt(dudt);
+    using namespace viscosity;
+    using namespace kernels;
+
+    // this particle (index 'a')
+    const double h_a = particle.radius(),
+               rho_a = particle.getDensity(),
+                 P_a = particle.getPressure(),
+                 c_a = particle.getSoundspeed();
+    const point_t pos_a = particle.coordinates(),
+                  vel_a = particle.getVelocity(),
+                  v12_a = particle.getVelocityhalf();
+
+
+    // neighbor particles (index 'b')
+    const int n_nb = nbs.size();
+    double rho_[n_nb],P_[n_nb],h_[n_nb],m_[n_nb],c_[n_nb],Pi_a_[n_nb];
+    double vab_dot_DiWa_[n_nb];
+    point_t pos_[n_nb], vel_[n_nb], v12_[n_nb];
+
+    for(int b = 0; b < n_nb; ++b) {
+      const body * const nb = nbs[b];
+      rho_[b] = nb->getDensity();
+      P_[b]   = nb->getPressure();
+      pos_[b] = nb->coordinates();
+      vel_[b] = nb->getVelocity();
+      v12_[b] = nb->getVelocityhalf();
+      c_[b]   = nb->getSoundspeed();
+      h_[b]   = nb->radius();
+      m_[b]   = nb->mass() * (pos_[b]!=pos_a);
+    }
+
+    // precompute viscosity and kernel gradients
+    for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+      point_t        pos_ab = pos_a - pos_[b];
+      space_vector_t v12_ab = point_to_vector(v12_a - v12_[b]);
+      space_vector_t vel_ab = point_to_vector(vel_a - vel_[b]);
+      double h_ab = .5*(h_a + h_[b]);
+      double mu_ab = mu(h_ab, v12_ab, point_to_vector(pos_ab));
+      Pi_a_[b] = artificial_viscosity(.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
+      space_vector_t DiWab  = point_to_vector (
+          sph_kernel_gradient(pos_ab,h_ab));
+      vab_dot_DiWa_[b] = dot(vel_ab, DiWab);
+    }
+
+    // final answer
+    double dudt_pressure, dudt_visc;
+    dudt_visc = dudt_pressure = 0.0;
+    for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+      dudt_pressure += m_[b]*vab_dot_DiWa_[b];
+      dudt_visc     += m_[b]*vab_dot_DiWa_[b]*Pi_a_[b];
+    }
+    double dudt = P_a/(rho_a*rho_a)*dudt_pressure + .5*dudt_visc;
+    particle.setDudt(dudt);
   } // compute_dudt
 
 
@@ -291,74 +322,69 @@ namespace physics{
    *             (internal + kinetic + potential) energy.
    * See e.g. Rosswog (2009) "Astrophysical SPH" eq. (34)
    *
+   *   de_a              (P_a*v_b   P_b*v_a   v_a + v_b       )
+   *   ---- = -sum_b m_b ( -----  +  -----  + --------- Pi_ab ) . D_i Wab
+   *    dt               (rho_a^2   rho_b^2       2           )
+   *
    * @param      srch  The source's body holder
    * @param      nbsh  The neighbors' body holders
    */
   void compute_dedt(
-      body& source,
-      std::vector<body*>& ngbsh)
+      body& particle,
+      std::vector<body*>& nbs)
   {
+    using namespace viscosity;
+    using namespace kernels;
+
+    // this particle (index 'a')
+    const double h_a = particle.radius(),
+               rho_a = particle.getDensity(),
+                 P_a = particle.getPressure(),
+                 c_a = particle.getSoundspeed();
+    const point_t pos_a = particle.coordinates(),
+                  vel_a = particle.getVelocity(),
+                  v12_a = particle.getVelocityhalf();
+
+    // neighbor particles (index 'b')
+    const int n_nb = nbs.size();
+    double rho_[n_nb],P_[n_nb],h_[n_nb],m_[n_nb],c_[n_nb],Pi_a_[n_nb];
+    double va_dot_DiWa_[n_nb], vb_dot_DiWa_[n_nb];
+    point_t pos_[n_nb], vel_[n_nb], v12_[n_nb];
+
+    for(int b = 0; b < n_nb; ++b) {
+      const body * const nb = nbs[b];
+      rho_[b] = nb->getDensity();
+      P_[b]   = nb->getPressure();
+      pos_[b] = nb->coordinates();
+      vel_[b] = nb->getVelocity();
+      v12_[b] = nb->getVelocityhalf();
+      c_[b]   = nb->getSoundspeed();
+      h_[b]   = nb->radius();
+      m_[b]   = nb->mass() * (pos_[b]!=pos_a);
+    }
+
+    // precompute viscosity and kernel gradients
+    for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+      point_t        pos_ab = pos_a - pos_[b];
+      space_vector_t v12_ab = point_to_vector(v12_a - v12_[b]);
+      space_vector_t vel_ab = point_to_vector(vel_a - vel_[b]);
+      double h_ab = .5*(h_a + h_[b]);
+      double mu_ab = mu(h_ab, v12_ab, point_to_vector(pos_ab));
+      Pi_a_[b] = artificial_viscosity(.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
+
+      space_vector_t DiWab = point_to_vector(sph_kernel_gradient(pos_ab,h_ab));
+      va_dot_DiWa_[b] = dot(point_to_vector(vel_a), DiWab);
+      vb_dot_DiWa_[b] = dot(point_to_vector(vel_[b]), DiWab);
+    }
 
     double dedt = 0;
-
-    const point_t pos_a = source.coordinates(),
-                  vel_a = source.getVelocity();
-    const double h_a = source.radius(),
-                 P_a = source.getPressure(),
-                 rho_a = source.getDensity();
     const double Prho2_a = P_a/(rho_a*rho_a);
-
-    const int n_nb = ngbsh.size();
-    point_t pos_b[n_nb];
-    double h_b[n_nb];
-    point_t vel_b[n_nb];
-    double rho_b[n_nb];
-    double P_b[n_nb];
-    double m_b[n_nb];
-
-    point_t Da_Wab[n_nb];
-    double Pi_ab[n_nb];
-
-
-    int index=-1;
-    for(int i = 0 ; i < n_nb; ++i){
-      rho_b[i] = ngbsh[i]->getDensity();
-      P_b[i] = ngbsh[i]->getPressure();
-      pos_b[i] = ngbsh[i]->coordinates();
-      h_b[i] = ngbsh[i]->radius();
-      vel_b[i] = ngbsh[i]->getVelocity();
-      m_b[i] = ngbsh[i]->mass();
-      if(pos_b[i]==pos_a)
-        index=i;
+    for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+      const double Prho2_b = P_[b]/(rho_[b]*rho_[b]);
+      dedt -= m_[b]*( Prho2_a*vb_dot_DiWa_[b] + va_dot_DiWa_[b]*Prho2_b
+               + .5*Pi_a_[b]*(vb_dot_DiWa_[b] + va_dot_DiWa_[b]));
     }
-
-    for(int i = 0 ; i < n_nb; ++i){
-      // Compute the \nabla_a W_ab
-      Da_Wab[i] = kernels::gradKernel(pos_a - pos_b[i], (h_a+h_b[i])*.5);
-      Pi_ab[i] = viscosity::viscosity(source,*ngbsh[i]);
-    }
-
-    // To avoid the same particle
-    m_b[index] = 0;
-    Da_Wab[index] = {};
-    Pi_ab[index] = 0;
-
-    for(int i = 0 ; i < n_nb; ++i){ // Vectorized
-      // va*DaWab and vb*DaWab
-      point_t tmp_a = vel_a*Da_Wab[i];
-      point_t tmp_b = vel_b[i]*Da_Wab[i];
-      double va_dot_DaWab = tmp_a[0];
-      double vb_dot_DaWab = tmp_b[0];
-      for(unsigned int j = 1 ; j < gdimension ; ++j){
-        va_dot_DaWab += tmp_a[j];
-        vb_dot_DaWab += tmp_b[j];
-      }
-      const double Prho2_b = P_b[i]/(rho_b[i]*rho_b[i]);
-      // add this neighbour's contribution
-      dedt -= m_b[i]*( Prho2_a*vb_dot_DaWab + Prho2_b*va_dot_DaWab
-                + .5*Pi_ab[i]*(va_dot_DaWab + vb_dot_DaWab));
-    }
-    source.setDedt(dedt);
+    particle.setDedt(dedt);
   } // compute_dedt
 
 

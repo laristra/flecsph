@@ -5,6 +5,7 @@
 #include <cmath>
 #include <mpi.h>
 
+#include "params.h"
 #include "kernels.h"
 
 using namespace std;
@@ -42,8 +43,8 @@ TEST(kernel, cubic_spline) {
     p[0] = current;
     fprintf(output,"%.4f;%.4f;%.4f\n",
       current,
-      cubic_spline(fabs(current),h),
-      gradient_cubic_spline(p,h)[0]);
+      kernel<param::cubic_spline,gdimension>(fabs(current),h),
+      kernel_gradient<param::cubic_spline,gdimension>(p,h)[0]);
     current += step; 
   }
 
@@ -65,8 +66,8 @@ TEST(kernel, gaussian) {
     p[0] = current;
     fprintf(output,"%.4f;%.4f;%.4f\n",
       current,
-      gaussian(fabs(current),h),
-      gradient_gaussian(p,h)[0]);
+      kernel<param::gaussian,gdimension>(fabs(current),h),
+      kernel_gradient<param::gaussian,gdimension>(p,h)[0]);
     current += step; 
   }
 
@@ -88,8 +89,8 @@ TEST(kernel, quintic_spline) {
     p[0] = current;
     fprintf(output,"%.4f;%.4f;%.4f\n",
       current,
-      quintic_spline(fabs(current),h),
-      gradient_quintic_spline(p,h)[0]);
+      kernel<param::quintic_spline,gdimension>(fabs(current),h),
+      kernel_gradient<param::quintic_spline,gdimension>(p,h)[0]);
     current += step; 
   }
 
@@ -111,8 +112,8 @@ TEST(kernel, wendland_c2_1d) {
     p[0] = current;
     fprintf(output,"%.4f;%.4f;%.4f\n",
       current,
-      wendland_c2_1d(fabs(current),h),
-      gradient_wendland_c2_1d(p,h)[0]);
+      kernel<param::wendland_c2,gdimension>(fabs(current),h),
+      kernel_gradient<param::wendland_c2,gdimension>(p,h)[0]);
     current += step; 
   }
 
