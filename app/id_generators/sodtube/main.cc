@@ -146,7 +146,7 @@ int main(int argc, char * argv[]){
   particle_lattice::select();
 
   // set kernel
-  kernels::select(sph_kernel);
+  kernels::select();
 
   // screen output
   std::cout << "Sod test #" << sodtest_num << " in " << gdimension

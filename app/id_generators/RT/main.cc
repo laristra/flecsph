@@ -94,7 +94,7 @@ void set_derived_params() {
 
   // select particle lattice and kernel function
   particle_lattice::select();
-  kernels::select(sph_kernel);
+  kernels::select();
 
   // particle mass and spacing
   SET_PARAM(sph_separation, (box_length*(1.0-b_tol)/(double)(lattice_nx-1)));

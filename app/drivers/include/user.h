@@ -29,6 +29,10 @@
 #define OUTPUT
 #define INTERNAL_ENERGY
 
+// Uncomment the next line to fix sph_kernel at compile time and 
+// enable vectorization:
+// #define sph_kernel wendland_c4
+
 static const size_t gdimension = EXT_GDIMENSION;
 using type_t = double;
 

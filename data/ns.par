@@ -12,7 +12,7 @@
   eos_type = "polytropic"
 
 # evolution parameters:
-  sph_kernel = "Quintic Spline"
+  #sph_kernel = "Quintic Spline"
   initial_dt = 0.0025 # TODO: better use Courant factor X sph_separation
   final_iteration = 50
   out_screen_every = 1

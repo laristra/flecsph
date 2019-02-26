@@ -16,7 +16,7 @@
   domain_type = 1          # 0:box, 1:sphere
 
 # evolution parameters:
-  sph_kernel = "quintic spline"
+  sph_kernel = "Wendland C4"
   initial_dt = 2.e-3  # TODO: better use Courant factor X sph_separation
   final_iteration = 50
   out_screen_every = 1

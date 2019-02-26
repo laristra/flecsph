@@ -85,7 +85,7 @@ void set_derived_params() {
 
   // select particle lattice and kernel function
   particle_lattice::select();
-  kernels::select(sph_kernel);
+  kernels::select();
 
   double totalmass = 0.;
 

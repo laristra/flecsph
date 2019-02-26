@@ -215,8 +215,8 @@ public:
 
    // Then compute the range of the system
     tcolorer_.mpi_compute_range(tree_.entities(),range_);
-    assert(range_[0] != range_[1]);
     clog_one(trace) << "Range="<<range_[0]<<";"<<range_[1]<<std::endl;
+    assert(range_[0] != range_[1]);
 
     // Generate the tree based on the range
     //tree_ = new tree_topology_t(range_[0],range_[1]);
