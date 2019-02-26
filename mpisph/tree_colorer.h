@@ -276,10 +276,12 @@ public:
     if( i == rank ) continue;
     for(int k = 0 ; k < leaves.size(); ++k){
       bool accepted = false;
-      for(int j = nbranches_offset[i] ; j < nbranches_offset[i+1]; ++j){
+      for(int j = nbranches_offset[i] ; j <
+        nbranches_offset[i+1] && !accepted; ++j){
         assert(branches_nb[j].owner != rank);
         accepted = accepted ||
-          flecsi::topology::tree_geometry<type_t,gdimension>::intersects_box_box
+          flecsi::topology::tree_geometry<type_t,gdimension>::
+            intersects_box_box
             (leaves[k]->bmin(),leaves[k]->bmax(),
             branches_nb[j].min,branches_nb[j].max);
       }

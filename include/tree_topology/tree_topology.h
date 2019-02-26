@@ -207,7 +207,6 @@ public:
     root_ = branch_map_.find(branch_id_t::root());
     assert(root_ != branch_map_.end());
     max_depth_ = 0;
-    ghosts_branches_.clear();
   }
 
   /**
@@ -251,6 +250,26 @@ public:
       }
     }
 
+    for(int i = 0 ; i <= current_ghosts; ++i)
+    {
+      for(auto& g: ghosts_entities_[i])
+      {
+        // Find the parent and change the status
+        key_t k = g.key();
+        auto& b = find_parent(k);
+        assert(!b.is_local());
+        for(auto eid: b)
+        {
+          auto ent = get(eid);
+          assert(ent->owner() != rank);
+          ent->setBody(nullptr);
+        }
+        b.clear();
+        b.set_ghosts_local(false);
+        b.set_requested(false);
+      }
+    }
+
     // Find the first position of ghosts in tree_entities_
     // Empty the ghosts arrays
     size_t index_ghosts = tree_entities_.size();
@@ -263,12 +282,6 @@ public:
     shared_entities_.clear();
     assert(!tree_entities_[index_ghosts].is_local());
 
-    // Clean the ghosts leaves
-    #pragma omp parallel for
-    for(int i = 0 ; i < ghosts_branches_.size(); ++i){
-      ghosts_branches_[i]->clear();
-    }
-
     tree_entities_.erase(tree_entities_.begin()+
       index_ghosts,tree_entities_.end());
     // Do not share edge in the case of keeping the tree
@@ -276,7 +289,6 @@ public:
       share_edge();
     }else{
       remove_non_local();
-      ghosts_branches_.clear();
     }
     cofm(root(),0,false);
   }
@@ -1831,7 +1843,6 @@ public:
         itr->second.set_sub_entities(sub_entities);
         itr->second.set_locality(branch_t::NONLOCAL);
         itr->second.set_leaf(true);
-        ghosts_branches_.push_back(&(itr->second));
       }else{
         if(itr->second.owner() == rank)
           assert(itr->second.is_shared());
@@ -2143,14 +2154,12 @@ private:
   range_t range_;
   point__<element_t, dimension> scale_;
   element_t max_scale_;
-  std::map<entity_id_t,entity_id_t> ghosts_id_;
   std::vector<tree_entity_t> tree_entities_;
   std::vector<entity_t> entities_;
   std::vector<entity_t> entities_w_;
 
   const size_t max_traversal = 5;
   std::vector<std::vector<entity_t>> ghosts_entities_;
-  std::vector<branch_t*> ghosts_branches_;
   size_t current_ghosts = 0;
 
   std::vector<entity_t> shared_entities_;
