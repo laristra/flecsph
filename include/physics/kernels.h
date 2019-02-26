@@ -59,18 +59,6 @@ namespace kernels{
   double sinc_sigma[3];
   static const double TINY = 1e10*DBL_MIN;
 
-  // Kernel types enum
-  typedef enum kernel_type_enum {
-    cubic_spline,
-    quintic_spline,
-    wendland_c2,
-    wendland_c4,
-    wendland_c6,
-    gaussian,
-    super_gaussian,
-    sinc_ker
-  } kernel_t;
-
   /* This function sets up the sinc kernel normalization */
   void
   set_sinc_kernel_normalization(
@@ -87,14 +75,18 @@ namespace kernels{
   static double kernel_width = 2.0;
 
   // Generic template: kernel
-  template<kernel_t K, int D> 
-  double 
+  template<param::sph_kernel_keyword K, int D>
+  double
   kernel(const double & r, const double & h);
 
   // Generic template: kernel gradient
-  template<kernel_t K, int D> 
+  template<param::sph_kernel_keyword K, int D>
   point_t
   kernel_gradient(const point_t & pos, const double & h);
+
+  // Function pointers
+  typedef double  (*kernel_function_t)(const double & r,   const double & h);
+  typedef point_t (*kernel_gradient_t)(const point_t& pos, const double & h);
 
 /*============================================================================*/
 /*   Cubic spline                                                             */
@@ -109,7 +101,7 @@ namespace kernels{
    * @return     Contribution from the particle
    */
   template<> double
-  kernel<cubic_spline,gdimension>(
+  kernel<param::cubic_spline,gdimension>(
       const double& r,
       const double& h)
   {
@@ -138,7 +130,7 @@ namespace kernels{
    * @return     Contribution from the particle
    */
   template<> point_t
-  kernel_gradient<cubic_spline,gdimension>(
+  kernel_gradient<param::cubic_spline,gdimension>(
       const point_t& vecP,
       const double& h)
   {
@@ -174,7 +166,7 @@ namespace kernels{
    * @return     Contribution from the particle
    */
   template<> double
-  kernel<gaussian,gdimension>(
+  kernel<param::gaussian,gdimension>(
     const double& r,
     const double& h)
   {
@@ -199,7 +191,7 @@ namespace kernels{
    * @return     Contribution from the particle
    */
   template<> point_t
-  kernel_gradient<gaussian,gdimension>(
+  kernel_gradient<param::gaussian,gdimension>(
     const point_t& vecP,
     const double& h)
   {
@@ -229,7 +221,7 @@ namespace kernels{
    * @return     Contribution from the particle
    */
   template<> double
-  kernel<quintic_spline,gdimension>(
+  kernel<param::quintic_spline,gdimension>(
     const double& r,
     const double& h)
   {
@@ -261,7 +253,7 @@ namespace kernels{
    * @return     Contribution from the particle
    */
   template<> point_t
-  kernel_gradient<quintic_spline,gdimension>(
+  kernel_gradient<param::quintic_spline,gdimension>(
     const point_t& vecP,
     const double& h)
   {
@@ -298,7 +290,7 @@ namespace kernels{
    * @return     Contribution from the particle
    */
   template<> double
-  kernel<wendland_c2,1>(
+  kernel<param::wendland_c2,1>(
     const double& r,
     const double& h)
   {
@@ -310,7 +302,7 @@ namespace kernels{
   }
 
   template<> double
-  kernel<wendland_c2,2> (
+  kernel<param::wendland_c2,2> (
     const double& r,
     const double& h)
   {
@@ -323,7 +315,7 @@ namespace kernels{
   }
 
   template<> double
-  kernel<wendland_c2,3>(
+  kernel<param::wendland_c2,3>(
     const double& r,
     const double& h)
   {
@@ -345,7 +337,7 @@ namespace kernels{
    * @return     Contribution from the particle
    */
   template<> point_t
-  kernel_gradient<wendland_c2,1>(
+  kernel_gradient<param::wendland_c2,1>(
     const point_t& vecP,
     const double& h)
   {
@@ -360,7 +352,7 @@ namespace kernels{
   }
 
   template<> point_t
-  kernel_gradient<wendland_c2,2>(
+  kernel_gradient<param::wendland_c2,2>(
     const point_t& vecP,
     const double& h)
   {
@@ -376,7 +368,7 @@ namespace kernels{
   }
 
   template<> point_t
-  kernel_gradient<wendland_c2,3>(
+  kernel_gradient<param::wendland_c2,3>(
     const point_t& vecP,
     const double& h)
   {
@@ -404,7 +396,7 @@ namespace kernels{
    * @return     Contribution from the particle
    */
   template<> double
-  kernel<wendland_c4,1>(
+  kernel<param::wendland_c4,1>(
     const double& r,
     const double& h)
   {
@@ -417,7 +409,7 @@ namespace kernels{
   }
 
   template<> double
-  kernel<wendland_c4,2>(
+  kernel<param::wendland_c4,2>(
     const double& r,
     const double& h)
   {
@@ -432,7 +424,7 @@ namespace kernels{
   }
 
   template<> double
-  kernel<wendland_c4,3>(
+  kernel<param::wendland_c4,3>(
     const double& r,
     const double& h)
   {
@@ -455,7 +447,7 @@ namespace kernels{
    * @return     Contribution from the particle
    */
   template<> point_t
-  kernel_gradient<wendland_c4,1> (
+  kernel_gradient<param::wendland_c4,1> (
     const point_t & vecP,
     const double& h)
   {
@@ -473,7 +465,7 @@ namespace kernels{
 
 
   template<> point_t
-  kernel_gradient<wendland_c4,2>(
+  kernel_gradient<param::wendland_c4,2>(
     const point_t& vecP,
     const double& h)
   {
@@ -491,7 +483,7 @@ namespace kernels{
 
 
   template<> inline point_t
-  kernel_gradient<wendland_c4,3>(
+  kernel_gradient<param::wendland_c4,3>(
     const point_t& vecP,
     const double& h)
   {
@@ -520,7 +512,7 @@ namespace kernels{
    * @return     Contribution from the particle
    */
   template<> double
-  kernel<wendland_c6, 1>(
+  kernel<param::wendland_c6, 1>(
     const double& r,
     const double& h)
   {
@@ -534,7 +526,7 @@ namespace kernels{
   }
 
   template<> double
-  kernel<wendland_c6, 2>(
+  kernel<param::wendland_c6, 2>(
     const double& r,
     const double& h)
   {
@@ -550,7 +542,7 @@ namespace kernels{
 
 
   template<> double
-  kernel<wendland_c6, 3>(
+  kernel<param::wendland_c6, 3>(
     const double& r,
     const double& h)
   {
@@ -573,7 +565,7 @@ namespace kernels{
    * @return     Contribution from the particle
    */
   template<> point_t
-  kernel_gradient<wendland_c6, 1>(
+  kernel_gradient<param::wendland_c6, 1>(
     const point_t& vecP,
     const double& h)
   {
@@ -589,7 +581,7 @@ namespace kernels{
   }
 
   template<> point_t
-  kernel_gradient<wendland_c6, 2> (
+  kernel_gradient<param::wendland_c6, 2> (
     const point_t& vecP,
     const double& h)
   {
@@ -607,7 +599,7 @@ namespace kernels{
   }
 
   template<> point_t
-  kernel_gradient<wendland_c6, 3> (
+  kernel_gradient<param::wendland_c6, 3> (
     const point_t& vecP,
     const double& h)
   {
@@ -639,7 +631,7 @@ namespace kernels{
    * @return     Contribution from the particle
    */
   template<> double
-  kernel<super_gaussian,gdimension>(
+  kernel<param::super_gaussian,gdimension>(
     const double& r,
     const double& h)
   {
@@ -660,7 +652,7 @@ namespace kernels{
    * @return     Contribution from the particle
    */
   template<> point_t
-  kernel_gradient<super_gaussian,gdimension>(
+  kernel_gradient<param::super_gaussian,gdimension>(
     const point_t& vecP,
     const double& h)
   {
@@ -687,7 +679,7 @@ namespace kernels{
    * @return     Contribution from the particle
    */
   template<> double
-  kernel<sinc_ker,gdimension>(
+  kernel<param::sinc_ker,gdimension>(
     const double& r,
     const double& h)
   {
@@ -727,7 +719,7 @@ namespace kernels{
    * @return     Contribution from the particle
    */
   template<> point_t
-  kernel_gradient<sinc_ker,gdimension>(
+  kernel_gradient<param::sinc_ker,gdimension>(
     const point_t& vecP,
     const double& h)
   {
@@ -761,24 +753,72 @@ namespace kernels{
     return result;
   }
 
+#ifdef sph_kernel
+  kernel_function_t sph_kernel_function = kernel<param::sph_kernel,gdimension>;
+  kernel_gradient_t sph_kernel_gradient = kernel_gradient<param::sph_kernel,gdimension>;
+#else
+  kernel_function_t sph_kernel_function = nullptr;
+  kernel_gradient_t sph_kernel_gradient = nullptr;
+#endif
+
   /**
    * @brief      Kernel selector: types, global variables and the function
    * @param      kstr     Kernel string descriptor
    */
-  void select(const std::string& kstr) {
-    if (boost::iequals(kstr,"cubic spline") 
-        or boost::iequals(kstr, "wendland c2") 
-        or boost::iequals(kstr, "wendland c4") 
-        or boost::iequals(kstr, "wendland c6")) {
+  void select() {
+    using namespace param;
+#   ifndef sph_kernel
+    switch(sph_kernel) {
+    case (cubic_spline):
+      sph_kernel_function = kernel<cubic_spline,gdimension>;
+      sph_kernel_gradient = kernel_gradient<cubic_spline,gdimension>;
+      break;
+    case (quintic_spline):
+      sph_kernel_function = kernel<quintic_spline,gdimension>;
+      sph_kernel_gradient = kernel_gradient<quintic_spline,gdimension>;
+      break;
+    case (wendland_c2):
+      sph_kernel_function = kernel<wendland_c2,gdimension>;
+      sph_kernel_gradient = kernel_gradient<wendland_c2,gdimension>;
+      break;
+    case (wendland_c4):
+      sph_kernel_function = kernel<wendland_c4,gdimension>;
+      sph_kernel_gradient = kernel_gradient<wendland_c4,gdimension>;
+      break;
+    case (wendland_c6):
+      sph_kernel_function = kernel<wendland_c6,gdimension>;
+      sph_kernel_gradient = kernel_gradient<wendland_c6,gdimension>;
+      break;
+    case (sinc_ker):
+      sph_kernel_function = kernel<sinc_ker,gdimension>;
+      sph_kernel_gradient = kernel_gradient<sinc_ker,gdimension>;
+      break;
+    case (gaussian):
+      sph_kernel_function = kernel<gaussian,gdimension>;
+      sph_kernel_gradient = kernel_gradient<gaussian,gdimension>;
+      break;
+    case (super_gaussian):
+      sph_kernel_function = kernel<super_gaussian,gdimension>;
+      sph_kernel_gradient = kernel_gradient<super_gaussian,gdimension>;
+      break;
+    default:
+      clog_fatal("Bad kernel parameter" << std::endl);
+    } // switch(sph_kernel)
+#   endif
+
+    if (sph_kernel == cubic_spline
+     or sph_kernel == wendland_c2
+     or sph_kernel == wendland_c4
+     or sph_kernel == wendland_c6) {
       kernel_width = 2.0;
     }
-    else if (boost::iequals(kstr, "sinc")) {
-      set_sinc_kernel_normalization(param::sph_sinc_index);
+    else if (sph_kernel == sinc_ker) {
+      set_sinc_kernel_normalization(sph_sinc_index);
       kernel_width = 2.0;
     }
-    else if (boost::iequals(kstr, "quintic spline") 
-             or boost::iequals(kstr, "gaussian") 
-             or boost::iequals(kstr, "super gaussian")) {
+    else if (sph_kernel == quintic_spline
+         or  sph_kernel == gaussian
+         or  sph_kernel == super_gaussian) {
       kernel_width = 3.0;
     }
     else {
@@ -786,9 +826,6 @@ namespace kernels{
     }
   }
 
-
-// hardcoded kernel for now
-static const kernels::kernel_t kernel_type = wendland_c4; 
 
 }; // kernel
 

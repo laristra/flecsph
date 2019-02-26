@@ -54,7 +54,7 @@ void set_derived_params() {
   using namespace param;
 
   // set kernel
-  kernels::select(sph_kernel);
+  kernels::select();
 
   // set viscosity
   viscosity::select(sph_viscosity);

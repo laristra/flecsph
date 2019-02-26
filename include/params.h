@@ -78,6 +78,7 @@
 
 #ifndef PARAMS_H
 #define PARAMS_H
+#include <boost/algorithm/string.hpp>
 
 //////////////////////////////////////////////////////////////////////
 #define DECLARE_PARAM(PTYPE,PNAME,PDEF) \
@@ -89,6 +90,10 @@
   char _##PNAME[STRING_MAXLEN] = (PDEF); \
   const char * PNAME = _##PNAME;
 
+#define DECLARE_KEYWORD_PARAM(PNAME,PDEF) \
+  PNAME##_keyword _##PNAME = (PDEF); \
+  const PNAME##_keyword & PNAME = _##PNAME;
+
 #define DO_QUOTE(str) #str
 #define QUOTE(str) DO_QUOTE(str)
 
@@ -96,8 +101,8 @@
   if (param_name == QUOTE(PNAME)) { \
     (_##PNAME) = lparam_value; unknown_param=false;}
 
-#define READ_NUMERIC_PARAM(PNAME) \
-  if (param_name == QUOTE(PNAME)) { \
+#define READ_NUMERIC_PARAM(PNAME)\
+  if (param_name == QUOTE(PNAME)) {\
     iss >> (_##PNAME); unknown_param=false;}
 
 #define READ_STRING_PARAM(PNAME) \
@@ -108,9 +113,24 @@
 // TODO: the macro above won't work for strings!
 
 //////////////////////////////////////////////////////////////////////
-
 namespace param {
+//
+// Enums for keyword-type parameters
+//
 
+// sph_kernel keywords
+typedef enum sph_kernel_keyword_enum {
+  cubic_spline,
+  quintic_spline,
+  wendland_c2,
+  wendland_c4,
+  wendland_c6,
+  gaussian,
+  super_gaussian,
+  sinc_ker
+} sph_kernel_keyword;
+
+//////////////////////////////////////////////////////////////////////
 //
 // Parameters controlling timestepping and iterations
 //
@@ -177,7 +197,7 @@ namespace param {
 
 //- which kernel to use
 #ifndef sph_kernel
-  DECLARE_STRING_PARAM(sph_kernel,"Wendland C4")
+  DECLARE_KEYWORD_PARAM(sph_kernel,wendland_c4)
 #endif
 
 //- sinc kernel power index
@@ -609,9 +629,49 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(sph_separation)
 # endif
 
-# ifndef sph_kernel
-  READ_STRING_PARAM(sph_kernel)
-# endif
+  if (param_name == "sph_kernel") { 
+    for (int c=0; c<str_value.length(); ++c)
+      if (str_value[c] == ' ') str_value[c] = '_';
+
+#   ifndef sph_kernel
+    if (boost::iequals(str_value,"cubic_spline"))
+      _sph_kernel =               cubic_spline;
+
+    else if (boost::iequals(str_value,"quintic_spline"))
+      _sph_kernel =                    quintic_spline;
+
+    else if (boost::iequals(str_value,"wendland_c2"))
+      _sph_kernel =                    wendland_c2;
+
+    else if (boost::iequals(str_value,"wendland_c4"))
+      _sph_kernel =                    wendland_c4;
+
+    else if (boost::iequals(str_value,"wendland_c6"))
+      _sph_kernel =                    wendland_c6;
+
+    else if (boost::iequals(str_value,"gaussian"))
+      _sph_kernel =                    gaussian;
+
+    else if (boost::iequals(str_value,"super_gaussian"))
+      _sph_kernel =                    super_gaussian;
+
+    else if (boost::iequals(str_value,"sinc_ker"))
+       _sph_kernel =                   sinc_ker;
+
+    else {
+      assert(false);
+    }
+#   else
+    if (not boost::iequals(str_value,QUOTE(sph_kernel))) {
+      clog_one(error) 
+          << "ERROR: sph_kernel #defined as \"" << QUOTE(sph_kernel) << "\" "
+          << "but is reset to \"" << str_value << "\" in parameter file"
+          << std::endl;
+      exit(2);
+    }
+#   endif
+    unknown_param = false;
+  }
 
 # ifndef sph_sinc_index
   READ_NUMERIC_PARAM(sph_sinc_index)

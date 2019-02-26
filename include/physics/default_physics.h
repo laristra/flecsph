@@ -82,7 +82,7 @@ namespace physics{
 
     double rho_a = 0.0;
     for(int b = 0 ; b < n_nb; ++b){ // Vectorized
-      double Wab =  kernel<kernel_type,gdimension>(r_a_[b],.5*(h_a+h_[b]));
+      double Wab =  sph_kernel_function(r_a_[b],.5*(h_a+h_[b]));
       rho_a += m_[b]*Wab;
     } // for
     mpi_assert(rho_a>0);
@@ -212,7 +212,7 @@ namespace physics{
       double h_ab = .5*(h_a + h_[b]);
       double mu_ab = mu(h_ab, v12_ab, pos_ab);
       Pi_a_[b] = artificial_viscosity(.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
-      DiWa_[b] = kernel_gradient<kernel_type,gdimension>(pos_a - pos_[b],h_ab);
+      DiWa_[b] = sph_kernel_gradient(pos_a - pos_[b],h_ab);
     }
 
     // compute the final answer
@@ -302,7 +302,7 @@ namespace physics{
       double mu_ab = mu(h_ab, v12_ab, point_to_vector(pos_ab));
       Pi_a_[b] = artificial_viscosity(.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
       space_vector_t DiWab  = point_to_vector (
-          kernel_gradient<kernel_type,gdimension>(pos_ab,h_ab));
+          sph_kernel_gradient(pos_ab,h_ab));
       vab_dot_DiWa_[b] = dot(vel_ab, DiWab);
     }
 
@@ -376,8 +376,7 @@ namespace physics{
       double mu_ab = mu(h_ab, v12_ab, point_to_vector(pos_ab));
       Pi_a_[b] = artificial_viscosity(.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
 
-      space_vector_t DiWab  = point_to_vector (
-          kernel_gradient<kernel_type,gdimension>(pos_ab,h_ab));
+      space_vector_t DiWab = point_to_vector(sph_kernel_gradient(pos_ab,h_ab));
       va_dot_DiWa_[b] = dot(point_to_vector(vel_a), DiWab);
       vb_dot_DiWa_[b] = dot(point_to_vector(vel_[b]), DiWab);
     }
