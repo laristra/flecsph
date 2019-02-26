@@ -40,13 +40,12 @@ namespace eos {
    *             computes missing quantities etc.
    * @param      srch  The source's body holder
    */
-  void init_ideal(body_holder* srch) { return; } // do nothing
-  void init_polytropic(body_holder* srch) { 
+  void init_ideal(body& source) { return; } // do nothing
+  void init_polytropic(body& source) {
     using namespace param;
-    body* source = srch->getBody();
-    double K = source->getPressure() 
-             / pow(source->getDensity(),poly_gamma);
-    source->setAdiabatic(K);
+    double K = source.getPressure()
+             / pow(source.getDensity(),poly_gamma);
+    source.setAdiabatic(K);
     return;
   }
 
@@ -55,11 +54,11 @@ namespace eos {
    * @brief      Compute the pressure for ideal gas EOS
    * @param      srch  The source's body holder
    */
-  void compute_pressure_ideal(body* source) {
+  void compute_pressure_ideal(body& source) {
     using namespace param;
-    double pressure = (poly_gamma-1.0)*source->getDensity()
-                                      *source->getInternalenergy();
-    source->setPressure(pressure);
+    double pressure = (poly_gamma-1.0)*source.getDensity()
+                                      *source.getInternalenergy();
+    source.setPressure(pressure);
   }
 
 
@@ -67,12 +66,12 @@ namespace eos {
    * @brief      Compute the pressure based on adiabatic index
    * @param      srch  The source's body holder
    */
-  void compute_pressure_adiabatic( body* source)
+  void compute_pressure_adiabatic( body& source)
   {
     using namespace param;
-    double pressure = source->getAdiabatic()*
-      pow(source->getDensity(),poly_gamma);
-    source->setPressure(pressure);
+    double pressure = source.getAdiabatic()*
+      pow(source.getDensity(),poly_gamma);
+    source.setPressure(pressure);
   }
 
   /**
@@ -81,15 +80,15 @@ namespace eos {
    *
    * @param      srch  The srch
    */
-  void compute_pressure_wd(body* source)
+  void compute_pressure_wd(body& source)
   {
     double A_wd = 6.00288e22;
     double B_wd = 9.81011e5;
 
-    double x_wd = pow((source->getDensity())/B_wd,1.0/3.0);
+    double x_wd = pow((source.getDensity())/B_wd,1.0/3.0);
     double pressure = A_wd*(x_wd*(2.0*x_wd*x_wd-3.0)*
  		      sqrt(x_wd*x_wd+1.0)+3.0*asinh(x_wd));
-    source->setPressure(pressure);
+    source.setPressure(pressure);
   } // compute_pressure_wd
 
 // HL : Compute pressure from tabulated EOS. Linking to static lib somewhat
@@ -99,16 +98,16 @@ namespace eos {
 
 #if 0
   void
-  EOS_prep(body* source)
+  EOS_prep(body& source)
   {
-    EOS_SC_fill(source->getDensity(), source->getInternalenergy(),
-                source->getElectronfraction(),
+    EOS_SC_fill(source.getDensity(), source.getInternalenergy(),
+                source.getElectronfraction(),
                 1.0//This field should be field for eos cache);
   //May need different source field?
   }
 #endif
   void
-  compute_pressure_sc(body* source)
+  compute_pressure_sc(body& source)
   {
     using namespace param;
     //double pressure = EOS_pressure_rho0_u(source->eoscache());
@@ -121,11 +120,11 @@ namespace eos {
    *
    * @param      srch  The source's body holder
    */
-  void compute_soundspeed_ideal(body* source) {
+  void compute_soundspeed_ideal(body& source) {
     using namespace param;
-    double soundspeed = sqrt(poly_gamma*source->getPressure()
-                                       /source->getDensity());
-    source->setSoundspeed(soundspeed);
+    double soundspeed = sqrt(poly_gamma*source.getPressure()
+                                       /source.getDensity());
+    source.setSoundspeed(soundspeed);
   }
 
   /**
@@ -133,27 +132,27 @@ namespace eos {
    *
    * @param      srch  The source's body holder
    */
-  void compute_soundspeed_wd(body* source) {
+  void compute_soundspeed_wd(body& source) {
     using namespace param;
     double A_wd = 6.00288e22;
     double B_wd = 9.81011e5;
-    double x_wd = pow((source->getDensity())/B_wd,1./3.);
+    double x_wd = pow((source.getDensity())/B_wd,1./3.);
 
-    double numer = 8.*source->getDensity()*x_wd - 3.*B_wd;
+    double numer = 8.*source.getDensity()*x_wd - 3.*B_wd;
     double deno = 3*B_wd*B_wd*x_wd*x_wd*sqrt(x_wd*x_wd+1);
 
     double soundspeed = A_wd*(numer/deno +
-                              x_wd/(3.*source->getDensity()
+                              x_wd/(3.*source.getDensity()
                                     *sqrt(1-x_wd*x_wd)));
-    source->setSoundspeed(soundspeed);
+    source.setSoundspeed(soundspeed);
   }
 
   // eos function types and pointers
-  typedef void (*compute_quantity_t)(body*);
+  typedef void (*compute_quantity_t)(body&);
   compute_quantity_t compute_pressure = compute_pressure_ideal;
   compute_quantity_t compute_soundspeed = compute_soundspeed_ideal;
 
-  typedef void (*eos_init_t)(body_holder*);
+  typedef void (*eos_init_t)(body&);
   eos_init_t init = init_ideal;
 
 /**
@@ -162,12 +161,12 @@ namespace eos {
  */
 void select(const std::string& eos_type) {
   if(boost::iequals(eos_type, "ideal fluid")) {
-    init = init_ideal;  
+    init = init_ideal;
     compute_pressure = compute_pressure_ideal;
     compute_soundspeed = compute_soundspeed_ideal;
   }
   else if(boost::iequals(eos_type, "polytropic")) {
-    init = init_polytropic;  
+    init = init_polytropic;
     compute_pressure = compute_pressure_adiabatic;
     compute_soundspeed = compute_soundspeed_ideal;
   }

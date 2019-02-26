@@ -55,16 +55,13 @@ namespace analysis{
    */
   void
   compute_total_momentum(
-      std::vector<body_holder>& bodies)
+      std::vector<body>& bodies)
   {
     linear_momentum = {0};
     #pragma omp parallel for reduction(add_point:linear_momentum)
     for(size_t i = 0 ; i < bodies.size(); ++i){
-    //for(auto& nbh: bodies) {
-      if(!bodies[i].is_local()) continue;
-      body* bp = bodies[i].getBody();
-      if(bp->type() != NORMAL)  continue;
-      linear_momentum += bp->mass()*bp->getVelocity();
+      if(bodies[i].type() != NORMAL)  continue;
+      linear_momentum += bodies[i].mass()*bodies[i].getVelocity();
     }
     mpi_utils::reduce_sum(linear_momentum);
   }
@@ -76,15 +73,13 @@ namespace analysis{
    */
   void
   compute_total_mass(
-      std::vector<body_holder>& bodies)
+      std::vector<body>& bodies)
   {
     total_mass = 0.;
     #pragma omp parallel for reduction(+:total_mass)
     for(size_t i = 0 ; i < bodies.size(); ++i) {
-      if(!bodies[i].is_local()) continue;
-      body* bp = bodies[i].getBody();
-      if(bp->type() != NORMAL)  continue;
-      total_mass += bp->mass();
+      if(bodies[i].type() != NORMAL)  continue;
+      total_mass += bodies[i].mass();
     }
     mpi_utils::reduce_sum(total_mass);
   }
@@ -96,7 +91,7 @@ namespace analysis{
    */
   void
   compute_total_energy(
-      std::vector<body_holder>& bodies)
+      std::vector<body>& bodies)
   {
     using namespace param;
 
@@ -104,22 +99,18 @@ namespace analysis{
     if (thermokinetic_formulation) {
       #pragma omp parallel for reduction(+:total_energy)
       for(size_t i = 0 ; i < bodies.size(); ++i){
-        if(!bodies[i].is_local()) continue;
-        body* bp = bodies[i].getBody();
-        if(bp->type() != NORMAL)  continue;
-        total_energy += bp->mass()*bp->getTotalenergy();
+        if(bodies[i].type() != NORMAL)  continue;
+        total_energy += bodies[i].mass()*bodies[i].getTotalenergy();
       }
     }
     else {
       #pragma omp parallel for reduction(+:total_energy)
       for(size_t i = 0 ; i < bodies.size(); ++i){
-        if(!bodies[i].is_local()) continue;
-        body* bp = bodies[i].getBody();
-        if(bp->type() != NORMAL)  continue;
-        double m = bp->mass(), 
-            eint = bp->getInternalenergy();
+        if(bodies[i].type() != NORMAL)  continue;
+        double m = bodies[i].mass(),
+            eint = bodies[i].getInternalenergy();
         total_energy += m*eint;
-        point_t v = bp->getVelocity();
+        point_t v = bodies[i].getVelocity();
         double v2 = v[0]*v[0];
         for(unsigned short int k=1; k<gdimension; ++k)
           v2 += v[k]*v[k];
@@ -136,18 +127,16 @@ namespace analysis{
    */
   void
   compute_total_kinetic_energy(
-      std::vector<body_holder>& bodies)
+      std::vector<body>& bodies)
   {
     using namespace param;
 
     total_kinetic_energy = 0.;
     #pragma omp parallel for reduction(+:total_kinetic_energy)
     for(size_t i = 0 ; i < bodies.size(); ++i){
-      if(!bodies[i].is_local()) continue;
-      body* bp = bodies[i].getBody();
-      if(bp->type() != NORMAL)  continue;
-      double m = bp->mass();
-      point_t v = bp->getVelocity();
+      if(bodies[i].type() != NORMAL)  continue;
+      double m = bodies[i].mass();
+      point_t v = bodies[i].getVelocity();
       double v2 = v[0]*v[0];
       for(unsigned short int k=1; k<gdimension; ++k)
         v2 += v[k]*v[k];
@@ -162,17 +151,15 @@ namespace analysis{
    */
   void
   compute_total_internal_energy(
-      std::vector<body_holder>& bodies)
+      std::vector<body>& bodies)
   {
     using namespace param;
 
     total_internal_energy = 0.;
     #pragma omp parallel for reduction(+:total_internal_energy)
     for(size_t i = 0 ; i < bodies.size(); ++i) {
-      if(!bodies[i].is_local()) continue;
-      body* bp = bodies[i].getBody();
-      if(bp->type() != NORMAL)  continue;
-      total_internal_energy += bp->mass() * bp->getInternalenergy();
+      if(bodies[i].type() != NORMAL)  continue;
+      total_internal_energy += bodies[i].mass() * bodies[i].getInternalenergy();
     }
     mpi_utils::reduce_sum(total_internal_energy);
   }
@@ -184,18 +171,16 @@ namespace analysis{
    */
   void
   compute_total_ang_mom(
-      std::vector<body_holder>& bodies)
+      std::vector<body>& bodies)
   {
     total_ang_mom = {0};
     if constexpr (gdimension == 2) {
       #pragma omp parallel for reduction(add_point:total_ang_mom)
       for(size_t i = 0 ; i < bodies.size(); ++i){
-        if(!bodies[i].is_local()) continue;
-        body* bp = bodies[i].getBody();
-        if(bp->type() != NORMAL)  continue;
-        const double m = bp->mass();
-        const point_t v = bp->getVelocity();
-        const point_t r = bp->coordinates();
+        if(bodies[i].type() != NORMAL)  continue;
+        const double m = bodies[i].mass();
+        const point_t v = bodies[i].getVelocity();
+        const point_t r = bodies[i].coordinates();
         total_ang_mom[0] += m*(r[0]*v[1] - r[1]*v[0]);
       }
       mpi_utils::reduce_sum(total_ang_mom);
@@ -204,12 +189,10 @@ namespace analysis{
     else if constexpr (gdimension == 3) {
       #pragma omp parallel for reduction(add_point:total_ang_mom)
       for(size_t i = 0 ; i < bodies.size(); ++i){
-        if(!bodies[i].is_local()) continue;
-        body* bp = bodies[i].getBody();
-        if(bp->type() != NORMAL)  continue;
-        const double m = bp->mass();
-        const point_t v = bp->getVelocity();
-        const point_t r = bp->coordinates();
+        if(bodies[i].type() != NORMAL)  continue;
+        const double m = bodies[i].mass();
+        const point_t v = bodies[i].getVelocity();
+        const point_t r = bodies[i].coordinates();
         total_ang_mom[0] += m*(r[1]*v[2] - r[2]*v[1]);
         total_ang_mom[1] += m*(r[2]*v[0] - r[0]*v[2]);
         total_ang_mom[2] += m*(r[0]*v[1] - r[1]*v[0]);
@@ -261,7 +244,7 @@ namespace analysis{
   scalar_output(body_system<double,gdimension>& bs, const int rank)
   {
     static bool first_time = true;
-    if(param::out_scalar_every <= 0 || 
+    if(param::out_scalar_every <= 0 ||
        physics::iteration % param::out_scalar_every != 0)
        return;
 
@@ -286,27 +269,27 @@ namespace analysis{
           << "# Scalar reductions: " <<std::endl
           << "# 1:iteration 2:time 3:timestep 4:total_mass "
           << " 5:total_energy 6:kinetic_energy 7:internal_energy"
-          << " 8:mom_x"<< std::endl; 
+          << " 8:mom_x"<< std::endl;
         break;
-      
+
       case 2:
         oss_header
           << "# Scalar reductions: " <<std::endl
-          << "# 1:iteration 2:time 3:timestep 4:total_mass 5:total_energy" 
+          << "# 1:iteration 2:time 3:timestep 4:total_mass 5:total_energy"
           <<  " 6:kinetic_energy 7:internal_energy" <<std::endl
-          << "# 8:mom_x 9:mom_y 10:and_mom_z"<< std::endl; 
+          << "# 8:mom_x 9:mom_y 10:and_mom_z"<< std::endl;
         break;
-      
+
       case 3:
       default:
         oss_header
           << "# Scalar reductions: " <<std::endl
-          << "# 1:iteration 2:time 3:timestep 4:total_mass 5:total_energy" 
+          << "# 1:iteration 2:time 3:timestep 4:total_mass 5:total_energy"
           <<  " 6:kinetic_energy 7:internal_energy "  <<std::endl
           << "# 8:mom_x 9:mom_y 10:mom_z "
-          <<  "11:ang_mom_x 12:ang_mom_y 13:ang_mom_z"<< std::endl; 
+          <<  "11:ang_mom_x 12:ang_mom_y 13:ang_mom_z"<< std::endl;
       }
-      
+
       std::ofstream out(filename);
       out << oss_header.str();
       out.close();
@@ -324,8 +307,8 @@ namespace analysis{
 
     if(gdimension==2)
       oss_data <<" "<< total_ang_mom[0];
-    
-    if(gdimension==3) 
+
+    if(gdimension==3)
       for(unsigned short k = 0 ; k < gdimension ; ++k)
         oss_data <<" "<< total_ang_mom[k];
 

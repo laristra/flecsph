@@ -35,7 +35,7 @@ namespace external_force {
 
   // acceleration and potential function types and pointers
   typedef double  (*potential_t)(const point_t&);
-  typedef point_t (*acceleration_t)(body*);
+  typedef point_t (*acceleration_t)(const body&);
   static std::vector<potential_t> vec_potentials;
   static std::vector<acceleration_t> vec_accelerations;
 
@@ -62,10 +62,10 @@ namespace external_force {
 
 
   template <int I = 0>
-  point_t acceleration_square_well(body* source) {
+  point_t acceleration_square_well(const body& particle) {
     using namespace param;
     point_t a = 0.0;
-    point_t rp = source->coordinates();
+    point_t rp = particle.coordinates();
     const static double
        box[3] = {.5*box_length,.5*box_width,.5*box_height},
        pw_n = extforce_wall_powerindex,
@@ -82,12 +82,12 @@ namespace external_force {
 
   /**
    * @brief      Round or spherical boundary wall
-   * @param      srch  The source's body holder
+   * @param      particle  The particle being accelerated
    */
-  point_t acceleration_spherical_wall(body* source) {
+  point_t acceleration_spherical_wall(const body& particle) {
     using namespace param;
     point_t a = 0.0;
-    point_t rp = source->coordinates();
+    point_t rp = particle.coordinates();
     const double pw_n = extforce_wall_powerindex;
     const double pw_a = extforce_wall_steepness;
     double r = rp[0]*rp[0];
@@ -118,17 +118,17 @@ namespace external_force {
 
 
   /**
-   * @brief      External force support for parabolic 
+   * @brief      External force support for parabolic
    *             sphericall-symmetric density
-   * @param      srch  The source's body holder
+   * @param      particle  The particle being accelerated
    */
-  point_t acceleration_spherical_density_support (body* source) {
+  point_t acceleration_spherical_density_support (const body& particle) {
     using namespace param;
     point_t a = 0.0;
-    static const double 
+    static const double
         K0 = pressure_initial / pow(rho_initial, poly_gamma),
         rho0 = density_profiles::spherical_density_profile(0.);
-    point_t rp = source->coordinates();
+    point_t rp = particle.coordinates();
     double r = rp[0]*rp[0];
     for (unsigned short i=1; i<gdimension; ++i)
       r += rp[i]*rp[i];
@@ -140,7 +140,7 @@ namespace external_force {
       double drhodr = rho_initial / (rho0 * sphere_radius)
                     * density_profiles::spherical_drho_dr(x);
       double a_r = K0*poly_gamma*pow(rho,poly_gamma-2)*drhodr;
-      for (short int i=0; i<gdimension; ++i) 
+      for (short int i=0; i<gdimension; ++i)
         a[i] = a_r*rp[i] / r;
     }
     return a;
@@ -148,7 +148,7 @@ namespace external_force {
 
   double potential_spherical_density_support(const point_t& rp) {
     using namespace param;
-    static const double 
+    static const double
         K0 = pressure_initial / pow(rho_initial, poly_gamma),
         rho0 = density_profiles::spherical_density_profile(0.);
     double r = rp[0]*rp[0];
@@ -167,9 +167,9 @@ namespace external_force {
    * @brief      Add uniform constant gravity acceleration
    * 	         in y-direction (or x-direction if number of
    * 	         dimensions == 1)
-   * @param      srch  The source's body holder
+   * @param      particle  The particle being accelerated
    */
-  point_t acceleration_gravity(body* source) {
+  point_t acceleration_gravity(const body& particle) {
     static const double grav = param::gravity_acceleration_constant;
     point_t acc = 0.0;
     if(gdimension > 1)
@@ -204,14 +204,14 @@ namespace external_force {
    *  - airfoil_attack_angle:   angle of attack - rotation from initial position
    *                            which is parallel to the x-axis.
    *
-   * @param      srch  The source's body holder
+   * @param      particle  The particle being accelerated
    */
-  point_t acceleration_airfoil (body* source) {
+  point_t acceleration_airfoil (const body& particle) {
     using namespace param;
     point_t a = 0.0;
     assert (gdimension > 1);
 
-    point_t rp =  source->coordinates();
+    point_t rp =  particle.coordinates();
     const double x1 = rp[0] - airfoil_anchor_x,
                  y1 = rp[1] - airfoil_anchor_y,
                  alpha = airfoil_attack_angle*M_PI/180.0,
@@ -274,12 +274,12 @@ namespace external_force {
 
   /**
    * @brief      Total external force at a point 'srch'
-   * @param      srch  The source's body holder
+   * @param      particle  Accelerated particle
    */
-  point_t acceleration(body* source) {
+  point_t acceleration(const body& particle) {
     point_t a = 0.0;
     for (auto p : vec_accelerations)
-      a += (*p)(source);
+      a += (*p)(particle);
     return a;
   }
 
@@ -374,9 +374,9 @@ namespace external_force {
 
 
   /**
-   * @brief      Artificial drag force - used for 
+   * @brief      Artificial drag force - used for
    *             particle relaxation
-   * @param      srch  The source's body holder
+   * @param      vel   Velocity against the drag
    */
   point_t acceleration_drag(const point_t& vel) {
     using namespace param;

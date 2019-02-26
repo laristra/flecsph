@@ -46,7 +46,7 @@ namespace diagnostic {
    */
   void
   compute_neighbors_stats(
-      std::vector<body_holder>& bodies,
+      std::vector<body>& bodies,
       tree_topology_t* tree,
       int64_t totalnbodies )
   {
@@ -97,8 +97,7 @@ namespace diagnostic {
 
     for(auto& b: bodies)
     {
-      if(!b.is_local()) continue;
-      uint64_t N = b.getBody()->neighbors();
+      uint64_t N = b.neighbors();
       N_min = std::min(N_min,N);
       N_max = std::max(N_max,N);
 
@@ -114,7 +113,7 @@ namespace diagnostic {
     average_dist_in_h /= totalnbodies;
     N_average = N_total/ totalnbodies;
   }
-#endif 
+#endif
 
   /**
    * @brief      Compute the min, max and average smoothing length
@@ -123,7 +122,7 @@ namespace diagnostic {
    */
   void
   compute_smoothinglength_stats(
-      std::vector<body_holder>& bodies,
+      std::vector<body>& bodies,
       int64_t totalnbodies)
   {
     double h_total = 0.;
@@ -131,8 +130,7 @@ namespace diagnostic {
     h_max = std::numeric_limits<double>::min();
     for(auto& b: bodies)
     {
-      if(!b.is_local()) continue;
-      double h = b.getBody()->radius();
+      double h = b.radius();
       h_total += h;
       h_min = std::min(h,h_min);
       h_max = std::max(h,h_max);
@@ -148,7 +146,7 @@ namespace diagnostic {
    */
   void
   compute_velocity_stats(
-      std::vector<body_holder>& bodies,
+      std::vector<body>& bodies,
       int64_t totalnbodies)
   {
     V_min = std::numeric_limits<double>::max();
@@ -157,8 +155,7 @@ namespace diagnostic {
     double V_tot = 0.;
     for(auto& b: bodies)
     {
-      if(!b.is_local()) continue;
-      double V = norm_point(b.getBody()->getVelocity());
+      double V = norm_point(b.getVelocity());
       V_max = std::max(V,V_max);
       V_min = std::min(V,V_min);
       V_tot += V;
@@ -173,8 +170,8 @@ namespace diagnostic {
   output(body_system<double,gdimension>& bs, const int rank)
   {
     static bool first_time = true;
-    if (param::out_diagnostic_every <= 0 
-      || physics::iteration % param::out_diagnostic_every!=0) 
+    if (param::out_diagnostic_every <= 0
+      || physics::iteration % param::out_diagnostic_every!=0)
       return;
 
     // compute diagnostic quantities

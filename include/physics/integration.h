@@ -39,11 +39,10 @@ namespace integration{
    * @param      srch  The source's body holder
    */
   void dadt_integration(
-      body_holder* srch)
+      body& source)
   {
-    body* source = srch->getBody();
-    source->setAdiabatic(
-      source->getAdiabatic()+physics::dt*source->getDadt());
+    source.setAdiabatic(
+      source.getAdiabatic()+physics::dt*source.getDadt());
   }
 
   /**
@@ -52,9 +51,8 @@ namespace integration{
    * @param      srch  The source's body holder
    */
   void
-  save_velocityhalf (body_holder* srch) {
-    body* source = srch->getBody();
-    source->setVelocityhalf(source->getVelocity());
+  save_velocityhalf (body& source) {
+    source.setVelocityhalf(source.getVelocity());
   }
 
   /**
@@ -66,10 +64,9 @@ namespace integration{
    * @param      srch  The source's body holder
    */
   void
-  leapfrog_kick_v (body_holder* srch) {
-    body* source = srch->getBody();
-    source->setVelocity(source->getVelocity()
-               + 0.5*physics::dt*source->getAcceleration());
+  leapfrog_kick_v (body& source) {
+    source.setVelocity(source.getVelocity()
+               + 0.5*physics::dt*source.getAcceleration());
   }
 
 
@@ -82,10 +79,9 @@ namespace integration{
    * @param      srch  The source's body holder
    */
   void
-  leapfrog_kick_u (body_holder* srch) {
-    body* source = srch->getBody();
-    source->setInternalenergy(source->getInternalenergy()
-                     + 0.5*physics::dt*source->getDudt());
+  leapfrog_kick_u (body& source) {
+    source.setInternalenergy(source.getInternalenergy()
+                     + 0.5*physics::dt*source.getDudt());
   }
 
 
@@ -98,10 +94,9 @@ namespace integration{
    * @param      srch  The source's body holder
    */
   void
-  leapfrog_kick_e (body_holder* srch) {
-    body* source = srch->getBody();
-    source->setTotalenergy(source->getTotalenergy()
-                     + 0.5*physics::dt*source->getDedt());
+  leapfrog_kick_e (body& source) {
+    source.setTotalenergy(source.getTotalenergy()
+                     + 0.5*physics::dt*source.getDedt());
   }
 
 
@@ -112,10 +107,9 @@ namespace integration{
    * @param      srch  The source's body holder
    */
   void
-  leapfrog_drift (body_holder* srch) {
-    body* source = srch->getBody();
-    source->set_coordinates(source->coordinates()
-                   + physics::dt*source->getVelocity());
+  leapfrog_drift (body& source) {
+    source.set_coordinates(source.coordinates()
+                   + physics::dt*source.getVelocity());
   }
 
 }; // integration
