@@ -137,15 +137,6 @@ public:
     assert(root_ != branch_map_.end());
 
     max_depth_ = 0;
-    max_scale_ = element_t(1);
-
-    for(size_t d = 0; d < dimension; ++d)
-    {
-      range_[0][d] = element_t(0);
-      range_[1][d] = element_t(1);
-      scale_[d] = element_t(1);
-    }
-
     ghosts_entities_.resize(max_traversal);
     current_ghosts = 0;
   }
@@ -164,16 +155,8 @@ public:
     assert(root_ != branch_map_.end());
 
     max_depth_ = 0;
-    max_scale_ = end[0] - start[0];
-
-    for(size_t d = 0; d < dimension; ++d)
-    {
-      scale_[d] = end[d] - start[d];
-      max_scale_ = std::max(max_scale_, scale_[d]);
-      range_[0][d] = start[d];
-      range_[1][d] = end[d];
-    }
-
+    range_[0] = start;
+    range_[1] = end;
     ghosts_entities_.resize(max_traversal);
     current_ghosts = 0;
   }
@@ -565,13 +548,6 @@ public:
     const range_t& range)
   {
     range_ = range;
-    max_scale_ = range_[1][0] - range_[0][0];
-
-    for(size_t d = 0; d < dimension; ++d)
-    {
-      scale_[d] = range_[1][d] - range_[0][d];
-      max_scale_ = std::max(max_scale_, scale_[d]);
-    }
   }
 
   /**
@@ -2152,8 +2128,6 @@ private:
       branch_id_hasher__<key_int_t, dimension>>::iterator root_;
   //typename branch_map_t::iterator root_;
   range_t range_;
-  point__<element_t, dimension> scale_;
-  element_t max_scale_;
   std::vector<tree_entity_t> tree_entities_;
   std::vector<entity_t> entities_;
   std::vector<entity_t> entities_w_;
