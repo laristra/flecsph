@@ -1,5 +1,5 @@
 /*~--------------------------------------------------------------------------~*
- * Copyright (c) 2017 Los Alamos National Security, LLC
+ * Copyright (c) 2017 Triad National Security, LLC
  * All rights reserved.
  *~--------------------------------------------------------------------------~*/
 
@@ -102,6 +102,12 @@ void set_derived_params() {
       rho_1      = 5.99924;  rho_2      = 5.99242;
       pressure_1 = 460.894;  pressure_2 = 46.0950;
       vx_1       = 19.5975;  vx_2       =-6.19633;
+      break;
+
+    case (6): // 1D equivalent to the Noh problem
+      rho_1      = 1.0;      rho_2      = 1.0;
+      pressure_1 = 1.e-6;    pressure_2 = 1.e-6;
+      vx_1       = 1.0;      vx_2       =-1.0;
       break;
 
     default:

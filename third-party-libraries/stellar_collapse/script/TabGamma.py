@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #------------------------------------------------------------------------------#
-# Copyright (c) 2018 Los Alamos National Security, LLC
+# Copyright (c) 2018 Triad National Security, LLC
 # All rights reserved.
 # ------------------------------------------------------------------------------#
 
