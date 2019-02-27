@@ -104,6 +104,12 @@ void set_derived_params() {
       vx_1       = 19.5975;  vx_2       =-6.19633;
       break;
 
+    case (6): // 1D equivalent to the Noh problem
+      rho_1      = 1.0;      rho_2      = 1.0;
+      pressure_1 = 1.e-6;    pressure_2 = 1.e-6;
+      vx_1       = 1.0;      vx_2       =-1.0;
+      break;
+
     default:
       clog_one(error) << "ERROR: invalid test (" << sodtest_num << ")." << endl;
       MPI_Finalize();
