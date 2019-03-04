@@ -30,9 +30,9 @@
 
 //#warning "CHANGE TO FLECSI ONE"
 #include "tree_topology/tree_topology.h"
-#include "tree_topology/tree_entity_id.h"
 #include "flecsi/geometry/point.h"
 #include "flecsi/geometry/space_vector.h"
+#include "tree_topology/filling_curve.h"
 //#include "utils.h"
 
 #include "body.h"
@@ -48,22 +48,16 @@ void driver(int argc, char*argv[]);
 
 class tree_policy{
 public:
-
   using tree_t = flecsi::topology::tree_topology<tree_policy>;
   using key_int_t = uint64_t;
   static const size_t dimension = gdimension;
   using element_t = type_t;
-
-  using key_t = flecsi::topology::key_id__<key_int_t,gdimension>;
-
+  using key_t = flecsi::hilbert_curve<dimension,uint64_t>;
   using point_t = flecsi::point__<element_t, dimension>;
   using space_vector_t = flecsi::space_vector<element_t,dimension>;
   using geometry_t = flecsi::topology::tree_geometry<element_t, gdimension>;
-  using id_t = flecsi::topology::entity_id_t;
-
-  using entity_t = body;
-  using tree_entity_t = flecsi::topology::tree_entity<double,key_int_t,dimension,body>;
-  using branch_t = flecsi::topology::tree_branch<key_int_t,dimension,double>;
+  using entity_t = body_u<key_t>;
+  using branch_t = flecsi::topology::tree_branch<dimension,double,key_t>;
 
 }; // class tree_policy
 
@@ -75,7 +69,7 @@ using branch_t = tree_topology_t::branch_t;
 using branch_id_t = tree_topology_t::branch_id_t;
 using space_vector_t = tree_topology_t::space_vector_t;
 using entity_key_t = tree_topology_t::key_t;
-using entity_id_t = flecsi::topology::entity_id_t;
+using body = tree_topology_t::entity_t;
 
 using range_t = std::array<point_t,2>;
 

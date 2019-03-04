@@ -9,7 +9,7 @@
 
 # For vectorization: -fopt-info-vec-missed/optimized/note/all
 set(CMAKE_CXX_FLAGS_DEBUG
-  "-mavx2 -msse4 -ftree-vectorize -fopt-info-vec-all=\"missed.txt\" -march=native \
+  "-mavx2 -msse4 -ftree-vectorize -march=native \
   -pthread -lpthread -DPARALLEL_IO -Wno-sign-compare -Wno-reorder -Wno-narrowing \
   -Wno-deprecated-declarations  -ffast-math -g -O3 -Wall -Wno-return-type \
 -Wno-unused -Wno-comment -Wno-parentheses -lm")
@@ -104,7 +104,7 @@ cinch_add_unit(sodtube_test
   DEFINES
     -DEXT_GDIMENSION=1
   POLICY MPI
-  #THREADS 2
+  # THREADS 2
 )
 
 if(ENABLE_UNIT_TESTS)
@@ -234,4 +234,3 @@ add_custom_target(
 )
 add_dependencies(implosion_test implosion_2d_generator_test)
 endif()
-

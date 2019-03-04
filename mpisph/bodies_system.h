@@ -192,17 +192,19 @@ public:
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_size(MPI_COMM_WORLD,&size);
-    std::ostringstream oss;
 
-    // Clean the previous tree
-    tree_.clean();
-
-    if(param::periodic_boundary_x || param::periodic_boundary_y ||
-      param::periodic_boundary_z)
-      boundary::pboundary_clean(tree_.entities());
+    // Clean the whole tree structure
+    if(current_refresh == refresh_tree){
+      clog_one(trace)<<"Reset tree"<<std::endl;
+      tree_.clean();
+    }else{
+      clog_one(trace)<<"Reset Ghosts"<<std::endl;
+      tree_.reset_ghosts(false);
+    }
 
     if(param::periodic_boundary_x || param::periodic_boundary_y ||
       param::periodic_boundary_z){
+      boundary::pboundary_clean(tree_.entities());
       // Choose the smoothing length to be the biggest from everyone
       double smoothinglength = getSmoothinglength();
       boundary::pboundary_generate(tree_.entities(),2.5*smoothinglength);
@@ -213,58 +215,65 @@ public:
 
     clog_one(trace)<<"#particles: "<<totalnbodies_<<std::endl;
 
-   // Then compute the range of the system
-    tcolorer_.mpi_compute_range(tree_.entities(),range_);
-    clog_one(trace) << "Range="<<range_[0]<<";"<<range_[1]<<std::endl;
-    assert(range_[0] != range_[1]);
-
-    // Generate the tree based on the range
-    //tree_ = new tree_topology_t(range_[0],range_[1]);
-    tree_.set_range(range_);
-
-    // Compute the keys
-    tree_.compute_keys();
-    // Distributed sample sort
-    tcolorer_.mpi_qsort(tree_.entities(),totalnbodies_);
+    if(current_refresh == refresh_tree){
+      clog_one(trace)<<"Exchange everythings"<<std::endl;
+      // Then compute the range of the system
+      tcolorer_.mpi_compute_range(tree_.entities(),range_);
+      assert(range_[0] != range_[1]);
+      clog_one(trace) << "Range="<<range_[0]<<";"<<range_[1]<<std::endl;
+      // Generate the tree based on the range
+      tree_.set_range(range_);
+      // Compute the keys
+      tree_.compute_keys();
+      // Distributed sample sort
+      tcolorer_.mpi_qsort(tree_.entities(),totalnbodies_);
+    }
 
 #ifdef OUTPUT_TREE_INFO
     clog_one(trace) << "Construction of the tree";
 #endif
 
-// Sort the bodies
-#ifdef BOOST_PARALLEL
-    boost::sort::block_indirect_sort(
-#else
-    std::sort(
-#endif
-      tree_.entities().begin(),tree_.entities().end(),
-        [](auto& left, auto &right){
-          if(left.key()<right.key()){
-            return true;
-          }
-          if(left.key() == right.key()){
-            return left.id()<right.id();
-          }
-          return false;
-    }); // sort
-
-    // Add my local bodies in my tree
-    // Clear the bodies_ vector
-    for(auto& bi:  tree_.entities()){
-      bi.set_owner(rank);
-      auto id = tree_.make_entity(bi.key(),bi.coordinates(),
-        &(bi),rank,bi.mass(),bi.id(),bi.radius());
-      tree_.insert(id);
-      auto nbi = tree_.get(id);
-      assert(nbi->global_id() == bi.id());
-      assert(nbi->getBody() != nullptr);
-      assert(nbi->is_local());
+    if(current_refresh == refresh_tree){
+      clog_one(trace)<<"Sort bodies"<<std::endl;
+  // Sort the bodies
+  #ifdef BOOST_PARALLEL
+      boost::sort::block_indirect_sort(
+  #else
+      std::sort(
+  #endif
+        tree_.entities().begin(),tree_.entities().end(),
+          [](auto& left, auto &right){
+            if(left.key()<right.key()){
+              return true;
+            }
+            if(left.key() == right.key()){
+              return left.id()<right.id();
+            }
+            return false;
+      }); // sort
     }
-    localnbodies_ = tree_.entities().size();
+
+    if(current_refresh == refresh_tree){
+      clog_one(trace)<<"Add bodies"<<std::endl;
+      // Add my local bodies in my tree
+      // Clear the bodies_ vector
+      for(auto& bi:  tree_.entities()){
+        bi.set_owner(rank);
+        auto id = tree_.make_entity(bi.key(),bi.coordinates(),
+          &(bi),rank,bi.mass(),bi.id(),bi.radius());
+        tree_.insert(id);
+        auto nbi = tree_.get(id);
+        assert(nbi->global_id() == bi.id());
+        assert(nbi->entity_ptr() != nullptr);
+        assert(nbi->is_local());
+      }
+      localnbodies_ = tree_.entities().size();
+    }
 
     #ifdef OUTPUT_TREE_INFO
         clog_one(trace) << ".done"<<std::endl;
     #endif
+    //tree_.mpi_tree_traversal_graphviz(0);
 
 if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
   param::periodic_boundary_z))
@@ -277,31 +286,19 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
     assert(checknparticles==totalnbodies_);
 #endif
 }
-    //tree_.mpi_tree_traversal_graphviz(0);
     // Add edge bodies from my direct neighbor
     tree_.share_edge();
-
-#ifdef OUTPUT_TREE_INFO
-    clog_one(trace) << "Computing branches"<<std::endl;
-#endif
-
     tree_.cofm(tree_.root(),epsilon_,false);
     //tree_.mpi_tree_traversal_graphviz(1);
 
 #ifdef OUTPUT_TREE_INFO
+{
+    clog_one(trace) << "Computing branches"<<std::endl;
+    std::ostringstream oss;
     std::vector<int> nentities(size);
     int lentities = tree_.root()->sub_entities();
     // Get on 0
-    MPI_Gather(
-      &lentities,
-      1,
-      MPI_INT,
-      &nentities[0],
-      1,
-      MPI_INT,
-      0,
-      MPI_COMM_WORLD
-      );
+    MPI_Gather(&lentities,1,MPI_INT,&nentities[0],1,MPI_INT,0,MPI_COMM_WORLD);
 
     oss << rank << " sub_entities before=";
     for(auto v: nentities){
@@ -312,32 +309,21 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
 
     oss.str("");
     oss.clear();
+}
 #endif
 
     // Exchnage usefull body_holder from my tree to other processes
-    tcolorer_.mpi_branches_exchange(tree_,tree_.entities(),rangeposproc_,
-      range_);
-
-    // update the tree
+    tcolorer_.mpi_branches_exchange(tree_,tree_.entities());
     tree_.cofm(tree_.root(),epsilon_,false);
     //tree_.mpi_tree_traversal_graphviz(2);
 
-    MPI_Barrier(MPI_COMM_WORLD);
-
 #ifdef OUTPUT_TREE_INFO
-    lentities = tree_.root()->sub_entities();
+{
+    std::ostringstream oss;
+    std::vector<int> nentities(size);
+    int lentities = tree_.root()->sub_entities();
     // Get on 0
-    MPI_Gather(
-      &lentities,
-      1,
-      MPI_INT,
-      &nentities[0],
-      1,
-      MPI_INT,
-      0,
-      MPI_COMM_WORLD
-      );
-
+    MPI_Gather(&lentities,1,MPI_INT,&nentities[0],1,MPI_INT,0,MPI_COMM_WORLD);
     if(rank == 0){
       oss << rank << " sub_entities after=";
       for(auto v: nentities){
@@ -345,11 +331,8 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
       }
       oss << std::endl;
       clog_one(trace) << oss.str() << std::flush;
-      for(auto v: nentities){
-        assert(v == lentities);
-        assert(v == totalnbodies_);
-      }
     }
+}
 #endif
 
 #ifdef OUTPUT_TREE_INFO
@@ -357,6 +340,12 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
     clog_one(trace) << tree_ << " root range = "<< tree_.root()->bmin()
      <<";"<<tree_.root()->bmax()<< std::endl;
 #endif
+    if(current_refresh == 0){
+        current_refresh = refresh_tree;
+    }else{
+      --current_refresh;
+    }
+
   }
 
   /**
@@ -518,6 +507,9 @@ private:
   tree_colorer<T,D> tcolorer_;
   tree_topology_t tree_;     // The particle tree data structure
   double epsilon_ = 0.;
+
+  const int refresh_tree = 0;
+  int current_refresh = refresh_tree;
 };
 
 #endif

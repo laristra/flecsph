@@ -1,14 +1,29 @@
-#ifndef _hashtable_
-#define _hashtable_
+/*~--------------------------------------------------------------------------~*
+ * Copyright (c) 2017 Triad National Security, LLC
+ * All rights reserved.
+ *~--------------------------------------------------------------------------~*/
+
+ /*~--------------------------------------------------------------------------~*
+ *
+ * /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
+ * /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
+ * /@@       /@@  @@@@@  @@    // /@@       /@@   /@@/@@     /@@
+ * /@@@@@@@  /@@ @@///@@/@@       /@@@@@@@@@/@@@@@@@ /@@@@@@@@@@
+ * /@@////   /@@/@@@@@@@/@@       ////////@@/@@////  /@@//////@@
+ * /@@       /@@/@@//// //@@    @@       /@@/@@      /@@     /@@
+ * /@@       @@@//@@@@@@ //@@@@@@  @@@@@@@@ /@@      /@@     /@@
+ * //       ///  //////   //////  ////////  //       //      //
+ *
+ *~--------------------------------------------------------------------------~*/
+
+#pragma once
 
 #include <vector>
 
 /**
 * @brief Class for hashtable
 */
-template<
-  typename KEY,
-  typename TYPE>
+template<typename KEY,typename TYPE>
 class hashtable
 {
 
@@ -17,12 +32,9 @@ public:
   /**
   * @brief Iterator on hashtable
   */
-  typedef typename std::vector<std::pair<KEY,TYPE>>::iterator
-    iterator;
+  typedef typename std::vector<std::pair<KEY,TYPE>>::iterator iterator;
 
-  /**
-  * @brief Creation of the hashtable: no collisions
-  */
+  //! @brief Creation of the hashtable: no collisions
   hashtable(){
     collision_ = 0;
     ht_.resize(hash_size_);
@@ -36,8 +48,7 @@ public:
   * @brief Find a key in the hash table
   * Keys can be listed if conflict
   */
-  typename std::vector<std::pair<KEY,TYPE>>::iterator
-  find(const KEY& k){
+  typename std::vector<std::pair<KEY,TYPE>>::iterator find(const KEY& k){
     unsigned int index = hash_(k);
     auto it = ht_[index].begin();
     while(it->first != k && it != ht_[index].end()) ++it;
@@ -48,10 +59,7 @@ public:
   /**
   * @brief Emplace an object in the hashtable, if conflict: advance
   */
-  template<
-    typename... ARGS>
-  void
-  emplace(const KEY& k, ARGS&&... args){
+  template<typename... ARGS> void emplace(const KEY& k, ARGS&&... args){
     unsigned int index = hash_(k);
     // Find an empty spot
     ht_[index].emplace_back(k,std::forward<ARGS>(args)...);
@@ -60,31 +68,19 @@ public:
 
   size_t collision(){return collision_;}
 
-  void
-  clear(){
+  void clear(){
     ht_.clear();
     ht_.resize(hash_size_);
     collision_ = 0;
     nelement_ = 0;
   }
 
-  size_t
-  size(){
-    return nelement_;
-  }
-
-  iterator
-  end()
-  {
-    return ht_[0].end();
-  }
+  size_t size(){ return nelement_; }
+  iterator end() { return ht_[0].end(); }
 
 private:
 
-  unsigned int
-  hash_(const KEY& k){
-    return k & hash_mask_;
-  }
+  unsigned int hash_(const KEY& k){ return k & hash_mask_; }
 
   const unsigned int hash_bit_ = 22;
   const size_t hash_size_ = 1<<hash_bit_;
@@ -93,6 +89,4 @@ private:
 
   size_t collision_;
   size_t nelement_;
-};
-
-#endif // _hashtable_
+}; // class hastable

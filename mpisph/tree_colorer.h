@@ -141,18 +141,18 @@ public:
       return;
     } // if
 
-    std::vector<std::pair<entity_key_t,int64_t>> splitters;
+    splitters_.clear();
     std::vector<int> scount(size);
-    generate_splitters_samples(splitters,rbodies,totalnbodies);
+    generate_splitters_samples(splitters_,rbodies,totalnbodies);
 
     int cur_proc = 0;
 
-    assert(splitters.size() == size-1+2);
+    assert(splitters_.size() == size-1+2);
 
     int64_t nbodies = rbodies.size();
     for(size_t i = 0L ; i < nbodies; ++i){
-      if(rbodies[i].key() >= splitters[cur_proc].first &&
-        rbodies[i].key() < splitters[cur_proc+1].first){
+      if(rbodies[i].key() >= splitters_[cur_proc].first &&
+        rbodies[i].key() < splitters_[cur_proc+1].first){
           scount[cur_proc]++;
         }else{
           i--;
@@ -217,15 +217,11 @@ public:
    *
    * @param      tree             The tree
    * @param      rbodies          The rbodies, local bodies of this process
-   * @param      ranges           The ranges, the key range of all the processes
-   * @param      range_total      The range total of all the particles
    */
   void
   mpi_branches_exchange(
     tree_topology_t& tree,
-    std::vector<body>& rbodies,
-    std::vector<std::array<point_t,2>>& ranges,
-    std::array<point_t,2>& range_total
+    std::vector<body>& rbodies
   )
   {
 
@@ -240,107 +236,78 @@ public:
     #endif
 #endif
 
-  // Send them 2 by 2
-  // Use hypercube communication
+  // Gather the branches of a specific level of the tree
   std::vector<branch_t*> search_branches;
-  tree.find_sub_cells(
-    tree.root(),
-    0,
-    search_branches);
+  tree.find_level(tree.root(),3,search_branches);
 
   // Copy them localy
   std::vector<mpi_branch_t> branches(search_branches.size());
+
   #pragma omp parallel for
   for(int i = 0 ; i < search_branches.size(); ++i){
     assert(search_branches[i]->sub_entities() > 0);
-    branches[i] = mpi_branch_t
-      {
-        search_branches[i]->coordinates(),
-        search_branches[i]->mass(),
-        search_branches[i]->bmin(),
-        search_branches[i]->bmax(),
-        search_branches[i]->id(),
-        search_branches[i]->owner(),
-        search_branches[i]->sub_entities()
-      };
+    branches[i] = mpi_branch_t{
+        search_branches[i]->coordinates(),search_branches[i]->mass(),
+        search_branches[i]->bmin(),search_branches[i]->bmax(),
+        search_branches[i]->key(),search_branches[i]->owner(),
+        search_branches[i]->sub_entities()};
   }
 
-  // Do the hypercube communciation to share the branches
-  // Add them in the tree in the same time
-  int dim = log2(size);
-  bool non_power_2 = false;
-  // In case of non power two, consider dim + 1
-  // In this case all rank also take size + 1 rank
-  int ghosts_rank = -1;
-  if(1<<dim < size){
-    non_power_2 = true;
-    dim++;
-    ghosts_rank = rank + (1<<dim-1);
-    if(ghosts_rank > (1<<dim)-1)
-      ghosts_rank = rank;
-  }
+  // Gather pointers on my local leaves
+  std::vector<branch_t*> leaves;
+  tree.get_leaves(leaves);
 
-  std::vector<mpi_branch_t> ghosts_branches;
-  int ghosts_nsend;
-  int ghosts_last = 0;
+  std::vector<mpi_branch_t> branches_nb;
+  std::vector<int> nbranches_nb(size);
+  mpi_utils::mpi_allgatherv(branches,branches_nb,nbranches_nb);
+  // Prefix sum
+  std::vector<int> nbranches_offset(size);
+  std::partial_sum(nbranches_nb.begin(),nbranches_nb.end(),
+    &nbranches_offset[0]);
+  nbranches_offset.insert(nbranches_offset.begin(),0);
 
-  int nsend;
-  int last = branches.size();
-  for(int i = 0; i < dim; ++i){
-    nsend = branches.size();
-    int partner = rank ^ (1<<i);
-    assert(partner != rank);
-    mpi_one_to_one(rank,partner,branches,nsend,last);
-    // Handle the non power two cases
-    if(non_power_2)
-    {
-      // If this ghosts_rank exists for a real rank don't use it
-      if(rank != ghosts_rank && ghosts_rank <= size-1)
-        continue;
-      ghosts_nsend = ghosts_branches.size();
-      assert(ghosts_rank != -1);
-      int ghosts_partner = ghosts_rank ^ (1<<i);
-      partner = ghosts_partner;
-      // Case already handled before
-      if(ghosts_rank == rank && partner < size)
-        continue;
-      if(partner >= size){
-        partner -= (1<<dim-1);
+  std::vector<int> ninteract_leaves(size);
+
+  // Search for all my leaves that interact with other ranks
+  std::vector<std::vector<mpi_branch_t>> interact_leaves(size);
+  ninteract_leaves[rank] = 0;
+  #pragma omp parallel for
+  for(int i = 0 ; i < size; ++i){
+    if( i == rank ) continue;
+    for(int k = 0 ; k < leaves.size(); ++k){
+      bool accepted = false;
+      for(int j = nbranches_offset[i] ; j <
+        nbranches_offset[i+1] && !accepted; ++j){
+        assert(branches_nb[j].owner != rank);
+        accepted = accepted ||
+          flecsi::topology::tree_geometry<type_t,gdimension>::
+            intersects_box_box
+            (leaves[k]->bmin(),leaves[k]->bmax(),
+            branches_nb[j].min,branches_nb[j].max);
       }
-      if(partner == rank){
-        // Add into the buffer, no communication needed
-        branches.insert(branches.end(),ghosts_branches.begin(),
-          ghosts_branches.end());
-      }else{
-        assert(partner != rank);
-        if(ghosts_rank == rank){
-          mpi_one_to_one(rank,partner,branches,nsend,last);
-        }else{
-          mpi_one_to_one(rank,partner,ghosts_branches,ghosts_nsend,
-            ghosts_last);
-        }
+      if(accepted){
+        interact_leaves[i].push_back(mpi_branch_t{
+          leaves[k]->coordinates(),leaves[k]->mass(),
+          leaves[k]->bmin(),leaves[k]->bmax(),leaves[k]->key(),
+          leaves[k]->owner(),leaves[k]->sub_entities()});
       }
     }
+    ninteract_leaves[i] = interact_leaves[i].size();
   }
-  // Total branches
-  clog_one(trace)<<rank<<"total branches: "<<branches.size()<<std::endl;
 
-#if DEBUG
-  // Check if everyone have the same number
-  int nbranches = branches.size();
-  int result;
-  MPI_Reduce(&nbranches, &result, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-  if(rank == 0){
-    assert(result == branches.size()*size);
-  }
-#endif
+  std::vector<std::vector<mpi_branch_t>> recv_branches(size);
+  mpi_utils::mpi_alltoallv_p2p(ninteract_leaves,interact_leaves,recv_branches);
+  assert(recv_branches[rank].size() == 0);
 
   // Add these branches informations in the tree
-  for(auto b: branches){
-    //clog(trace)<<rank<<" owner: "<<b.owner<<" insert "<<b.key<<std::endl;
-    if(b.owner != rank){
-      tree.insert_branch(b.coordinates,b.mass,b.min,b.max,b.key,
-        b.owner,b.sub_entities);
+  for(int i = 0 ; i < size; ++i){
+    if(rank == i ) continue;
+    for(auto b: recv_branches[i]){
+      //std::cout<<rank<<" owner: "<<b.owner<<" insert "<<b.key<<std::endl;
+      if(b.owner != rank){
+        tree.insert_branch(b.coordinates,b.mass,b.min,b.max,b.key,
+          b.owner,b.sub_entities);
+      }
     }
   }
 
@@ -534,6 +501,10 @@ public:
     MPI_Bcast(&splitters[0],(size-1+2)*sizeof(std::pair<entity_key_t,int64_t>)
     ,MPI_BYTE,0,MPI_COMM_WORLD);
   }
+
+private:
+  // Key track of the splitter to know first and last key
+  std::vector<std::pair<entity_key_t,int64_t>> splitters_;
 
 }; // class tree_colorer
 

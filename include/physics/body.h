@@ -29,21 +29,24 @@
 #define OUTPUT
 
 #include "flecsi/geometry/point.h"
-#include "tree_topology/entity.h"
+#include "tree_topology/tree_types.h"
 #include "user.h"
 
 enum particle_type_t : int {NORMAL = 0 ,WALL = 1};
 
-class body : public flecsi::topology::entity<type_t,uint64_t,gdimension> {
+template<class KEY>
+class body_u : public flecsi::topology::entity<gdimension,type_t,KEY> {
 
   static const size_t dimension = gdimension;
   using element_t = type_t;
   using point_t = flecsi::point__<element_t, dimension>;
 
+  using flecsi::topology::entity<gdimension,type_t,KEY>::mass_;
+
 public:
 
-   body(): entity(), type_(NORMAL)
-   {};
+   body_u(): flecsi::topology::entity<gdimension,type_t,KEY>(),
+    type_(NORMAL){};
 
   double getPressure() const{return pressure_;}
   double getSoundspeed() const{return soundspeed_;}
@@ -95,7 +98,7 @@ public:
     double getDadt() const{return dadt_;};
     void setDadt(double dadt){dadt_ = dadt;};
 
-  friend std::ostream& operator<<(std::ostream& os, const body& b){
+  friend std::ostream& operator<<(std::ostream& os, const body_u& b){
     // TODO change regarding to dimension
     os << std::setprecision(10);
     os << "Particle: Pos: " <<b.coordinates_ << " rho: " << b.density_;
