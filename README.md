@@ -157,7 +157,7 @@ To run a test, you also need an input parameter file, specifying parameters of t
 problem. Parameter files are located in `data/` subdirectory. Running an
 application consists of two steps:
 
-- generating intitial data;
+- generating initial data;
 - running evolution code.
 
 For instance, to run a `sodtube` 1D shock test, do the following (assuming
@@ -210,7 +210,7 @@ https://github.com/laristra/flecsi/blob/master/flecsi/style.md
 # Logs
 
 Cinch Log is the logging tool for this project.
-In order to display log set the environement variable as:
+In order to display log set the environment variable as:
 ```bash
 export CLOG_ENABLE_STDLOG=1
 ```
