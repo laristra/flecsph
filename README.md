@@ -123,7 +123,10 @@ Configure command:
        -DCXX_CONFORMANCE_STANDARD=c++17           \
        -DENABLE_CLOG=ON                           \
        -DENABLE_MPI_THREAD_MULTIPLE=ON            \
-       -DHDF5_IS_PARALLEL=ON
+       -DHDF5_IS_PARALLEL=ON                      \
+       -DCLOG_STRIP_LEVEL=1                       \
+       -DENABLE_UNIT_TESTS=ON                     \
+       -Wno-dev
 ```
 
 Build and install:
