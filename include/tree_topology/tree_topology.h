@@ -53,34 +53,14 @@
 #include <thread>
 
 #include "flecsi/geometry/point.h"
-#include "flecsi/concurrency/thread_pool.h"
+#include "flecsi/data/data_client.h"
 
-#include "key_id.h"
-
-#include "tree_branch.h"
-#include "tree_entity.h"
+#include "tree_types.h"
 #include "tree_geometry.h"
-#include "entity.h"
-#include "hashtable.h"
+//#include "hashtable.h"
 
 namespace flecsi {
 namespace topology {
-
-// Hasher for the branch id used in the unordered_map data structure
-template<
-  typename T,
-  size_t D,
-  class IDTYPE=key_id__<T,D>
->
-struct branch_id_hasher__{
-  size_t
-  operator()(
-    const IDTYPE& k
-  ) const noexcept
-  {
-    return k.value_() & ((1<<22)-1);
-  }
-};
 
 /*!
   The tree topology is parameterized on a policy P which defines its branch and
@@ -112,19 +92,32 @@ public:
   using element_t = typename Policy::element_t; // Type of element either F or D
   using point_t = point__<element_t, dimension>;
   using range_t = std::array<point_t, 2>;
-  using key_int_t = typename Policy::key_int_t; // Type for the keys int64_t
-  using key_t = key_id__<key_int_t,dimension>;
+  using key_t = typename Policy::key_t;
   using branch_id_t = key_t;
   using branch_id_vector_t = std::vector<branch_id_t>;
   using branch_t = typename Policy::branch_t;
   using branch_vector_t = std::vector<branch_t*>;
-  using tree_entity_t = typename Policy::tree_entity_t;
   using entity_t = typename Policy::entity_t;
+  using tree_entity_t = tree_entity<dimension,element_t,key_t,entity_t>;
   using entity_vector_t = std::vector<tree_entity_t*>;
   using apply_function = std::function<void(branch_t&)>;
-  using entity_id_vector_t = std::vector<entity_id_t>;
+  using entity_id_vector_t = std::vector<size_t>;
   using geometry_t = tree_geometry<element_t, dimension>;
   using entity_space_ptr_t = std::vector<tree_entity_t*>;
+
+
+  // Hasher for the branch id used in the unordered_map data structure
+  template<class KEY>
+  struct branch_id_hasher__{
+    size_t
+    operator()(
+      const KEY& k
+    ) const noexcept
+    {
+      return k.value() & ((1<<22)-1);
+    }
+  };
+
 
   /*!
     Constuct a tree topology with unit coordinates, i.e. each coordinate
@@ -214,12 +207,12 @@ public:
       // Find the parent and change the status
       key_t k = s.key();
       auto& b = find_parent(k);
-      std::vector<entity_id_t> remove;
+      std::vector<size_t> remove;
       for(auto eid: b)
       {
         auto ent = get(eid);
         if(ent->owner() != rank){
-          ent->setBody(nullptr);
+          ent->set_entity_ptr(nullptr);
           remove.push_back(eid);
         }
       }
@@ -245,7 +238,7 @@ public:
         {
           auto ent = get(eid);
           assert(ent->owner() != rank);
-          ent->setBody(nullptr);
+          ent->set_entity_ptr(nullptr);
         }
         b.clear();
         b.set_ghosts_local(false);
@@ -522,7 +515,7 @@ public:
     {
       auto* bi = &(g);
       assert(bi->mass()!=0.);
-      assert(bi->key().value_() != 0);
+      assert(bi->key().value() != 0);
       if(bi->key() > entities().back().key()){
         partner = rank +1;
       }else{
@@ -531,7 +524,7 @@ public:
       auto id = make_entity(bi->key(),bi->coordinates(),nullptr,partner,
         bi->mass(),bi->id(),bi->radius());
       insert(id);
-      get(id)->setBody(bi);
+      get(id)->set_entity_ptr(bi);
       // Set the ghosts local in this case
     }
     for(auto& g : shared_entities_)
@@ -568,7 +561,7 @@ public:
   )
   {
     // Use the hash table
-    branch_id_t bid = b->id(); // Branch id
+    branch_id_t bid = b->key(); // Branch id
     bid.push(ci); // Add child number
     auto child = branch_map_.find(bid); // Search for the child
     // If it does not exists, return nullptr
@@ -624,8 +617,8 @@ public:
       if(c->is_leaf()){
         for(auto id: *c){
           auto child = this->get(id);
-          if(child->getBody() != nullptr){
-            search_list.push_back(*(child->getBody()));
+          if(child->entity_ptr() != nullptr){
+            search_list.push_back(*(child->entity_ptr()));
           }
         }
       }else{
@@ -738,7 +731,7 @@ public:
       // Assert the parent exists and is non local
       insert(id);
       auto nbi = get(id);
-      nbi->setBody(&g);
+      nbi->set_entity_ptr(&g);
       find_parent(g.key()).set_ghosts_local(true);
     }
 
@@ -832,7 +825,7 @@ public:
             // Send branch key to request handler
             for(auto b: requests_branches){
               if(!b->requested()){
-                send.push_back(b->id());
+                send.push_back(b->key());
                 b->set_requested(true);
               }
             }
@@ -929,8 +922,8 @@ public:
     for(int j = 0; j < inter_list.size(); ++j){
       for(auto k: *(inter_list[j])){
         inter_coordinates.push_back(tree_entities_[k].coordinates());
-        inter_radius.push_back(tree_entities_[k].h());
-        inter_entities.push_back(tree_entities_[k].getBody());
+        inter_radius.push_back(tree_entities_[k].radius());
+        inter_entities.push_back(tree_entities_[k].entity_ptr());
         assert(inter_entities.back() != nullptr);
       }
     }
@@ -940,7 +933,7 @@ public:
       i <= working_branch->end_tree_entities(); ++i)
     {
       point_t coordinates = tree_entities_[i].coordinates();
-      element_t radius = tree_entities_[i].h();
+      element_t radius = tree_entities_[i].radius();
       size_t total = 0;
       std::vector<size_t> accepted(nb_entities,0);
       for(int j = 0 ; j < nb_entities; ++j)
@@ -1020,7 +1013,7 @@ public:
         nullptr,g.owner(),g.mass(),g.id(),g.radius());
       insert(id);
       auto nbi = get(id);
-      nbi->setBody(&g);
+      nbi->set_entity_ptr(&g);
       // Set the parent to local for the search
       find_parent(g.key()).set_ghosts_local(true);
     }
@@ -1083,7 +1076,7 @@ public:
             assert(b->owner() < size && b->owner() >= 0);
             assert(b->owner() != rank);
             if(!b->requested()){
-              send.push_back(b->id());
+              send.push_back(b->key());
               b->set_requested(true);
             }
           }
@@ -1401,7 +1394,7 @@ public:
     std::stack<branch_t*> stk; stk.push(root());
     while(!stk.empty()){
       branch_t* c = stk.top();
-      int cur_level = c->id().depth();
+      int cur_level = c->key().depth();
       stk.pop();
       if(c->is_leaf() && c->is_local()){
         find.push_back(c);
@@ -1431,7 +1424,7 @@ public:
     std::stack<branch_t*> stk; stk.push(root());
     while(!stk.empty()){
       branch_t* c = stk.top();
-      int cur_level = c->id().depth();
+      int cur_level = c->key().depth();
       stk.pop();
       if(c->is_leaf() && c->is_local()){
         working_branches.push_back(c);
@@ -1535,9 +1528,9 @@ public:
             for(size_t d = 0 ; d < dimension ; ++d)
             {
               bmax[d] = std::max(bmax[d],
-                ent->coordinates()[d]+epsilon+ent->h()/2.);
+                ent->coordinates()[d]+epsilon+ent->radius()/2.);
               bmin[d] = std::min(bmin[d],
-                ent->coordinates()[d]-epsilon-ent->h()/2.);
+                ent->coordinates()[d]-epsilon-ent->radius()/2.);
             }
             coordinates += childmass * ent->coordinates();
             mass += childmass;
@@ -1636,7 +1629,7 @@ public:
         for(auto id: *b){
           auto child = &(tree_entities_[id]);
           // Check if in radius
-          if(ef(center,child->coordinates(),radius,child->h())){
+          if(ef(center,child->coordinates(),radius,child->radius())){
             ents.push_back(child);
           }
         }
@@ -1688,7 +1681,7 @@ public:
         for(auto id: *b){
           auto child = &(tree_entities_[id]);
           // Check if in box
-          if(ef(min,max,child->coordinates(),child->h())){
+          if(ef(min,max,child->coordinates(),child->radius())){
             ents.push_back(child);
           }
         }
@@ -1750,7 +1743,7 @@ public:
     template<
       class... Args
     >
-    entity_id_t
+    size_t
     make_entity(
       Args&&... args
     )
@@ -1758,7 +1751,7 @@ public:
       tree_entities_.emplace_back(std::forward<Args>(args)...);
       auto ent = &(tree_entities_.back());
       // Size -1 to start at 0
-      entity_id_t id = tree_entities_.size()-1;
+      size_t id = tree_entities_.size()-1;
       ent->set_id_(id);
       return id;
     }
@@ -1857,19 +1850,8 @@ public:
      */
     tree_entity_t*
     get(
-      entity_id_t id
+      size_t id
     )
-    {
-      assert(id < tree_entities_.size());
-      return &(tree_entities_[id]);
-    }
-
-    /**
-    * @brief Get a tree_entity using its ID
-    */
-    tree_entity_t*
-    get(
-        size_t id)
     {
       assert(id < tree_entities_.size());
       return &(tree_entities_[id]);
@@ -1944,22 +1926,22 @@ public:
        branch_t* cur = stk.top();
        stk.pop();
        if(!cur->is_leaf()){
-           output<<cur->id()<<" [label=\""<<cur->id()<< "\", xlabel=\"" <<
+           output<<cur->key()<<" [label=\""<<cur->key()<< "\", xlabel=\"" <<
            cur->sub_entities()<<" - "<< cur->owner() <<" - "<< cur->requested()
            <<" - "<<cur->ghosts_local()<<"\"];"<<std::endl;
          switch (cur->locality())
          {
            case 1:
-             output<<cur->id()<<" [shape=circle,color=blue]"<<std::endl;
+             output<<cur->key()<<" [shape=circle,color=blue]"<<std::endl;
              break;
            case 2:
-             output<<cur->id()<<" [shape=circle,color=red]"<<std::endl;
+             output<<cur->key()<<" [shape=circle,color=red]"<<std::endl;
              break;
            case 3:
-             output<<cur->id()<<" [shape=circle,color=green]"<<std::endl;
+             output<<cur->key()<<" [shape=circle,color=green]"<<std::endl;
              break;
            default:
-             output<<cur->id()<<" [shape=circle,color=black]"<<std::endl;
+             output<<cur->key()<<" [shape=circle,color=black]"<<std::endl;
              break;
          }
 
@@ -1969,25 +1951,25 @@ public:
            auto br = child(cur,i);
            if(br == nullptr) continue;
            stk.push(br);
-             output<<std::oct<<cur->id()<<"->"<<br->id()<<std::dec<<std::endl;
+             output<<std::oct<<cur->key()<<"->"<<br->key()<<std::dec<<std::endl;
          }
        }else{
-         output<<cur->id()<<" [label=\""<<cur->id()<< "\", xlabel=\"" <<
+         output<<cur->key()<<" [label=\""<<cur->key()<< "\", xlabel=\"" <<
            cur->sub_entities()<< " - "<< cur->owner() <<" - "<< cur->requested()
            <<" - "<<cur->ghosts_local()<<"\"];"<<std::endl;
          switch (cur->locality())
          {
            case 1:
-             output<<cur->id()<<" [shape=circle,color=blue]"<<std::endl;
+             output<<cur->key()<<" [shape=circle,color=blue]"<<std::endl;
              break;
            case 2:
-             output<<cur->id()<<" [shape=circle,color=red]"<<std::endl;
+             output<<cur->key()<<" [shape=circle,color=red]"<<std::endl;
              break;
            case 3:
-             output<<cur->id()<<" [shape=circle,color=green]"<<std::endl;
+             output<<cur->key()<<" [shape=circle,color=green]"<<std::endl;
              break;
            default:
-             output<<cur->id()<<" [shape=circle,color=black]"<<std::endl;
+             output<<cur->key()<<" [shape=circle,color=black]"<<std::endl;
              break;
          }
          for(auto ent: *cur)
@@ -1999,7 +1981,7 @@ public:
            output<<key<<" [label=\""<<key << "\", xlabel=\"" <<
             e->owner() <<" - "<<e->global_id()<<"\"];"<<std::endl;
 
-           output<<cur->id()<<"->"<<key<<std::endl;
+           output<<cur->key()<<"->"<<key<<std::endl;
            switch (e->locality())
            {
              case 2:
@@ -2029,18 +2011,18 @@ public:
       */
       void
       insert(
-        const entity_id_t& id
+        const size_t& id
       )
       {
         // Find parent of the id
         auto ent = &(tree_entities_[id]);
-        branch_id_t bid = ent->get_entity_key();
+        branch_id_t bid = ent->key();
         branch_t& b = find_parent(bid);
         // It is not a leaf, need to insert intermediate branch
         if(!b.is_leaf())
         {
           // Create the branch
-          int depth = b.id().depth()+1;
+          int depth = b.key().depth()+1;
           bid.truncate(depth);
           int bit = bid.last_value();
           b.add_bit_child(bit);
@@ -2075,7 +2057,7 @@ private:
     {
       branch_id_t pid = bid;
       pid.truncate(max_depth_);
-      while(bid != root_->second.id())
+      while(bid != root_->second.key())
       {
         auto itr = branch_map_.find(bid);
         if(itr != branch_map_.end()){
@@ -2094,7 +2076,7 @@ private:
       branch_t& b
     )
     {
-      branch_id_t pid = b.id();
+      branch_id_t pid = b.key();
       size_t depth = pid.depth() + 1;
 
       // For every children
@@ -2120,12 +2102,12 @@ private:
 
   //using branch_map_t = hashtable<key_int_t,branch_t>;
   using branch_map_t = std::unordered_map<branch_id_t, branch_t,
-    branch_id_hasher__<key_int_t, dimension>>;
+    branch_id_hasher__<key_t>>;
 
   branch_map_t branch_map_;
   size_t max_depth_;
   typename std::unordered_map<branch_id_t,branch_t,
-      branch_id_hasher__<key_int_t, dimension>>::iterator root_;
+      branch_id_hasher__<key_t>>::iterator root_;
   //typename branch_map_t::iterator root_;
   range_t range_;
   std::vector<tree_entity_t> tree_entities_;

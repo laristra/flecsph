@@ -249,7 +249,7 @@ public:
     branches[i] = mpi_branch_t{
         search_branches[i]->coordinates(),search_branches[i]->mass(),
         search_branches[i]->bmin(),search_branches[i]->bmax(),
-        search_branches[i]->id(),search_branches[i]->owner(),
+        search_branches[i]->key(),search_branches[i]->owner(),
         search_branches[i]->sub_entities()};
   }
 
@@ -288,7 +288,7 @@ public:
       if(accepted){
         interact_leaves[i].push_back(mpi_branch_t{
           leaves[k]->coordinates(),leaves[k]->mass(),
-          leaves[k]->bmin(),leaves[k]->bmax(),leaves[k]->id(),
+          leaves[k]->bmin(),leaves[k]->bmax(),leaves[k]->key(),
           leaves[k]->owner(),leaves[k]->sub_entities()});
       }
     }

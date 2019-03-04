@@ -59,7 +59,7 @@ TEST(tree, add_entities){
     auto nbi = tree->get(id);
     //std::cout<<"Got body:"<<*nbi<<std::endl<<std::flush;
     assert(nbi->global_id() == bi.id());
-    assert(nbi->getBody() != nullptr);
+    assert(nbi->entity_ptr() != nullptr);
     assert(nbi->is_local());
   }
 

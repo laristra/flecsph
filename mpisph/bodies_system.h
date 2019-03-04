@@ -264,7 +264,7 @@ public:
         tree_.insert(id);
         auto nbi = tree_.get(id);
         assert(nbi->global_id() == bi.id());
-        assert(nbi->getBody() != nullptr);
+        assert(nbi->entity_ptr() != nullptr);
         assert(nbi->is_local());
       }
       localnbodies_ = tree_.entities().size();

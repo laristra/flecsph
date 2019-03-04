@@ -35,7 +35,7 @@ namespace diagnostic {
   uint64_t N_ghosts;
   double h_min, h_max, h_average;
   double min_dist, average_dist_in_h;
-  entity_id_t id_N_min, id_N_max, id_h_min, id_h_max;
+  size_t id_N_min, id_N_max, id_h_min, id_h_max;
   double V_min, V_max, V_average;
 
 #if 0

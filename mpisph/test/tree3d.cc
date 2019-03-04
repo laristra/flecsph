@@ -118,7 +118,7 @@ TEST(tree_topology, neighbors_sphere_VARIABLE) {
   for(size_t i = 0; i < n; ++i){
     auto ent = t.get(i);
 
-    auto ns = t.find_in_radius(ent->coordinates(), ent->h(),
+    auto ns = t.find_in_radius(ent->coordinates(), ent->radius(),
         tree_geometry_t::within_square);
 
     set<body_holder*> s1;
@@ -129,7 +129,7 @@ TEST(tree_topology, neighbors_sphere_VARIABLE) {
     for(size_t j = 0; j < n; ++j){
       auto ej = t.get(j);
       double dist = distance(ent->coordinates(),ej->coordinates());
-      if(dist*dist < (ent->h()+ej->h())*(ent->h()+ej->h())/4.){
+      if(dist*dist < (ent->radius()+ej->radius())*(ent->radius()+ej->radius())/4.){
         s2.insert(ej);
       }
     }
@@ -221,8 +221,8 @@ TEST(tree_topology, neighbors_box_VARIABLE) {
     auto ent = t.get(i);
 
 	  for(size_t d = 0; d < gdimension; ++d ){
-		  max[d] = ent->coordinates()[d]+0.00001+ent->h();
-		  min[d] = ent->coordinates()[d]-0.00001-ent->h();
+		  max[d] = ent->coordinates()[d]+0.00001+ent->radius();
+		  min[d] = ent->coordinates()[d]-0.00001-ent->radius();
 	  }
     auto ns = t.find_in_box(min,max,tree_geometry_t::intersects_sphere_box);
 
@@ -235,11 +235,11 @@ TEST(tree_topology, neighbors_box_VARIABLE) {
       auto ej = t.get(j);
 
       if(tree_geometry_t::intersects_sphere_box(min,max,
-        ej->coordinates(),ej->h())){
+        ej->coordinates(),ej->radius())){
         s2.insert(ej);
       }
 	  }
     ASSERT_TRUE(s1 == s2);
   }
 }
-#endif 
+#endif

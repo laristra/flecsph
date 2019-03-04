@@ -5,11 +5,10 @@
 #include <cmath>
 #include <mpi.h>
 
-#include "../morton_id.h"
+#include "../filling_curve.h"
 
 using namespace std;
 using namespace flecsi;
-using namespace topology;
 
 namespace flecsi{
 namespace execution{
@@ -33,7 +32,7 @@ operator==(const point__<T,D>& a, const point__<T,D>&b)
 }
 
 using point_2d = point__<double,2>;
-using morton_2d = morton_id<uint64_t,2>;
+using morton_2d = morton_curve<2,uint64_t>;
 const std::array<point_2d,2> range_2d {point_2d{0.,0.},point_2d{1.,1.}};
 
 TEST(morton_2d, range_branch) {
@@ -93,7 +92,7 @@ TEST(morton_2d, range_branch) {
 }
 
 using point_3d = point__<double,3>;
-using morton_3d = morton_id<uint64_t,3>;
+using morton_3d = morton_curve<3,uint64_t>;
 const std::array<point_3d,2> range_3d {point_3d{0.,0.,0.},point_3d{1.,1.,1.}};
 
 TEST(morton_3d, range_branch) {

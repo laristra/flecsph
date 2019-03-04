@@ -403,7 +403,7 @@ void H5P_bodiesReadDataset(
         }
       }
       if constexpr (gdimension == 2) {
-        std::fill(data + IO_nparticlesproc, 
+        std::fill(data + IO_nparticlesproc,
                   data + IO_nparticlesproc*2, 0.);
         H5P_readDataset(file_id, "y", data + IO_nparticlesproc);
         for(int64_t i=0; i<IO_nparticlesproc; ++i) {
@@ -412,7 +412,7 @@ void H5P_bodiesReadDataset(
         }
       }
       if constexpr (gdimension == 3) {
-        std::fill(data + IO_nparticlesproc, 
+        std::fill(data + IO_nparticlesproc,
                   data + IO_nparticlesproc*3, 0.);
         H5P_readDataset(file_id, "y", data + IO_nparticlesproc);
         H5P_readDataset(file_id, "z", data + 2*IO_nparticlesproc);
@@ -421,7 +421,7 @@ void H5P_bodiesReadDataset(
                                  data[IO_nparticlesproc*2 + i]};
           bodies[i].set_coordinates(pos);
         }
-      } 
+      }
     }
     else if (!strcmp(dsname,"vx")) {
       if constexpr (gdimension == 1) {
@@ -431,7 +431,7 @@ void H5P_bodiesReadDataset(
         }
       }
       if constexpr (gdimension == 2) {
-        std::fill(data + IO_nparticlesproc, 
+        std::fill(data + IO_nparticlesproc,
                   data + IO_nparticlesproc*2, 0.);
         H5P_readDataset(file_id, "vy", data + IO_nparticlesproc);
         for(int64_t i=0; i<IO_nparticlesproc; ++i) {
@@ -440,7 +440,7 @@ void H5P_bodiesReadDataset(
         }
       }
       if constexpr (gdimension == 3) {
-        std::fill(data + IO_nparticlesproc, 
+        std::fill(data + IO_nparticlesproc,
                   data + IO_nparticlesproc*3, 0.);
         H5P_readDataset(file_id, "vy", data + IO_nparticlesproc);
         H5P_readDataset(file_id, "vz", data + 2*IO_nparticlesproc);
@@ -450,7 +450,7 @@ void H5P_bodiesReadDataset(
           bodies[i].setVelocity(vel);
         }
       } // switch gdimension
-    } // if dsname 
+    } // if dsname
   } // if T is double
 
 } // H5P_bodiesReadDataset()
@@ -533,7 +533,7 @@ int H5P_isPrefixSnapshot(const char * fprefix, const char *filename) {
     return snum;
   else
     return -1;
-    
+
 }
 
 /*
@@ -543,7 +543,7 @@ int H5P_isPrefixSnapshot(const char * fprefix, const char *filename) {
 bool H5P_fileExists(const char * prefix) {
   char fname[MAX_FNAME_LEN];
   sprintf (fname, "%s.h5part", prefix);
-  return (access( fname, F_OK ) != -1); 
+  return (access( fname, F_OK ) != -1);
 }
 
 
@@ -552,7 +552,7 @@ bool H5P_fileExists(const char * prefix) {
  *           number of a file with given iteration
  * @param    prefix     - filename prefix
  */
-int H5P_findIterationSnapshot(const char * prefix, 
+int H5P_findIterationSnapshot(const char * prefix,
                               const int iteration) {
   int step = -1;
   char fname[MAX_FNAME_LEN];
@@ -600,12 +600,12 @@ int H5P_findIterationSnapshot(const char * prefix,
       H5Fclose(file_id);
 
       // check if this is what we are looking for
-      if (file_iteration == iteration) 
+      if (file_iteration == iteration)
         break;
     }
     closedir(d);
   }
-  return step; 
+  return step;
 }
 
 
@@ -625,7 +625,7 @@ int H5P_removePrefix(const char * output_file_prefix,
 
   if (not param::out_h5data_separate_iterations) {
     sprintf(output_filename, "%s.h5part",output_file_prefix);
-    if (remove(output_filename) == 0) { // if successful 
+    if (remove(output_filename) == 0) { // if successful
       rank|| clog(warn) << "deleting old output file: "
                         << output_filename << std::endl;
       ++n_deleted;
@@ -646,7 +646,7 @@ int H5P_removePrefix(const char * output_file_prefix,
       while ((dir = readdir(d)) != NULL) {
         int stepnum = H5P_isPrefixSnapshot(output_basename, dir->d_name);
         if (stepnum > threshold_stepnum and rank == 0) {
-          if (remove(dir->d_name) == 0) { // if successful 
+          if (remove(dir->d_name) == 0) { // if successful
             rank|| clog(warn) << "deleting old output file: "
                               << dir->d_name << std::endl;
             ++n_deleted;
@@ -676,7 +676,7 @@ void inputDataHDF5(
 
   // add the .h5part extension
   sprintf(input_filename,"%s.h5part",input_file_prefix);
-  bool input_single_file = H5P_fileExists(input_file_prefix);  
+  bool input_single_file = H5P_fileExists(input_file_prefix);
   hid_t dataFile;
 
   // Default if new file, startStep = 0
@@ -704,7 +704,7 @@ void inputDataHDF5(
     // step filename
     char step_filename[MAX_FNAME_LEN];
 
-    if (input_single_file) {  // --- single-file mode --- 
+    if (input_single_file) {  // --- single-file mode ---
 
       // Go through all the steps in a single file
       dataFile = H5P_openFile(input_filename,H5F_ACC_RDONLY);
@@ -721,7 +721,7 @@ void inputDataHDF5(
             clog_one(error)<<"Cannot find attribute 'iteration' in Step#"
               <<step<<" in file "<< input_filename <<std::endl; FULLSTOP;
           }
-          if(iteration == startIteration) 
+          if(iteration == startIteration)
             break;
         }
       }
@@ -736,12 +736,12 @@ void inputDataHDF5(
     else { // ---- multiple-file mode ---
 
       // find the file with initial_iteration
-      int step = H5P_findIterationSnapshot(input_file_prefix, 
+      int step = H5P_findIterationSnapshot(input_file_prefix,
                                     param::initial_iteration);
       // file doesn't exist: complain and exit
       if (step < 0) {
-        clog_one(error) << "Cannot find iteration " 
-                            << param::initial_iteration 
+        clog_one(error) << "Cannot find iteration "
+                            << param::initial_iteration
                             <<" in prefix " << input_file_prefix
                             << std::endl; FULLSTOP;
       }
@@ -751,12 +751,12 @@ void inputDataHDF5(
       sprintf(step_filename,"%s_%05d.h5part",input_file_prefix,step);
       clog_one(warn) <<"Reading from file "<< step_filename <<std::endl;
 
-      // set dataFile and startStep 
+      // set dataFile and startStep
       dataFile = H5P_openFile(step_filename,H5F_ACC_RDONLY);
       startStep = step;
 
     }
- 
+
   } // if specified iteration
 
 
@@ -766,9 +766,9 @@ void inputDataHDF5(
   if(strcmp(output_file_prefix,input_file_prefix) != 0) {
     H5P_removePrefix(output_file_prefix, -1);
     output_step = 0;
-  } 
+  }
   else { // --- output prefix == input prefix
-    
+
     // multiple-files output mode
     if (param::out_h5data_separate_iterations){
 
@@ -922,7 +922,7 @@ void outputDataHDF5(
   char filename[128];
   if (param::out_h5data_separate_iterations)
     sprintf(filename,"%s_%05d.h5part",fileprefix,step);
-  else 
+  else
     sprintf(filename,"%s.h5part",fileprefix);
 
   // Wait for removing the file before writing in
@@ -1054,7 +1054,7 @@ void outputDataHDF5(
 
   pos = 0L;
   for(auto bid: bodies){
-    bi[pos++] = bid.key().value_();
+    bi[pos++] = bid.key().value();
   }
   H5P_writeDataset(dataFile,"key",bi);
 
