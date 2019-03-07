@@ -980,8 +980,6 @@ public:
 
     entities_w_ = entities_;
 
-    std::stack<branch_t*> stk;
-    stk.push(b);
     std::vector<branch_t*> work_branch;
     std::vector<branch_t*> remaining_branches;
     find_sub_cells(b,32,work_branch);
@@ -1058,7 +1056,7 @@ public:
 
     size_t nelem = work_branch.size();
 
-    #pragma omp parallel for schedule(static,1)
+    #pragma omp parallel for
     for(size_t i = 0; i < nelem; ++i){
       std::vector<branch_t*> inter_list;
       std::vector<branch_t*> requests_branches;
@@ -1603,6 +1601,23 @@ public:
       b->set_end_tree_entities(end_te);
     }
 
+    branch_t*
+    find_branch(const key_t& key){
+      auto b = branch_map_.find(key);
+      //assert(b != branch_map_.end());
+      if(b == branch_map_.end()) return nullptr;
+      return &(b->second);
+    }
+
+    void
+    find_children(const key_t& key, std::vector<branch_t*>& children){
+      auto b = &(branch_map_.find(key)->second);
+      for(int d=0 ; d<(1<<dimension);++d){
+        if(!b->as_child(d)) continue;
+        children.push_back(child(b,d));
+      }
+    }
+
   /*!
     Return an index space containing all entities within the specified
     spheroid.
@@ -1884,9 +1899,9 @@ public:
     */
    friend std::ostream& operator<<(std::ostream& os,tree_topology& t )
    {
-     os<<"Tree topology: "<<"#branches: "<<t.branch_map_.size()<<
-       " #entities: "<<t.tree_entities_.size();
-     os <<" #root_subentities: "<<t.root()->sub_entities();
+     os<<"Tree: "<<"#brchs: "<<t.branch_map_.size()<<
+       " #ents: "<<t.tree_entities_.size();
+     os <<" #root_subents: "<<t.root()->sub_entities();
      os <<" depth: "<<t.max_depth_;
      return os;
    }
@@ -2028,7 +2043,6 @@ public:
           b.add_bit_child(bit);
           // Insert this branch and reinsert
           branch_map_.emplace(bid,bid);
-          //clog(trace)<<"Creating sub parent: "<<bid<<std::endl;
           branch_map_.find(bid)->second.set_leaf(true);
           branch_map_.find(bid)->second.insert(id);
         }else{

@@ -54,9 +54,10 @@ struct mpi_branch_t{
   double mass;
   point_t min;
   point_t max;
-  entity_key_t key;
+  key_type key;
   int owner;
   size_t sub_entities;
+  bool leaf;
 };
 
 /**
@@ -204,6 +205,126 @@ public:
 #endif // OUTPUT
   } // mpi_qsort
 
+  void mpi_branches_exchange_all_leaves(
+    tree_topology_t& tree,std::vector<body>& rbodies)
+  {
+    int rank,size;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Comm_size(MPI_COMM_WORLD,&size);
+
+    #ifdef OUTPUT
+      MPI_Barrier(MPI_COMM_WORLD);
+      #ifdef OUTPUT_TREE_INFO
+        clog_one(trace)<<"Branches repartition" << std::endl << std::flush;
+      #endif
+    #endif
+
+    // Send them 2 by 2
+    // Use hypercube communication
+    std::vector<branch_t*> search_branches;
+    tree.find_sub_cells(tree.root(),0,search_branches);
+
+    // Copy them localy
+    std::vector<mpi_branch_t> branches(search_branches.size());
+    #pragma omp parallel for
+    for(int i = 0 ; i < search_branches.size(); ++i){
+      assert(search_branches[i]->sub_entities() > 0);
+      branches[i] = mpi_branch_t{
+        search_branches[i]->coordinates(),
+        search_branches[i]->mass(),
+        search_branches[i]->bmin(),
+        search_branches[i]->bmax(),
+        search_branches[i]->key(),
+        search_branches[i]->owner(),
+        search_branches[i]->sub_entities()
+      };
+    }
+
+    // Do the hypercube communciation to share the branches
+    // Add them in the tree in the same time
+    int dim = log2(size);
+    bool non_power_2 = false;
+    // In case of non power two, consider dim + 1
+    // In this case all rank also take size + 1 rank
+    int ghosts_rank = -1;
+    if(1<<dim < size){
+      non_power_2 = true;
+      dim++;
+      ghosts_rank = rank + (1<<dim-1);
+      if(ghosts_rank > (1<<dim)-1)
+        ghosts_rank = rank;
+    }
+
+    std::vector<mpi_branch_t> ghosts_branches;
+    int ghosts_nsend;
+    int ghosts_last = 0;
+
+    int nsend;
+    int last = branches.size();
+    for(int i = 0; i < dim; ++i){
+      nsend = branches.size();
+      int partner = rank ^ (1<<i);
+      assert(partner != rank);
+      mpi_one_to_one(rank,partner,branches,nsend,last);
+      // Handle the non power two cases
+      if(non_power_2){
+        // If this ghosts_rank exists for a real rank don't use it
+        if(rank != ghosts_rank && ghosts_rank <= size-1)
+          continue;
+        ghosts_nsend = ghosts_branches.size();
+        assert(ghosts_rank != -1);
+        int ghosts_partner = ghosts_rank ^ (1<<i);
+        partner = ghosts_partner;
+        // Case already handled before
+        if(ghosts_rank == rank && partner < size)
+          continue;
+        if(partner >= size){
+          partner -= (1<<dim-1);
+        }
+        if(partner == rank){
+          // Add into the buffer, no communication needed
+          branches.insert(branches.end(),ghosts_branches.begin(),
+          ghosts_branches.end());
+        }else{
+          assert(partner != rank);
+          if(ghosts_rank == rank){
+            mpi_one_to_one(rank,partner,branches,nsend,last);
+          }else{
+            mpi_one_to_one(rank,partner,ghosts_branches,ghosts_nsend,
+              ghosts_last);
+          }
+        }
+      }
+    }
+    // Total branches
+    clog_one(trace)<<rank<<"total branches: "<<branches.size()<<std::endl;
+
+    #if DEBUG
+    // Check if everyone have the same number
+    int nbranches = branches.size();
+    int result;
+    MPI_Reduce(&nbranches, &result, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+    if(rank == 0){
+    assert(result == branches.size()*size);
+    }
+    #endif
+
+    // Add these branches informations in the tree
+    for(auto b: branches){
+    //clog(trace)<<rank<<" owner: "<<b.owner<<" insert "<<b.key<<std::endl;
+    if(b.owner != rank){
+    tree.insert_branch(b.coordinates,b.mass,b.min,b.max,b.key,
+    b.owner,b.sub_entities);
+    }
+    }
+
+    #ifdef OUTPUT_TREE_INFO
+    MPI_Barrier(MPI_COMM_WORLD);
+    clog_one(trace)<<".done "<<std::endl;
+    #endif
+
+  }
+
 
   /**
    * @brief      Exchange the useful branches of the current tree of the procs.
@@ -250,7 +371,7 @@ public:
         search_branches[i]->coordinates(),search_branches[i]->mass(),
         search_branches[i]->bmin(),search_branches[i]->bmax(),
         search_branches[i]->key(),search_branches[i]->owner(),
-        search_branches[i]->sub_entities()};
+        search_branches[i]->sub_entities(),search_branches[i]->is_leaf()};
   }
 
   // Gather pointers on my local leaves
@@ -265,6 +386,8 @@ public:
   std::partial_sum(nbranches_nb.begin(),nbranches_nb.end(),
     &nbranches_offset[0]);
   nbranches_offset.insert(nbranches_offset.begin(),0);
+
+  std::vector<std::vector<mpi_branch_t>> recv_branches(size);
 
   std::vector<int> ninteract_leaves(size);
 
@@ -289,13 +412,12 @@ public:
         interact_leaves[i].push_back(mpi_branch_t{
           leaves[k]->coordinates(),leaves[k]->mass(),
           leaves[k]->bmin(),leaves[k]->bmax(),leaves[k]->key(),
-          leaves[k]->owner(),leaves[k]->sub_entities()});
+          leaves[k]->owner(),leaves[k]->sub_entities(),leaves[k]->is_leaf()});
       }
     }
     ninteract_leaves[i] = interact_leaves[i].size();
   }
 
-  std::vector<std::vector<mpi_branch_t>> recv_branches(size);
   mpi_utils::mpi_alltoallv_p2p(ninteract_leaves,interact_leaves,recv_branches);
   assert(recv_branches[rank].size() == 0);
 
@@ -303,7 +425,6 @@ public:
   for(int i = 0 ; i < size; ++i){
     if(rank == i ) continue;
     for(auto b: recv_branches[i]){
-      //std::cout<<rank<<" owner: "<<b.owner<<" insert "<<b.key<<std::endl;
       if(b.owner != rank){
         tree.insert_branch(b.coordinates,b.mass,b.min,b.max,b.key,
           b.owner,b.sub_entities);
@@ -405,7 +526,7 @@ public:
  */
   void
   generate_splitters_samples(
-    std::vector<std::pair<entity_key_t,int64_t>>& splitters,
+    std::vector<std::pair<key_type,int64_t>>& splitters,
     std::vector<body>& rbodies,
     const int64_t totalnbodies
   ){
@@ -414,11 +535,11 @@ public:
     MPI_Comm_size(MPI_COMM_WORLD,&size);
 
     // Create a vector for the samplers
-    std::vector<std::pair<entity_key_t,int64_t>> keys_sample;
+    std::vector<std::pair<key_type,int64_t>> keys_sample;
     // Number of elements for sampling
     // In this implementation we share up to 256KB to
     // the master.
-    size_t maxnsamples = noct/sizeof(std::pair<entity_key_t,int64_t>);
+    size_t maxnsamples = noct/sizeof(std::pair<key_type,int64_t>);
     int64_t nvalues = rbodies.size();
     size_t nsample = maxnsamples*((double)nvalues/(double)totalnbodies);
 
@@ -431,7 +552,7 @@ public:
     } // for
     assert(keys_sample.size()==(size_t)nsample);
 
-    std::vector<std::pair<entity_key_t,int64_t>> master_keys;
+    std::vector<std::pair<key_type,int64_t>> master_keys;
     std::vector<int> master_recvcounts;
     std::vector<int> master_offsets;
     int master_nkeys = 0;
@@ -453,7 +574,7 @@ public:
       if(totalnbodies<master_nkeys){master_nkeys=totalnbodies;}
       // Number to receiv from each process
       for(int i=0;i<size;++i){
-        master_recvcounts[i]*=sizeof(std::pair<entity_key_t,int64_t>);
+        master_recvcounts[i]*=sizeof(std::pair<key_type,int64_t>);
       } // for
       std::partial_sum(master_recvcounts.begin(),master_recvcounts.end(),
         &master_offsets[0]);
@@ -461,7 +582,7 @@ public:
       master_keys.resize(master_nkeys);
     } // if
 
-    MPI_Gatherv(&keys_sample[0],nsample*sizeof(std::pair<entity_key_t,int64_t>)
+    MPI_Gatherv(&keys_sample[0],nsample*sizeof(std::pair<key_type,int64_t>)
       ,MPI_BYTE,&master_keys[0],&master_recvcounts[0],&master_offsets[0]
       ,MPI_BYTE,0,MPI_COMM_WORLD);
 
@@ -479,9 +600,9 @@ public:
           return false;
         });
 
-      splitters[0].first = entity_key_t::min();
+      splitters[0].first = key_type::min();
       splitters[0].second = 0L;
-      splitters[size].first = entity_key_t::max();
+      splitters[size].first = key_type::max();
       splitters[size].second = LONG_MAX;
 
       for(int i=0;i<size-1;++i){
@@ -498,13 +619,13 @@ public:
     } // if
 
     // Bradcast the splitters
-    MPI_Bcast(&splitters[0],(size-1+2)*sizeof(std::pair<entity_key_t,int64_t>)
+    MPI_Bcast(&splitters[0],(size-1+2)*sizeof(std::pair<key_type,int64_t>)
     ,MPI_BYTE,0,MPI_COMM_WORLD);
   }
 
 private:
   // Key track of the splitter to know first and last key
-  std::vector<std::pair<entity_key_t,int64_t>> splitters_;
+  std::vector<std::pair<key_type,int64_t>> splitters_;
 
 }; // class tree_colorer
 

@@ -119,7 +119,7 @@
    * The angle === l/r < MAC (l source box width, r distance sink -> source)
    * Barnes & Hut 1986
    */
-   bool box_MAC(
+   static bool box_MAC(
      const point_t& position_source, const point_t& position_sink,
      const point_t& box_source_min, const point_t& box_source_max,
      double macangle)

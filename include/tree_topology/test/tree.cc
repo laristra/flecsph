@@ -44,7 +44,7 @@ TEST(tree, add_entities){
   //clog(trace)<<"Computing keys"<<std::endl<<std::flush;
   // Compute the keys
   for(auto& bi:  bodies){
-    bi.set_key(entity_key_t(tree->range(),bi.coordinates()));
+    bi.set_key(key_type(tree->range(),bi.coordinates()));
   }
 
  //clog(trace)<<"Adding in tree"<<std::endl<<std::flush;

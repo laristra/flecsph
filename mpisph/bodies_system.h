@@ -26,6 +26,8 @@
 
 using namespace mpi_utils;
 
+//#define OUTPUT_TREE_GRAPH 1
+
 /**
  * @brief      The bodies/particles system.
  * This is a wrapper for a simpler use from users.
@@ -220,7 +222,8 @@ public:
       // Then compute the range of the system
       tcolorer_.mpi_compute_range(tree_.entities(),range_);
       assert(range_[0] != range_[1]);
-      clog_one(trace) << "Range="<<range_[0]<<";"<<range_[1]<<std::endl;
+      clog_one(trace) << "Range="<<range_[0]<<std::endl;
+      clog_one(trace) << "      "<<range_[1]<<std::endl;
       // Generate the tree based on the range
       tree_.set_range(range_);
       // Compute the keys
@@ -234,7 +237,6 @@ public:
 #endif
 
     if(current_refresh == refresh_tree){
-      clog_one(trace)<<"Sort bodies"<<std::endl;
   // Sort the bodies
   #ifdef BOOST_PARALLEL
       boost::sort::block_indirect_sort(
@@ -254,7 +256,6 @@ public:
     }
 
     if(current_refresh == refresh_tree){
-      clog_one(trace)<<"Add bodies"<<std::endl;
       // Add my local bodies in my tree
       // Clear the bodies_ vector
       for(auto& bi:  tree_.entities()){
@@ -273,7 +274,9 @@ public:
     #ifdef OUTPUT_TREE_INFO
         clog_one(trace) << ".done"<<std::endl;
     #endif
-    //tree_.mpi_tree_traversal_graphviz(0);
+    #ifdef OUTPUT_TREE_GRAPH
+      tree_.mpi_tree_traversal_graphviz(0);
+    #endif
 
 if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
   param::periodic_boundary_z))
@@ -289,7 +292,9 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
     // Add edge bodies from my direct neighbor
     tree_.share_edge();
     tree_.cofm(tree_.root(),epsilon_,false);
-    //tree_.mpi_tree_traversal_graphviz(1);
+    #ifdef OUTPUT_TREE_GRAPH
+      tree_.mpi_tree_traversal_graphviz(1);
+    #endif
 
 #ifdef OUTPUT_TREE_INFO
 {
@@ -309,13 +314,22 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
 
     oss.str("");
     oss.clear();
+    clog_one(trace) << tree_ << std::endl;
+
 }
 #endif
 
     // Exchnage usefull body_holder from my tree to other processes
-    tcolorer_.mpi_branches_exchange(tree_,tree_.entities());
+    if(param::enable_fmm){
+      tcolorer_.mpi_branches_exchange_all_leaves(tree_,tree_.entities());
+    }else{
+      tcolorer_.mpi_branches_exchange(tree_,tree_.entities());
+    }
+
     tree_.cofm(tree_.root(),epsilon_,false);
-    //tree_.mpi_tree_traversal_graphviz(2);
+    #ifdef OUTPUT_TREE_GRAPH
+      tree_.mpi_tree_traversal_graphviz(2);
+    #endif
 
 #ifdef OUTPUT_TREE_INFO
 {
@@ -337,8 +351,7 @@ if(!(param::periodic_boundary_x || param::periodic_boundary_y ||
 
 #ifdef OUTPUT_TREE_INFO
     // Tree informations
-    clog_one(trace) << tree_ << " root range = "<< tree_.root()->bmin()
-     <<";"<<tree_.root()->bmax()<< std::endl;
+    clog_one(trace) << tree_ << std::endl;
 #endif
     if(current_refresh == 0){
         current_refresh = refresh_tree;

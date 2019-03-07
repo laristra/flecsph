@@ -34,7 +34,7 @@ TEST(tree_colorer, mpi_qsort){
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   srand(time(NULL)*rank);
-  clog_set_output_rank(0); 
+  clog_set_output_rank(0);
   tree_colorer<double,gdimension> tc;
 
   // Generating the particles randomly on each process
@@ -64,7 +64,7 @@ TEST(tree_colorer, mpi_qsort){
     );
 
     // Compute the key
-    bodies[i].set_key(entity_key_t(range,bodies[i].coordinates()));
+    bodies[i].set_key(key_type(range,bodies[i].coordinates()));
   }
 
   // Gather all the particles everywhere and sort locally

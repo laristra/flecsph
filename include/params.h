@@ -356,6 +356,11 @@ typedef enum sph_kernel_keyword_enum {
 //
 // Gravity-related parameters
 //
+// Do FMM computation
+# ifndef enable_fmm
+  DECLARE_PARAM(bool,enable_fmm,false)
+# endif
+
 //- mac'n'cheese acceptance criteria
 # ifndef fmm_macangle
   DECLARE_PARAM(double,fmm_macangle,0.0)
@@ -374,9 +379,9 @@ typedef enum sph_kernel_keyword_enum {
 //
 // Simple tests which are set up on regular rectangular lattices do not
 // require particle relaxation term.
-// 
+//
 
-//- apply relaxation for this many steps (non-inclusive); 
+//- apply relaxation for this many steps (non-inclusive);
 //  if set to zero (default), do not apply relaxation.
 # ifndef relaxation_steps
   DECLARE_PARAM(int,relaxation_steps,0)
@@ -629,7 +634,7 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(sph_separation)
 # endif
 
-  if (param_name == "sph_kernel") { 
+  if (param_name == "sph_kernel") {
     for (int c=0; c<str_value.length(); ++c)
       if (str_value[c] == ' ') str_value[c] = '_';
 
@@ -663,7 +668,7 @@ void set_param(const std::string& param_name,
     }
 #   else
     if (not boost::iequals(str_value,QUOTE(sph_kernel))) {
-      clog_one(error) 
+      clog_one(error)
           << "ERROR: sph_kernel #defined as \"" << QUOTE(sph_kernel) << "\" "
           << "but is reset to \"" << str_value << "\" in parameter file"
           << std::endl;
@@ -790,6 +795,11 @@ void set_param(const std::string& param_name,
 # endif
 
   // gravity-related  -------------------------------------------------------
+
+# ifndef enable_fmm
+  READ_BOOLEAN_PARAM(enable_fmm)
+# endif
+
 # ifndef fmm_macangle
   READ_NUMERIC_PARAM(fmm_macangle)
 # endif

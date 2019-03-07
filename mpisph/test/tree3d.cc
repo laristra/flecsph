@@ -24,7 +24,7 @@ using namespace topology;
 std::ostream&
 operator<<(
   std::ostream& ostr,
-  const entity_key_t id)
+  const key_type id)
 {
   id.output_(ostr);
   return ostr;
@@ -56,7 +56,7 @@ TEST(tree_topology, neighbors_sphere_NORMAL) {
   for(size_t i = 0; i < n; ++i){
     point_t p = {uniform(RMINX, RMAXX), uniform(RMINY, RMAXY),
         uniform(RMINZ, RMAXZ)};
-    auto e = t.make_entity(entity_key_t(range,p),p,nullptr,0,mass,0,HMAX);
+    auto e = t.make_entity(key_type(range,p),p,nullptr,0,mass,0,HMAX);
     t.insert(e);
   }
 
@@ -107,7 +107,7 @@ TEST(tree_topology, neighbors_sphere_VARIABLE) {
   for(size_t i = 0; i < n; ++i){
     point_t p = {uniform(RMINX, RMAXX), uniform(RMINY, RMAXY),
         uniform(RMINZ, RMAXZ)};
-    auto e = t.make_entity(entity_key_t(range,p),p,nullptr,0,mass,0,uniform(HMIN,HMAX));
+    auto e = t.make_entity(key_type(range,p),p,nullptr,0,mass,0,uniform(HMIN,HMAX));
     t.insert(e);
   }
 
@@ -152,7 +152,7 @@ TEST(tree_topology, neighbors_box_NORMAL) {
   for(size_t i = 0; i < n; ++i){
     point_t p = {uniform(RMINX, RMAXX), uniform(RMINY, RMAXY),
         uniform(RMINZ, RMAXZ)};
-    auto e = t.make_entity(entity_key_t(range,p),p,nullptr,0,mass,0,HMAX);
+    auto e = t.make_entity(key_type(range,p),p,nullptr,0,mass,0,HMAX);
     t.insert(e);
   }
 
@@ -209,7 +209,7 @@ TEST(tree_topology, neighbors_box_VARIABLE) {
   for(size_t i = 0; i < n; ++i){
     point_t p = {uniform(RMINX, RMAXX), uniform(RMINY, RMAXY),
         uniform(RMINZ, RMAXZ)};
-    auto e = t.make_entity(entity_key_t(range,p),p,nullptr,0,mass,0,uniform(HMIN,HMAX));
+    auto e = t.make_entity(key_type(range,p),p,nullptr,0,mass,0,uniform(HMIN,HMAX));
     t.insert(e);
   }
 
