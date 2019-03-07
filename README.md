@@ -39,8 +39,6 @@ dependencies in a separate directory, with the following directory structure:
   ├── flecsph
   │   ├── build
   │   └── third-party-libraries
-  │       ├── install_h5hut.sh
-  │       └── install_hdf5_parallel.sh
   └── local
       ├── bin
       ├── include
