@@ -17,6 +17,7 @@
   # box_height = 0.8
 
 # gravity related parameters:
+  enable_fmm = true
   fmm_macangle = 1.0
   fmm_max_cell_mass = 0.1
   thermokinetic_formulation = FALSE
@@ -32,4 +33,3 @@
   out_h5data_every = 10
   output_h5data_prefix = "collapse_evolution"
   #sph_update_uniform_h = yes
-

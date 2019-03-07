@@ -164,8 +164,10 @@ mpi_init_task(const char * parameter_file){
 
 
       bs.apply_in_smoothinglength(physics::compute_acceleration);
-      clog_one(trace) << "compute gravitation"<<std::endl << std::flush;
-      bs.gravitation_fmm();
+      if(param::enable_fmm){
+        clog_one(trace) << "compute gravitation"<<std::endl << std::flush;
+        bs.gravitation_fmm();
+      }
       clog_one(trace) << "leapfrog: kick two (velocity)" << std::flush;
       bs.apply_all(integration::leapfrog_kick_v);
       clog_one(trace) << ".done" << std::endl;
