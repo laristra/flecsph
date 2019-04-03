@@ -46,6 +46,11 @@ cache:
   directories:
     - $HOME/.sonar
 
+branches:
+  only:
+  - master
+  -  /^stable\/.*$/
+
 compiler:
   - gcc
 # No openmp  - clang
