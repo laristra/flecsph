@@ -1700,8 +1700,7 @@ public:
     output << "digraph G {" << std::endl << "forcelabels=true;" << std::endl;
 
     // Add the legend
-    output << "branch [label=\"branch\" xlabel=\"sub_entities,owner,requested,"
-              "ghosts_local\"]"
+    output << "branch [label=\"branch\" xlabel=\"sub_entities,owner\"]"
            << std::endl;
 
     std::stack<branch_t *> stk;
@@ -1714,8 +1713,7 @@ public:
       stk.pop();
       if (!cur->is_leaf()) {
         output << cur->key() << " [label=\"" << cur->key() << "\", xlabel=\""
-               << cur->sub_entities() << " - " << cur->owner() << " - "
-               << cur->requested() << " - " << cur->ghosts_local() << "\"];"
+               << cur->sub_entities() << " - " << cur->owner() << "\"];"
                << std::endl;
         switch (cur->locality()) {
         case 1:
@@ -1743,8 +1741,7 @@ public:
         }
       } else {
         output << cur->key() << " [label=\"" << cur->key() << "\", xlabel=\""
-               << cur->sub_entities() << " - " << cur->owner() << " - "
-               << cur->requested() << " - " << cur->ghosts_local() << "\"];"
+               << cur->sub_entities() << " - " << cur->owner() << "\"];"
                << std::endl;
         switch (cur->locality()) {
         case 1:
@@ -1831,12 +1828,12 @@ private:
   branch_t &find_parent(branch_id_t bid) {
     branch_id_t pid = bid;
     pid.truncate(max_depth_);
-    while (bid != root_->second.key()) {
-      auto itr = branch_map_.find(bid);
+    while (pid != root_->second.key()) {
+      auto itr = branch_map_.find(pid);
       if (itr != branch_map_.end()) {
         return itr->second;
       }
-      bid.pop();
+      pid.pop();
     }
     return root_->second;
   }

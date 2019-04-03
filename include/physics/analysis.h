@@ -212,7 +212,7 @@ namespace analysis{
     static int count = 0;
     const int screen_length = 40;
     if (out_screen_every > 0 || physics::iteration % out_screen_every == 0) {
-      (++count-1)%screen_length  ||
+      (++count-1)%screen_length ||
       clog_one(info)<< "#-- iteration:               time:" <<std::endl;
       clog_one(info)
         << std::setw(14) << physics::iteration

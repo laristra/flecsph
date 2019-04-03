@@ -289,7 +289,7 @@ void H5P_bodiesReadDataset(std::vector<body> &bodies, hid_t &file_id,
   // read dataset
   int err = H5P_readDataset(file_id, dsname, data);
   if (err)
-    rank || clog(warn) << "Unable to read " << dsname << ": "
+    clog_one(warn) << "Unable to read " << dsname << ": "
                        << "error code " << err << std::endl;
 
   // assign corresponding field in bodies
@@ -303,7 +303,7 @@ void H5P_bodiesReadDataset(std::vector<body> &bodies, hid_t &file_id,
         bodies[i].set_id(data[i]);
     } else {
       // generate the ids
-      rank || clog(trace) << "Setting ID for particles" << std::endl;
+      clog_one(trace) << "Setting ID for particles" << std::endl;
       int64_t start = (IO_nparticles / size) * rank + 1;
       for (int64_t i = 0; i < IO_nparticlesproc; ++i) {
         bodies[i].set_id(start + i);
@@ -511,7 +511,7 @@ int H5P_findIterationSnapshot(const char *prefix, const int iteration) {
       sprintf(fname, "%s_%05d.h5part", prefix, step);
       file_id = H5P_openFile(fname, H5F_ACC_RDONLY);
       if (not H5P_hasStep(file_id, step)) {
-        rank || clog(error) << "Cannot find snapshot '" << step << "' in Step#"
+        clog_one(error) << "Cannot find snapshot '" << step << "' in Step#"
                             << step << " in file " << fname << std::endl;
         FULLSTOP;
       }
@@ -520,7 +520,7 @@ int H5P_findIterationSnapshot(const char *prefix, const int iteration) {
       // get iteration of the step
       int64_t file_iteration;
       if (0 != H5P_readAttributeStep(file_id, "iteration", &file_iteration)) {
-        rank || clog(error) << "Cannot read attribute 'iteration' in Step#"
+        clog_one(error) << "Cannot read attribute 'iteration' in Step#"
                             << step << " in file " << fname << std::endl;
         FULLSTOP;
       }
@@ -552,7 +552,7 @@ int H5P_removePrefix(const char *output_file_prefix,
   if (not param::out_h5data_separate_iterations) {
     sprintf(output_filename, "%s.h5part", output_file_prefix);
     if (remove(output_filename) == 0) { // if successful
-      rank || clog(warn) << "deleting old output file: " << output_filename
+      clog_one(warn) << "deleting old output file: " << output_filename
                          << std::endl;
       ++n_deleted;
     }
@@ -572,7 +572,7 @@ int H5P_removePrefix(const char *output_file_prefix,
         int stepnum = H5P_isPrefixSnapshot(output_basename, dir->d_name);
         if (stepnum > threshold_stepnum and rank == 0) {
           if (remove(dir->d_name) == 0) { // if successful
-            rank || clog(warn) << "deleting old output file: " << dir->d_name
+            clog_one(warn) << "deleting old output file: " << dir->d_name
                                << std::endl;
             ++n_deleted;
           }
