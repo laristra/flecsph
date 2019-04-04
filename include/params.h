@@ -475,6 +475,11 @@ typedef enum sph_kernel_keyword_enum {
   DECLARE_PARAM(double,sedov_blast_radius,1.0)
 # endif
 
+// in Noh test: infall velocity
+# ifndef noh_infall_velocity
+  DECLARE_PARAM(double,noh_infall_velocity,0.1)
+# endif
+
 // initial data lattice type:
 # ifndef lattice_type
   DECLARE_PARAM(int,lattice_type,0)
@@ -877,6 +882,10 @@ void set_param(const std::string& param_name,
 
 # ifndef sedov_blast_radius
   READ_NUMERIC_PARAM(sedov_blast_radius)
+# endif
+
+# ifndef noh_infall_velocity
+  READ_NUMERIC_PARAM(noh_infall_velocity)
 # endif
 
 # ifndef lattice_type
