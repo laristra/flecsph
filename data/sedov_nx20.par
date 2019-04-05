@@ -9,7 +9,7 @@
   pressure_initial = 1.0e-7
   sphere_radius = 1.0
   sph_eta = 1.2
-  sedov_blast_energy = 1.0
+  sedov_blast_energy = 2.e-7
   sedov_blast_radius = 1.0 # in units of particle separation
   lattice_type = 2         # 0:rectangular, 1:hcp, 2:fcc, 3:spherical
                            # (in 2d both hcp and fcc are triangular)
@@ -17,7 +17,7 @@
 
 # evolution parameters:
   sph_kernel = "Wendland C4"
-  initial_dt = 2.e-3  # TODO: better use Courant factor X sph_separation
+  initial_dt = 1.e-4   # TODO: better use Courant factor X sph_separation
   final_iteration = 50
   out_screen_every = 1
   out_scalar_every = 10
