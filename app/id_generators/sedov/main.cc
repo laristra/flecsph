@@ -124,7 +124,6 @@ void set_derived_params() {
       total_mass = rho_initial * box_length*box_width*box_height;
     }
     else if (domain_type == 1) { // a sphere
-      //total_mass = rho_initial * 4./3.*M_PI*CU(sphere_radius);
       // normalize mass such that central density is rho_initial
       total_mass = rho_initial * CU(sphere_radius)
                  / density_profiles::spherical_density_profile(0.0);
@@ -300,10 +299,16 @@ int main(int argc, char * argv[]){
       particle.set_coordinates(rp);
     }
 
+    // Blast energy in input file is given as total energy.
+    // FleCSPH uses specific internal energy. 
+    // Convert blast energy in specific internal energy: 
+    double u_blast = sedov_blast_energy/mass_blast;
+
     // set internal energy
     double u_a = K0*pow(rho_a,poly_gamma-1)/(poly_gamma-1);
     if (r < r_blast) 
-      u_a += sedov_blast_energy/particles_blast;
+      u_a += u_blast;
+      //u_a += sedov_blast_energy/particles_blast;
     particle.setInternalenergy(u_a);
 
     // set pressure (a function of density and internal energy)
@@ -312,14 +317,12 @@ int main(int argc, char * argv[]){
 
     // set timestep
     particle.setDt(initial_dt);
-
   }
 
   clog_one(info) << "Number of particles: " << nparticles << std::endl;
-  clog_one(info) << "Mass of a single particle: " << mass_particle << std::endl;
   clog_one(info) << "Total number of seeded blast particles: " << particles_blast << std::endl;
-  clog_one(info) << "Total blast energy (E_blast = u_blast * total mass): "
-                 << sedov_blast_energy * mass_blast << std::endl;
+  clog_one(info) << "Mass of seeded blast particles: " << mass_blast << std::endl;
+  clog_one(info) << "Total blast energy: " << sedov_blast_energy << std::endl;
 
   // remove the previous file
   remove(initial_data_file);
