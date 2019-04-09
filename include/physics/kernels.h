@@ -418,7 +418,7 @@ namespace kernels{
     double rh1 = 1 - rh;
     double rh2 = rh1*rh1;
     double rh6 = rh2*rh2*rh2;
-    double sigma = wendland_c4_sigma[2]/hd;
+    double sigma = wendland_c4_sigma[gdimension-1]/hd;
     double result = sigma*rh6*(1 + rh*(6 + rh*35/3));
     return result*(rh<1.0);
   }
