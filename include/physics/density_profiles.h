@@ -51,15 +51,35 @@ namespace density_profiles {
   const  double mesa_q = 0.25; // ratio of the slope width to the radius
 
   /**
-   * @brief  constant uniform density in a domain of radius R = 1
+   * @brief  constant uniform density in a domain of radius R = 1,
+   *         normalized such that the total mass M = 1
    * @param  r     - spherical radius
    */
   double rho_constant_density(const double r) {
-    return 0.75/M_PI;
+    double rho = 0.0;
+    if constexpr (gdimension == 1)
+      rho = 0.5;
+    
+    if constexpr (gdimension == 2)
+      rho = 1.0/M_PI;
+
+    if constexpr (gdimension == 3)
+      rho = 0.75/M_PI;
+    return rho;
   }
 
   double mass_constant_density(const double r) {
-    return CU(r);
+    double mass = 0.0;
+    if constexpr (gdimension == 1)
+      mass = r;
+    
+    if constexpr (gdimension == 2)
+      mass = SQ(r);
+
+    if constexpr (gdimension == 3)
+      mass = CU(r);
+
+    return mass;
   }
 
   double drhodr_constant_density(const double r) {
@@ -71,15 +91,45 @@ namespace density_profiles {
    * @param  r     - spherical radius
    */
   double rho_parabolic_density(const double r) {
-    return 15./(8.*M_PI)*(1. - r*r);
+    double rho = 0.0;
+    if constexpr (gdimension == 1)
+      rho = 0.75*(1. - SQ(r));
+    
+    if constexpr (gdimension == 2)
+      rho = 2./M_PI*(1. - SQ(r));
+    
+    if constexpr (gdimension == 3)
+      rho = 15./(8.*M_PI)*(1. - SQ(r));
+
+    return rho;
   }
 
   double mass_parabolic_density(const double r) {
-    return 7.5*CU(r)*(1./3. - r*r/5.);
+    double mass = 0.0;
+    if constexpr (gdimension == 1)
+      mass = 0.5*r*(3.0 - SQ(r));
+    
+    if constexpr (gdimension == 2)
+      mass = SQ(r)*(2. - SQ(r));
+    
+    if constexpr (gdimension == 3)
+      mass = 0.5*CU(r)*(5. - 3.*SQ(r));
+
+    return mass;
   }
 
   double drhodr_parabolic_density(const double r) {
-    return -15./(4.*M_PI)*r;
+    double drhodr = 0.0;
+    if constexpr (gdimension == 1)
+      drhodr = -1.5*r;
+    
+    if constexpr (gdimension == 2)
+      drhodr = -4./M_PI*r;
+    
+    if constexpr (gdimension == 3)
+      drhodr = -15./(4.*M_PI)*r;
+
+    return drhodr;
   }
 
   /**
@@ -87,18 +137,25 @@ namespace density_profiles {
    *
    *           / rho0                      if r < r0;
    *           |
-   * rho(r) = <  rho0 (1 - (r-r0)^2/dr^2)  if r < r0 + dr;
+   * rho(r) = <  rho0 (1 - (r-r0)^2/dr^2)  if r0 < r < 1;
    *           |
-   *           \ 0                         if r > r0 + dr.
+   *           \ 0                         if r > 1.
    *
    * @param  r     - spherical radius
    */
   double mesa_mass_helper(const double r) { 
     const double dr = mesa_q, r0 = 1. - mesa_q;
-    return CU(r0)/3.
-       + (CU(r)-CU(r0))/3.*(1. - SQ(r0)/SQ(dr))
-       + r0*(SQ(r)-SQ(r0))*(SQ(r)+SQ(r0))/(2.*SQ(dr))
-       - (SQ(r)*CU(r)-SQ(r0)*CU(r0))/(5*SQ(dr)); 
+    double mm = 0.0;
+
+    if constexpr (gdimension == 2)
+      mm = SQ(r)*(1. - (.5*SQ(r) + SQ(r0))/SQ(dr))
+         + (.5*CU(r0) + 4.*CU(r))*r0/(3.*SQ(dr));
+
+    if constexpr (gdimension == 3)
+      mm = CU(r0)/3. + (CU(r)-CU(r0))/3.*(1. - SQ(r0)/SQ(dr))
+                     + r0*(SQ(r)-SQ(r0))*(SQ(r)+SQ(r0))/(2.*SQ(dr))
+                     - (SQ(r)*CU(r)-SQ(r0)*CU(r0))/(5*SQ(dr)); 
+    return mm;
   }
 
   double rho_mesa_density(const double r) {
@@ -112,11 +169,26 @@ namespace density_profiles {
   }
 
   double mass_mesa_density(const double r) {
+    const double dr = mesa_q, r0 = 1. - mesa_q;
     double m = 0.0;
-    if (r < 1.-mesa_q) 
-      m = 4.*M_PI/3. * mesa_rho0 * CU(r);
-    else if (r - 1. < 1e-12)
-      m = 4.*M_PI*mesa_rho0*mesa_mass_helper(r);
+    if constexpr (gdimension == 1) {
+      if (r < 1.-mesa_q) 
+        m = 2.*mesa_rho0*r;
+      else if (r - 1. < 1e-12)
+        m = 2.*mesa_rho0*(r - CU(r-r0)/(3.*SQ(dr)));
+    }
+    if constexpr (gdimension == 2) {
+      if (r < 1.-mesa_q) 
+        m = M_PI * mesa_rho0 * SQ(r);
+      else if (r - 1. < 1e-12)
+        m = M_PI*mesa_rho0*mesa_mass_helper(r);
+    }
+    if constexpr (gdimension == 3) {
+      if (r < 1.-mesa_q) 
+        m = 4.*M_PI/3. * mesa_rho0 * CU(r);
+      else if (r - 1. < 1e-12)
+        m = 4.*M_PI*mesa_rho0*mesa_mass_helper(r);
+    }
     return m;
   }
 
@@ -147,7 +219,14 @@ namespace density_profiles {
       spherical_density_profile = rho_mesa_density;
       spherical_mass_profile = mass_mesa_density;
       spherical_drho_dr = drhodr_mesa_density;
-      mesa_rho0 = 1./(4.*M_PI*mesa_mass_helper(1.));
+      if constexpr (gdimension == 1) 
+        mesa_rho0 = .5/(1. - mesa_q/3.);
+
+      if constexpr (gdimension == 2)
+        mesa_rho0 = 1./(M_PI*mesa_mass_helper(1.));
+
+      if constexpr (gdimension == 3)
+        mesa_rho0 = 1./(4.*M_PI*mesa_mass_helper(1.));
     }
     else {
       clog(error) << "ERROR: wrong parameter in density_profiles";
