@@ -85,7 +85,17 @@ namespace physics{
       double Wab =  sph_kernel_function(r_a_[b],.5*(h_a+h_[b]));
       rho_a += m_[b]*Wab;
     } // for
-    mpi_assert(rho_a>0);
+    if (not (rho_a>0)) {
+      std::cout << "Density of a particle is not a positive number: "
+                << "rho = " << rho_a << std::endl;
+      std::cout << "Failed particle id: " << particle.id() << std::endl;
+      std::cerr << "particle position: " << particle.coordinates() << std::endl;
+      std::cerr << "particle velocity: " << particle.getVelocity() << std::endl;
+      std::cerr << "particle acceleration: " << particle.getAcceleration() << std::endl;
+      std::cerr << "smoothing length:  " << particle.radius()
+                                         << std::endl;
+      assert (false);
+    }
     particle.setDensity(rho_a);
   } // compute_density
 
@@ -129,6 +139,7 @@ namespace physics{
                 << "particle id: " << particle.id()      << std::endl
                 << "total energy: " << etot              << std::endl
                 << "kinetic energy: " << ekin            << std::endl
+                << "potential energy: " << epot          << std::endl
                 << "particle position: " << pos          << std::endl;
       mpi_assert(false);
     }
@@ -450,7 +461,34 @@ namespace physics{
         if(epot_next - epot < eint*0.5) break;
         dtmin *= 0.5;
       }
-      assert (i<20);
+
+      if (i>=20) {
+        std::cerr << "ERROR: eint-based dt estimator loop did not converge " 
+                  << "for particle " << source.id() << std::endl;
+        std::cerr << "particle position: " << pos << std::endl
+                  << "particle velocity: " << vel << std::endl
+                  << "particle acceleration: " 
+                  << source.getAcceleration() << std::endl;
+        std::cerr << "smoothing length:  " << source.radius()
+                                           << std::endl;
+        std::cerr << "dx: " << dx << std::endl;
+        std::cerr << "dt_v = " << dt_v << ", vn = " << vn << std::endl;
+        std::cerr << "dt_a = " << dt_a << ", acc = " << acc << std::endl;
+        std::cerr << "dt_c = " << dt_c << ", cs_a = " << cs_a
+                  << ", max_mu_ab = " << max_mu_ab << std::endl;
+        std::cerr << "internal energy: " << eint << std::endl;
+        std::cerr << "potential energy: " << epot << std::endl;
+        std::cerr << "total energy: " << source.getTotalenergy() << std::endl;
+        dtmin = timestep_cfl_factor * std::min(std::min(dt_v,dt_a), dt_c);
+        for(i=0; i<20; ++i) {
+          epot_next = external_force::potential(pos + dtmin*vel);
+          std::cerr << "dtmin[" << i << "] = " << dtmin
+                    << ", epot = " << epot_next << std::endl;
+          if(epot_next - epot < eint*0.5) break;
+          dtmin *= 0.5;
+        }
+        assert (false);
+      }
     }
 
     source.setDt(dtmin);
