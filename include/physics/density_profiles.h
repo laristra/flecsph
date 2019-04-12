@@ -163,7 +163,7 @@ namespace density_profiles {
     const double r0 = 1. - mesa_q;
     if (r < 1.-mesa_q) 
       rho = mesa_rho0;
-    else if (r < 1.)
+    else if (r < .9999)
       rho = mesa_rho0*(1. - SQ(r-r0)/SQ(mesa_q));
     return rho;
   }
@@ -195,7 +195,7 @@ namespace density_profiles {
   double drhodr_mesa_density(const double r) {
     double drhodr = 0.0;
     const double r0 = 1. - mesa_q;
-    if (r > 1.-mesa_q and r < 1.) 
+    if (r > 1.-mesa_q and r < .9999) 
       drhodr = -2.*mesa_rho0*(r-r0)/SQ(mesa_q);
     return drhodr;
   }
