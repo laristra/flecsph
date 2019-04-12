@@ -139,11 +139,11 @@ namespace external_force {
                  * density_profiles::spherical_density_profile(x);
       double drhodr = rho_initial / (rho0 * sphere_radius)
                     * density_profiles::spherical_drho_dr(x);
-      double a_r = K0*poly_gamma*pow(rho,poly_gamma-2)*drhodr;
+      double a_r = (rho>0)?(K0*poly_gamma*pow(rho,poly_gamma-2)*drhodr):0;
       for (short int i=0; i<gdimension; ++i)
         a[i] = a_r*rp[i] / r;
     }
-    return a;
+    return a + acceleration_spherical_wall(particle);
   }
 
   double potential_spherical_density_support(const point_t& rp) {
@@ -158,8 +158,9 @@ namespace external_force {
     const double x = r / sphere_radius;
     double rho = rho_initial / rho0
                * density_profiles::spherical_density_profile(x);
-    double phi = -K0*poly_gamma*pow(rho,poly_gamma-1.) / (poly_gamma-1.);
-    return phi;
+    double phi = (rho>0) ? 
+                 (-K0*poly_gamma*pow(rho,poly_gamma-1.)/(poly_gamma-1.)):0;
+    return phi + potential_spherical_wall(rp);
   }
 
 
