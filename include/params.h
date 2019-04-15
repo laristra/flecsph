@@ -426,6 +426,11 @@ typedef enum sph_kernel_keyword_enum {
   DECLARE_PARAM(double,extforce_wall_steepness, 1e12)
 # endif
 
+// in mesa potential, fraction of the density-drop outer section to the radius
+# ifndef mesa_rim_width
+  DECLARE_PARAM(double,mesa_rim_width, 0.25)
+# endif
+
 // value of the gravity constant
 # ifndef gravity_acceleration_constant
   DECLARE_PARAM(double,gravity_acceleration_constant, 9.81)
@@ -845,6 +850,10 @@ void set_param(const std::string& param_name,
 
 # ifndef extforce_wall_steepness
   READ_NUMERIC_PARAM(extforce_wall_steepness)
+# endif
+
+# ifndef mesa_rim_width
+  READ_NUMERIC_PARAM(mesa_rim_width)
 # endif
 
 # ifndef gravity_acceleration_constant
