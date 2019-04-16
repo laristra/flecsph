@@ -1800,11 +1800,10 @@ public:
     // It is not a leaf, need to insert intermediate branch
     if (!b.is_leaf()) {
       // Create the branch
-      int depth = b.key().depth() + 1;
+      size_t depth = b.key().depth() + 1;
       bid.truncate(depth);
       int bit = bid.last_value();
       b.add_bit_child(bit);
-      // Insert this branch and reinsert
       branch_map_.emplace(bid, bid);
       branch_map_.find(bid)->second.set_leaf(true);
       branch_map_.find(bid)->second.insert(id);

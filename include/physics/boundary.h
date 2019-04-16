@@ -28,8 +28,10 @@
 
 #include <vector>
 
+#ifdef BOOST
 #include <boost/sort/sort.hpp>
 //#include <boost/compute/algorithm/stable_partition.hpp>
+#endif 
 
 #include "params.h"
 
