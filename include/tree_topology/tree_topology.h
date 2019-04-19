@@ -77,7 +77,8 @@ template <class P> class tree_topology : public P, public data::data_client_t {
     SOURCE_REPLY = 5,
     MPI_RANK_DONE = 6,
     FAILED_PROBE = 7,
-    MPI_SHARE_EDGE = 8
+    MPI_SHARE_EDGE_K = 8, 
+    MPI_SHARE_EDGE = 9
   };
 
 public:
@@ -271,10 +272,10 @@ public:
           my_keys[0] = entities_.back().key();
           // Get the parent of this entity
           my_keys[1] = find_parent(my_keys[0]).key();
-          MPI_Send(&(my_keys[0]), byte_size, MPI_BYTE, partner, MPI_SHARE_EDGE,
-                   MPI_COMM_WORLD);
-          MPI_Recv(&(neighbor_keys[0]), byte_size, MPI_BYTE, partner, MPI_SHARE_EDGE,
-                   MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+          MPI_Send(&(my_keys[0]), byte_size, MPI_BYTE, partner, 
+              MPI_SHARE_EDGE_K,MPI_COMM_WORLD);
+          MPI_Recv(&(neighbor_keys[0]), byte_size, MPI_BYTE, partner, 
+              MPI_SHARE_EDGE_K,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         }
       } else {
         partner = rank - 1;
@@ -283,10 +284,10 @@ public:
           my_keys[0] = entities_.front().key();
           // Get the parent of this entity
           my_keys[1] = find_parent(my_keys[0]).key();
-          MPI_Recv(&(neighbor_keys[0]), byte_size, MPI_BYTE, partner, MPI_SHARE_EDGE,
-                   MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-          MPI_Send(&(my_keys[0]), byte_size, MPI_BYTE, partner, MPI_SHARE_EDGE,
-                   MPI_COMM_WORLD);
+          MPI_Recv(&(neighbor_keys[0]), byte_size, MPI_BYTE, partner, 
+              MPI_SHARE_EDGE_K,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+          MPI_Send(&(my_keys[0]), byte_size, MPI_BYTE, partner, 
+              MPI_SHARE_EDGE_K,MPI_COMM_WORLD);
         }
       }
       // Entities to send to other rank
@@ -408,7 +409,7 @@ public:
             // the other bodies at the right depth
             int nrefine = neighbor_parent_depth - my_parent_depth;
             int depth = my_parent_depth;
-            for (int i = 0; i < nrefine; ++i) {
+            for (int r = 0; r < nrefine; ++r) {
               // Find my branch
               key_t branch_key = my_keys[0];
               branch_key.truncate(my_parent_depth);
@@ -450,8 +451,8 @@ public:
           MPI_Send(&(edge_entities[0]), sizeof(entity_t) * edge_entities.size(),
                    MPI_BYTE, partner, MPI_SHARE_EDGE, MPI_COMM_WORLD);
         }
-      }
-    }
+      } // if
+    } // for 
 
     for (auto g : received_ghosts) {
       shared_entities_.push_back(g);
@@ -622,10 +623,12 @@ public:
 
 #ifdef DEBUG
     int flag = 0;
+    MPI_Status status; 
     MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag,
-               MPI_STATUS_IGNORE);
+               &status);
     if (flag != 0) {
-      std::cerr << "FLAG=" << flag << std::endl;
+      std::cerr <<rank<< " TAG: " << status.MPI_TAG << " SOURCE: "<<
+        status.MPI_SOURCE<< std::endl;
     };
     assert(flag == 0);
 #endif
@@ -655,6 +658,9 @@ public:
     }
     // Copy back the results
     entities_ = entities_w_;
+    // Synchronize the threads to be sure they dont start to share edges 
+    // Critical 
+    MPI_Barrier(MPI_COMM_WORLD);
 
   } // apply_sub_cells
 
@@ -872,8 +878,13 @@ public:
     // Check if no message remainig
 #ifdef DEBUG
     int flag = 0;
+    MPI_Status status;
     MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag,
-               MPI_STATUS_IGNORE);
+               &status);
+    if(flag != 0){
+      std::cerr<<rank<<" TAG:"<<status.MPI_TAG<<" SOURCE: "<<
+        status.MPI_SOURCE<<std::endl;  
+    }
     assert(flag == 0);
 #endif
     for (size_t i = 0; i < ghosts_entities_[current_ghosts].size(); ++i) {
