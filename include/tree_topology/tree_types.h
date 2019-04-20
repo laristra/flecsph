@@ -160,7 +160,7 @@ public:
 
   //! Add a specific child in the child bitmap
   void add_bit_child(int i) {
-    //assert(!(bit_child_ & 1 << i));
+    assert(!(bit_child_ & 1 << i));
     bit_child_ |= 1 << i;
   };
   //! Check if this branch have a specific child in the bitset
@@ -347,6 +347,7 @@ public:
     else
       os << "NONLOCAL";
     os << " owner: " << b.owner_ << " id: " << b.id_;
+    os << " key: "<<b.key_;
     return os;
   }
 
