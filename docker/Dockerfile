@@ -44,7 +44,7 @@ RUN cd /home/flecsi && \
               -DENABLE_BOOST_PREPROCESSOR=ON  \
               -DENABLE_FLECSIT=OFF \
               -DENABLE_FLECSI_TUTORIAL=OFF   && \ 
-    make VERBOSE=1 -j4 && \
+    make -j4 && \
     make install 
 
 # Buidl FleCSPH 
@@ -75,7 +75,7 @@ RUN cd /home/flecsi/flecsph && \
     ccache -s && \
     make doxygen && \
     make install DESTDIR=${PWD}/install && rm -rf ${PWD}/install  && \
-    make test ARGS="-V" 
+    make test
 
 # COVERAGE & SONARQUE 
 WORKDIR /home/flecsi/flecsph
