@@ -1,13 +1,11 @@
 FROM laristra/flecsi-third-party:fedora
 
-ARG MPI
+
 ARG COVERAGE
 ARG SONARQUBE
 ARG SONARQUBE_TOKEN
 ARG SONARQUBE_GITHUB_TOKEN
 ARG CC
-ARG CXX
-ARG CXXFLAGS
 
 #for coverage
 ARG CI
@@ -21,22 +19,21 @@ ARG TRAVIS_REPO_SLUG
 ARG TRAVIS_COMMIT
 ARG TRAVIS_OS_NAME
 
+# Cleans and install 
 ENV CLOG_ENABLE_STDLOG=0
-RUN rm -rf /home/flecsi/.ccache
-COPY flecsph /home/flecsi/flecsph
-COPY ccache/ /home/flecsi/.ccache
-COPY sonar/ /home/flecsi/.sonar
 USER root
-RUN chown -R flecsi:flecsi /home/flecsi/flecsph /home/flecsi/.ccache /home/flecsi/.sonar
-RUN yum install -y which; exit 0
-USER flecsi
+RUN rm -rf /home/flecsi/.ccache && \ 
+    cp -r flecsph /home/flecsi/flecsph && \
+    cp -r ccache/ /home/flecsi/.ccache && \
+    cp -r sonar/ /home/flecsi/.sonar && \
+    chown -R flecsi:flecsi /home/flecsi/flecsph /home/flecsi/.ccache /home/flecsi/.sonar && \
+    yum install -y which; exit 0
 
 #build flecsi
-WORKDIR /home/flecsi
-RUN git clone -b feature/flecsph --depth 1 --recursive https://github.com/laristra/flecsi flecsi
-RUN  cd flecsi && mkdir build && cd build
-WORKDIR flecsi/build
-RUN  cmake .. -DFLECSI_RUNTIME_MODEL=mpi \
+RUN cd /home/flecsi && \ 
+    git clone -b feature/flecsph --depth 1 --recursive https://github.com/laristra/flecsi flecsi && \
+    cd flecsi && mkdir build && cd build && \ 
+    cmake .. -DFLECSI_RUNTIME_MODEL=mpi \
               -DENABLE_CLOG=OFF \
               -DENABLE_MPI=ON \
               -DENABLE_OPENMP=ON \
@@ -46,19 +43,15 @@ RUN  cmake .. -DFLECSI_RUNTIME_MODEL=mpi \
               -DCMAKE_INSTALL_PREFIX=/usr/local \
               -DENABLE_BOOST_PREPROCESSOR=ON  \
               -DENABLE_FLECSIT=OFF \
-              -DENABLE_FLECSI_TUTORIAL=OFF
-RUN make VERBOSE=1 -j4
-USER root
-RUN make install
-USER flecsi
+              -DENABLE_FLECSI_TUTORIAL=OFF   && \ 
+    make VERBOSE=1 -j4 && \
+    make install 
 
-WORKDIR /home/flecsi/flecsph
-RUN mkdir build
-
-WORKDIR build
-RUN ccache -z
-# FleCSI lib location regarding distro
-RUN cmake -DENABLE_MPI=ON \
+# Buidl FleCSPH 
+RUN cd /home/flecsi/flecsph && \
+    mkdir build && cd build && \
+    cache -z && \
+    cmake -DENABLE_MPI=ON \
           -DENABLE_UNIT_TESTS=ON \
           -DENABLE_OPENMP=ON \
           -DENABLE_DOXYGEN=ON \
@@ -71,15 +64,16 @@ RUN cmake -DENABLE_MPI=ON \
           -DFleCSI_RUNTIME=/usr/local/share/FleCSI/runtime \
           -DFleCSI_LIBRARY=/usr/local/lib*/libFleCSI.so \
           -DENABLE_MPI_THREAD_MULITPLE=ON \
-          ${COVERAGE:+-DENABLE_COVERAGE_BUILD=ON} ..
+          ${COVERAGE:+-DENABLE_COVERAGE_BUILD=ON} .. && \
+    HDF5_USE_SHLIB=yes ${SONARQUBE:+build-wrapper-linux-x86-64 --out-dir bw-output} make VERBOSE=1 -j2 && \
+    ccache -s && \
+    make doxygen && \
+    make install DESTDIR=${PWD}/install && rm -rf ${PWD}/install && \
 
-RUN HDF5_USE_SHLIB=yes ${SONARQUBE:+build-wrapper-linux-x86-64 --out-dir bw-output} make VERBOSE=1 -j2
-RUN ccache -s
-RUN make doxygen
-RUN make install DESTDIR=${PWD}/install && rm -rf ${PWD}/install
 ENV LD_LIBRARY_PATH="/usr/local/lib64/:${LD_LIBRARY_PATH}"
 ENV LD_LIBRARY_PATH="/usr/local/lib/:${LD_LIBRARY_PATH}"
-RUN echo $LD_LIBRARY_PATH
+
+# Tests and coverage 
 RUN make test ARGS="-V"
 RUN cd .. && if [ ${COVERAGE} ]; then \
   if [ ${CC} = clang ]; then \
