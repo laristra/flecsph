@@ -2,8 +2,8 @@
 # Dust Cloud Collapse Test
 #
 # initial data
-  initial_data_prefix = "collapse_nx100"
-  lattice_nx = 100         # particle lattice dimension
+  initial_data_prefix = "collapse_nx10"
+  lattice_nx = 9         # particle lattice dimension
   poly_gamma = 1.4         # polytropic index
   rho_initial = 1.0
   pressure_initial = 1.0e-10
@@ -27,7 +27,7 @@
 # evolution parameters:
   #sph_kernel = "quintic spline"
   initial_dt = 5.e-4  # TODO: better use Courant factor X sph_separation
-  final_iteration = 1100
+  final_iteration = 10
   out_screen_every = 1
   out_scalar_every = 10
   out_h5data_every = 10
