@@ -49,6 +49,7 @@ RUN cd /home/flecsi && \
     make install 
 
 # Buidl FleCSPH 
+USER flecsi 
 RUN cd /home/flecsi/flecsph && \
     mkdir build && cd build && \
     ccache -z && \
