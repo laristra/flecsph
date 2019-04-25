@@ -51,7 +51,7 @@ RUN cd /home/flecsi && \
 # Buidl FleCSPH 
 RUN cd /home/flecsi/flecsph && \
     mkdir build && cd build && \
-    cache -z && \
+    ccache -z && \
     cmake -DENABLE_MPI=ON \
           -DENABLE_UNIT_TESTS=ON \
           -DENABLE_OPENMP=ON \
