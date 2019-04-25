@@ -49,9 +49,7 @@ RUN cd /home/flecsi && \
 
 # Buidl FleCSPH 
 
-ENV LD_LIBRARY_PATH="/usr/local/lib64/:${LD_LIBRARY_PATH}"
-ENV LD_LIBRARY_PATH="/usr/local/lib/:${LD_LIBRARY_PATH}"
-
+ENV LD_LIBRARY_PATH="/usr/local/lib64/:/usr/local/lib/:${LD_LIBRARY_PATH}"
 
 USER flecsi 
 RUN cd /home/flecsi/flecsph && \
