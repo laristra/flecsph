@@ -83,7 +83,7 @@ RUN if [ ${COVERAGE} ]; then \
       else \
         $HOME/.local/bin/codecov -F "${CC}"; \
       fi; \
-    fi && cd -
+    fi 
 RUN if [ ${SONARQUBE} ]; then \
       sonar-scanner \
       -Dsonar.projectKey=${TRAVIS_REPO_SLUG##*/} \
