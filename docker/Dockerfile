@@ -69,7 +69,7 @@ RUN cd /home/flecsi/flecsph && \
     HDF5_USE_SHLIB=yes ${SONARQUBE:+build-wrapper-linux-x86-64 --out-dir bw-output} make VERBOSE=1 -j2 && \
     ccache -s && \
     make doxygen && \
-    make install DESTDIR=${PWD}/install && rm -rf ${PWD}/install && \
+    make install DESTDIR=${PWD}/install && rm -rf ${PWD}/install 
 
 ENV LD_LIBRARY_PATH="/usr/local/lib64/:${LD_LIBRARY_PATH}"
 ENV LD_LIBRARY_PATH="/usr/local/lib/:${LD_LIBRARY_PATH}"
