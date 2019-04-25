@@ -23,8 +23,8 @@ ARG TRAVIS_OS_NAME
 ENV CLOG_ENABLE_STDLOG=0
 USER root
 RUN rm -rf /home/flecsi/.ccache && \
-    mkdir /home/flecsi/flecsph && \
-    cp -r flecsph /home/flecsi/flecsph && \
+    #mkdir /home/flecsi/flecsph && \
+    cp -r flecsph /home/flecsi/ && \
     cp -r ccache/ /home/flecsi/.ccache && \
     cp -r sonar/ /home/flecsi/.sonar && \
     chown -R flecsi:flecsi /home/flecsi/flecsph /home/flecsi/.ccache /home/flecsi/.sonar && \
