@@ -21,14 +21,13 @@ ARG TRAVIS_OS_NAME
 
 # Cleans and install 
 ENV CLOG_ENABLE_STDLOG=0
-USER root
+RUN rm -rf /home/flecsi/.ccache
 COPY flecsph /home/flecsi/flecsph
-RUN rm -rf /home/flecsi/.ccache && \
-    #cp -r laristra/flecsph /home/flecsi/ && \
-    cp -r ccache/ /home/flecsi/.ccache && \
-    cp -r sonar/ /home/flecsi/.sonar && \
-    chown -R flecsi:flecsi /home/flecsi/flecsph /home/flecsi/.ccache /home/flecsi/.sonar && \
-    yum install -y which; exit 0
+COPY ccache/ /home/flecsi/.ccache
+COPY sonar/ /home/flecsi/.sonar
+USER root
+RUN chown -R flecsi:flecsi /home/flecsi/flecsph /home/flecsi/.ccache /home/flecsi/.sonar
+RUN yum install -y which; exit 0
 
 #build flecsi
 RUN cd /home/flecsi && \ 
