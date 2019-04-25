@@ -104,7 +104,7 @@ cinch_add_unit(sodtube_test
   DEFINES
     -DEXT_GDIMENSION=1
   POLICY MPI
-  # THREADS 2
+   THREADS 4
 )
 
 if(ENABLE_UNIT_TESTS)
