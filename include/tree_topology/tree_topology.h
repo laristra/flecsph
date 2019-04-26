@@ -909,6 +909,12 @@ public:
       assert(remaining_branches.size() == 0);
     }
     entities_ = entities_w_;
+
+
+    // Synchronize the threads to be sure they dont start to share edges 
+    // Critical 
+    MPI_Barrier(MPI_COMM_WORLD);
+
   } // apply_sub_cells
 
   /**
