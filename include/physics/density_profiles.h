@@ -48,7 +48,7 @@ namespace density_profiles {
 
   // an important constant for the mesa density
   static double mesa_rho0;
-  const  double mesa_q = 0.25; // ratio of the slope width to the radius
+  static double mesa_q;        // ratio of the slope width to the radius
 
   /**
    * @brief  constant uniform density in a domain of radius R = 1,
@@ -219,6 +219,7 @@ namespace density_profiles {
       spherical_density_profile = rho_mesa_density;
       spherical_mass_profile = mass_mesa_density;
       spherical_drho_dr = drhodr_mesa_density;
+      mesa_q = mesa_rim_width;
       if constexpr (gdimension == 1) 
         mesa_rho0 = .5/(1. - mesa_q/3.);
 

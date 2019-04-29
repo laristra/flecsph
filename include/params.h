@@ -396,6 +396,14 @@ typedef enum sph_kernel_keyword_enum {
   DECLARE_PARAM(double,relaxation_gamma,0.0)
 # endif
 
+# ifndef relaxation_repulsion_radius
+  DECLARE_PARAM(double,relaxation_repulsion_radius,0.25)
+# endif
+
+# ifndef relaxation_repulsion_gamma
+  DECLARE_PARAM(double,relaxation_repulsion_gamma,0.0)
+# endif
+
 
 //
 // Parameters for external acceleration
@@ -424,6 +432,11 @@ typedef enum sph_kernel_keyword_enum {
 // boundary wall steepness parameter
 # ifndef extforce_wall_steepness
   DECLARE_PARAM(double,extforce_wall_steepness, 1e12)
+# endif
+
+// in mesa potential, fraction of the density-drop outer section to the radius
+# ifndef mesa_rim_width
+  DECLARE_PARAM(double,mesa_rim_width, 0.25)
 # endif
 
 // value of the gravity constant
@@ -826,6 +839,14 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(relaxation_gamma)
 # endif
 
+# ifndef relaxation_repulsion_radius
+  READ_NUMERIC_PARAM(relaxation_repulsion_radius)
+# endif
+
+# ifndef relaxation_repulsion_gamma
+  READ_NUMERIC_PARAM(relaxation_repulsion_gamma)
+# endif
+
   // external force  --------------------------------------------------------
 # ifndef thermokinetic_formulation
   READ_BOOLEAN_PARAM(thermokinetic_formulation)
@@ -845,6 +866,10 @@ void set_param(const std::string& param_name,
 
 # ifndef extforce_wall_steepness
   READ_NUMERIC_PARAM(extforce_wall_steepness)
+# endif
+
+# ifndef mesa_rim_width
+  READ_NUMERIC_PARAM(mesa_rim_width)
 # endif
 
 # ifndef gravity_acceleration_constant

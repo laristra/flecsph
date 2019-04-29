@@ -251,6 +251,51 @@ namespace physics{
 
 
   /**
+   * @brief      Short-range repulsion force
+   *
+   *     (dv_a)                             (  r_b - r_a       )
+   *     (----)   += -gamma_repulsion  sum_b( ---------- * m_b )
+   *     ( dt )_i                           (  |r_ab|^3        )
+   * 
+   * @param      particle  The particle body 
+   * @param      nbs       Vector of neighbor particles
+   */
+  void
+  add_short_range_repulsion(
+    body& particle,
+    std::vector<body*>& nbs)
+  {
+    using namespace param;
+
+    // this particle (index 'a')
+    const double h_a = particle.radius();
+    const size_t id_a = particle.id();
+    const point_t pos_a = particle.coordinates();
+    point_t acc_a = particle.getAcceleration();
+
+    // neighbor particles (index 'b')
+    const int n_nb = nbs.size();
+    double h_b,m_b;
+    point_t pos_b;
+    point_t acc_r = 0.0;
+
+    for(int b = 0; b < nbs.size(); ++b) {
+      const body * const nb = nbs[b];
+      if (nb->id() == id_a) continue;
+      h_b   = nb->radius();
+      pos_b = nb->coordinates();
+      double h_ab = .5*(h_a + h_b);
+      double r_ab = flecsi::distance(pos_a, pos_b);
+      if (r_ab > h_ab*relaxation_repulsion_radius) continue;
+      m_b = nb->mass();
+      acc_r += m_b*(pos_a - pos_b)/(r_ab*r_ab*r_ab);
+    }
+    acc_r *= relaxation_repulsion_gamma;
+    particle.setAcceleration(acc_a + acc_r);
+  } // add_short_range_repulsion
+
+
+  /**
    * @brief      Calculates the dudt, time derivative of internal energy.
    *             [Rosswog'09, eqs.(29,55)]:
    *
