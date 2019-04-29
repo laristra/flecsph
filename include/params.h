@@ -396,6 +396,14 @@ typedef enum sph_kernel_keyword_enum {
   DECLARE_PARAM(double,relaxation_gamma,0.0)
 # endif
 
+# ifndef relaxation_repulsion_radius
+  DECLARE_PARAM(double,relaxation_repulsion_radius,0.25)
+# endif
+
+# ifndef relaxation_repulsion_gamma
+  DECLARE_PARAM(double,relaxation_repulsion_gamma,0.0)
+# endif
+
 
 //
 // Parameters for external acceleration
@@ -829,6 +837,14 @@ void set_param(const std::string& param_name,
 
 # ifndef relaxation_gamma
   READ_NUMERIC_PARAM(relaxation_gamma)
+# endif
+
+# ifndef relaxation_repulsion_radius
+  READ_NUMERIC_PARAM(relaxation_repulsion_radius)
+# endif
+
+# ifndef relaxation_repulsion_gamma
+  READ_NUMERIC_PARAM(relaxation_repulsion_gamma)
 # endif
 
   // external force  --------------------------------------------------------

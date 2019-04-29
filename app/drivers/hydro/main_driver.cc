@@ -140,6 +140,7 @@ mpi_init_task(const char * parameter_file){
         bs.apply_all(physics::add_drag_acceleration);
         if (thermokinetic_formulation)
           bs.apply_all(physics::add_drag_dedt);
+        bs.apply_in_smoothinglength(physics::add_short_range_repulsion);
         clog_one(trace) << ".done" << std::endl;
       }
     }
@@ -167,8 +168,10 @@ mpi_init_task(const char * parameter_file){
 
       clog_one(trace) << "leapfrog: kick two (velocity)" << std::flush<<std::endl;
       bs.apply_in_smoothinglength(physics::compute_acceleration);
-      if (physics::iteration < relaxation_steps)
+      if (physics::iteration < relaxation_steps) {
         bs.apply_all(physics::add_drag_acceleration);
+        bs.apply_in_smoothinglength(physics::add_short_range_repulsion);
+      }
       bs.apply_all(integration::leapfrog_kick_v);
       clog_one(trace) << ".done" << std::endl;
 
