@@ -347,6 +347,7 @@ public:
     else
       os << "NONLOCAL";
     os << " owner: " << b.owner_ << " id: " << b.id_;
+    os << " key: "<<b.key_;
     return os;
   }
 

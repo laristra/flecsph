@@ -32,7 +32,9 @@
 #include <omp.h>
 #include <vector>
 
+#ifdef BOOST
 #include <boost/sort/sort.hpp>
+#endif 
 
 #include "default_physics.h"
 #include "tree.h"
