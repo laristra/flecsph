@@ -73,7 +73,7 @@ RUN cd /home/flecsi/flecsph && \
     ccache -s && \
     make doxygen && \
     make install DESTDIR=${PWD}/install && rm -rf ${PWD}/install  && \
-    make test
+    make test ARGS="-V"
 
 # COVERAGE & SONARQUE 
 WORKDIR /home/flecsi/flecsph
