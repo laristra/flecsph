@@ -90,8 +90,32 @@ install(TARGETS newtonian_3d RUNTIME DESTINATION bin/drivers)
 # collapse test, call the default parameter file
 #------------------------------------------------------------------------------#
 
-
 cinch_add_unit(collapse_test
+  SOURCES
+    test/collapse.cc
+    newtonian/main_driver.cc
+    ${FleCSI_RUNTIME}/runtime_driver.cc
+  INPUTS
+    ${PROJECT_SOURCE_DIR}/data/collapse_nx10.par
+  LIBRARIES
+    ${FleCSPH_LIBRARIES}
+  DEFINES
+    -DEXT_GDIMENSION=3
+  POLICY MPI
+)
+
+if(ENABLE_UNIT_TESTS)
+
+add_custom_target(
+    collapse_3d_generator_test
+    COMMAND mpirun -n 1 ../id_generators/collapse_3d_generator ${PROJECT_SOURCE_DIR}/data/collapse_nx10.par
+    COMMAND mv collapse_nx10.h5part ../../test/drivers
+    DEPENDS ../id_generators/collapse_3d_generator
+)
+add_dependencies(collapse_test collapse_3d_generator_test)
+endif()
+
+cinch_add_unit(collapse_MPI_test
   SOURCES
     test/collapse.cc
     newtonian/main_driver.cc
@@ -107,14 +131,7 @@ cinch_add_unit(collapse_test
 )
 
 if(ENABLE_UNIT_TESTS)
-
-add_custom_target(
-    collapse_3d_generator_test
-    COMMAND mpirun -n 1 ../id_generators/collapse_3d_generator ${PROJECT_SOURCE_DIR}/data/collapse_nx10.par
-    COMMAND mv collapse_nx10.h5part ../../test/drivers
-    DEPENDS ../id_generators/collapse_3d_generator
-)
-add_dependencies(collapse_test collapse_3d_generator_test)
+add_dependencies(collapse_MPI_test collapse_3d_generator_test)
 endif()
 
 
@@ -135,7 +152,6 @@ cinch_add_unit(sodtube_test
   DEFINES
     -DEXT_GDIMENSION=1
   POLICY MPI
-   THREADS 4
 )
 
 if(ENABLE_UNIT_TESTS)
@@ -149,6 +165,24 @@ add_custom_target(
 add_dependencies(sodtube_test sodtube_1d_generator_test)
 endif()
 
+cinch_add_unit(sodtube_MPI_test
+  SOURCES
+    test/sodtube.cc
+    hydro/main_driver.cc
+    ${FleCSI_RUNTIME}/runtime_driver.cc
+  INPUTS
+    ${PROJECT_SOURCE_DIR}/data/sodtube_t1_n100.par
+  LIBRARIES
+    ${FleCSPH_LIBRARIES}
+  DEFINES
+    -DEXT_GDIMENSION=1
+  POLICY MPI
+   THREADS 4
+)
+
+if(ENABLE_UNIT_TESTS)
+  add_dependencies(sodtube_MPI_test sodtube_1d_generator_test)
+endif()
 #------------------------------------------------------------------------------#
 # RT test, call the default parameter file
 #------------------------------------------------------------------------------#
