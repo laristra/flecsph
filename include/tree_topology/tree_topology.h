@@ -56,7 +56,7 @@
 
 #include "tree_geometry.h"
 #include "tree_types.h"
-//#include "hashtable.h"
+
 
 namespace flecsi {
 namespace topology {
@@ -74,11 +74,11 @@ template <class P> class tree_topology : public P, public data::data_client_t {
     LOCAL_REQUEST = 1,
     SOURCE_REQUEST = 2,
     MPI_DONE = 3,
-    SOURCE_REPLY = 5,
-    MPI_RANK_DONE = 6,
-    FAILED_PROBE = 7,
-    MPI_SHARE_EDGE_K = 8, 
-    MPI_SHARE_EDGE = 9
+    SOURCE_REPLY = 4,
+    MPI_RANK_DONE = 5,
+    FAILED_PROBE = 6,
+    MPI_SHARE_EDGE_K = 7, 
+    MPI_SHARE_EDGE = 8
   };
 
 public:
