@@ -201,6 +201,45 @@ namespace density_profiles {
   }
 
   /**
+   * @brief  density profile from file, specified by
+   *         the parameter density_profile_input
+   * @param  r     - spherical radius
+   */
+  double rho_from_input_file(const double r) {
+    // TODO
+    double rho = 0.0;
+    if constexpr (gdimension == 1)
+      rho = 0.5;
+    
+    if constexpr (gdimension == 2)
+      rho = 1.0/M_PI;
+
+    if constexpr (gdimension == 3)
+      rho = 0.75/M_PI;
+    return rho;
+  }
+
+  double mass_from_input_file(const double r) {
+    // TODO
+    double mass = 0.0;
+    if constexpr (gdimension == 1)
+      mass = r;
+    
+    if constexpr (gdimension == 2)
+      mass = SQ(r);
+
+    if constexpr (gdimension == 3)
+      mass = CU(r);
+
+    return mass;
+  }
+
+  double drhodr_from_input_file(const double r) {
+    // TODO
+    return 0.;
+  }
+
+  /**
    * @brief      Density profile selector
    */
   void select() {
@@ -228,6 +267,11 @@ namespace density_profiles {
 
       if constexpr (gdimension == 3)
         mesa_rho0 = 1./(4.*M_PI*mesa_mass_helper(1.));
+    }
+    else if (boost::iequals(density_profile,"from file")) {
+      spherical_density_profile = rho_from_input_file;
+      spherical_mass_profile = mass_from_input_file;
+      spherical_drho_dr = drhodr_from_input_file;
     }
     else {
       clog(error) << "ERROR: wrong parameter in density_profiles";
