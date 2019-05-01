@@ -108,7 +108,7 @@ cinch_add_unit(collapse_test
 
 add_custom_target(
     collapse_3d_generator_test
-    COMMAND mpirun -n 1 ../id_generators/collapse_3d_generator ${PROJECT_SOURCE_DIR}/data/collapse_nx10.par
+    COMMAND ${MPIEXEC} -n 1 ../id_generators/collapse_3d_generator ${PROJECT_SOURCE_DIR}/data/collapse_nx10.par
     COMMAND mv collapse_nx10.h5part ../../test/drivers
     DEPENDS ../id_generators/collapse_3d_generator
 )
@@ -156,7 +156,7 @@ cinch_add_unit(sodtube_test
 
 add_custom_target(
     sodtube_1d_generator_test
-    COMMAND mpirun -n 1 ../id_generators/sodtube_1d_generator ${PROJECT_SOURCE_DIR}/data/sodtube_t1_n100.par
+    COMMAND ${MPIEXEC} -n 1 ../id_generators/sodtube_1d_generator ${PROJECT_SOURCE_DIR}/data/sodtube_t1_n100.par
     COMMAND mv sodtube_t1_n100.h5part ../../test/drivers
     DEPENDS ../id_generators/sodtube_1d_generator
 )
@@ -204,7 +204,7 @@ cinch_add_unit(RT_test
 
 add_custom_target(
     RT_2d_generator_test
-    COMMAND mpirun -n 1 ../id_generators/RT_2d_generator ${PROJECT_SOURCE_DIR}/data/RT_2d.par
+    COMMAND ${MPIEXEC} -n 1 ../id_generators/RT_2d_generator ${PROJECT_SOURCE_DIR}/data/RT_2d.par
     COMMAND mv RT_n30.h5part ../../test/drivers
     DEPENDS ../id_generators/RT_2d_generator
 )
@@ -233,7 +233,7 @@ cinch_add_unit(sedov_test
 
 add_custom_target(
     sedov_2d_generator_test
-    COMMAND mpirun -n 1 ../id_generators/sedov_2d_generator ${PROJECT_SOURCE_DIR}/data/sedov_nx20.par
+    COMMAND ${MPIEXEC} -n 1 ../id_generators/sedov_2d_generator ${PROJECT_SOURCE_DIR}/data/sedov_nx20.par
     COMMAND mv sedov_nx20.h5part ../../test/drivers
     DEPENDS ../id_generators/sedov_2d_generator
 )
@@ -262,7 +262,7 @@ cinch_add_unit(noh_test
 
 add_custom_target(
     noh_2d_generator_test
-    COMMAND mpirun -n 1 ../id_generators/noh_2d_generator ${PROJECT_SOURCE_DIR}/data/noh_nx20.par
+    COMMAND ${MPIEXEC} -n 1 ../id_generators/noh_2d_generator ${PROJECT_SOURCE_DIR}/data/noh_nx20.par
     COMMAND mv noh_nx20.h5part ../../test/drivers
     DEPENDS ../id_generators/noh_2d_generator
 )
@@ -291,7 +291,7 @@ cinch_add_unit(implosion_test
 
 add_custom_target(
     implosion_2d_generator_test
-    COMMAND mpirun -n 1 ../id_generators/implosion_2d_generator ${PROJECT_SOURCE_DIR}/data/implosion_nx20.par
+    COMMAND ${MPIEXEC} -n 1 ../id_generators/implosion_2d_generator ${PROJECT_SOURCE_DIR}/data/implosion_nx20.par
     COMMAND mv implosion_nx20.h5part ../../test/drivers
     DEPENDS ../id_generators/implosion_2d_generator
 )
