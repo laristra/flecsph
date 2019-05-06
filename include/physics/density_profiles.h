@@ -259,8 +259,71 @@ namespace density_profiles {
 
       ln++;
     }
-    exit(0); // TODO
   }
+
+  /**
+   * @brief   get index i such that xp[i] < x < xp[i+1] (binary search)
+   * @param   x     - the value to localize;
+   * @param   xp    - array of increasing values where to localize x.
+   * @return  index i of an interval containing point x;
+   *          '-1' if x < x[0];
+   *          'N'  if x > x[N].
+   */
+  int get_interval_index ( const double x, const std::vector<double>& xp) {
+    const int N = xp.size();
+    if (x*(1 + 1e-15) < xp[0])   return -1;
+    if (x*(1 - 1e-15) > xp[N-1]) return N;
+    int i, i1 = 0, i2 = N-1;
+    while (i2 - i1 > 1) {
+      i = (i1 + i2)/2;
+      if (x < xp[i]) 
+        i2 = i;
+      else
+        i1 = i;
+    }
+    return i1;
+  }
+
+
+  /**
+   * @brief   cubic interpolation
+   * @param   x        - the x-coordinate location where to interpolate
+   * @param   xp       - the x-coordinates of data points: increasing
+   * @param   yp       - the y-coordinates of data points
+   * @return  if x is inside the range of xp, returns interpolated value;
+   *          if x is outside the range of xp: returns zero
+   */
+  double cubic_interp( const double x, const std::vector<double>& xp,  
+                                       const std::vector<double>& yp) {
+    int n = get_interval_index(x, xp);
+    const int N = xp.size();
+    int i1, i2, i3, i4;
+    i1 = n - 1;
+    i2 = n;
+    i3 = n + 1;
+    i4 = n + 2;
+    if (n == 0) {
+      i1 = 0; i2 = 1; i3 = 2; i4 = 3;
+    }
+    if (n == N - 1) {
+      i1 = N - 4; i2 = N - 3; i3 = N - 2; i4 = N - 1;
+    }
+    double x1 = xp[i1];
+    double x2 = xp[i2];
+    double x3 = xp[i3];
+    double x4 = xp[i4];
+
+    double y1 = yp[i1];
+    double y2 = yp[i2];
+    double y3 = yp[i3];
+    double y4 = yp[i4];
+
+    return y1*(x-x2)/(x1-x2)*(x-x3)/(x1-x3)*(x-x4)/(x1-x4)
+         + y2*(x-x1)/(x2-x1)*(x-x3)/(x2-x3)*(x-x4)/(x2-x4)
+         + y3*(x-x1)/(x3-x1)*(x-x2)/(x3-x2)*(x-x4)/(x3-x4)
+         + y4*(x-x1)/(x4-x1)*(x-x2)/(x4-x2)*(x-x3)/(x4-x3);
+  }
+
 
   /**
    * @brief  density profile from file, specified by
@@ -268,37 +331,15 @@ namespace density_profiles {
    * @param  r     - spherical radius
    */
   double rho_from_input_file(const double r) {
-    // TODO
-    double rho = 0.0;
-    if constexpr (gdimension == 1)
-      rho = 0.5;
-    
-    if constexpr (gdimension == 2)
-      rho = 1.0/M_PI;
-
-    if constexpr (gdimension == 3)
-      rho = 0.75/M_PI;
-    return rho;
+    return cubic_interp(r, rad_grid, rho_grid);
   }
 
   double mass_from_input_file(const double r) {
-    // TODO
-    double mass = 0.0;
-    if constexpr (gdimension == 1)
-      mass = r;
-    
-    if constexpr (gdimension == 2)
-      mass = SQ(r);
-
-    if constexpr (gdimension == 3)
-      mass = CU(r);
-
-    return mass;
+    return cubic_interp(r, rad_grid, mass_grid);
   }
 
   double drhodr_from_input_file(const double r) {
-    // TODO
-    return 0.;
+    return cubic_interp(r, rad_grid, drhodr_grid);
   }
 
   /**
