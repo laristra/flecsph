@@ -46,9 +46,15 @@ namespace density_profiles {
   static radial_function_t spherical_mass_profile = NULL;
   static radial_function_t spherical_drho_dr = NULL;
 
-  // an important constant for the mesa density
+  // constants for the mesa density
   static double mesa_rho0;
   static double mesa_q;        // ratio of the slope width to the radius
+
+  // tabulated density profiles
+  static std::vector<double> rad_grid;
+  static std::vector<double> rho_grid;
+  static std::vector<double> mass_grid;
+  static std::vector<double> drhodr_grid;
 
   /**
    * @brief  constant uniform density in a domain of radius R = 1,
@@ -201,6 +207,62 @@ namespace density_profiles {
   }
 
   /**
+   * @brief  read the density input file
+   * @param  ifname - 4-column ASCII file: 1:r 2:rho 3:m 4:drho/dr
+   *                  possibly with a header with lines starting with '#'
+   */
+  void read_input_density_file(const char * ifname) {
+    using namespace std;
+    ifstream infile;
+    string line;
+    int ln, Nr;
+    std::string::size_type sz1, sz2;
+    double rad, rho, mass, drhodr;
+
+    // attempt to open the file
+    infile.open (ifname);
+    if (!infile) {
+      cerr << "ERROR: Unable to open density profile '"<<ifname<<"'" <<endl;
+      exit(1);
+    }
+
+    // count the number of lines, skipping the header
+    Nr = 0;
+    while (std::getline(infile,line)) {
+      if (line.find("#") != string::npos or
+          line.find_first_not_of(' ') == string::npos)
+        continue;
+      ++Nr;
+    }
+    cout << "Read density profile "<<ifname<<" with " << Nr 
+         << " data points." << endl;
+
+    // allocate arrays
+    rad_grid.resize(Nr);
+    rho_grid.resize(Nr);
+    mass_grid.resize(Nr);
+    drhodr_grid.resize(Nr);
+
+    // read in the values
+    infile.clear();
+    infile.seekg(0, ios::beg);
+    for(ln=0; std::getline(infile,line); ) {
+      if (line.find("#") != string::npos or
+          line.find_first_not_of(' ') == string::npos)
+        continue;
+      rad_grid[ln] = std::stod (line, &sz1);
+      rho_grid[ln] = std::stof (line.substr(sz1), &sz2);
+      sz1 += sz2;
+      mass_grid[ln] = std::stof (line.substr(sz1), &sz2);
+      sz1 += sz2;
+      drhodr_grid[ln] = std::stof (line.substr(sz1));
+
+      ln++;
+    }
+    exit(0); // TODO
+  }
+
+  /**
    * @brief  density profile from file, specified by
    *         the parameter density_profile_input
    * @param  r     - spherical radius
@@ -269,6 +331,8 @@ namespace density_profiles {
         mesa_rho0 = 1./(4.*M_PI*mesa_mass_helper(1.));
     }
     else if (boost::iequals(density_profile,"from file")) {
+      // read rho input file
+      read_input_density_file(input_density_file);
       spherical_density_profile = rho_from_input_file;
       spherical_mass_profile = mass_from_input_file;
       spherical_drho_dr = drhodr_from_input_file;
