@@ -310,10 +310,10 @@ namespace density_profiles {
       xx3 = x - xp[i3],
       xx4 = x - xp[i4];
 
-    return yp[i1]*xx2/(xx1-xx2)*xx3/(xx1-xx3)*xx4/(xx1-xx4)
-         + yp[i2]*xx1/(xx2-xx1)*xx3/(xx2-xx3)*xx4/(xx2-xx4)
-         + yp[i3]*xx1/(xx3-xx1)*xx2/(xx3-xx2)*xx4/(xx3-xx4)
-         + yp[i4]*xx1/(xx4-xx1)*xx2/(xx4-xx2)*xx3/(xx4-xx3);
+    return yp[i1]*xx2/(xx2-xx1)*xx3/(xx3-xx1)*xx4/(xx4-xx1)
+         + yp[i2]*xx1/(xx1-xx2)*xx3/(xx3-xx2)*xx4/(xx4-xx2)
+         + yp[i3]*xx1/(xx1-xx3)*xx2/(xx2-xx3)*xx4/(xx4-xx3)
+         + yp[i4]*xx1/(xx1-xx4)*xx2/(xx2-xx4)*xx3/(xx3-xx4);
   }
 
 
