@@ -457,9 +457,21 @@ typedef enum sph_kernel_keyword_enum {
   DECLARE_PARAM(bool,equal_mass,true)
 #endif
 
-// for some spherically- or axi-symmetric configurations:
+// initial density profile: for initial data or density-supporting
+// external portential
+// Possible values:
+// * 'constant'  :constant uniform-density spherical configuration
+// * 'parabolic' :spherically-symmetric parabolic shape, rho ~ rho0*(1 - r^2)
+// * 'mesa'      :constant density with a smooth parabolic fade-out on edge
+// * 'from file' :setup density from the input_density_file 
 #ifndef density_profile
   DECLARE_STRING_PARAM(density_profile,"constant")
+#endif
+
+// gridded input data for generating / supporting arbitrary density profiles
+// used when parameter 'density_profile' is set to 'from file'
+#ifndef input_density_file
+  DECLARE_STRING_PARAM(input_density_file,"")
 #endif
 
 // characteristic density for initial conditions
@@ -887,6 +899,10 @@ void set_param(const std::string& param_name,
 
 # ifndef density_profile
   READ_STRING_PARAM(density_profile)
+# endif
+
+# ifndef input_density_file
+  READ_STRING_PARAM(input_density_file)
 # endif
 
 # ifndef rho_initial

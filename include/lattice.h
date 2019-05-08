@@ -543,13 +543,21 @@ int64_t generator_icosahedral_lattice(const int lattice_type,
     x1 = 0.5*(rk12p/R_shells + 1.0);
     mrk12  = 1.0;
     if (mrk12 - mrk12p > Mk) {
-      for (int nrit=0;  nrit<10; ++nrit) {
+      for (int nrit=0;  nrit<30; ++nrit) {
         mrk12 = density_profiles::spherical_mass_profile(x1);
         f = mrk12 - mrk12p - Mk;
         f1 = 4.0*pi*(x1*x1) * density_profiles::spherical_density_profile(x1);
         x2 = x1 - f/f1;
         if (abs(x2-x1)<1e-12) break;
-        x1 = x2;
+        if (x2 > rk12p/R_shells and x2 < 1.0) {
+          x1 = x2;
+        } 
+        else { // NR out: fall back to bisection
+          if (f>0.0) 
+            x1 = 0.5*(rk12p/R_shells + x1);
+          else
+            x1 = 0.5*(x1 + 1.0);
+        }
       }
     }
     rk12 = x1*R_shells;
@@ -559,7 +567,6 @@ int64_t generator_icosahedral_lattice(const int lattice_type,
     mrk12p= mrk12;
 
   } //  NN
-//  exit(0);
 
   return (posid - posid_starting);
 }
