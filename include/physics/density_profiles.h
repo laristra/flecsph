@@ -266,13 +266,13 @@ namespace density_profiles {
    * @param   x     - the value to localize;
    * @param   xp    - array of increasing values where to localize x.
    * @return  index i of an interval containing point x;
-   *          '-1' if x < x[0];
-   *          'N'  if x > x[N].
+   *          '-1'   if x < x[0];
+   *          'N-1'  if x > x[N-1] (N is the vector size).
    */
   int get_interval_index ( const double x, const std::vector<double>& xp) {
     const int N = xp.size();
     if (x*(1 + 1e-15) < xp[0])   return -1;
-    if (x*(1 - 1e-15) > xp[N-1]) return N;
+    if (x*(1 - 1e-15) > xp[N-1]) return N-1;
     int i, i1 = 0, i2 = N-1;
     while (i2 - i1 > 1) {
       i = (i1 + i2)/2;
@@ -295,33 +295,25 @@ namespace density_profiles {
    */
   double cubic_interp( const double x, const std::vector<double>& xp,  
                                        const std::vector<double>& yp) {
-    int n = get_interval_index(x, xp);
+    int i2 = get_interval_index(x, xp);
     const int N = xp.size();
-    int i1, i2, i3, i4;
-    i1 = n - 1;
-    i2 = n;
-    i3 = n + 1;
-    i4 = n + 2;
-    if (n == 0) {
-      i1 = 0; i2 = 1; i3 = 2; i4 = 3;
-    }
-    if (n == N - 1) {
-      i1 = N - 4; i2 = N - 3; i3 = N - 2; i4 = N - 1;
-    }
-    double x1 = xp[i1];
-    double x2 = xp[i2];
-    double x3 = xp[i3];
-    double x4 = xp[i4];
+    if (i2 == 0)    i2 = 1;
+    if (i2 > N - 3) i2 = N - 3;
+    int
+      i1 = i2 - 1,
+      i3 = i2 + 1,
+      i4 = i2 + 2;
 
-    double y1 = yp[i1];
-    double y2 = yp[i2];
-    double y3 = yp[i3];
-    double y4 = yp[i4];
+    double 
+      xx1 = x - xp[i1],
+      xx2 = x - xp[i2],
+      xx3 = x - xp[i3],
+      xx4 = x - xp[i4];
 
-    return y1*(x-x2)/(x1-x2)*(x-x3)/(x1-x3)*(x-x4)/(x1-x4)
-         + y2*(x-x1)/(x2-x1)*(x-x3)/(x2-x3)*(x-x4)/(x2-x4)
-         + y3*(x-x1)/(x3-x1)*(x-x2)/(x3-x2)*(x-x4)/(x3-x4)
-         + y4*(x-x1)/(x4-x1)*(x-x2)/(x4-x2)*(x-x3)/(x4-x3);
+    return yp[i1]*xx2/(xx1-xx2)*xx3/(xx1-xx3)*xx4/(xx1-xx4)
+         + yp[i2]*xx1/(xx2-xx1)*xx3/(xx2-xx3)*xx4/(xx2-xx4)
+         + yp[i3]*xx1/(xx3-xx1)*xx2/(xx3-xx2)*xx4/(xx3-xx4)
+         + yp[i4]*xx1/(xx4-xx1)*xx2/(xx4-xx2)*xx3/(xx4-xx3);
   }
 
 
