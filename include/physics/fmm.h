@@ -46,7 +46,7 @@ namespace fmm {
   )
   {
     double dist = flecsi::distance(sink_coordinates,source_coordinates);
-    point_t res = -source_mass/(dist*dist*dist)*
+    point_t res = -gravitational_constant*source_mass/(dist*dist*dist)*
       (sink_coordinates-source_coordinates);
     fc += res;
     return res;
@@ -154,7 +154,7 @@ namespace fmm {
     for(size_t i=0;i<gdimension;++i){
       grav[i] += 0.5*tmpVector[i];
     } // for
-    sink->setAcceleration(grav+sink->getAcceleration());
+    sink->setAcceleration(gravitational_constant*grav+sink->getAcceleration());
   }
 
 } // namespace fmm

@@ -444,6 +444,11 @@ typedef enum sph_kernel_keyword_enum {
   DECLARE_PARAM(double,gravity_acceleration_constant, 9.81)
 # endif
 
+// value of the Gravitational constant in CGS units
+# ifndef gravitational_constant
+  DECLARE_PARAM(double,gravitational_constant, 1)
+# endif
+
 //
 // Specific apps
 //
@@ -886,6 +891,10 @@ void set_param(const std::string& param_name,
 
 # ifndef gravity_acceleration_constant
   READ_NUMERIC_PARAM(gravity_acceleration_constant)
+# endif
+
+# ifndef gravitational_constant
+  READ_NUMERIC_PARAM(gravitational_constant)
 # endif
 
   // specific apps  ---------------------------------------------------------
