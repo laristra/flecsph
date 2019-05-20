@@ -120,6 +120,24 @@ void set_derived_params() {
   // particle spacing
   SET_PARAM(sph_separation, (box_length/(double)(lattice_nx - 1)));
 
+  // warn about not using periodic boundaries
+  if constexpr (gdimension == 2) {
+    if (not (periodic_boundary_x and periodic_boundary_y))
+      clog_one(warn)
+        << "This test is best done with periodic boundaries. Make sure to "
+        << " set periodic_boundary_x = yes and periodic_boundary_y = yes"
+        << " for this test" << std::endl;
+  }
+  if constexpr (gdimension == 3) {
+    if (not (periodic_boundary_x and periodic_boundary_y and periodic_boundary_z))
+      clog_one(warn)
+        << "This test is best done with periodic boundaries. Make sure to set:"
+        << std::endl << "  periodic_boundary_x = yes"
+        << std::endl << "  periodic_boundary_y = yes"
+        << std::endl << "  periodic_boundary_z = yes"
+        << std::endl << "for best results." << std::endl;
+  }
+
   // file to be generated
   std::ostringstream oss;
   oss << initial_data_prefix << ".h5part";
@@ -185,16 +203,45 @@ int main(int argc, char * argv[]){
     if(gdimension==1){
       mass = rho_1*sph_separation;
       lr_sph_sep = mass/rho_2;
+      std::cout << "Lattice resolution: " << std::endl;
+      std::cout << " - central box:      dx = " << sph_separation << std::endl;
+      std::cout << " - left/right boxes: dx = " << lr_sph_sep << std::endl;
+
     } else if(gdimension==2){
       mass = rho_1*sph_separation*sph_separation;
       if (lattice_type == 1 or lattice_type == 2)
         mass *= sqrt(3.0)/2.0;
       lr_sph_sep = sph_separation * sqrt(rho_1/rho_2);
+      std::cout << "Lattice resolution: " << std::endl;
+      if (lattice_type == 0) {
+        std::cout << " - central box:      dx = " << sph_separation << std::endl;
+        std::cout << " - left/right boxes: dx = " << lr_sph_sep << std::endl;
+      }
+      else if (lattice_type == 1 or lattice_type == 2) {
+        std::cout << " - central box:      dx = " << sph_separation << std::endl;
+        std::cout << "                     dy = " << sph_separation*sqrt(.75) << std::endl;
+        std::cout << " - left/right boxes: dx = " << lr_sph_sep << std::endl;
+        std::cout << "                     dy = " << lr_sph_sep*sqrt(.75) << std::endl;
+      }
+
     } else{
       mass = rho_1*sph_separation*sph_separation*sph_separation;
       if (lattice_type == 1 or lattice_type == 2)
         mass *= 1.0/sqrt(2.0);
       lr_sph_sep = sph_separation * cbrt(rho_1/rho_2);
+      std::cout << "Lattice resolution: " << std::endl;
+      if (lattice_type == 0) {
+        std::cout << " - central box:      dx = " << sph_separation << std::endl;
+        std::cout << " - left/right boxes: dx = " << lr_sph_sep << std::endl;
+      }
+      else if (lattice_type == 1 or lattice_type == 2) {
+        std::cout << " - central box:      dx = " << sph_separation << std::endl;
+        std::cout << "                     dy = " << sph_separation*sqrt(.75) << std::endl;
+        std::cout << "                     dz = " << sph_separation*sqrt(2./3.) << std::endl;
+        std::cout << " - left/right boxes: dx = " << lr_sph_sep << std::endl;
+        std::cout << "                     dy = " << lr_sph_sep*sqrt(.75) << std::endl;
+        std::cout << "                     dz = " << lr_sph_sep*sqrt(2./3.) << std::endl;
+      }
     }
     rbox_min += (lr_sph_sep - sph_separation) / 2.0; // adjust rbox
     tparticles += particle_lattice::count(lattice_type,2,rbox_min,rbox_max,
