@@ -77,7 +77,7 @@ template <class P> class tree_topology : public P, public data::data_client_t {
     SOURCE_REPLY = 4,
     MPI_RANK_DONE = 5,
     FAILED_PROBE = 6,
-    MPI_SHARE_EDGE_K = 7, 
+    MPI_SHARE_EDGE_K = 7,
     MPI_SHARE_EDGE = 8
   };
 
@@ -272,9 +272,9 @@ public:
           my_keys[0] = entities_.back().key();
           // Get the parent of this entity
           my_keys[1] = find_parent(my_keys[0]).key();
-          MPI_Send(&(my_keys[0]), byte_size, MPI_BYTE, partner, 
+          MPI_Send(&(my_keys[0]), byte_size, MPI_BYTE, partner,
               MPI_SHARE_EDGE_K,MPI_COMM_WORLD);
-          MPI_Recv(&(neighbor_keys[0]), byte_size, MPI_BYTE, partner, 
+          MPI_Recv(&(neighbor_keys[0]), byte_size, MPI_BYTE, partner,
               MPI_SHARE_EDGE_K,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         }
       } else {
@@ -284,9 +284,9 @@ public:
           my_keys[0] = entities_.front().key();
           // Get the parent of this entity
           my_keys[1] = find_parent(my_keys[0]).key();
-          MPI_Recv(&(neighbor_keys[0]), byte_size, MPI_BYTE, partner, 
+          MPI_Recv(&(neighbor_keys[0]), byte_size, MPI_BYTE, partner,
               MPI_SHARE_EDGE_K,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-          MPI_Send(&(my_keys[0]), byte_size, MPI_BYTE, partner, 
+          MPI_Send(&(my_keys[0]), byte_size, MPI_BYTE, partner,
               MPI_SHARE_EDGE_K,MPI_COMM_WORLD);
         }
       }
@@ -452,7 +452,7 @@ public:
                    MPI_BYTE, partner, MPI_SHARE_EDGE, MPI_COMM_WORLD);
         }
       } // if
-    } // for 
+    } // for
 
     for (auto g : received_ghosts) {
       shared_entities_.push_back(g);
@@ -623,7 +623,7 @@ public:
 
 #ifdef DEBUG
     int flag = 0;
-    MPI_Status status; 
+    MPI_Status status;
     MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag,
                &status);
     if (flag != 0) {
@@ -658,8 +658,8 @@ public:
     }
     // Copy back the results
     entities_ = entities_w_;
-    // Synchronize the threads to be sure they dont start to share edges 
-    // Critical 
+    // Synchronize the threads to be sure they dont start to share edges
+    // Critical
     MPI_Barrier(MPI_COMM_WORLD);
 
   } // apply_sub_cells
@@ -865,13 +865,13 @@ public:
     if (size != 1) {
       std::thread handler(&tree_topology::handle_requests, this);
       // Start tree traversal
-      traversal_fmm(work_branch, remaining_branches, MAC, f_fc, f_dfcdr,
+      traverse_fmm(work_branch, remaining_branches, MAC, f_fc, f_dfcdr,
                     f_dfcdrdr, f_c2p);
       MPI_Send(NULL, 0, MPI_INT, rank, MPI_DONE, MPI_COMM_WORLD);
       // Wait for communication thread
       handler.join();
     } else {
-      traversal_fmm(work_branch, remaining_branches, MAC, f_fc, f_dfcdr,
+      traverse_fmm(work_branch, remaining_branches, MAC, f_fc, f_dfcdr,
                     f_dfcdrdr, f_c2p);
     }
 
@@ -883,7 +883,7 @@ public:
                &status);
     if(flag != 0){
       std::cerr<<rank<<" TAG:"<<status.MPI_TAG<<" SOURCE: "<<
-        status.MPI_SOURCE<<std::endl;  
+        status.MPI_SOURCE<<std::endl;
     }
     assert(flag == 0);
 #endif
@@ -903,7 +903,7 @@ public:
     // compute the particle to particle interaction on each sub-branches
     if (size != 1) {
       std::vector<branch_t *> ignore;
-      traversal_fmm(remaining_branches, ignore, MAC, f_fc, f_dfcdr, f_dfcdrdr,
+      traverse_fmm(remaining_branches, ignore, MAC, f_fc, f_dfcdr, f_dfcdrdr,
                     f_c2p);
     } else {
       assert(remaining_branches.size() == 0);
@@ -911,8 +911,8 @@ public:
     entities_ = entities_w_;
 
 
-    // Synchronize the threads to be sure they dont start to share edges 
-    // Critical 
+    // Synchronize the threads to be sure they dont start to share edges
+    // Critical
     MPI_Barrier(MPI_COMM_WORLD);
 
   } // apply_sub_cells
@@ -922,7 +922,7 @@ public:
    * the C2C and C2P computations
    */
   template <typename FC, typename DFCDR, typename DFCDRDR, typename C2P>
-  void traversal_fmm(std::vector<branch_t *> &work_branch,
+  void traverse_fmm(std::vector<branch_t *> &work_branch,
                      std::vector<branch_t *> &remaining_branches,
                      const double MAC, FC &&f_fc, DFCDR &&f_dfcdr,
                      DFCDRDR &&f_dfcdrdr, C2P &&f_c2p) {
@@ -930,16 +930,21 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+    size_t total_done = 0;
+
     size_t nelem = work_branch.size();
 
 #pragma omp parallel for
     for (size_t i = 0; i < nelem; ++i) {
       std::vector<branch_t *> inter_list;
       std::vector<branch_t *> requests_branches;
+
+      total_done += work_branch[i]->sub_entities();
       // Sub traversal and compute the MAC
 
       if (traversal_c2c_c2p_p2p(work_branch[i], requests_branches, MAC, f_fc,
                                 f_dfcdr, f_dfcdrdr, f_c2p)) {
+        if(size == 1 ) assert(false);
         std::vector<key_t> send;
 #pragma omp critical
         {
@@ -959,6 +964,7 @@ public:
                  LOCAL_REQUEST, MPI_COMM_WORLD);
       }
     }
+    std::cout<<"Worked on: "<<total_done<<" sub entities"<<std::endl;
   }
 
   /**
@@ -972,7 +978,6 @@ public:
     point_t fc = 0.;
     double dfcdr[9] = {0.};
     double dfcdrdr[27] = {0.};
-
     point_t coordinates = b->coordinates();
 
     std::vector<branch_t *> queue;
@@ -1028,7 +1033,7 @@ public:
       // Apply the P2P for the local particles
       for (int l = 0; l < interactions_leaves.size(); ++l) {
         for (auto k : *(interactions_leaves[l])) {
-          for (int i = b->begin_tree_entities(); i < b->end_tree_entities();
+          for (int i = b->begin_tree_entities(); i <= b->end_tree_entities();
                ++i) {
             if (tree_entities_[k].id() != tree_entities_[i].id()) {
               // N square computation
@@ -1641,7 +1646,7 @@ public:
       itr->second.set_leaf(true);
 
       size_t depth = key.depth();
-      // Set the new depth of the tree 
+      // Set the new depth of the tree
       max_depth_ = std::max(max_depth_,depth);
     } else {
       if (itr->second.owner() == rank)
@@ -1815,8 +1820,8 @@ public:
    * the branch.
    */
   void insert(const size_t &id) {
-    int rank; 
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank); 
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     // Find parent of the id
     auto ent = &(tree_entities_[id]);
     branch_id_t bid = ent->key();
