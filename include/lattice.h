@@ -103,7 +103,7 @@ bool in_domain_3d(const double x, const double y, const double z,
                ymin = bbox_min[1] - dx, ymax = bbox_max[1] - dx,
                zmin = bbox_min[2] - dx, zmax = bbox_max[2] - dx;
   bool within_domain =
-       x>=xmin && x<=xmax && y>=ymin && y<=ymax && z>=zmin && z<=zmax;
+       x>xmin && x<xmax && y>ymin && y<ymax && z>zmin && z<zmax;
 
   // extra check for a spherical domain
   if(domain_type==1) {
