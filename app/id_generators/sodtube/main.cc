@@ -45,32 +45,6 @@ void set_derived_params() {
   using namespace std;
   using namespace param;
 
-  // compute the total number of particles
-  int64_t npd = lattice_nx;
-
-  // 1D setup
-  cbox_max[0] =  box_length/6.;
-  cbox_min[0] = -cbox_max[0];
-  lbox_min[0] = -box_length/2.;
-  lbox_max[0] =  cbox_min[0];
-  rbox_min[0] =  cbox_max[0];
-  rbox_max[0] = -lbox_min[0];
-
-  // 2D case
-  if (gdimension>1) {
-     cbox_max[1] = lbox_max[1] = rbox_max[1] = box_width/2.0;
-     cbox_min[1] = lbox_min[1] = rbox_min[1] =-box_width/2.0;
-     npd *= (int64_t)((double)lattice_nx*box_width/box_length);
-  }
-
-  // 3D case
-  if (gdimension>2) {
-     cbox_max[2] = lbox_max[2] = rbox_max[2] = box_height/2.0;
-     cbox_min[2] = lbox_min[2] = rbox_min[2] =-box_height/2.0;
-     npd *= (int64_t)((double)lattice_nx*box_height/box_length);
-  }
-  SET_PARAM(nparticles, npd);
-
   // test selector
   switch (sodtest_num) {
     case (1):
@@ -117,8 +91,37 @@ void set_derived_params() {
 
   }
 
+  // adjust lattice_nx such that it gives 1 in remainder if divided by 3
+  SET_PARAM(lattice_nx, ((lattice_nx - 1)/3) * 3 + 1);
+  
   // particle spacing
   SET_PARAM(sph_separation, (box_length/(double)(lattice_nx - 1)));
+
+  // compute the total number of particles
+  int64_t npd = lattice_nx;
+
+  // 1D setup
+  cbox_max[0] =  box_length/6.;
+  cbox_min[0] = -box_length/6.;
+  lbox_min[0] = -box_length/2.;
+  lbox_max[0] =  cbox_min[0];
+  rbox_min[0] =  cbox_max[0];
+  rbox_max[0] = -lbox_min[0];
+
+  // 2D case
+  if (gdimension>1) {
+     cbox_max[1] = lbox_max[1] = rbox_max[1] = box_width/2.0;
+     cbox_min[1] = lbox_min[1] = rbox_min[1] =-box_width/2.0;
+     npd *= (int64_t)((double)lattice_nx*box_width/box_length);
+  }
+
+  // 3D case
+  if (gdimension>2) {
+     cbox_max[2] = lbox_max[2] = rbox_max[2] = box_height/2.0;
+     cbox_min[2] = lbox_min[2] = rbox_min[2] =-box_height/2.0;
+     npd *= (int64_t)((double)lattice_nx*box_height/box_length);
+  }
+  SET_PARAM(nparticles, npd);
 
   // warn about not using periodic boundaries
   if constexpr (gdimension == 2) {
@@ -197,58 +200,136 @@ int main(int argc, char * argv[]){
   double lr_sph_sep = 0.;
   double temp_part = 0;
   double temp_part_new = 0;
+  double dy1, dy2, dz1, dz2;
+  dy1 = dy2 = dz1 = dz2 = sph_separation;
   if(equal_mass){
-    tparticles = particle_lattice::count(lattice_type,2,cbox_min,cbox_max,
-                                         sph_separation,0);
-    if(gdimension==1){
+    if (gdimension == 1) {
       mass = rho_1*sph_separation;
       lr_sph_sep = mass/rho_2;
-      std::cout << "Lattice resolution: " << std::endl;
-      std::cout << " - central box:      dx = " << sph_separation << std::endl;
-      std::cout << " - left/right boxes: dx = " << lr_sph_sep << std::endl;
-
-    } else if(gdimension==2){
+      clog_one(info) << std::endl 
+        << "Lattice resolution: " << std::endl
+        << " - central box:      dx = " << sph_separation << std::endl
+        << " - left/right boxes: dx = " << lr_sph_sep << std::endl;
+    } 
+    else if (gdimension == 2) {
       mass = rho_1*sph_separation*sph_separation;
       if (lattice_type == 1 or lattice_type == 2)
         mass *= sqrt(3.0)/2.0;
       lr_sph_sep = sph_separation * sqrt(rho_1/rho_2);
-      std::cout << "Lattice resolution: " << std::endl;
       if (lattice_type == 0) {
-        std::cout << " - central box:      dx = " << sph_separation << std::endl;
-        std::cout << " - left/right boxes: dx = " << lr_sph_sep << std::endl;
+        dy1 = sph_separation;
+        dy2 = lr_sph_sep;
+        clog_one(info) << std::endl 
+          << "Lattice resolution: " << std::endl
+          << " - central box:      dx = " << sph_separation << std::endl
+          << " - left/right boxes: dx = " << lr_sph_sep << std::endl;
       }
       else if (lattice_type == 1 or lattice_type == 2) {
-        std::cout << " - central box:      dx = " << sph_separation << std::endl;
-        std::cout << "                     dy = " << sph_separation*sqrt(.75) << std::endl;
-        std::cout << " - left/right boxes: dx = " << lr_sph_sep << std::endl;
-        std::cout << "                     dy = " << lr_sph_sep*sqrt(.75) << std::endl;
+        dy1 = sph_separation*sqrt(3.);
+        dy2 = lr_sph_sep*sqrt(3.);
+        clog_one(info) << std::endl 
+          << "Lattice resolution: " << std::endl
+          << " - central box:      dx = " << sph_separation << std::endl
+          << "                   2*dy = " << dy1 << std::endl
+          << " - left/right boxes: dx = " << lr_sph_sep << std::endl
+          << "                   2*dy = " << dy2 << std::endl;
       }
 
-    } else{
+    } 
+    else { // dimension == 3
       mass = rho_1*sph_separation*sph_separation*sph_separation;
       if (lattice_type == 1 or lattice_type == 2)
         mass *= 1.0/sqrt(2.0);
       lr_sph_sep = sph_separation * cbrt(rho_1/rho_2);
-      std::cout << "Lattice resolution: " << std::endl;
       if (lattice_type == 0) {
-        std::cout << " - central box:      dx = " << sph_separation << std::endl;
-        std::cout << " - left/right boxes: dx = " << lr_sph_sep << std::endl;
+        dy1 = dz1 = sph_separation;
+        dy2 = dz2 = lr_sph_sep;
+        clog_one(info) << std::endl 
+          << "Lattice resolution: " << std::endl
+          << " - central box:      dx = " << sph_separation << std::endl
+          << " - left/right boxes: dx = " << lr_sph_sep << std::endl;
       }
-      else if (lattice_type == 1 or lattice_type == 2) {
-        std::cout << " - central box:      dx = " << sph_separation << std::endl;
-        std::cout << "                     dy = " << sph_separation*sqrt(.75) << std::endl;
-        std::cout << "                     dz = " << sph_separation*sqrt(2./3.) << std::endl;
-        std::cout << " - left/right boxes: dx = " << lr_sph_sep << std::endl;
-        std::cout << "                     dy = " << lr_sph_sep*sqrt(.75) << std::endl;
-        std::cout << "                     dz = " << lr_sph_sep*sqrt(2./3.) << std::endl;
+      else if (lattice_type == 1) {
+        dy1 = sph_separation*sqrt(3.);
+        dy2 = lr_sph_sep*sqrt(3.);
+        dz1 = 2.*sph_separation*sqrt(2./3.);
+        dz2 = 2.*lr_sph_sep*sqrt(2./3.);
+        clog_one(info) << std::endl 
+          << "Lattice: HCP, resolution: " << std::endl
+          << " - central box:      dx = " << sph_separation << std::endl
+          << "                   2*dy = " << dy1 << std::endl
+          << "                   2*dz = " << dz1 << std::endl
+          << " - left/right boxes: dx = " << lr_sph_sep << std::endl
+          << "                   2*dy = " << dy2 << std::endl
+          << "                   2*dz = " << dz2 << std::endl;
+      }
+      else if (lattice_type == 2) {
+        dy1 = sph_separation*sqrt(3.);
+        dy2 = lr_sph_sep*sqrt(3.);
+        dz1 = sph_separation*sqrt(6.);
+        dz2 = lr_sph_sep*sqrt(6.);
+        clog_one(info) << std::endl 
+          << "Lattice: FCC, resolution: " << std::endl
+          << " - central box:      dx = " << sph_separation << std::endl
+          << "                   2*dy = " << dy1 << std::endl
+          << "                   3*dz = " << dz1 << std::endl
+          << " - left/right boxes: dx = " << lr_sph_sep << std::endl
+          << "                   2*dy = " << dy2 << std::endl
+          << "                   3*dz = " << dz2 << std::endl;
       }
     }
-    rbox_min += (lr_sph_sep - sph_separation) / 2.0; // adjust rbox
+    rbox_max[0] = box_length/6. + ((int)(box_length/(3*lr_sph_sep)))*lr_sph_sep;
+    lbox_min[0] =-box_length/6. - ((int)(box_length/(3*lr_sph_sep)))*lr_sph_sep;
+    std::cout << "dx_lr = " << lr_sph_sep << std::endl;
+    std::cout << "Nx_lr = " << (int)(box_length/(3*lr_sph_sep)) << std::endl;
+    std::cout << "Suggested: box_length = " << 2.0*rbox_max[0] << std::endl;
+    
+    // adjust width
+    if (gdimension >= 2) {
+      int Ny1 = (int)(box_width/dy1) - 1;
+      for(int j = Ny1; j < Ny1*100; ++j) {
+        double w2 = ((int)((j*dy1)/dy2 - 1e-12) + 1)*dy2;
+        if (fabs(w2 - j*dy1) < 0.05*dy2) {
+          SET_PARAM(box_width, j*dy1);
+          cbox_min[1] = -box_width/2.;
+          cbox_max[1] =  box_width/2.;
+          rbox_min[1] = -box_width/2.;
+          rbox_max[1] =  box_width/2.;
+          lbox_min[1] = -box_width/2.;
+          lbox_max[1] =  box_width/2.;
+          std::cout << "Suggested: box_width = " << box_width << std::endl;
+          break;
+        }
+      }
+    }
+
+    // adjust height
+    if (gdimension >= 3) {
+      int Nz1 = (int)(box_height/dz1) - 1;
+      for(int k = Nz1; k < Nz1*100; ++k) {
+        double w2 = ((int)((k*dz1)/dz2 - 1e-12) + 1)*dz2;
+        if (fabs(w2 - k*dz1) < 0.05*dz2) {
+          SET_PARAM(box_height, w2);
+          cbox_min[2] = -box_height/2.;
+          cbox_max[2] =  box_height/2.;
+          rbox_min[2] = -box_height/2.;
+          rbox_max[2] =  box_height/2.;
+          lbox_min[2] = -box_height/2.;
+          lbox_max[2] =  box_height/2.;
+          std::cout << "Suggested: box_height = " << box_height << std::endl;
+          break;
+        }
+      }
+    }
+
+    //rbox_min[0] += (lr_sph_sep - sph_separation) / 2.0; // adjust rbox
+    tparticles = particle_lattice::count(lattice_type,2,cbox_min,cbox_max,
+                                         sph_separation,0);
     tparticles += particle_lattice::count(lattice_type,2,rbox_min,rbox_max,
                                           lr_sph_sep,tparticles);
     tparticles += particle_lattice::count(lattice_type,2,lbox_min,lbox_max,
                                           lr_sph_sep,tparticles);
-  }
+  } // equal mass
 
   // Initialize the arrays to be filled later
   // Position
