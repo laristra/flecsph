@@ -293,7 +293,7 @@ int main(int argc, char * argv[]){
       int Ny1 = (int)(box_width/dy1) - 1;
       for(int j = Ny1; j < Ny1*100; ++j) {
         double w2 = ((int)((j*dy1)/dy2 - 1e-12) + 1)*dy2;
-        if (fabs(w2 - j*dy1) < 0.05*dy2) {
+        if (fabs(w2 - j*dy1) < lattice_mismatch_tolerance*dy2) {
           SET_PARAM(box_width, j*dy1);
           cbox_min[1] = -box_width/2.;
           cbox_max[1] =  box_width/2.;
@@ -311,7 +311,7 @@ int main(int argc, char * argv[]){
       int Nz1 = (int)(box_height/dz1) - 1;
       for(int k = Nz1; k < Nz1*100; ++k) {
         double w2 = ((int)((k*dz1)/dz2 - 1e-12) + 1)*dz2;
-        if (fabs(w2 - k*dz1) < 0.05*dz2) {
+        if (fabs(w2 - k*dz1) < lattice_mismatch_tolerance*dz2) {
           SET_PARAM(box_height, w2);
           cbox_min[2] = -box_height/2.;
           cbox_max[2] =  box_height/2.;
