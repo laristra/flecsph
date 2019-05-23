@@ -43,11 +43,12 @@ TEST(tree_topology, neighbors_sphere_NORMAL) {
   double mass = 1.0;
   range_t range = {point_t{RMINX, RMINY, RMINZ}, point_t{RMAXX, RMAXY, RMAXZ}};
   std::cout << "Range: " << range[0] << "-" << range[1] << std::endl;
+  key_type::set_range(range);
 
   for (size_t i = 0; i < n; ++i) {
     point_t p = {uniform(RMINX, RMAXX), uniform(RMINY, RMAXY),
                  uniform(RMINZ, RMAXZ)};
-    auto e = t.make_entity(key_type(range, p), p, nullptr, 0, mass, 0, HMAX);
+    auto e = t.make_entity(key_type(p), p, nullptr, 0, mass, 0, HMAX);
     t.insert(e);
   }
 
@@ -91,11 +92,12 @@ TEST(tree_topology, neighbors_sphere_VARIABLE) {
   double mass = 1.0;
   range_t range = {point_t{RMINX, RMINY, RMINZ}, point_t{RMAXX, RMAXY, RMAXZ}};
   std::cout << "Range: " << range[0] << "-" << range[1] << std::endl;
+  key_type::set_range(range);
 
   for (size_t i = 0; i < n; ++i) {
     point_t p = {uniform(RMINX, RMAXX), uniform(RMINY, RMAXY),
                  uniform(RMINZ, RMAXZ)};
-    auto e = t.make_entity(key_type(range, p), p, nullptr, 0, mass, 0,
+    auto e = t.make_entity(key_type(p), p, nullptr, 0, mass, 0,
                            uniform(HMIN, HMAX));
     t.insert(e);
   }
@@ -135,6 +137,7 @@ TEST(tree_topology, neighbors_box_NORMAL) {
   double mass = 1.0;
   range_t range = {point_t{RMINX, RMINY, RMINZ}, point_t{RMAXX, RMAXY, RMAXZ}};
   std::cout << "Range: " << range[0] << "-" << range[1] << std::endl;
+  key_type::set_range(range);
 
   point_t max;
   point_t min;
@@ -142,7 +145,7 @@ TEST(tree_topology, neighbors_box_NORMAL) {
   for (size_t i = 0; i < n; ++i) {
     point_t p = {uniform(RMINX, RMAXX), uniform(RMINY, RMAXY),
                  uniform(RMINZ, RMAXZ)};
-    auto e = t.make_entity(key_type(range, p), p, nullptr, 0, mass, 0, HMAX);
+    auto e = t.make_entity(key_type( p), p, nullptr, 0, mass, 0, HMAX);
     t.insert(e);
   }
 
@@ -195,11 +198,13 @@ TEST(tree_topology, neighbors_box_VARIABLE) {
   point_t min;
   range_t range = {point_t{RMINX,RMINY,RMINZ},point_t{RMAXX,RMAXY,RMAXZ}};
   std::cout<<"Range: "<<range[0]<<"-"<<range[1]<<std::endl;
+  key_type::set_range(range);
+
 
   for(size_t i = 0; i < n; ++i){
     point_t p = {uniform(RMINX, RMAXX), uniform(RMINY, RMAXY),
         uniform(RMINZ, RMAXZ)};
-    auto e = t.make_entity(key_type(range,p),p,nullptr,0,mass,0,uniform(HMIN,HMAX));
+    auto e = t.make_entity(key_type(p),p,nullptr,0,mass,0,uniform(HMIN,HMAX));
     t.insert(e);
   }
 
