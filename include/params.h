@@ -273,6 +273,16 @@ typedef enum sph_kernel_keyword_enum {
   DECLARE_PARAM(bool,periodic_boundary_z,false)
 #endif
 
+//- tolerance to lattice mismatch for periodic boundaries:
+//  when generating initial data with two lattice blocks
+//  with different densities that need to be periodic, 
+//  allow this mismatch between lattice synchronization
+//  at the boundary
+//
+#ifndef lattice_matchup_tolerance
+  DECLARE_PARAM(double,lattice_mismatch_tolerance,0.05)
+#endif
+
 //
 // I/O parameters
 //
@@ -769,6 +779,10 @@ void set_param(const std::string& param_name,
 
 # ifndef periodic_boundary_z
   READ_BOOLEAN_PARAM(periodic_boundary_z)
+# endif
+
+# ifndef lattice_matchup_tolerance
+  READ_NUMERIC_PARAM(lattice_mismatch_tolerance)
 # endif
 
   // i/o parameters  --------------------------------------------------------

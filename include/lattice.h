@@ -54,7 +54,7 @@
 #define CU(x) ((x)*(x)*(x))
 
 namespace particle_lattice {
-const double b_tol = 1e-12; // boundary tolerance
+const double b_tol = 1e-06; // boundary tolerance
 
 /**
  * @brief  in_domain_?d functions check whether a particle belongs to a given
@@ -72,16 +72,17 @@ const double b_tol = 1e-12; // boundary tolerance
 bool in_domain_1d(const double x, const double xmin, const double xmax,
                   const int domain_type) {
   // 1D domain: half-interval [xmin, xmax)
-  bool within_domain = x>xmin*(1 - b_tol) && x<xmax*(1 - b_tol);
+  const double dx = b_tol*(xmax - xmin);
+  bool within_domain = (x > xmin - dx) && (x < xmax - dx);
   return within_domain;
 }
 
 bool in_domain_2d(const double x, const double y,
     const point_t& bbox_min, const point_t& bbox_max, const int domain_type) {
   // within_domain checks to see if the position is within the bounding box
-  const double q = 1.0 - b_tol;
-  const double xmin = q*bbox_min[0], xmax = q*bbox_max[0],
-               ymin = q*bbox_min[1], ymax = q*bbox_max[1];
+  const double dx = b_tol*(bbox_max[0] - bbox_min[0]);
+  const double xmin = bbox_min[0] - dx, xmax = bbox_max[0] - dx,
+               ymin = bbox_min[1] - dx, ymax = bbox_max[1] - dx;
   bool within_domain = x>xmin && x<xmax && y>ymin && y<ymax;
 
   // extra check for a circular domain
@@ -97,12 +98,12 @@ bool in_domain_2d(const double x, const double y,
 bool in_domain_3d(const double x, const double y, const double z,
     const point_t& bbox_min, const point_t& bbox_max, const int domain_type) {
   // within_domain checks to see if the position is within the total domain
-  const double q = 1.0 - b_tol;
-  const double xmin = q*bbox_min[0], xmax = q*bbox_max[0],
-               ymin = q*bbox_min[1], ymax = q*bbox_max[1],
-               zmin = q*bbox_min[2], zmax = q*bbox_max[2];
+  const double dx = b_tol*(bbox_max[0] - bbox_min[0]);
+  const double xmin = bbox_min[0] - dx, xmax = bbox_max[0] - dx,
+               ymin = bbox_min[1] - dx, ymax = bbox_max[1] - dx,
+               zmin = bbox_min[2] - dx, zmax = bbox_max[2] - dx;
   bool within_domain =
-       x>=xmin && x<=xmax && y>=ymin && y<=ymax && z>=zmin && z<=zmax;
+       x>xmin && x<xmax && y>ymin && y<ymax && z>zmin && z<zmax;
 
   // extra check for a spherical domain
   if(domain_type==1) {
@@ -236,9 +237,9 @@ generator_lattice_3d(
 
    // The loop for lattice_type==0 (rectangular)
    if(lattice_type==0){
-     for(double z_p=xmin; z_p<zmax; z_p+=dx)
+     for(double z_p=zmin; z_p<zmax; z_p+=dx)
      for(double y_p=ymin; y_p<ymax; y_p+=dx)
-     for(double x_p=zmin; x_p<xmax; x_p+=dx)
+     for(double x_p=xmin; x_p<xmax; x_p+=dx)
      if(in_domain_3d(x_p,y_p,z_p, bbox_min,bbox_max, domain_type)) {
        if(!count_only){
          x[posid] = x_p;
