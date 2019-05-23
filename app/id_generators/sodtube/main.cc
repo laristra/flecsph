@@ -278,14 +278,18 @@ int main(int argc, char * argv[]){
           << "                   3*dz = " << dz2 << std::endl;
       }
     }
-    rbox_max[0] = box_length/6. + ((int)(box_length/(3*lr_sph_sep)))*lr_sph_sep;
-    lbox_min[0] =-box_length/6. - ((int)(box_length/(3*lr_sph_sep)))*lr_sph_sep;
-    std::cout << "dx_lr = " << lr_sph_sep << std::endl;
-    std::cout << "Nx_lr = " << (int)(box_length/(3*lr_sph_sep)) << std::endl;
-    std::cout << "Suggested: box_length = " << 2.0*rbox_max[0] << std::endl;
+
+    // for periodic boundaries, lattice has to match up:
+    // adjust domain length
+    if (periodic_boundary_x) {
+      SET_PARAM(box_length, 
+                box_length/3 + 2*(int(box_length/(3*lr_sph_sep)))*lr_sph_sep)
+      rbox_max[0] = box_length/2;
+      lbox_min[0] =-box_length/2;
+    }
     
-    // adjust width
-    if (gdimension >= 2) {
+    // adjust domain width
+    if (gdimension >= 2 and periodic_boundary_y) {
       int Ny1 = (int)(box_width/dy1) - 1;
       for(int j = Ny1; j < Ny1*100; ++j) {
         double w2 = ((int)((j*dy1)/dy2 - 1e-12) + 1)*dy2;
@@ -297,14 +301,13 @@ int main(int argc, char * argv[]){
           rbox_max[1] =  box_width/2.;
           lbox_min[1] = -box_width/2.;
           lbox_max[1] =  box_width/2.;
-          std::cout << "Suggested: box_width = " << box_width << std::endl;
           break;
         }
       }
     }
 
-    // adjust height
-    if (gdimension >= 3) {
+    // adjust domain height
+    if (gdimension >= 3 and periodic_boundary_z) {
       int Nz1 = (int)(box_height/dz1) - 1;
       for(int k = Nz1; k < Nz1*100; ++k) {
         double w2 = ((int)((k*dz1)/dz2 - 1e-12) + 1)*dz2;
@@ -316,10 +319,20 @@ int main(int argc, char * argv[]){
           rbox_max[2] =  box_height/2.;
           lbox_min[2] = -box_height/2.;
           lbox_max[2] =  box_height/2.;
-          std::cout << "Suggested: box_height = " << box_height << std::endl;
           break;
         }
       }
+    }
+
+    // report adjusted dimensions
+    if (periodic_boundary_x or periodic_boundary_y or periodic_boundary_z) {
+      clog_one(warn) 
+        << "Domain has been adjusted for periodic boundaries." << std::endl;
+      clog_one(warn) 
+        << "For evolution, modify domain dimensions as follows:" << std::endl 
+        << "  box_length = " << box_length << std::endl 
+        << "  box_width = "  << box_width  << std::endl 
+        << "  box_height = " << box_height << std::endl;
     }
 
     //rbox_min[0] += (lr_sph_sep - sph_separation) / 2.0; // adjust rbox
