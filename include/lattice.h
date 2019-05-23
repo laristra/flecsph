@@ -237,9 +237,9 @@ generator_lattice_3d(
 
    // The loop for lattice_type==0 (rectangular)
    if(lattice_type==0){
-     for(double z_p=xmin; z_p<zmax; z_p+=dx)
+     for(double z_p=zmin; z_p<zmax; z_p+=dx)
      for(double y_p=ymin; y_p<ymax; y_p+=dx)
-     for(double x_p=zmin; x_p<xmax; x_p+=dx)
+     for(double x_p=xmin; x_p<xmax; x_p+=dx)
      if(in_domain_3d(x_p,y_p,z_p, bbox_min,bbox_max, domain_type)) {
        if(!count_only){
          x[posid] = x_p;
