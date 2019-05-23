@@ -70,18 +70,27 @@ public:
   particle_type_t getType() const {return type_;};
   bool is_wall(){return type_ == 1;};
 
-  void setAcceleration(point_t acceleration){acceleration_ = acceleration;}
-  void setVelocity(point_t velocity){velocity_ = velocity;}
-  void setVelocityhalf(point_t velocityhalf){velocityhalf_ = velocityhalf;}
-  void setSoundspeed(double soundspeed){soundspeed_ = soundspeed;}
-  void setPressure(double pressure){pressure_ = pressure;}
-  void setEntropy(double entropy){entropy_ = entropy;}
-  void setElectronfraction(double electronfraction){electronfraction_ = electronfraction;}
-  void setDensity(double density){density_ = density;}
-  void setDt(double dt){dt_ = dt;};
-  void setMumax(double mumax){mumax_ = mumax;};
-  void setType(particle_type_t type){type_ = type;};
-  void setType(int type){type_= static_cast<particle_type_t>(type);};
+  void setAcceleration(const point_t& acceleration)
+  {
+    acceleration_ = acceleration;
+  }
+  void setVelocity(const point_t& velocity){velocity_ = velocity;}
+  void setVelocityhalf(const point_t& velocityhalf)
+  {
+    velocityhalf_ = velocityhalf;
+  }
+  void setSoundspeed(const double& soundspeed){soundspeed_ = soundspeed;}
+  void setPressure(const double& pressure){pressure_ = pressure;}
+  void setEntropy(const double& entropy){entropy_ = entropy;}
+  void setElectronfraction(const double& electronfraction)
+  {
+    electronfraction_ = electronfraction;
+  }
+  void setDensity(const double& density){density_ = density;}
+  void setDt(const double& dt){dt_ = dt;}
+  void setMumax(const double& mumax){mumax_ = mumax;}
+  void setType(const particle_type_t& type){type_ = type;}
+  void setType(const int& type){type_= static_cast<particle_type_t>(type);}
 
   // Dependent of the problem
     double getInternalenergy() const{return internalenergy_;}

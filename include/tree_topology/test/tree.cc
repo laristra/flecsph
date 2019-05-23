@@ -21,6 +21,8 @@ const size_t dimension = gdimension;
 
 TEST(tree, add_entities) {
   range_t range{point_t(0., 0., 0.), point_t(1., 1., 1.)};
+  key_type::set_range(range);
+
 
   tree_topology_t *tree;
   tree = new tree_topology_t(range[0], range[1]);
@@ -42,7 +44,7 @@ TEST(tree, add_entities) {
   // clog(trace)<<"Computing keys"<<std::endl<<std::flush;
   // Compute the keys
   for (auto &bi : bodies) {
-    bi.set_key(key_type(tree->range(), bi.coordinates()));
+    bi.set_key(key_type(bi.coordinates()));
   }
 
   // clog(trace)<<"Adding in tree"<<std::endl<<std::flush;

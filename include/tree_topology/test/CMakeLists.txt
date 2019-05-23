@@ -28,9 +28,9 @@ include_directories(${CMAKE_SOURCE_DIR}/mpisph/)
 # tree topology tests
 #------------------------------------------------------------------------------#
 
-cinch_add_unit(morton
+cinch_add_unit(filling_curves
   SOURCES
-    morton.cc
+    filling_curves.cc
     ${FleCSI_RUNTIME}/runtime_driver.cc
   LIBRARIES
     ${FleCSPH_LIBRARIES}
