@@ -551,6 +551,21 @@ typedef enum sph_kernel_keyword_enum {
   DECLARE_PARAM(double, KH_lambda, 1./6.)
 #endif
 
+// Rayleigh-Taylor instability: perturbation amplitude
+#ifndef rt_perturbation_amplitude
+  DECLARE_PARAM(double, rt_perturbation_amplitude, 0.2)
+#endif
+
+// RT instability: the width of stripe where to apply perturbation
+#ifndef rt_perturbation_stripe_width
+  DECLARE_PARAM(double, rt_perturbation_stripe_width, 0.1)
+#endif
+
+// RT instability: perturbation mode (1=one cusp, 2=two cusps etc.)
+#ifndef rt_perturbation_mode
+  DECLARE_PARAM(double, rt_perturbation_mode,1)
+#endif
+
 //
 // Airfoil parameters
 //
@@ -974,6 +989,18 @@ void set_param(const std::string& param_name,
 
 # ifndef KH_lambda
   READ_NUMERIC_PARAM(KH_lambda)
+# endif
+
+# ifndef rt_perturbation_amplitude
+  READ_NUMERIC_PARAM(rt_perturbation_amplitude)
+# endif
+
+# ifndef rt_perturbation_stripe_width
+  READ_NUMERIC_PARAM(rt_perturbation_stripe_width)
+# endif
+
+# ifndef rt_perturbation_mode
+  READ_NUMERIC_PARAM(rt_perturbation_mode)
 # endif
 
   // airfoil parameters  ----------------------------------------------------
