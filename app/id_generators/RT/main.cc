@@ -80,7 +80,7 @@ void set_derived_params() {
 
   // 1 = bottom 2 = top
   rho_1 = rho_initial;  // 2.0 by default
-  rho_2 = rho_1 * KH_density_ratio;
+  rho_2 = rho_1 * density_ratio;
 
   // file to be generated
   std::ostringstream oss;

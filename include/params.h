@@ -536,9 +536,9 @@ typedef enum sph_kernel_keyword_enum {
   DECLARE_PARAM(double,flow_velocity,0.0)
 # endif
 
-// in Kelvin-Helmholtz instability test: density ratio
-# ifndef KH_density_ratio
-  DECLARE_PARAM(double,KH_density_ratio,2.0)
+// in several tests (e.g. KH and RT instabilities): density ratio
+# ifndef density_ratio
+  DECLARE_PARAM(double,density_ratio,2.0)
 # endif
 
 // A value from KH in Price's paper
@@ -979,8 +979,8 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(flow_velocity)
 # endif
 
-# ifndef KH_density_ratio
-  READ_NUMERIC_PARAM(KH_density_ratio)
+# ifndef density_ratio
+  READ_NUMERIC_PARAM(density_ratio)
 # endif
 
 # ifndef KH_A

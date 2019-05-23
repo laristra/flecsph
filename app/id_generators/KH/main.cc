@@ -77,7 +77,7 @@ void set_derived_params() {
   pressure_2 =  pressure_initial;
   vx_2       = -flow_velocity/2.0;
   // -- in the middle box
-  rho_1 = rho_2 * KH_density_ratio; // 2.0 by default
+  rho_1 = rho_2 * density_ratio; // 2.0 by default
   pressure_1 = pressure_2;          // pressures must be equal in KH test
   vx_1       =  flow_velocity/2.0;
 

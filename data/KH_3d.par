@@ -7,7 +7,7 @@
   poly_gamma = 1.4        # polytropic index
   KH_A = 0.025
   KH_lambda = 0.1666
-  KH_density_ratio = 2.
+  density_ratio = 2.
   equal_mass = yes        # determines whether equal mass particles are used
                           #or equal separation
   sph_eta = 1.5
