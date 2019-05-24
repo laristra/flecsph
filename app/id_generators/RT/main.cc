@@ -94,17 +94,18 @@ void set_derived_params() {
     pmass = rho_1*sph_separation*sph_separation*sph_separation;
     if (lattice_type == 1 or lattice_type == 2)
       pmass *= 1./sqrt(2.);
+    sph_sep_t = sph_separation*cbrt(rho_1/rho_2);
   }
   if(gdimension == 2){
     pmass = rho_1*sph_separation*sph_separation;
     if (lattice_type == 1 or lattice_type == 2)
       pmass *= sqrt(3)/2;
+    sph_sep_t = sph_separation*sqrt(rho_1/rho_2);
   }
 
   // lattice spacing
   double dx, dy, dz, dx_t, dy_t, dz_t;
   dx = dy = dz = sph_separation;
-  sph_sep_t = sph_separation*sqrt(rho_1/rho_2);
   dx_t = dy_t = dz_t = sph_sep_t;
   if (lattice_type == 1) { // HCP lattice
     dy   *= sqrt(.75);
