@@ -60,9 +60,6 @@ void set_derived_params() {
   using namespace std;
   using namespace param;
 
-  // boundary tolerance factor
-  const double b_tol = 1e-8;
-
   bbox_max[0] = tbox_max[0] = box_length/2.;
   bbox_min[0] = tbox_min[0] =-box_length/2.;
 
@@ -97,7 +94,7 @@ void set_derived_params() {
   kernels::select();
 
   // particle mass and spacing
-  SET_PARAM(sph_separation, (box_length*(1.0-b_tol)/(double)(lattice_nx-1)));
+  SET_PARAM(sph_separation, (box_length/(double)(lattice_nx-1)));
   if(gdimension == 3){
     pmass = rho_1*sph_separation*sph_separation*sph_separation;
     if (lattice_type == 1 or lattice_type == 2)
@@ -109,22 +106,71 @@ void set_derived_params() {
       pmass *= sqrt(3)/2;
   }
 
-  // adjust width of the middle block for symmetry
-  double dy = sph_separation;
-  if (lattice_type == 1 or lattice_type == 2)
-    dy *= sqrt(3)/2;
-  double dy_tb = dy; // lattice step in y-direction for top and bottom blocks
-  //double bbox_width = bbox_max[1] - bbox_min[1];
-  //bbox_width = (int)(bbox_width/(2*dy))*2*dy;
-  //bbox_min[1] = -bbox_width/2.;
-  //bbox_max[1] =  bbox_width/2.;
+  // lattice spacing
+  double dx, dy, dz, dx_t, dy_t, dz_t;
+  dx = dy = dz = sph_separation;
+  sph_sep_t = sph_separation*sqrt(rho_1/rho_2);
+  dx_t = dy_t = dz_t = sph_sep_t;
+  if (lattice_type == 1) { // HCP lattice
+    dy   *= sqrt(.75);
+    dy_t *= sqrt(.75);
+    dz   *= 2.*sqrt(2./3.);
+    dz_t *= 2.*sqrt(2./3.);
+  }
+  if (lattice_type == 2) { // FCC lattice
+    dy   *= sqrt(.75);
+    dy_t *= sqrt(.75);
+    dz   *= 3.*sqrt(2./3.);
+    dz_t *= 3.*sqrt(2./3.);
+  }
 
-  sph_sep_t = sph_separation * sqrt(rho_1/rho_2);
+  // adjust bottom lattice block in vertical direction
+  bbox_min[1] += (box_width/2.) 
+         - ((int)(box_width/2./dy))*dy;
 
-  //dy_tb = dy * sph_sep_t/sph_separation;
+  // for periodic boundaries, lattice has to match up:
+  // adjust domain length
+  if (periodic_boundary_x) {
+    int Nx = (int)(box_length/dx) - 1;
+    for(int i = Nx; i < Nx*100; ++i) {
+      double w2 = ((int)((i*dx)/dx_t + 1e-12))*dx_t;
+      if (fabs(w2 - i*dx) < lattice_mismatch_tolerance*dx_t) {
+        SET_PARAM(box_length, w2);
+        bbox_min[0] = -box_length/2.;
+        bbox_max[0] =  box_length/2.;
+        tbox_min[0] = -box_length/2.;
+        tbox_max[0] =  box_length/2.;
+        break;
+      }
+    }
+  }
+  
+  // adjust domain height
+  if (gdimension >= 3 and periodic_boundary_z) {
+    int Nz = (int)(box_length/dz) - 1;
+    for(int k = Nz; k < Nz*100; ++k) {
+      double w2 = ((int)((k*dz)/dz_t + 1e-12))*dz_t;
+      if (fabs(w2 - k*dz) < lattice_mismatch_tolerance*dz_t) {
+        SET_PARAM(box_height, w2);
+        bbox_min[2] = -box_height/2.;
+        bbox_max[2] =  box_height/2.;
+        tbox_min[2] = -box_height/2.;
+        tbox_max[2] =  box_height/2.;
+        break;
+      }
+    }
+  }
 
-  // adjust top blocks
-  tbox_min[1] = bbox_max[1] - dy + 0.5*(dy_tb + dy);
+  // report adjusted dimensions
+  if (periodic_boundary_x or periodic_boundary_y or periodic_boundary_z) {
+    clog_one(warn) 
+      << "Domain has been adjusted for periodic boundaries." << std::endl;
+    clog_one(warn) 
+      << "For evolution, modify domain dimensions as follows:" << std::endl 
+      << "  box_length = " << box_length << std::endl 
+      << "  box_width = "  << box_width  << std::endl 
+      << "  box_height = " << box_height << std::endl;
+  }
 
   // count the number of particles
   np_bottom = particle_lattice::count(lattice_type,gdimension,bbox_min,bbox_max,
@@ -227,22 +273,22 @@ int main(int argc, char * argv[]){
     P[part] = pressure_gravity(y[part],rho[part]);
     u[part] = u_from_eos(rho[part],P[part]);
 
+    vx[part] = 0.;
     vy[part] = 0.;
 
     // Add velocity perturbation a-la Price (2008)
-    if(fabs(y[part]) < rt_perturbation_stripe_width) {
+    if(fabs(y[part]) < .5*rt_perturbation_stripe_width) {
       if constexpr (gdimension == 2)
         vy[part] =-rt_perturbation_amplitude
-                      *cos(2*M_PI*x[part]/box_length*rt_perturbation_mode)
-                      *cos(M_PI*y[part]/rt_perturbation_stripe_width);
+                  *(1 + cos(2*M_PI*x[part]/box_length*rt_perturbation_mode))
+                  *cos(M_PI*y[part]/rt_perturbation_stripe_width);
 
       if constexpr (gdimension == 3)
         vy[part] =-rt_perturbation_amplitude
-                      *cos(2*M_PI*x[part]/box_length*rt_perturbation_mode)
-                      *cos(2*M_PI*z[part]/box_length*rt_perturbation_mode)
-                      *cos(M_PI*y[part]/rt_perturbation_stripe_width);
+                  *(1 + cos(2*M_PI*x[part]/box_length*rt_perturbation_mode))
+                  *(1 + cos(2*M_PI*z[part]/box_length*rt_perturbation_mode))
+                  *cos(M_PI*y[part]/rt_perturbation_stripe_width);
     }
-    //vy[part] = 0.01*cos(M_PI*(x[part]/box_length));
 
     // particle masses and smoothing length
     m[part] = pmass;
