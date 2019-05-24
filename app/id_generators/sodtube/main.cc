@@ -151,6 +151,7 @@ void set_derived_params() {
 //----------------------------------------------------------------------------//
 int main(int argc, char * argv[]){
   using namespace param;
+  const double b_tol = particle_lattice::b_tol;
 
   // launch MPI
   int rank, size, provided;
@@ -292,9 +293,9 @@ int main(int argc, char * argv[]){
     if (gdimension >= 2 and periodic_boundary_y) {
       int Ny1 = (int)(box_width/dy1) - 1;
       for(int j = Ny1; j < Ny1*100; ++j) {
-        double w2 = ((int)((j*dy1)/dy2 - 1e-12) + 1)*dy2;
+        double w2 = (floor(j*dy1/dy2 - b_tol) + 1)*dy2;
         if (fabs(w2 - j*dy1) < lattice_mismatch_tolerance*dy2) {
-          SET_PARAM(box_width, j*dy1);
+          SET_PARAM(box_width, std::min(w2,j*dy1));
           cbox_min[1] = -box_width/2.;
           cbox_max[1] =  box_width/2.;
           rbox_min[1] = -box_width/2.;
@@ -310,9 +311,9 @@ int main(int argc, char * argv[]){
     if (gdimension >= 3 and periodic_boundary_z) {
       int Nz1 = (int)(box_height/dz1) - 1;
       for(int k = Nz1; k < Nz1*100; ++k) {
-        double w2 = ((int)((k*dz1)/dz2 - 1e-12) + 1)*dz2;
+        double w2 = (floor(k*dz1/dz2 - b_tol) + 1)*dz2;
         if (fabs(w2 - k*dz1) < lattice_mismatch_tolerance*dz2) {
-          SET_PARAM(box_height, w2);
+          SET_PARAM(box_height, std::min(w2,k*dz1));
           cbox_min[2] = -box_height/2.;
           cbox_max[2] =  box_height/2.;
           rbox_min[2] = -box_height/2.;
@@ -333,9 +334,56 @@ int main(int argc, char * argv[]){
         << "  box_length = " << box_length << std::endl 
         << "  box_width = "  << box_width  << std::endl 
         << "  box_height = " << box_height << std::endl;
+      
+      //if constexpr (gdimension >= 1) 
+      //  clog_one(warn) << "Lattice mismatch on the boundaries:" << std::endl
+      //    << " X-direction: " 
+      //    << (box_length - cbox_min[0] + lbox_max[0] 
+      //                   - rbox_min[0] + cbox_max[0]
+      //     - floor((cbox_max[0] - cbox_min[0])/sph_separation)*sph_separation
+      //     - floor((lbox_max[0] - lbox_min[0])/lr_sph_sep)*lr_sph_sep
+      //     - floor((rbox_max[0] - rbox_min[0])/lr_sph_sep)*lr_sph_sep)
+      //    <<   ", dx = " << sph_separation 
+      //    << std::endl;
+
+      if constexpr (gdimension >= 2) 
+        clog_one(warn) << "Lattice mismatch, Y-direction:" << std::endl
+          << " - central box: "
+          <<   (box_width-floor((cbox_max[1]-cbox_min[1])/dy1)*dy1) 
+          <<   ", dy = " << dy1 << ", mismatch/dy = " 
+          <<   (box_width/dy1-floor((cbox_max[1]-cbox_min[1])/dy1)) 
+          << std::endl
+          << " -    left box: "
+          <<   (box_width-floor((lbox_max[1]-lbox_min[1])/dy2)*dy2) 
+          <<   ", dy = " << dy2 << ", mismatch/dy = " 
+          <<   (box_width/dy2-floor((lbox_max[1]-lbox_min[1])/dy2)) 
+          << std::endl
+          << " -   right box: "
+          <<   (box_width-floor((rbox_max[1]-rbox_min[1])/dy2)*dy2)
+          <<   ", dy = " << dy2 << ", mismatch/dy = " 
+          <<   (box_width/dy2-floor((rbox_max[1]-rbox_min[1])/dy2)) 
+          << std::endl;
+
+      if constexpr (gdimension >= 3) 
+        clog_one(warn) << "Lattice mismatch, Z-direction:" << std::endl
+          << " - central box: "
+          <<   (box_height-floor((cbox_max[2]-cbox_min[2])/dz1)*dz1) 
+          <<   ", dz = " << dz1 << ", mismatch/dz = " 
+          <<   (box_height/dz1-floor((cbox_max[2]-cbox_min[2])/dz1)) 
+          << std::endl
+          << " -    left box: "
+          <<   (box_height-floor((lbox_max[2]-lbox_min[2])/dz2)*dz2) 
+          <<   ", dz = " << dz2 << ", mismatch/dz = " 
+          <<   (box_height/dz2-floor((lbox_max[2]-lbox_min[2])/dz2)) 
+          << std::endl
+          << " -   right box: "
+          <<   (box_height-floor((rbox_max[2]-rbox_min[2])/dz2)*dz2) 
+          <<   ", dz = " << dz2 << ", mismatch/dz = " 
+          <<   (box_height/dz2-floor((rbox_max[2]-rbox_min[2])/dz2)) 
+          << std::endl;
+
     }
 
-    //rbox_min[0] += (lr_sph_sep - sph_separation) / 2.0; // adjust rbox
     tparticles = particle_lattice::count(lattice_type,2,cbox_min,cbox_max,
                                          sph_separation,0);
     tparticles += particle_lattice::count(lattice_type,2,rbox_min,rbox_max,
@@ -448,7 +496,7 @@ int main(int argc, char * argv[]){
 
     } // for part=0..nparticles
   }
-  std::cout << "Actual number of particles: " << tparticles << std::endl
+  clog_one(info) << "Actual number of particles: " << tparticles << std::endl
     << std::flush;
   // delete the output file if exists
   remove(initial_data_file.c_str());

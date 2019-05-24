@@ -8,7 +8,6 @@
 #include <algorithm>
 #include <cassert>
 #include <math.h>
-//#include <H5hut.h>
 
 #include "user.h"
 #include "sodtube.h"
@@ -54,6 +53,7 @@ double u_from_eos(const double& rho, const double& p) {
 void set_derived_params() {
   using namespace std;
   using namespace param;
+  const double b_tol = particle_lattice::b_tol;
 
   bbox_max[0] = tbox_max[0] = box_length/2.;
   bbox_min[0] = tbox_min[0] =-box_length/2.;
@@ -79,11 +79,6 @@ void set_derived_params() {
   oss << initial_data_prefix << ".h5part";
   initial_data_file = oss.str();
 
-  std::cout<<"Boxes: " << std::endl << "up="
-    <<tbox_min<<"-"<<tbox_max<<std::endl
-    <<" bottom="
-    <<bbox_min<<"-"<<bbox_max<< std::endl;
-
   // select particle lattice and kernel function
   particle_lattice::select();
   kernels::select();
@@ -108,14 +103,14 @@ void set_derived_params() {
   dx = dy = dz = sph_separation;
   dx_t = dy_t = dz_t = sph_sep_t;
   if (lattice_type == 1) { // HCP lattice
-    dy   *= sqrt(.75);
-    dy_t *= sqrt(.75);
+    dy   *= sqrt(3.);
+    dy_t *= sqrt(3.);
     dz   *= 2.*sqrt(2./3.);
     dz_t *= 2.*sqrt(2./3.);
   }
   if (lattice_type == 2) { // FCC lattice
-    dy   *= sqrt(.75);
-    dy_t *= sqrt(.75);
+    dy   *= sqrt(3.);
+    dy_t *= sqrt(3.);
     dz   *= 3.*sqrt(2./3.);
     dz_t *= 3.*sqrt(2./3.);
   }
@@ -129,9 +124,9 @@ void set_derived_params() {
   if (periodic_boundary_x) {
     int Nx = (int)(box_length/dx) - 1;
     for(int i = Nx; i < Nx*100; ++i) {
-      double w2 = ((int)((i*dx)/dx_t + 1e-12))*dx_t;
+      double w2 = floor(i*dx/dx_t + b_tol)*dx_t;
       if (fabs(w2 - i*dx) < lattice_mismatch_tolerance*dx_t) {
-        SET_PARAM(box_length, w2);
+        SET_PARAM(box_length, std::min(w2,i*dx));
         bbox_min[0] = -box_length/2.;
         bbox_max[0] =  box_length/2.;
         tbox_min[0] = -box_length/2.;
@@ -145,9 +140,9 @@ void set_derived_params() {
   if (gdimension >= 3 and periodic_boundary_z) {
     int Nz = (int)(box_length/dz) - 1;
     for(int k = Nz; k < Nz*100; ++k) {
-      double w2 = ((int)((k*dz)/dz_t + 1e-12))*dz_t;
+      double w2 = floor(k*dz/dz_t + b_tol)*dz_t;
       if (fabs(w2 - k*dz) < lattice_mismatch_tolerance*dz_t) {
-        SET_PARAM(box_height, w2);
+        SET_PARAM(box_height, std::min(w2,k*dz));
         bbox_min[2] = -box_height/2.;
         bbox_max[2] =  box_height/2.;
         tbox_min[2] = -box_height/2.;
