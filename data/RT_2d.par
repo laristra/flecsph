@@ -1,5 +1,5 @@
 #
-# KH test #1 for 200 particles in linear dimension
+# Rayleigh-Taylor instability test in 2D
 #
 # initial data
   initial_data_prefix = "RT_n30"
@@ -8,10 +8,8 @@
   equal_mass = yes        # whether equal mass particles are used
                           #or equal separation
   sph_eta = 1.5
-  lattice_type = 1        # 0:rectangular, 1:hcp, 2:fcc  **in 2d both hcp
-                          # and fcc are triangular**
-  domain_type = 1         # 0:cube, 1:sphere, 2:full box
-  flow_velocity = 1
+  lattice_type = 1        # 0:rectangular, 1..2:triangular
+  domain_type = 1         # 0:box, 1:sphere
 
 # evolution
   sph_kernel = "Wendland C4"
