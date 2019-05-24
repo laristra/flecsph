@@ -47,11 +47,6 @@ static int64_t np_bottom = 0; // number of particles in the bottom block
 static double sph_sep_t = 0; // particle separation in top or bottom blocks
 static double pmass = 0;      // particle mass in the middle block
 
-double pressure_gravity(const double& y, const double& rho) {
-  using namespace param;
-  return pressure_0 - rho * gravity_acceleration_constant * y;
-}
-
 double u_from_eos(const double& rho, const double& p) {
   return p / ((param::poly_gamma-1.0)*rho);
 }
@@ -264,13 +259,17 @@ int main(int argc, char * argv[]){
         bbox_min[1], bbox_max[1], domain_type)) {
       rho[part] = rho_1;
       m[part] = pmass;
+      P[part] = pressure_0 
+              + gravity_acceleration_constant
+              *(rho_2*(tbox_max[1] - tbox_min[1]) - rho_1*y[part]);
     }
     else {
       rho[part] = rho_2;
       m[part] = pmass;
+      P[part] = pressure_0 
+              + gravity_acceleration_constant
+              * rho_2*(tbox_max[1] - y[part]);
     }
-
-    P[part] = pressure_gravity(y[part],rho[part]);
     u[part] = u_from_eos(rho[part],P[part]);
 
     vx[part] = 0.;
