@@ -32,6 +32,9 @@
 #include "tree.h"
 #include <boost/algorithm/string.hpp>
 
+#define SQ(x) ((x)*(x))
+#define CU(x) ((x)*(x)*(x))
+
 namespace eos {
   using namespace param;
 
@@ -82,12 +85,13 @@ namespace eos {
    */
   void compute_pressure_wd(body& source)
   {
+    double Ye   = 0.5;
     double A_wd = 6.00288e22;
-    double B_wd = 9.81011e5;
+    double B_wd = 9.81011e5/Ye;
 
     double x_wd = pow((source.getDensity())/B_wd,1.0/3.0);
-    double pressure = A_wd*(x_wd*(2.0*x_wd*x_wd-3.0)*
- 		      sqrt(x_wd*x_wd+1.0)+3.0*asinh(x_wd));
+    double pressure = A_wd*(x_wd*(2.0*SQ(x_wd) - 3.0)*
+ 		      sqrt(SQ(x_wd) + 1.0) + 3.0*asinh(x_wd));
     source.setPressure(pressure);
   } // compute_pressure_wd
 
@@ -128,22 +132,60 @@ namespace eos {
   }
 
   /**
+   * @brief      Compute sound speed for polytropic eos
+   * From "Relativistic Hydrodynamics", Rezzolla & Zanotti
+   *
+   * @param      srch  The source's body holder
+   */
+  void compute_soundspeed_adiabatic(body& source) {
+    using namespace param;
+    double cc = 29979245800.0;
+    double enth = cc*cc + source.getInternalenergy() + source.getPressure()/source.getDensity();
+    double soundspeed = sqrt(poly_gamma*source.getPressure()/(source.getDensity()*enth))*cc;
+    source.setSoundspeed(soundspeed);
+  }
+
+
+
+  /**
    * @brief      Compute sound speed for wd eos
    *
    * @param      srch  The source's body holder
    */
   void compute_soundspeed_wd(body& source) {
     using namespace param;
+    double Ye   = 0.5;
     double A_wd = 6.00288e22;
-    double B_wd = 9.81011e5;
+    double B_wd = 9.81011e5/Ye;
     double x_wd = pow((source.getDensity())/B_wd,1./3.);
+    double cc   = 29979245800.0;
 
-    double numer = 8.*source.getDensity()*x_wd - 3.*B_wd;
-    double deno = 3*B_wd*B_wd*x_wd*x_wd*sqrt(x_wd*x_wd+1);
+    double sterm = sqrt(1.0 + SQ(x_wd));
+    double numer = 3.0/sterm + sterm*(6.0*SQ(x_wd) - 3.0) 
+                 + SQ(x_wd) * (2.0*SQ(x_wd) - 3.0)/sterm;
+    double denom = -1.0/sterm + sterm*(1.0 + 6.0*SQ(x_wd)) 
+                 + SQ(x_wd)*(1.0 + 2.0*SQ(x_wd))/sterm;
 
-    double soundspeed = A_wd*(numer/deno +
-                              x_wd/(3.*source.getDensity()
-                                    *sqrt(1-x_wd*x_wd)));
+    double soundspeed = sqrt(numer/(3.0*denom))*cc;
+
+    if (not (numer/denom>0)) {
+      std::cout << "speed of sounds is not a real number: "
+                << "numer/denom = " << numer/denom << std::endl;
+      std::cout << "Failed particle id: " << source.id() << std::endl;
+      std::cerr << "particle position: " << source.coordinates() << std::endl;
+      std::cerr << "particle velocity: " << source.getVelocity() << std::endl;
+      std::cerr << "particle acceleration: " << source.getAcceleration() << std::endl;
+      std::cerr << "smoothing length:  " << source.radius()
+                                         << std::endl;
+      assert (false);
+    }
+
+    //double numer = 8.*source.getDensity()*x_wd - 3.*B_wd;
+    //double deno = 3*B_wd*B_wd*x_wd*x_wd*sqrt(x_wd*x_wd+1);
+
+    //double soundspeed = A_wd*(numer/deno +
+    //                          x_wd/(3.*source.getDensity()
+    //                                *sqrt(1-x_wd*x_wd)));
     source.setSoundspeed(soundspeed);
   }
 
@@ -168,7 +210,8 @@ void select(const std::string& eos_type) {
   else if(boost::iequals(eos_type, "polytropic")) {
     init = init_polytropic;
     compute_pressure = compute_pressure_adiabatic;
-    compute_soundspeed = compute_soundspeed_ideal;
+    //compute_soundspeed = compute_soundspeed_ideal;
+    compute_soundspeed = compute_soundspeed_adiabatic;
   }
   else if(boost::iequals(eos_type, "white dwarf")) {
     init = init_ideal;  // TODO
