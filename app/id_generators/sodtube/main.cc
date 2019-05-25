@@ -168,6 +168,11 @@ int main(int argc, char * argv[]){
     exit(0);
   }
 
+  // screen output
+  clog_one(info)
+    << "Sod shocktube test #" << sodtest_num
+    << "in " << gdimension << "D" << std::endl;
+
   // set simulation parameters
   param::mpi_read_params(argv[1]);
   set_derived_params();
@@ -175,11 +180,6 @@ int main(int argc, char * argv[]){
 
   // set kernel
   kernels::select();
-
-  // screen output
-  std::cout << "Sod test #" << sodtest_num << " in " << gdimension
-       << "D:" << std::endl <<
-       " - generated initial data file: " << initial_data_file << std::endl;
 
   // allocate arrays
   int64_t tparticles = 0;
@@ -197,6 +197,14 @@ int main(int argc, char * argv[]){
     tparticles += particle_lattice::count(lattice_type,2,lbox_min,lbox_max,
                                           sph_separation,tparticles-1);
   }
+
+  // screen output
+  clog_one(info)
+    << "Number of particles: "
+    << tparticles << std::endl;
+  clog_one(info)
+    << "Initial data file: " 
+    << initial_data_file << std::endl;
 
   double lr_sph_sep = 0.;
   double temp_part = 0;
@@ -246,7 +254,7 @@ int main(int argc, char * argv[]){
         dy1 = dz1 = sph_separation;
         dy2 = dz2 = lr_sph_sep;
         clog_one(info) << std::endl 
-          << "Lattice resolution: " << std::endl
+          << "Lattice: rectangular, resolution: " << std::endl
           << " - central box:      dx = " << sph_separation << std::endl
           << " - left/right boxes: dx = " << lr_sph_sep << std::endl;
       }

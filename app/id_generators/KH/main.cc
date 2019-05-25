@@ -119,17 +119,39 @@ void set_derived_params() {
   double dx_m, dy_m, dz_m, dx_t, dy_t, dz_t;
   dx_m = dy_m = dz_m = sph_separation;
   dx_t = dy_t = dz_t = sph_sep_t;
+  if (lattice_type == 0) {
+    clog_one(info)
+      << "Lattice: rectangular, resolution: " << std::endl
+      << " - middle box:     dx = " << dx_m << std::endl
+      << " - top/bottom box: dx = " << dx_t << std::endl;
+  }
   if (lattice_type == 1) { // HCP lattice
     dy_m *= sqrt(3.);
     dy_t *= sqrt(3.);
     dz_m *= 2.*sqrt(2./3.);
     dz_t *= 2.*sqrt(2./3.);
+    clog_one(info)
+      << "Lattice: HCP, resolution: " << std::endl
+      << " - middle box:     dx = " << dx_m << std::endl
+      << "                 2*dy = " << dy_m << std::endl
+      << "                 2*dz = " << dz_m << std::endl
+      << " - top/bottom box: dx = " << dx_t << std::endl
+      << "                 2*dy = " << dy_t << std::endl
+      << "                 2*dz = " << dz_t << std::endl;
   }
   if (lattice_type == 2) { // FCC lattice
     dy_m *= sqrt(3.);
     dy_t *= sqrt(3.);
     dz_m *= 3.*sqrt(2./3.);
     dz_t *= 3.*sqrt(2./3.);
+    clog_one(info)
+      << "Lattice: FCC, resolution: " << std::endl
+      << " - middle box:     dx = " << dx_m << std::endl
+      << "                 2*dy = " << dy_m << std::endl
+      << "                 3*dz = " << dz_m << std::endl
+      << " - top/bottom box: dx = " << dx_t << std::endl
+      << "                 2*dy = " << dy_t << std::endl
+      << "                 3*dz = " << dz_t << std::endl;
   }
 
   // adjust width in y-direction of the middle block for symmetry
@@ -163,18 +185,20 @@ void set_derived_params() {
   }
 
   // adjust domain height
-  int Nz = (int)(box_length/dz_m) - 1;
-  for(int k = Nz; k < Nz*100; ++k) {
-    double w2 = floor(k*dz_m/dz_t + b_tol)*dz_t;
-    if (fabs(w2 - k*dz_m) < lattice_mismatch_tolerance*dz_t) {
-      SET_PARAM(box_height, std::min(w2,k*dz_m));
-      bbox_min[2] = -box_height/2.;
-      bbox_max[2] =  box_height/2.;
-      mbox_min[2] = -box_height/2.;
-      mbox_max[2] =  box_height/2.;
-      tbox_min[2] = -box_height/2.;
-      tbox_max[2] =  box_height/2.;
-      break;
+  if constexpr (gdimension >= 3) {
+    int Nz = (int)(box_height/dz_m) - 1;
+    for(int k = Nz; k < Nz*100; ++k) {
+      double w2 = floor(k*dz_m/dz_t + b_tol)*dz_t;
+      if (fabs(w2 - k*dz_m) < lattice_mismatch_tolerance*dz_t) {
+        SET_PARAM(box_height, std::min(w2,k*dz_m));
+        bbox_min[2] = -box_height/2.;
+        bbox_max[2] =  box_height/2.;
+        mbox_min[2] = -box_height/2.;
+        mbox_max[2] =  box_height/2.;
+        tbox_min[2] = -box_height/2.;
+        tbox_max[2] =  box_height/2.;
+        break;
+      }
     }
   }
 
@@ -186,6 +210,42 @@ void set_derived_params() {
     << "  box_length = " << box_length << std::endl 
     << "  box_width = "  << box_width  << std::endl 
     << "  box_height = " << box_height << std::endl;
+
+
+  clog_one(warn) << "Lattice mismatch, X-direction:" << std::endl
+      << " -        top box: "
+      <<   (box_length - floor((tbox_max[0]-tbox_min[0])/dx_t)*dx_t) 
+      <<   ", dx = " << dx_t << ", mismatch/dx = " 
+      <<   (box_length/dx_t - floor((tbox_max[0]-tbox_min[0])/dx_t)) 
+      << std::endl
+      << " -     middle box: "
+      <<   (box_length - floor((mbox_max[0]-mbox_min[0])/dx_m)*dx_m) 
+      <<   ", dx = " << dx_m << ", mismatch/dx = " 
+      <<   (box_length/dx_m - floor((mbox_max[0]-mbox_min[0])/dx_m)) 
+      << std::endl
+      << " - top/bottom box: "
+      <<   (box_length - floor((bbox_max[0]-bbox_min[0])/dx_t)*dx_t) 
+      <<   ", dx = " << dx_t << ", mismatch/dx = " 
+      <<   (box_length/dx_t - floor((bbox_max[0]-bbox_min[0])/dx_t)) 
+      << std::endl;
+
+  if constexpr (gdimension >= 3) 
+    clog_one(warn) << "Lattice mismatch, Z-direction:" << std::endl
+      << " -        top box: "
+      <<   (box_height - floor((tbox_max[2]-tbox_min[2])/dz_t)*dz_t) 
+      <<   ", dz = " << dz_t << ", mismatch/dz = " 
+      <<   (box_height/dz_t - floor((bbox_max[2]-bbox_min[2])/dz_t)) 
+      << std::endl
+      << " -     middle box: "
+      <<   (box_height - floor((mbox_max[2]-mbox_min[2])/dz_m)*dz_m) 
+      <<   ", dz = " << dz_m << ", mismatch/dz = " 
+      <<   (box_height/dz_m - floor((mbox_max[2]-mbox_min[2])/dz_m)) 
+      << std::endl
+      << " - top/bottom box: "
+      <<   (box_height - floor((bbox_max[2]-bbox_min[2])/dz_t)*dz_t) 
+      <<   ", dz = " << dz_t << ", mismatch/dz = " 
+      <<   (box_height/dz_t - floor((bbox_max[2]-bbox_min[2])/dz_t)) 
+      << std::endl;
 
   // count the number of particles
   np_middle = particle_lattice::count(lattice_type,gdimension,mbox_min,mbox_max,
@@ -222,14 +282,22 @@ int main(int argc, char * argv[]){
   assert (gdimension == 2 || gdimension == 3);
   assert (domain_type == 0);
 
+  // screen output
+  clog_one(info)
+    << "Kelvin-Helmholtz instability initial data " 
+    << "in " << gdimension << "D" << std::endl;
+
   // set simulation parameters
   param::mpi_read_params(argv[1]);
   set_derived_params();
 
   // screen output
-  std::cout << "Kelvin-Helmholtz instability setup in " << gdimension
-       << "D:" << std::endl << " - number of particles: " << nparticles << std::endl
-       << " - generated initial data file: " << initial_data_file << std::endl;
+  clog_one(info)
+    << "Number of particles: "
+    << nparticles << std::endl;
+  clog_one(info)
+    << "Initial data file: " 
+    << initial_data_file << std::endl;
 
   // allocate arrays
   // Position

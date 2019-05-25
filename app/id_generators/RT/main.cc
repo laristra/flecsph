@@ -22,9 +22,9 @@ using namespace io;
 //
 void print_usage() {
   clog_one(warn)
-      << "Initial data generator for KH test in"
-      << gdimension << "D" << std::endl
-      << "Usage: ./RT_XD_generator <parameter-file.par>" << std::endl;
+      << "Initial data generator for Rayleigh-Taylor (RT) instability test "
+      << "in " << gdimension << "D" << std::endl
+      << "Usage: ./RT_Xd_generator <parameter-file.par>" << std::endl;
 }
 
 //
@@ -102,17 +102,39 @@ void set_derived_params() {
   double dx, dy, dz, dx_t, dy_t, dz_t;
   dx = dy = dz = sph_separation;
   dx_t = dy_t = dz_t = sph_sep_t;
+  if (lattice_type == 0) {
+    clog_one(info)
+      << "Lattice: rectangular, resolution: " << std::endl
+      << " - top box:    dx = " << dx_t << std::endl
+      << " - bottom box: dx = " << dx   << std::endl;
+  }
   if (lattice_type == 1) { // HCP lattice
     dy   *= sqrt(3.);
     dy_t *= sqrt(3.);
     dz   *= 2.*sqrt(2./3.);
     dz_t *= 2.*sqrt(2./3.);
+    clog_one(info)
+      << "Lattice: HCP, resolution: " << std::endl
+      << " - top box:     dx = " << dx_t << std::endl
+      << "              2*dy = " << dy_t << std::endl
+      << "              2*dz = " << dz_t << std::endl
+      << " - bottom box:  dx = " << dx << std::endl
+      << "              2*dy = " << dy << std::endl
+      << "              2*dz = " << dz << std::endl;
   }
   if (lattice_type == 2) { // FCC lattice
     dy   *= sqrt(3.);
     dy_t *= sqrt(3.);
     dz   *= 3.*sqrt(2./3.);
     dz_t *= 3.*sqrt(2./3.);
+    clog_one(info)
+      << "Lattice: FCC, resolution: " << std::endl
+      << " - top box:     dx = " << dx_t << std::endl
+      << "              2*dy = " << dy_t << std::endl
+      << "              3*dz = " << dz_t << std::endl
+      << " - bottom box:  dx = " << dx << std::endl
+      << "              2*dy = " << dy << std::endl
+      << "              3*dz = " << dz << std::endl;
   }
 
   // adjust bottom lattice block in vertical direction
@@ -161,6 +183,31 @@ void set_derived_params() {
       << "  box_length = " << box_length << std::endl 
       << "  box_width = "  << box_width  << std::endl 
       << "  box_height = " << box_height << std::endl;
+
+    clog_one(warn) << "Lattice mismatch, X-direction:" << std::endl
+        << " -    top box: "
+        <<   (box_length - floor((tbox_max[0]-tbox_min[0])/dx_t)*dx_t) 
+        <<   ", dx = " << dx_t << ", mismatch/dx = " 
+        <<   (box_length/dx_t - floor((tbox_max[0]-tbox_min[0])/dx_t)) 
+        << std::endl
+        << " - bottom box: "
+        <<   (box_length - floor((bbox_max[0]-bbox_min[0])/dx)*dx) 
+        <<   ", dx = " << dx << ", mismatch/dx = " 
+        <<   (box_length/dx - floor((bbox_max[0]-bbox_min[0])/dx)) 
+        << std::endl;
+
+    if constexpr (gdimension >= 3) 
+      clog_one(warn) << "Lattice mismatch, Z-direction:" << std::endl
+        << " -    top box: "
+        <<   (box_height - floor((tbox_max[0]-tbox_min[0])/dz_t)*dz_t) 
+        <<   ", dz = " << dz_t << ", mismatch/dz = " 
+        <<   (box_height/dz_t - floor((tbox_max[0]-tbox_min[0])/dz_t)) 
+        << std::endl
+        << " - bottom box: "
+        <<   (box_height - floor((bbox_max[0]-bbox_min[0])/dz)*dz) 
+        <<   ", dz = " << dz << ", mismatch/dz = " 
+        <<   (box_height/dz - floor((bbox_max[0]-bbox_min[0])/dz)) 
+        << std::endl;
   }
 
   // count the number of particles
@@ -197,14 +244,22 @@ int main(int argc, char * argv[]){
   //assert (gdimension == 2);
   assert (domain_type == 0);
 
+  // screen output
+  clog_one(info)
+    << "Rayleigh-Taylor instability initial data " 
+    << "in " << gdimension << "D" << std::endl;
+ 
   // set simulation parameters
   param::mpi_read_params(argv[1]);
   set_derived_params();
 
   // screen output
-  std::cout << "Kelvin-Helmholtz instability setup in " << gdimension
-       << "D:" << std::endl << " - number of particles: " << nparticles << std::endl
-       << " - generated initial data file: " << initial_data_file << std::endl;
+  clog_one(info)
+    << "Number of particles: "
+    << nparticles << std::endl;
+  clog_one(info)
+    << "Initial data file: " 
+    << initial_data_file << std::endl;
 
   // allocate arrays
   // Position
