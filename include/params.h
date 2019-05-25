@@ -536,9 +536,9 @@ typedef enum sph_kernel_keyword_enum {
   DECLARE_PARAM(double,flow_velocity,0.0)
 # endif
 
-// in Kelvin-Helmholtz instability test: density ratio
-# ifndef KH_density_ratio
-  DECLARE_PARAM(double,KH_density_ratio,2.0)
+// in several tests (e.g. KH and RT instabilities): density ratio
+# ifndef density_ratio
+  DECLARE_PARAM(double,density_ratio,2.0)
 # endif
 
 // A value from KH in Price's paper
@@ -549,6 +549,21 @@ typedef enum sph_kernel_keyword_enum {
 // Lamdba value for KH in Price's paper
 #ifndef KH_lambda
   DECLARE_PARAM(double, KH_lambda, 1./6.)
+#endif
+
+// Rayleigh-Taylor instability: perturbation amplitude
+#ifndef rt_perturbation_amplitude
+  DECLARE_PARAM(double, rt_perturbation_amplitude, 0.2)
+#endif
+
+// RT instability: the width of stripe where to apply perturbation
+#ifndef rt_perturbation_stripe_width
+  DECLARE_PARAM(double, rt_perturbation_stripe_width, 0.1)
+#endif
+
+// RT instability: perturbation mode (1=one cusp, 2=two cusps etc.)
+#ifndef rt_perturbation_mode
+  DECLARE_PARAM(double, rt_perturbation_mode,1)
 #endif
 
 //
@@ -964,8 +979,8 @@ void set_param(const std::string& param_name,
   READ_NUMERIC_PARAM(flow_velocity)
 # endif
 
-# ifndef KH_density_ratio
-  READ_NUMERIC_PARAM(KH_density_ratio)
+# ifndef density_ratio
+  READ_NUMERIC_PARAM(density_ratio)
 # endif
 
 # ifndef KH_A
@@ -974,6 +989,18 @@ void set_param(const std::string& param_name,
 
 # ifndef KH_lambda
   READ_NUMERIC_PARAM(KH_lambda)
+# endif
+
+# ifndef rt_perturbation_amplitude
+  READ_NUMERIC_PARAM(rt_perturbation_amplitude)
+# endif
+
+# ifndef rt_perturbation_stripe_width
+  READ_NUMERIC_PARAM(rt_perturbation_stripe_width)
+# endif
+
+# ifndef rt_perturbation_mode
+  READ_NUMERIC_PARAM(rt_perturbation_mode)
 # endif
 
   // airfoil parameters  ----------------------------------------------------

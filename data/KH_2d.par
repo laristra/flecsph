@@ -1,28 +1,27 @@
 #
-# KH test #1 for 200 particles in linear dimension
+# Kelvin-Helmholtz instability, 2D
 #
 # initial data
   initial_data_prefix = "KH_t1_n30"
-  lattice_nx = 50        # particle lattice linear dimension
+  lattice_nx = 30        # particle lattice linear dimension
   poly_gamma = 1.4        # polytropic index
   KH_A = 0.025
   KH_lambda = 0.1666
   equal_mass = yes        # determines whether equal mass particles are used
                           #or equal separation
-  sph_eta = 1.5
-  lattice_type = 1        # 0:rectangular, 1:hcp, 2:fcc  **in 2d both hcp
-                          # and fcc are triangular**
-  domain_type = 1         # 0:cube, 1:sphere, 2:full box
+  lattice_type = 1        # 0:rectangular, 1..2:triangular
+  domain_type = 1         # 0:box, 1:sphere
   box_length = 1.5
   flow_velocity = 1
 
 # evolution
-  #sph_kernel = "Wendland C6"
+  sph_kernel = "Wendland C6"
+  sph_eta = 1.5
   initial_dt = 1.0
   sph_variable_h = yes
   adaptive_timestep = yes
   timestep_cfl_factor = 0.25
-  final_iteration = 40
+  final_iteration = 4000
   out_screen_every = 1
   out_scalar_every = 1
   out_h5data_every = 10
