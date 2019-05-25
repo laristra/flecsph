@@ -213,17 +213,17 @@ void set_derived_params() {
 
 
   clog_one(warn) << "Lattice mismatch, X-direction:" << std::endl
-      << " -        top box: "
+      << " -    top box: "
       <<   (box_length - floor((tbox_max[0]-tbox_min[0])/dx_t)*dx_t) 
       <<   ", dx = " << dx_t << ", mismatch/dx = " 
       <<   (box_length/dx_t - floor((tbox_max[0]-tbox_min[0])/dx_t)) 
       << std::endl
-      << " -     middle box: "
+      << " - middle box: "
       <<   (box_length - floor((mbox_max[0]-mbox_min[0])/dx_m)*dx_m) 
       <<   ", dx = " << dx_m << ", mismatch/dx = " 
       <<   (box_length/dx_m - floor((mbox_max[0]-mbox_min[0])/dx_m)) 
       << std::endl
-      << " - top/bottom box: "
+      << " - bottom box: "
       <<   (box_length - floor((bbox_max[0]-bbox_min[0])/dx_t)*dx_t) 
       <<   ", dx = " << dx_t << ", mismatch/dx = " 
       <<   (box_length/dx_t - floor((bbox_max[0]-bbox_min[0])/dx_t)) 
@@ -231,17 +231,17 @@ void set_derived_params() {
 
   if constexpr (gdimension >= 3) 
     clog_one(warn) << "Lattice mismatch, Z-direction:" << std::endl
-      << " -        top box: "
+      << " -    top box: "
       <<   (box_height - floor((tbox_max[2]-tbox_min[2])/dz_t)*dz_t) 
       <<   ", dz = " << dz_t << ", mismatch/dz = " 
       <<   (box_height/dz_t - floor((bbox_max[2]-bbox_min[2])/dz_t)) 
       << std::endl
-      << " -     middle box: "
+      << " - middle box: "
       <<   (box_height - floor((mbox_max[2]-mbox_min[2])/dz_m)*dz_m) 
       <<   ", dz = " << dz_m << ", mismatch/dz = " 
       <<   (box_height/dz_m - floor((mbox_max[2]-mbox_min[2])/dz_m)) 
       << std::endl
-      << " - top/bottom box: "
+      << " - bottom box: "
       <<   (box_height - floor((bbox_max[2]-bbox_min[2])/dz_t)*dz_t) 
       <<   ", dz = " << dz_t << ", mismatch/dz = " 
       <<   (box_height/dz_t - floor((bbox_max[2]-bbox_min[2])/dz_t)) 
