@@ -488,7 +488,8 @@ namespace physics{
     // timestep based on sound speed and viscosity
     const double max_mu_ab = source.getMumax();
     const double cs_a = source.getSoundspeed();
-    const double dt_c = dx/ (tiny + cs_a*(1 + mc*sph_viscosity_alpha)
+    const double M_a = source.getMaxmachnumber();
+    const double dt_c = dx/ (tiny + M_a*cs_a*(1 + mc*sph_viscosity_alpha)
                                   + mc*sph_viscosity_beta*max_mu_ab);
 
     // minimum timestep
@@ -628,6 +629,37 @@ namespace physics{
       bodies[i].set_radius(new_h);
     }
   }
+
+
+  /**
+   * @brief estimates maximum mach number within the smoothing length 
+   * of a particle. The estimated mach number is used for adaptive 
+   * time stepping 
+   *
+   * M = max(2*sqrt(max(pb,pa)/min(pb,pa)))
+   *
+   */ 
+  void estimate_maxmachnumber(
+      body& particle,
+      std::vector<body*>& nbs)
+  {
+   double P_a = particle.getPressure();
+   const int n_nb = nbs.size();
+   double P_max;
+   double P_min;
+   double Mach = 0.0;
+
+   for(int b = 0; b < n_nb; ++b) {
+     const body * const nb = nbs[b];
+     double P_b = nb->getPressure();
+     P_max = std::max(P_b, P_a);
+     P_min = std::min(P_b, P_a);
+     Mach = std::max(Mach, 2.0*sqrt(P_max/P_min));
+   }
+
+   particle.setMaxmachnumber(Mach);
+  }
+
 }; // physics
 
 #endif // _default_physics_h_

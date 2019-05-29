@@ -106,6 +106,8 @@ public:
     void setAdiabatic(double adiabatic){adiabatic_ = adiabatic;};
     double getDadt() const{return dadt_;};
     void setDadt(double dadt){dadt_ = dadt;};
+    void setMaxmachnumber(double maxmachnumber){maxmachnumber_ = maxmachnumber;};
+    double getMaxmachnumber() const{return maxmachnumber_;}
 
   friend std::ostream& operator<<(std::ostream& os, const body_u& b){
     // TODO change regarding to dimension
@@ -141,6 +143,7 @@ private:
   double dadt_;
   double dt_;
   double mumax_;
+  double maxmachnumber_;
   particle_type_t type_;
 }; // class body
 
