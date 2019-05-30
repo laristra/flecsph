@@ -32,6 +32,9 @@
 #include "tree.h"
 #include <boost/algorithm/string.hpp>
 
+// HL : This is for adding tabulated EOS redaer
+#include "eos_stellar_collapse"
+
 namespace eos {
   using namespace param;
 
@@ -90,6 +93,33 @@ namespace eos {
  		      sqrt(x_wd*x_wd+1.0)+3.0*asinh(x_wd));
     source.setPressure(pressure);
   } // compute_pressure_wd
+
+  #if 0
+  // HL : since we are merging tab EOS, I am adding ppt anyway
+  /**
+   * @brief      Compute the pressure based on piecewise polytrope
+   * @param      srch  The source's body holder
+   */
+  void compute_pressure_ppt( body& source)
+  {
+    using namespace param;
+    //TODO : transient density might be parametrized
+    //       or determining automatically
+    double density_transient
+    //Second polytrope index
+    double poly_gamma2; //TODO : make it parameter
+    if(source.getDenstiy() <= density_transient) {
+       double pressure = source.getAdiabatic()*
+       pow(source.getDensity(),poly_gamma);
+       source.setPressure(pressure);
+    } else {
+       double pressure = (source.getAdiabatic()*
+       pow(density_transient,poly_gamma)/
+       pow(density_transient,poly_gamma2))*
+       pow(source.getDensity(),poly_gamma2);
+       source.setPressure(pressure);
+  } //compute_pressure_ppt
+  #endif
 
 #if 0
 /************************************************************************/
