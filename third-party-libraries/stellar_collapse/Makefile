@@ -36,7 +36,7 @@ eos_poly.o : eos_poly.c decs.h
 	$(CC) $(CFLAGS) $(LIBS) eos_poly.c 
 eos_stella_collapse.o : eos_stellar_collapse.c eos_stella_collapse.h
 	$(CC) $(CFLAGS) $(LIBS) eos_stellar_collapse.c 
-root_finding.o : root_finding.c decs.h
+root_finding.o : root_finding.c root_finding.h
 	$(CC) $(CFLAGS) $(LIBS) root_finding.c 
 util.o : util.c decs.h
 	$(CC) $(CFLAGS) $(LIBS) util.c 

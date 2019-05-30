@@ -13,12 +13,7 @@
 
 /* Implementation based on gsl root finder API */
 
-#include "decs.h"
-
-#define ROOT_DEBUG       (0)
-#define ROOT_VERBOSE     (0)
-#define ROOT_NAN_OK      (0)
-#define SECANT_NITER_MAX (10)
+#include "root_finding.h"
 
 // PROTOTYPES
 // ----------------------------------------------------------------------
@@ -35,7 +30,6 @@ static int root_bisect(double (*f)(const double, const void*),
 		       const double xtol,    const double ytol,
 		       double* xroot);
 // ----------------------------------------------------------------------
-
 
 // Implementation
 // ----------------------------------------------------------------------
@@ -367,6 +361,7 @@ void print_root_fcounts()
   
   for (int i = 0; i < FCOUNT_NBINS; i++) {
     global_fcount[i] = mpi_reduce(root_fcount[i]);
+    //global_fcount[i] = root_fcount[i];
     fcount_tot += global_fcount[i];
   }
   for (int i = 0; i < FCOUNT_NBINS; i++) {

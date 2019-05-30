@@ -19,8 +19,10 @@
 
 #pragma once
 
+// root finding with decs
+#include "root_finding.h"
 // decs
-#include "decs.h"
+//#include "decs.h"
 
 #if EOS == EOS_TYPE_TABLE
 
