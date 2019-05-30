@@ -1,0 +1,32 @@
+#
+# Sodtube test in 2D with periodic boundaries:
+# parameter file for evolution
+#
+# initial data
+  initial_data_prefix = "sodtube_3d"
+  poly_gamma = 1.4        # polytropic index
+
+# evolution
+  sph_kernel = "Wendland C6"
+  sph_eta = 1.5
+  initial_dt = 1.0e-12
+  sph_variable_h = yes
+  adaptive_timestep = yes
+  timestep_cfl_factor = 0.1
+  final_iteration = 5000
+  out_screen_every = 1
+  out_scalar_every = 1
+  out_h5data_every = 10
+  out_diagnostic_every = 1
+  output_h5data_prefix = "ev_sodtube_3d"
+
+# periodic boundary conditions
+  box_length = 2.89474
+  box_width = 0.911606
+  box_height = 0.85947
+  periodic_boundary_x = yes
+  periodic_boundary_y = yes
+  periodic_boundary_z = yes
+
+  #external_force_type = "walls:yz"
+  #extforce_wall_steepness = 1e12

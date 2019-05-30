@@ -1,0 +1,19 @@
+#
+# Sodtube test in 2D with periodic boundaries:
+# parameter file for intial data generators
+#
+  initial_data_prefix = "sodtube_2d"
+  lattice_nx = 200        # particle lattice linear dimension
+  poly_gamma = 1.4        # polytropic index
+  sodtest_num  = 1        # which test to generate (1..6)
+  equal_mass = yes        # use equal-mass particles
+  sph_eta = 1.5
+  lattice_type = 1        # 0:rectangular, 1 or 2: triangular
+  domain_type = 0         # 0:rectangle
+  box_length = 3.0
+  box_width = 0.5 
+
+  # instruct ID generator to align the lattice and report
+  # adjusted domain size
+  periodic_boundary_x = yes
+  periodic_boundary_y = yes

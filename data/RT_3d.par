@@ -1,16 +1,15 @@
 #
-# KH test #1 for 200 particles in linear dimension
+# Rayleigh-Taylor instability test in 3D
 #
 # initial data
   initial_data_prefix = "RT_3d"
-  lattice_nx = 20        # particle lattice linear dimension
+  lattice_nx = 30         # particle lattice linear dimension
   poly_gamma = 1.4        # polytropic index
   equal_mass = yes        # whether equal mass particles are used
-                          #or equal separation
+                          # or equal separation
   sph_eta = 1.5
-  lattice_type = 1        # 0:rectangular, 1:hcp, 2:fcc  **in 2d both hcp
-                          # and fcc are triangular**
-  domain_type = 1         # 0:cube, 1:sphere, 2:full box
+  lattice_type = 1        # 0:rectangular, 1:hcp, 2:fcc
+  domain_type = 1         # 0:box, 1:sphere
   flow_velocity = 1
 
 # evolution
