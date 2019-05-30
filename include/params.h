@@ -512,7 +512,7 @@ typedef enum sph_kernel_keyword_enum {
 // in Sedov test: radius of energy injection
 // (in units of particle separation)
 # ifndef sedov_blast_radius
-  DECLARE_PARAM(double,sedov_blast_radius,1.0)
+  DECLARE_PARAM(double,sedov_blast_radius,0.05)
 # endif
 
 // in Noh test: infall velocity
