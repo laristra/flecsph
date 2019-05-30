@@ -61,7 +61,6 @@ void print_usage() {
 // derived parameters
 //
 static double timestep = 1.0;         // Recommended timestep
-static double r_blast = 0.;           // Radius of injection region
 static double total_mass = 1.;        // total mass of the fluid
 static double mass_particle = 1.;     // mass of an individual particle
 static point_t bbox_max, bbox_min;    // bounding box of the domain
@@ -144,9 +143,6 @@ void set_derived_params() {
 
   // intial internal energy
   SET_PARAM(uint_initial, (pressure_initial/(rho_initial*(poly_gamma-1.0))));
-
-  // Radius of injection region
-  r_blast = sedov_blast_radius * sph_separation;
 
   // Filename to be generated
   bool input_single_file = H5P_fileExists(initial_data_prefix);  
@@ -243,7 +239,7 @@ int main(int argc, char * argv[]){
   for(int64_t a=0L; a<nparticles; ++a) {
     body& particle = bodies[a];
     double r = norm2(particle.coordinates());
-    if (r < r_blast) {
+    if (r < sedov_blast_radius) {
        particles_blast++;
        mass_blast += mass_particle;
     }
@@ -306,7 +302,7 @@ int main(int argc, char * argv[]){
 
     // set internal energy
     double u_a = K0*pow(rho_a,poly_gamma-1)/(poly_gamma-1);
-    if (r < r_blast) 
+    if (r < sedov_blast_radius) 
       u_a += u_blast;
       //u_a += sedov_blast_energy/particles_blast;
     particle.setInternalenergy(u_a);
