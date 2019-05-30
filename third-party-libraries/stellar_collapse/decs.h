@@ -32,7 +32,6 @@
 #endif
 
 #include "constants.h"
-//#include "params.h" //From Original
 
 // Macros
 // ----------------------------------------------------------------------
@@ -117,8 +116,13 @@
 #define BASELOOP for (int ip = 0; ip < NVAR_BASE; ip++)
 
 // Loop over extra variables
-// TODO: Figure out how to make this conditionally defined. ~JMM
+// TODO: Figure out how to make this conditionally defined.
 #define EOS_ELOOP for (int e = 0; e < EOS_NUM_EXTRA; e++)
+
+// Simple macro
+#define MY_MAX(a, b) ( ( a > b) ? a : b ) 
+
+
 // ----------------------------------------------------------------------
 
 
