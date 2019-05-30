@@ -91,12 +91,14 @@ namespace eos {
     source.setPressure(pressure);
   } // compute_pressure_wd
 
-// HL : Compute pressure from tabulated EOS. Linking to static lib somewhat
-//      need to be fixing
+#if 0
+/************************************************************************/
+//May.30.2019
+// Start SC EOS reader merging
+// This is a pusedo-code. This just shows guideline how we can
+// use SC reader to get P and Cs
 
 // EOS prep stage for fill eos info from table
-
-#if 0
   void
   EOS_prep(body& source)
   {
@@ -105,16 +107,28 @@ namespace eos {
                 1.0//This field should be field for eos cache);
   //May need different source field?
   }
-#endif
+
+// Getting pressure 
   void
   compute_pressure_sc(body& source)
   {
     using namespace param;
-    //double pressure = EOS_pressure_rho0_u(source->eoscache());
-    //source->setPressure(pressure)
+    double pressure = EOS_pressure_rho0_u(source->eoscache());
+    source->setPressure(pressure)
   } // compute_pressure_sc
 
-  /**
+// Getting soundspeed
+  void
+  compute_soundspeed_sc(body& source)
+  {
+    using namespace param;
+    double soundspeec = EOS_SC_sound_speed(source->eoscache());
+    source.setSoundspeed(soundspeed)
+  }
+/***************************************************************************/
+#endif
+
+ /**
    * @brief      Compute sound speed for ideal fluid or polytropic eos
    * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics
    *
@@ -175,11 +189,13 @@ void select(const std::string& eos_type) {
     compute_pressure = compute_pressure_wd;
     compute_soundspeed = compute_soundspeed_wd;
   }
+  #if 0
   else if(boost::iequals(eos_type, "stellar collapse")) {
     init = init_ideal;  // TODO
     compute_pressure = compute_pressure_sc;
-    compute_soundspeed = compute_soundspeed_ideal;
+    compute_soundspeed = compute_soundspeed_sc;
   }
+  #endif
   else {
     std::cerr << "Bad eos_type parameter" << std::endl;
   }
