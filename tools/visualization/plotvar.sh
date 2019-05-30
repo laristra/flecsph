@@ -54,8 +54,8 @@ printf " - initial: %12.5e\n" $t_first
 printf " - final:   %12.5e\n" $t_last
 
 # parse steration and time
-st=st_first
-tm=t_first
+st=$st_first
+tm=$t_first
 if [ $# -ne 0 ]; then
   if [ $# -ne 2 ]; then
     echo "ERROR: wrong number of arguments" >> /dev/stderr
