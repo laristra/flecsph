@@ -53,7 +53,7 @@ echo "time:"
 printf " - initial: %12.5e\n" $t_first
 printf " - final:   %12.5e\n" $t_last
 
-# parse steration and time
+# parse step and time
 st=$st_first
 tm=$t_first
 if [ $# -ne 0 ]; then
@@ -66,7 +66,7 @@ if [ $# -ne 0 ]; then
   -st) st=$2 
     bool=`awk 'BEGIN{print ('$st'<'$st_first') || ('$st'>'$st_last')}'`
     if [ $bool -eq 1 ]; then 
-      echo "ERROR: iteration out of range"
+      echo "ERROR: step out of range"
       exit -7
     fi
     tm=`grep "step=$st " $xdpfile| awk '{print $4}'`
