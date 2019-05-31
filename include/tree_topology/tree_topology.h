@@ -964,7 +964,6 @@ public:
                  LOCAL_REQUEST, MPI_COMM_WORLD);
       }
     }
-    std::cout<<"Worked on: "<<total_done<<" sub entities"<<std::endl;
   }
 
   /**
@@ -1604,7 +1603,6 @@ public:
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     assert(rank != owner);
-    // std::cout<<rank<<" inserting branch: "<<key<<std::endl<<std::flush;
     // Check if this key already exists
     auto itr = branch_map_.find(key);
     // Case 1, branch does not exists localy
