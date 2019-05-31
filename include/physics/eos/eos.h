@@ -33,7 +33,7 @@
 #include <boost/algorithm/string.hpp>
 
 // HL : This is for adding tabulated EOS redaer
-#include "eos_stellar_collapse"
+//#include "eos_stellar_collapse.h"
 
 namespace eos {
   using namespace param;
@@ -94,7 +94,7 @@ namespace eos {
     source.setPressure(pressure);
   } // compute_pressure_wd
 
-  #if 0
+  #if 1
   // HL : since we are merging tab EOS, I am adding ppt anyway
   /**
    * @brief      Compute the pressure based on piecewise polytrope
@@ -103,21 +103,26 @@ namespace eos {
   void compute_pressure_ppt( body& source)
   {
     using namespace param;
+    
     //TODO : transient density might be parametrized
-    //       or determining automatically
-    double density_transient
-    //Second polytrope index
-    double poly_gamma2; //TODO : make it parameter
-    if(source.getDenstiy() <= density_transient) {
+    //       or determining automatically.
+    //       But here I put certian value that is 
+    //       reasonalbe transition between
+    //       relativisitc and non-relativistic regimes
+    double density_transition = 500000000000000;
+
+    if(source.getDensity() <= density_transition) {
        double pressure = source.getAdiabatic()*
        pow(source.getDensity(),poly_gamma);
        source.setPressure(pressure);
-    } else {
+    } 
+    else {
        double pressure = (source.getAdiabatic()*
-       pow(density_transient,poly_gamma)/
-       pow(density_transient,poly_gamma2))*
+       pow(density_transition,poly_gamma)/
+       pow(density_transition,poly_gamma2))*
        pow(source.getDensity(),poly_gamma2);
        source.setPressure(pressure);
+    }
   } //compute_pressure_ppt
   #endif
 
@@ -171,6 +176,26 @@ namespace eos {
     source.setSoundspeed(soundspeed);
   }
 
+ /**
+   * @brief      Compute sound speed for piecewise polytropic eos
+   *
+   * @param      srch  The source's body holder
+   */
+  void compute_soundspeed_ppt(body& source) {
+    using namespace param;
+    double density_transition = 500000000000000;
+    if(source.getDensity() <= density_transition) {
+       double soundspeed = sqrt(poly_gamma*source.getPressure()
+                                         /source.getDensity());
+       source.setSoundspeed(soundspeed);
+    }
+    else {
+       double soundspeed = sqrt(poly_gamma2*source.getPressure()
+                                          /source.getDensity());
+       source.setSoundspeed(soundspeed);
+    }
+  }
+
   /**
    * @brief      Compute sound speed for wd eos
    *
@@ -218,6 +243,11 @@ void select(const std::string& eos_type) {
     init = init_ideal;  // TODO
     compute_pressure = compute_pressure_wd;
     compute_soundspeed = compute_soundspeed_wd;
+  }
+  else if(boost::iequals(eos_type, "piecewise polytropic")) {
+    init = init_ideal;  // TODO
+    compute_pressure = compute_pressure_ppt;
+    compute_soundspeed = compute_soundspeed_ppt;
   }
   #if 0
   else if(boost::iequals(eos_type, "stellar collapse")) {

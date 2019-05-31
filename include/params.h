@@ -333,6 +333,7 @@ typedef enum sph_kernel_keyword_enum {
 //  * "ideal fluid" (default)
 //  * "polytropic"
 //  * "white dwarf"
+//  * "piecewise polytropic"
 #ifndef eos_type
   DECLARE_STRING_PARAM(eos_type,"ideal fluid")
 #endif
@@ -340,6 +341,11 @@ typedef enum sph_kernel_keyword_enum {
 //- polytropic index
 #ifndef poly_gamma
   DECLARE_PARAM(double,poly_gamma,1.4)
+#endif
+
+//- additional polytropic index for piecewise polytrope
+#ifndef poly_gamma
+  DECLARE_PARAM(double,poly_gamma2,2.5)
 #endif
 
 // - which viscosity computation to use?
@@ -840,6 +846,10 @@ void set_param(const std::string& param_name,
 
 # ifndef poly_gamma
   READ_NUMERIC_PARAM(poly_gamma)
+# endif
+
+# ifndef poly_gamma2
+  READ_NUMERIC_PARAM(poly_gamma2)
 # endif
 
 # ifndef sph_viscosity
