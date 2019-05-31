@@ -8,7 +8,6 @@
 #include <algorithm>
 #include <cassert>
 #include <math.h>
-//#include <H5hut.h>
 
 #include "user.h"
 #include "sodtube.h"
@@ -23,9 +22,9 @@ using namespace io;
 //
 void print_usage() {
   clog_one(warn)
-      << "Initial data generator for KH test in"
-      << gdimension << "D" << std::endl
-      << "Usage: ./RT_XD_generator <parameter-file.par>" << std::endl;
+      << "Initial data generator for Rayleigh-Taylor (RT) instability test "
+      << "in " << gdimension << "D" << std::endl
+      << "Usage: ./RT_Xd_generator <parameter-file.par>" << std::endl;
 }
 
 //
@@ -47,11 +46,6 @@ static int64_t np_bottom = 0; // number of particles in the bottom block
 static double sph_sep_t = 0; // particle separation in top or bottom blocks
 static double pmass = 0;      // particle mass in the middle block
 
-double pressure_gravity(const double& y, const double& rho) {
-  using namespace param;
-  return pressure_0 - rho * gravity_acceleration_constant * y;
-}
-
 double u_from_eos(const double& rho, const double& p) {
   return p / ((param::poly_gamma-1.0)*rho);
 }
@@ -59,9 +53,7 @@ double u_from_eos(const double& rho, const double& p) {
 void set_derived_params() {
   using namespace std;
   using namespace param;
-
-  // boundary tolerance factor
-  const double b_tol = 1e-8;
+  const double b_tol = particle_lattice::b_tol;
 
   bbox_max[0] = tbox_max[0] = box_length/2.;
   bbox_min[0] = tbox_min[0] =-box_length/2.;
@@ -80,51 +72,143 @@ void set_derived_params() {
 
   // 1 = bottom 2 = top
   rho_1 = rho_initial;  // 2.0 by default
-  rho_2 = rho_1 * KH_density_ratio;
+  rho_2 = rho_1 * density_ratio;
 
   // file to be generated
   std::ostringstream oss;
   oss << initial_data_prefix << ".h5part";
   initial_data_file = oss.str();
 
-  std::cout<<"Boxes: " << std::endl << "up="
-    <<tbox_min<<"-"<<tbox_max<<std::endl
-    <<" bottom="
-    <<bbox_min<<"-"<<bbox_max<< std::endl;
-
   // select particle lattice and kernel function
   particle_lattice::select();
   kernels::select();
 
   // particle mass and spacing
-  SET_PARAM(sph_separation, (box_length*(1.0-b_tol)/(double)(lattice_nx-1)));
+  SET_PARAM(sph_separation, (box_length/(double)(lattice_nx-1)));
   if(gdimension == 3){
     pmass = rho_1*sph_separation*sph_separation*sph_separation;
     if (lattice_type == 1 or lattice_type == 2)
       pmass *= 1./sqrt(2.);
+    sph_sep_t = sph_separation*cbrt(rho_1/rho_2);
   }
   if(gdimension == 2){
     pmass = rho_1*sph_separation*sph_separation;
     if (lattice_type == 1 or lattice_type == 2)
       pmass *= sqrt(3)/2;
+    sph_sep_t = sph_separation*sqrt(rho_1/rho_2);
   }
 
-  // adjust width of the middle block for symmetry
-  double dy = sph_separation;
-  if (lattice_type == 1 or lattice_type == 2)
-    dy *= sqrt(3)/2;
-  double dy_tb = dy; // lattice step in y-direction for top and bottom blocks
-  //double bbox_width = bbox_max[1] - bbox_min[1];
-  //bbox_width = (int)(bbox_width/(2*dy))*2*dy;
-  //bbox_min[1] = -bbox_width/2.;
-  //bbox_max[1] =  bbox_width/2.;
+  // lattice spacing
+  double dx, dy, dz, dx_t, dy_t, dz_t;
+  dx = dy = dz = sph_separation;
+  dx_t = dy_t = dz_t = sph_sep_t;
+  if (lattice_type == 0) {
+    clog_one(info)
+      << "Lattice: rectangular, resolution: " << std::endl
+      << " - top box:    dx = " << dx_t << std::endl
+      << " - bottom box: dx = " << dx   << std::endl;
+  }
+  if (lattice_type == 1) { // HCP lattice
+    dy   *= sqrt(3.);
+    dy_t *= sqrt(3.);
+    dz   *= 2.*sqrt(2./3.);
+    dz_t *= 2.*sqrt(2./3.);
+    clog_one(info)
+      << "Lattice: HCP, resolution: " << std::endl
+      << " - top box:     dx = " << dx_t << std::endl
+      << "              2*dy = " << dy_t << std::endl
+      << "              2*dz = " << dz_t << std::endl
+      << " - bottom box:  dx = " << dx << std::endl
+      << "              2*dy = " << dy << std::endl
+      << "              2*dz = " << dz << std::endl;
+  }
+  if (lattice_type == 2) { // FCC lattice
+    dy   *= sqrt(3.);
+    dy_t *= sqrt(3.);
+    dz   *= 3.*sqrt(2./3.);
+    dz_t *= 3.*sqrt(2./3.);
+    clog_one(info)
+      << "Lattice: FCC, resolution: " << std::endl
+      << " - top box:     dx = " << dx_t << std::endl
+      << "              2*dy = " << dy_t << std::endl
+      << "              3*dz = " << dz_t << std::endl
+      << " - bottom box:  dx = " << dx << std::endl
+      << "              2*dy = " << dy << std::endl
+      << "              3*dz = " << dz << std::endl;
+  }
 
-  sph_sep_t = sph_separation * sqrt(rho_1/rho_2);
+  // adjust bottom lattice block in vertical direction
+  bbox_min[1] += (box_width/2.) 
+         - ((int)(box_width/2./dy))*dy;
 
-  //dy_tb = dy * sph_sep_t/sph_separation;
+  // for periodic boundaries, lattice has to match up:
+  // adjust domain length
+  if (periodic_boundary_x) {
+    int Nx = (int)(box_length/dx) - 1;
+    for(int i = Nx; i < Nx*100; ++i) {
+      double w2 = floor(i*dx/dx_t + b_tol)*dx_t;
+      if (fabs(w2 - i*dx) < lattice_mismatch_tolerance*dx_t) {
+        SET_PARAM(box_length, std::min(w2,i*dx));
+        bbox_min[0] = -box_length/2.;
+        bbox_max[0] =  box_length/2.;
+        tbox_min[0] = -box_length/2.;
+        tbox_max[0] =  box_length/2.;
+        break;
+      }
+    }
+  }
+  
+  // adjust domain height
+  if (gdimension >= 3 and periodic_boundary_z) {
+    int Nz = (int)(box_length/dz) - 1;
+    for(int k = Nz; k < Nz*100; ++k) {
+      double w2 = floor(k*dz/dz_t + b_tol)*dz_t;
+      if (fabs(w2 - k*dz) < lattice_mismatch_tolerance*dz_t) {
+        SET_PARAM(box_height, std::min(w2,k*dz));
+        bbox_min[2] = -box_height/2.;
+        bbox_max[2] =  box_height/2.;
+        tbox_min[2] = -box_height/2.;
+        tbox_max[2] =  box_height/2.;
+        break;
+      }
+    }
+  }
 
-  // adjust top blocks
-  tbox_min[1] = bbox_max[1] - dy + 0.5*(dy_tb + dy);
+  // report adjusted dimensions
+  if (periodic_boundary_x or periodic_boundary_y or periodic_boundary_z) {
+    clog_one(warn) 
+      << "Domain has been adjusted for periodic boundaries." << std::endl;
+    clog_one(warn) 
+      << "For evolution, modify domain dimensions as follows:" << std::endl 
+      << "  box_length = " << box_length << std::endl 
+      << "  box_width = "  << box_width  << std::endl 
+      << "  box_height = " << box_height << std::endl;
+
+    clog_one(warn) << "Lattice mismatch, X-direction:" << std::endl
+        << " -    top box: "
+        <<   (box_length - floor((tbox_max[0]-tbox_min[0])/dx_t)*dx_t) 
+        <<   ", dx = " << dx_t << ", mismatch/dx = " 
+        <<   (box_length/dx_t - floor((tbox_max[0]-tbox_min[0])/dx_t)) 
+        << std::endl
+        << " - bottom box: "
+        <<   (box_length - floor((bbox_max[0]-bbox_min[0])/dx)*dx) 
+        <<   ", dx = " << dx << ", mismatch/dx = " 
+        <<   (box_length/dx - floor((bbox_max[0]-bbox_min[0])/dx)) 
+        << std::endl;
+
+    if constexpr (gdimension >= 3) 
+      clog_one(warn) << "Lattice mismatch, Z-direction:" << std::endl
+        << " -    top box: "
+        <<   (box_height - floor((tbox_max[0]-tbox_min[0])/dz_t)*dz_t) 
+        <<   ", dz = " << dz_t << ", mismatch/dz = " 
+        <<   (box_height/dz_t - floor((tbox_max[0]-tbox_min[0])/dz_t)) 
+        << std::endl
+        << " - bottom box: "
+        <<   (box_height - floor((bbox_max[0]-bbox_min[0])/dz)*dz) 
+        <<   ", dz = " << dz << ", mismatch/dz = " 
+        <<   (box_height/dz - floor((bbox_max[0]-bbox_min[0])/dz)) 
+        << std::endl;
+  }
 
   // count the number of particles
   np_bottom = particle_lattice::count(lattice_type,gdimension,bbox_min,bbox_max,
@@ -160,14 +244,22 @@ int main(int argc, char * argv[]){
   //assert (gdimension == 2);
   assert (domain_type == 0);
 
+  // screen output
+  clog_one(info)
+    << "Rayleigh-Taylor instability initial data " 
+    << "in " << gdimension << "D" << std::endl;
+ 
   // set simulation parameters
   param::mpi_read_params(argv[1]);
   set_derived_params();
 
   // screen output
-  std::cout << "Kelvin-Helmholtz instability setup in " << gdimension
-       << "D:" << std::endl << " - number of particles: " << nparticles << std::endl
-       << " - generated initial data file: " << initial_data_file << std::endl;
+  clog_one(info)
+    << "Number of particles: "
+    << nparticles << std::endl;
+  clog_one(info)
+    << "Initial data file: " 
+    << initial_data_file << std::endl;
 
   // allocate arrays
   // Position
@@ -218,21 +310,35 @@ int main(int argc, char * argv[]){
         bbox_min[1], bbox_max[1], domain_type)) {
       rho[part] = rho_1;
       m[part] = pmass;
+      P[part] = pressure_0 
+              + gravity_acceleration_constant
+              *(rho_2*(tbox_max[1] - tbox_min[1]) - rho_1*y[part]);
     }
     else {
       rho[part] = rho_2;
       m[part] = pmass;
+      P[part] = pressure_0 
+              + gravity_acceleration_constant
+              * rho_2*(tbox_max[1] - y[part]);
     }
-
-    P[part] = pressure_gravity(y[part],rho[part]);
     u[part] = u_from_eos(rho[part],P[part]);
 
+    vx[part] = 0.;
     vy[part] = 0.;
 
     // Add velocity perturbation a-la Price (2008)
-    //vy[part] = 0.01*(1 + cos(4*M_PI*x[part]))*(1 + cos(3*M_PI*y[part]))/4.;
-    if(y[part] < 0.025 and y[part] > -0.025)
-      vy[part] = 0.01*cos(M_PI*(x[part]/box_length));
+    if(fabs(y[part]) < .5*rt_perturbation_stripe_width) {
+      if constexpr (gdimension == 2)
+        vy[part] =-rt_perturbation_amplitude
+                  *(1 + cos(2*M_PI*x[part]/box_length*rt_perturbation_mode))
+                  *cos(M_PI*y[part]/rt_perturbation_stripe_width);
+
+      if constexpr (gdimension == 3)
+        vy[part] =-rt_perturbation_amplitude
+                  *(1 + cos(2*M_PI*x[part]/box_length*rt_perturbation_mode))
+                  *(1 + cos(2*M_PI*z[part]/box_length*rt_perturbation_mode))
+                  *cos(M_PI*y[part]/rt_perturbation_stripe_width);
+    }
 
     // particle masses and smoothing length
     m[part] = pmass;

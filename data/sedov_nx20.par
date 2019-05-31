@@ -10,7 +10,7 @@
   sphere_radius = 1.0
   sph_eta = 1.2
   sedov_blast_energy = 2.e-7
-  sedov_blast_radius = 1.0 # in units of particle separation
+  sedov_blast_radius = 0.06 
   lattice_type = 2         # 0:rectangular, 1:hcp, 2:fcc, 3:spherical
                            # (in 2d both hcp and fcc are triangular)
   domain_type = 1          # 0:box, 1:sphere
