@@ -186,23 +186,12 @@ int main(int argc, char * argv[]){
   // Particle id number
   int64_t posid = 0;
 
-  // Number of particles in the blast zone
-  int64_t particles_blast = 0;
-
-  // Total mass of particles in the blast zone
-  double mass_blast = 0.;
-
-  double particle_radius = 0.;
-  // Count the number of particles and mass in the blast zone
-  // The blast is centered at the origin ({0,0} or {0,0,0})
-  for(int64_t part=0; part<nparticles; ++part) {
-    particle_radius = sqrt(SQ(x[part]) + SQ(y[part]) + SQ(z[part]));
-    if(particle_radius >= inner_radius) {
-       particles_blast++;
-       mass_blast += mass_particle;
-    }
-  }
-
+  // Assign energy increase in outer region
+  double u_10 = 1.e4;
+  double u_08 = 1.0;
+  double slope = (u_10 - u_08)/(1.0*sphere_radius - 0.8*sphere_radius);
+  double yint  = 1.0*sphere_radius - slope*0.8*sphere_radius;
+ 
   // Assign density, pressure, etc. to particles
   for(int64_t part=0; part<nparticles; ++part){
     m[part] = mass_particle;
@@ -212,19 +201,14 @@ int main(int argc, char * argv[]){
     h[part] = sph_smoothing_length;
     id[part] = posid++;
 
-    particle_radius = sqrt(SQ(x[part]) + SQ(y[part]) + SQ(z[part]));
+    double particle_radius = sqrt(SQ(x[part]) + SQ(y[part]) + SQ(z[part]));
     if (particle_radius >= inner_radius) {
-      double m = 1.0;
-      double y = 1.0;
-      u[part] = (inner_radius - particle_radius)*m + y;
+      u[part] = particle_radius*slope + yint;
       P[part] = (poly_gamma -1.0) * rho[part] * u[part];
     }
   }
 
   clog_one(info) << "Number of particles: " << nparticles << std::endl;
-  clog_one(info) << "Total number of seeded blast particles: " << particles_blast << std::endl;
-  //  clog(info) << "Total blast energy (E_blast = u_blast * total mass): "
-  //                 << sedov_blast_energy * mass_blast << std::endl;
   // remove the previous file
   remove(initial_data_file.c_str());
   hid_t dataFile = H5P_openFile(initial_data_file.c_str(),H5F_ACC_RDWR);
