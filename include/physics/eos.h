@@ -210,8 +210,7 @@ void select(const std::string& eos_type) {
   else if(boost::iequals(eos_type, "polytropic")) {
     init = init_polytropic;
     compute_pressure = compute_pressure_adiabatic;
-    //compute_soundspeed = compute_soundspeed_ideal;
-    compute_soundspeed = compute_soundspeed_adiabatic;
+    compute_soundspeed = compute_soundspeed_ideal;
   }
   else if(boost::iequals(eos_type, "white dwarf")) {
     init = init_ideal;  // TODO
