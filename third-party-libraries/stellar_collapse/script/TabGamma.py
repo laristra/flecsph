@@ -10,8 +10,8 @@
 from __future__ import print_function
 import numpy as np
 import h5py
-from units import UnitSystem
-import units as bunits
+from units_local import UnitSystem
+import units_local as bunits
 
 # constants, in CGS
 GNEWT = bunits.cgs['GNEWT']  # Gravitational constant
