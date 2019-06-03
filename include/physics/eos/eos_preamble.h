@@ -16,8 +16,6 @@
 // Save all utilities
 #include "eos_utils.h"
 
-#if EOS == EOS_TYPE_TABLE
-
 #define TABLE_TOL        (1.e-10)
 #define TABLE_FTOL       (1.e-10)
 #define SC_DEBUG         (0)
@@ -139,4 +137,3 @@ static double catch_lT(const double lT);
 static double catch_s(const double s);
 static double catch_hm1(const double hm1);
 
-#endif // EOS_TYPE_TABLE
