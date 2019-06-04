@@ -58,6 +58,15 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 
 #------------------------------------------------------------------------------#
+# Add GSL
+#------------------------------------------------------------------------------#
+find_package(GSL REQUIRED)
+include_directories(${GSL_INCLUDE_DIRS})
+list(APPEND FleCSPH_LIBRARIES ${GSL_LIBRARIES})
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${GSL_C_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GSL_CXX_FLAGS}")
+
+#------------------------------------------------------------------------------#
 # Add Boost
 #------------------------------------------------------------------------------#
 find_package(Boost REQUIRED)
