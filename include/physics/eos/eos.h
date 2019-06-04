@@ -33,7 +33,7 @@
 #include <boost/algorithm/string.hpp>
 
 // HL : This is for adding tabulated EOS redaer
-//#include "eos_stellar_collapse.h"
+#include "eos_stellar_collapse.h"
 
 #define SQ(x) ((x)*(x))
 #define CU(x) ((x)*(x)*(x))

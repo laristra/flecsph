@@ -71,7 +71,6 @@
 
 // EOS settings
 #define EOS (EOS_TYPE_TABLE)
-//#define GAMMA_FALLBACK (0) : We are not implementing gamma eos fallback
 #define POLYTROPE_FALLBACK (1)
 #define NVAR_PASSIVE (1) // Ye
 #define RADIATION (0)
@@ -92,27 +91,13 @@
 #define PASSIVE_STOP (NVAR_BASE + NVAR_PASSIVE)
 #define PASSTYPE_INTRINSIC (0)
 #define PASSTYPE_NUMBER    (1)
-#if EOS == EOS_TYPE_TABLE
 #define YE (PASSIVE_START)
-#endif // EOS_TYPE_TABLE
 
 // EOS
 #define EOS_TYPE_GAMMA     (0)
 #define EOS_TYPE_POLYTROPE (1)
 #define EOS_TYPE_TABLE     (2)
-#if EOS == EOS_TYPE_GAMMA
 #define EOS_NUM_EXTRA (0)
-#define POLYTROPE_FALLBACK (0)
-#elif EPS == EOS_TYPE_POLYTROPE
-#define EOS_NUM_EXTRA (0)
-#define POLYTROPE_FALLBACK (0)
-#elif EOS == EOS_TYPE_TABLE
-#if GAMMA_FALLBACK // Force to use polytrope fallback
-#define POLYTROPE_FALLBACK (0)
-#else
-#define POLYTROPE_FALLBACK (1)
-#endif // GAMMA_FALLBACK
-#define EOS_NUM_EXTRA (3)
 #define EOS_LRHO (0)
 #define EOS_LT   (1)
 #define EOS_YE   (2)
@@ -122,7 +107,6 @@
 #define MF_XH    (1)
 #define MF_XN    (2)
 #define MF_XP    (3)
-#endif // EOS
 
 // Fixup parameters
 // may only apply for EOS GAMMA
@@ -157,11 +141,63 @@
 
 
 // ----------------------------------------------------------------------
+// Function defs 
+// TODO : Make it correct order. We define above here because of ordering
+double EOS_Poly_pressure_rho0_u(double rho, double u, double K, double Gam);
+double EOS_Poly_pressure_rho0_w(double rho, double w, double K, double Gam);
+double EOS_Poly_enthalpy_rho0_u(double rho, double u, double K, double Gam);
+double EOS_Poly_entropy_rho0_u(double rho, double u, double K, double Gam);
+double EOS_Poly_sound_speed_rho0_u(double rho, double u, double K, double Gam);
+double EOS_Poly_rho_floor(double scale, double bsq);
+double EOS_Poly_u_floor(double scale, double bsq);
+void EOS_Poly_set_floors(double scale, double rho, double u, double bsq,
+                         double* rhoflr, double* uflr);
+double EOS_Poly_adiabatic_constant(double rho, double u, double K, double Gam);
+double EOS_Poly_temperature(double rho, double u, double K, double Gam);
+double EOS_Poly_u_press(double press, double rho, double K, double Gam);
+double EOS_Poly_Theta_unit();
+// HL : this is mostly wrapper with C functions
+// TODO : Need to corporate with C++
+void *safe_malloc(int size);
+void safe_system(const char *command);
+void safe_fscanf(FILE *stream, const char *format, ...);
+double find_min(const double* array, int size);
+double find_max(const double* array, int size);
+int find_index(double value, const double* array, int size);
+double interp_1d(double x,
+                 const double xmin, const double xmax,
+                 const int imin, const int imax,
+                 const double* tab_x,
+                 const double* tab_y);
+void set_units();
+static int root_secant(double (*f)(const double, const void*),
+                       const void* params,
+                       const double ytarget, const double xguess,
+                       const double xmin,    const double xmax,
+                       const double xtol,    const double ytol,
+                       double* xroot);
+static int root_bisect(double (*f)(const double, const void*),
+                       const void* params,
+                       const double ytarget, const double xguess,
+                       const double xmin,    const double xmax,
+                       const double xtol,    const double ytol,
+                       double* xroot);
+void initialize_root_fcounts();
+void print_root_fcounts();
+int find_root(double (*f)(const double, const void*),
+              const void* params,
+              const double ytarget, double xguess,
+              const double xmin,    const double xmax,
+              const double xtol,    const double ytol,
+              double* xroot);
+
+
+
+
 
 
 // Structs
 // ----------------------------------------------------------------------
-#if EOS == EOS_TYPE_TABLE
 struct of_adiabat {
   double s, ye;
   double lrho_min, lrho_max;
@@ -169,32 +205,25 @@ struct of_adiabat {
   double hm1_min, hm1_max;
   double* lT;
 };
-#endif
 
-#if EOS == EOS_TYPE_TABLE
 struct of_tablebounds {
   int Nrho, NT, NYe;
   double lrho_min, lrho_max, dlrho;
   double lT_min, lT_max, dlT;
   double Ye_min, Ye_max, dYe;
 };
-#endif
 
 // ----------------------------------------------------------------------
 
 
 // Important global variables
 // ----------------------------------------------------------------------
-#if EOS == POLYTROPE_FALLBACK
 extern double rho_poly_thresh;
 extern double poly_K, poly_gam;
-#endif
 extern double M_unit;
 extern double Reh;
 extern double Risco;
-#if NEED_UNITS
 extern double mbh, Mbh, L_unit, T_unit, M_unit, RHO_unit, U_unit, B_unit;
-#endif
 extern double TEMP_unit;
 
 
@@ -206,7 +235,6 @@ extern double TEMP_unit;
 //     additional polytrope eos but this might be redundant.
 //     Possibly, we may want to use gamma law EOS rather than
 //     polytrope EOS.
-#if EOS == POLYTROPE_FALLBACK
 double EOS_Poly_pressure_rho0_u(double rho, double u, double K, double Gam)
 {
   rho = fabs(rho+SMALL);
@@ -240,12 +268,6 @@ double EOS_Poly_sound_speed_rho0_u(double rho, double u, double K, double Gam)
   double cs2  = cs2_num / cs2_den;
   return sqrt(cs2);
 }
-void EOS_Poly_set_floors(double scale, double rho, double u, double bsq,
-                         double* rhoflr, double* uflr)
-{
-  *rhoflr = EOS_Poly_rho_floor(scale,bsq);
-  *uflr = EOS_Poly_u_floor(scale,bsq);
-}
 
 double EOS_Poly_rho_floor(double scale, double bsq)
 {
@@ -255,6 +277,7 @@ double EOS_Poly_rho_floor(double scale, double bsq)
 
   return rhoflr;
 }
+
 double EOS_Poly_u_floor(double scale, double bsq)
 {
   double uflr = UUMIN*scale;
@@ -262,6 +285,13 @@ double EOS_Poly_u_floor(double scale, double bsq)
   uflr = MY_MAX(uflr, bsq/BSQOUMAX);
 
   return uflr;
+}
+
+void EOS_Poly_set_floors(double scale, double rho, double u, double bsq,
+                         double* rhoflr, double* uflr)
+{
+  *rhoflr = EOS_Poly_rho_floor(scale,bsq);
+  *uflr = EOS_Poly_u_floor(scale,bsq);
 }
 
 double EOS_Poly_adiabatic_constant(double rho, double u, double K, double Gam)
@@ -284,15 +314,16 @@ double EOS_Poly_Theta_unit()
 {
   return MP/ME;
 }
-#endif // POLYTROPE_FALLBACK
 
 //Utilities
-void *safe_malloc(int size)
+template<typename T>
+T *safe_malloc(int size)
 {
+  size *= sizeof(T);
   // malloc(0) may or may not return NULL, depending on compiler.
   if (size == 0) return NULL;
 
-  void *A = malloc(size);
+  T *A = static_cast<T*>(malloc(size));
   if (A == NULL) {
     fprintf(stderr, "Failed to malloc\n");
     exit(-1);
@@ -350,8 +381,8 @@ int find_index(double value, const double* array, int size)
 double interp_1d(double x,
                  const double xmin, const double xmax,
                  const int imin, const int imax,
-                 const double* restrict tab_x,
-                 const double* restrict tab_y)
+                 const double* tab_x,
+                 const double* tab_y)
 {
   if (x < xmin) x = xmin;
   if (x > xmax) x = xmax-SMALL;
@@ -383,33 +414,15 @@ double interp_1d(double x,
   */
   return out;
 }
-#if NEED_UNITS
+
 void set_units()
 {
-  #if METRIC == MKS
-  L_unit = GNEWT*Mbh/(CL*CL);
-  #endif
   T_unit = L_unit/CL;
   RHO_unit = M_unit*pow(L_unit,-3.);
   U_unit = RHO_unit*CL*CL;
   B_unit = CL*sqrt(4.*M_PI*RHO_unit);
   TEMP_unit = MEV;
-
-  #if RADIATION
-  Ne_unit = RHO_unit/(MP + ME);
-  kphys_to_num = ME/M_unit;
-  //(RADIATION == RADTYPE_LIGHT) ? ME/M_unit : MP/M_unit;
-  // kphys_to_num = MBary/M_unit;
-  #if ELECTRONS
-  Thetae_unit = MP/ME;
-  #else
-  Thetae_unit = EOS_Theta_unit();
-  #endif // ELECTRONS
-  #endif // RADIATION
-  rho_poly_thresh = EOS_SC_get_min_rho();
-
 }
-#endif // NEED UNITS
 
 // Root-finder based on gsl root finder API
 //
@@ -675,13 +688,13 @@ void print_root_fcounts()
   double fcount_percs[FCOUNT_NBINS];
 
   for (int i = 0; i < FCOUNT_NBINS; i++) {
-    global_fcount[i] = mpi_reduce(root_fcount[i]);
-    //global_fcount[i] = root_fcount[i];
+    global_fcount[i] = root_fcount[i];
     fcount_tot += global_fcount[i];
   }
   for (int i = 0; i < FCOUNT_NBINS; i++) {
     fcount_percs[i] = (100.*global_fcount[i])/fcount_tot;
   }
+  #if 0
   if (mpi_io_proc()) {
     fprintf(stdout, "\n********** ROOT FINDING *********\n");
     fprintf(stdout, "   ITERATIONS          PERCENTAGE\n"  );
@@ -696,6 +709,7 @@ void print_root_fcounts()
     }
     fprintf(stdout, "*********************************\n\n");
   }
+  #endif
   // reset counts
   initialize_root_fcounts();
 }
