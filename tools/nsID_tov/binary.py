@@ -1,7 +1,7 @@
 # Copyright (c) 2017 Triad National Security, LLC
 # All rights reserved.
 
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 # Author : Hyun Lim
 # Date : Jun3.27.2017
