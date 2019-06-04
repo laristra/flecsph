@@ -11,11 +11,6 @@
  *                                                                            *
  ******************************************************************************/
 
-/*
- * TODO: Make EOS reader use gamma law as fallback if we fall off the table
- *       by going to too low densities.
- */
-
 #include "eos_preamble.h"
 
 #if EOS == EOS_TYPE_TABLE

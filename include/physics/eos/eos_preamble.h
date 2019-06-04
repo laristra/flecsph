@@ -83,7 +83,233 @@ static double tab_hm1_min,   tab_hm1_max;
 
 static double energy_shift;
 static double enthalpy_shift;
+// from eos.c
+//
+double EOS_bad_eos_error()
+{
+  fprintf(stderr, "ERROR! UNKNOWN EOS TYPE! TYPE = %i\n",EOS);
+  exit(1);
+}
 
+
+/*******************************************************************************
+      Wrappers
+*******************************************************************************/
+void init_EOS()
+{
+  #if EOS == EOS_TYPE_GAMMA || EOS == EOS_TYPE_POLYTROPE
+  return;
+  // HL : disalbe
+  #if 0
+  #elif EOS == EOS_TYPE_TABLE
+  EOS_SC_init(eospath);
+  #else
+  #endif
+  EOS_bad_eos_error();
+  #endif
+}
+
+double EOS_pressure_rho0_u(double rho, double u,
+                           const double* extra)
+{
+  double press;
+  #if EOS == EOS_TYPE_POLYTROPE
+  press = EOS_Poly_pressure_rho0_u(rho,u,poly_K,poly_gam);
+  #elif EOS == EOS_TYPE_TABLE
+  double lrho = extra[EOS_LRHO];
+  double lT   = extra[EOS_LT];
+  double ye   = extra[EOS_YE];
+  #if POLYTROPE_FALLBACK
+  if (rho < rho_poly_thresh) {
+    double K,Gam;
+    lrho = EOS_SC_get_min_lrho();
+    lT = EOS_SC_get_min_lT();
+    EOS_SC_get_polytrope(lrho, lT, ye, &K, &Gam);
+    press = EOS_Poly_pressure_rho0_u(rho,u,K,Gam);
+  } else {
+    press = EOS_SC_pressure_rho0_u(lrho,lT,ye);
+  }
+  #else
+  press = EOS_SC_pressure_rho0_u(lrho,lT,ye);
+  #endif // POLYTROPE_FALLBACK
+  #else
+  EOS_bad_eos_error();
+  #endif
+  return press;
+}
+
+double EOS_enthalpy_rho0_u(double rho, double u, const double* extra)
+{
+  double enth;
+  #if EOS == EOS_TYPE_POLYTROPE
+  enth = EOS_Poly_enthalpy_rho0_u(rho,u,poly_K,poly_gam);
+  #elif EOS == EOS_TYPE_TABLE
+  double lrho = extra[EOS_LRHO];
+  double lT   = extra[EOS_LT];
+  double ye   = extra[EOS_YE];
+  #if POLYTROPE_FALLBACK
+  if (rho < rho_poly_thresh) {
+    double K,Gam;
+    lrho = EOS_SC_get_min_lrho();
+    lT = EOS_SC_get_min_lT();
+    EOS_SC_get_polytrope(lrho, lT, ye, &K, &Gam);
+    enth = EOS_Poly_enthalpy_rho0_u(rho,MY_MAX(u,0.0),K,Gam);
+  } else {
+    double h = EOS_SC_specific_enthalpy_rho0_u(lrho,lT,ye);
+    enth = h*rho;
+  }
+  #else
+  double h = EOS_SC_specific_enthalpy_rho0_u(lrho,lT,ye);
+  enth = h*rho;
+  #endif // POLYTROPE_FALLBACK
+  #else
+  EOS_bad_eos_error();
+  #endif
+  return enth;
+}
+
+double EOS_entropy_rho0_u(double rho, double u, const double* extra)
+{
+  double ent;
+  #if EOS == EOS_TYPE_POLYTROPE
+  ent = EOS_Poly_entropy_rho0_u(rho,u,poly_K,poly_gam);
+  #elif EOS == EOS_TYPE_TABLE
+  double lrho = extra[EOS_LRHO];
+  double lT   = extra[EOS_LT];
+  double ye   = extra[EOS_YE];
+  #if POLYTROPE_FALLBACK
+  if (rho < rho_poly_thresh) {
+    double K,Gam;
+    lrho = EOS_SC_get_min_lrho();
+    lT = EOS_SC_get_min_lT();
+    EOS_SC_get_polytrope(lrho, lT, ye, &K, &Gam);
+    ent = EOS_Poly_entropy_rho0_u(rho,u,K,Gam);
+  } else {
+    ent = EOS_SC_entropy(lrho,lT,ye);
+  }
+  #else
+  ent = EOS_SC_entropy(lrho,lT,ye);
+  #endif // POLYTROPE_FALLBACK
+  #else
+  EOS_bad_eos_error();
+  #endif
+  return ent;
+}
+
+double EOS_sound_speed_rho0_u(double rho, double u, const double* extra)
+{
+  double cs;
+  #if EOS == EOS_TYPE_POLYTROPE
+  cs = EOS_Poly_sound_speed_rho0_u(rho,u,poly_K,poly_gam);
+  #elif EOS == EOS_TYPE_TABLE
+  double lrho = extra[EOS_LRHO];
+  double lT   = extra[EOS_LT];
+  double ye   = extra[EOS_YE];
+  #if POLYTROPE_FALLBACK
+  if (rho < rho_poly_thresh) {
+    double K,Gam;
+    lrho = EOS_SC_get_min_lrho();
+    lT = EOS_SC_get_min_lT();
+    EOS_SC_get_polytrope(lrho, lT, ye, &K, &Gam);
+    cs = EOS_Poly_sound_speed_rho0_u(rho,u,K,Gam);
+  } else {
+    cs = EOS_SC_sound_speed(lrho,lT,ye);
+  }
+  #else
+  cs = EOS_SC_sound_speed(lrho,lT,ye);
+  #endif // POLYTROPE_FALLBACK
+  #else
+  EOS_bad_eos_error();
+  #endif
+  return cs;
+}
+
+void EOS_set_floors(double scale, double rho, double u, double bsq,
+  double* rhoflr, double* uflr, const double* extra)
+{
+  #if EOS == EOS_TYPE_POLYTROPE
+  EOS_Poly_set_floors(scale, rho, u, bsq, rhoflr, uflr);
+  #elif EOS == EOS_TYPE_TABLE
+  double ye = extra[EOS_YE];
+  EOS_SC_set_floors(scale, rho, u, ye, bsq, rhoflr, uflr);
+  #else
+  EOS_bad_eos_error();
+  #endif
+}
+
+double EOS_adiabatic_constant(double rho, double u, const double* extra)
+{
+  double cad;
+  #if EOS == EOS_TYPE_POLYTROPE
+  EOS_Poly_adiabatic_constant(rho,u,poly_K,poly_gam);
+  #elif EOS == EOS_TYPE_TABLE
+  double gam = EOS_get_gamma(extra);
+  cad = u*pow(rho,-gam);
+  #else
+  EOS_bad_eos_error();
+  #endif
+  return cad;
+}
+
+double EOS_get_gamma(const double* extra)
+{
+  #if EOS == EOS_TYPE_POLYTROPE
+  return poly_gam;
+  #elif EOS == EOS_TYPE_TABLE
+  double lrho = extra[EOS_LRHO];
+  double lT   = extra[EOS_LT];
+  double ye   = extra[EOS_YE];
+  double gam  = EOS_SC_gamma(lrho,lT,ye);
+  return gam;
+  #else
+  EOS_bad_eos_error();
+  #endif
+}
+
+double EOS_temperature(double rho, double u, const double* extra)
+{
+  #if EOS == EOS_TYPE_POLYTROPE
+  return EOS_Poly_temperature(rho,u,poly_K,poly_gam);
+  #elif EOS == EOS_TYPE_TABLE
+  double lT = extra[EOS_LT];
+  return EOS_SC_temperature(lT);
+  #else
+  EOS_bad_eos_error();
+  #endif
+}
+
+double EOS_u_press(double press, double rho, double* extra)
+{
+  double u;
+  #if EOS == EOS_TYPE_PLYTROPE
+  u = EOS_Poly_u_press(press,rho,poly_K,poly_Gam);
+  #elif EOS == EOS_TYPE_TABLE
+  double ye = extra[EOS_YE];
+  //double yedens = extra[EOS_YE];
+  //double ye     = fabs(yedens) / (fabs(rho) + SMALL);
+  double lTold  = extra[EOS_LT];
+  #if POLYTROPE_FALLBACK
+  if (rho < rho_poly_thresh) {
+    u = EOS_SC_get_minu(rho,ye);
+    lTold = EOS_SC_get_min_lT();
+  } else {
+    u = EOS_SC_u_press(press, rho, ye, &lTold);
+  }
+  #else
+  u = EOS_SC_u_press(press, rho, ye, &lTold);
+  #endif // POLYTROPE_FALLBACK
+  extra[EOS_LT] = lTold;
+  #else
+  EOS_bad_eos_error();
+  #endif // EOS
+  return u;
+}
+
+#if 0
+//HL : func prototype is not needed because we change everything as
+//     header but I keep this for reference anyways. This will be 
+//     cleaned later
+//
 // core
 static double EOS_SC_interp(const double lrho, const double lT, const double Ye,
 			    double* restrict tab);
@@ -136,4 +362,4 @@ static double catch_ye(const double ye);
 static double catch_lT(const double lT);
 static double catch_s(const double s);
 static double catch_hm1(const double hm1);
-
+#endif

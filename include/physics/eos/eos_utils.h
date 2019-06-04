@@ -71,7 +71,7 @@
 
 // EOS settings
 #define EOS (EOS_TYPE_TABLE)
-#define GAMMA_FALLBACK (0)
+//#define GAMMA_FALLBACK (0) : We are not implementing gamma eos fallback
 #define POLYTROPE_FALLBACK (1)
 #define NVAR_PASSIVE (1) // Ye
 #define RADIATION (0)
@@ -107,7 +107,7 @@
 #define EOS_NUM_EXTRA (0)
 #define POLYTROPE_FALLBACK (0)
 #elif EOS == EOS_TYPE_TABLE
-#if GAMMA_FALLBACK
+#if GAMMA_FALLBACK // Force to use polytrope fallback
 #define POLYTROPE_FALLBACK (0)
 #else
 #define POLYTROPE_FALLBACK (1)
@@ -185,8 +185,9 @@ struct of_tablebounds {
 
 // Important global variables
 // ----------------------------------------------------------------------
-#if EOS == EOS_TYPE_GAMMA || GAMMA_FALLBACK
-extern double gam;
+#if EOS == POLYTROPE_FALLBACK
+extern double rho_poly_thresh;
+extern double poly_K, poly_gam;
 #endif
 extern double M_unit;
 extern double Reh;
@@ -194,109 +195,59 @@ extern double Risco;
 #if NEED_UNITS
 extern double mbh, Mbh, L_unit, T_unit, M_unit, RHO_unit, U_unit, B_unit;
 #endif
-#if EOS == EOS_TYPE_TABLE
 extern double TEMP_unit;
-#endif
-
-
-//This will merge with other stuffs
-#if 0
-// ----------------------------------------------------------------------
 
 
 // Public function APIs
 // ----------------------------------------------------------------------
 
-// eos.c
-void init_EOS();
-double EOS_bad_eos_error();
-double EOS_get_gamma(const double* extra); 
-double EOS_pressure_rho0_u(double rho, double u, const double* extra);
-
-double EOS_enthalpy_rho0_u(double rho, double u, const double* extra);
-double EOS_sound_speed_rho0_u(double rho, double u, const double* extra);
-void EOS_set_floors(double scale, double rho, double u, double bsq,
-  double* rhoflr, double* uflr, const double* extra);
-double EOS_entropy_rho0_u(double rho, double u, const double* extra);
-double EOS_adiabatic_constant(double rho, double u, const double* extra);
-double EOS_temperature(double rho, double u, const double* extra);
-double EOS_u_press(double press, double rho, double* extra);
-
-// eos_stellar_collapse.c
-#if EOS == EOS_TYPE_TABLE
-void EOS_SC_init(char *name);
-void EOS_SC_fill(double* rhoIn, double* uIn, double* yeIn, double* restrict eos);
-double EOS_SC_pressure_rho0_u(double lrho, double lT, double ye);
-double EOS_SC_pressure_rho0_w(double rho, double w, double ye, double *lTold);
-double EOS_SC_specific_enthalpy_rho0_u(double lrho, double lT, double ye);
-double EOS_SC_sound_speed(double lrho, double lT, double ye);
-double EOS_SC_entropy(double lrho, double lT, double ye);
-double EOS_SC_gamma(double lrho, double lT, double ye);
-double EOS_SC_temperature(double lT);
-double EOS_SC_get_u_of_T(double rho, double T, double ye);
-double EOS_SC_u_press(double press, double rho, double ye, double *lTold);
-void EOS_SC_mass_fractions(double Xi[NUM_MASS_FRACTIONS], const double* extra);
-void EOS_SC_avg_ions(double* Abar, double* Zbar, const double* extra);
-void EOS_SC_set_floors(double scale, double rho, double u, double ye,
-  double bsqr, double* rhoflr, double* uflr);
-double EOS_SC_rho_floor(double scale, double bsq);
-double EOS_SC_u_floor(double scale, double bsq, double ye);
-double EOS_SC_get_min_lrho();
-double EOS_SC_get_min_rho();
-double EOS_SC_get_min_lT();
-double EOS_SC_get_minu(double rho, double ye);
-void EOS_SC_get_polytrope(double lrho, double lT, double ye,
-  double* poly_K, double* poly_gamma);
-double EOS_SC_hm1_min_adiabat(const struct of_adiabat *a);
-int EOS_SC_find_adiabat_1d(double s, double ye,
-  double lrho_min, double lrho_max, struct of_adiabat *a);
-void EOS_SC_print_adiabat(const struct of_adiabat *a);
-void EOS_SC_adiabat_free(struct of_adiabat *a);
-void EOS_SC_isoentropy_hm1(double hm1, const struct of_adiabat *a,
-  double* lrho_guess, double *rho, double *u);
-void EOS_SC_get_bounds(struct of_tablebounds *b);
-#endif // EOS_TYPE_TABLE
-#endif
-
-//Adding gamma law eos for fallbakcing
+//Adding polytrope eos for fallbakcing
 //HL : Since gamma EOS in eos.h is parametrize, I add here for
-//     additional gamma eos but this might be redundant.
-//     Possibly, we may want to use polytropic EOS rather than
-//     ideal EOS.
-#if EOS == GAMMA_FALLBACK
-double EOS_Gamma_pressure_rho0_u(double rho, double u)
+//     additional polytrope eos but this might be redundant.
+//     Possibly, we may want to use gamma law EOS rather than
+//     polytrope EOS.
+#if EOS == POLYTROPE_FALLBACK
+double EOS_Poly_pressure_rho0_u(double rho, double u, double K, double Gam)
 {
-  return ((gam - 1.)*u);
+  rho = fabs(rho+SMALL);
+  return K*pow(rho,Gam);
 }
 
-double EOS_Gamma_pressure_rho0_w(double rho, double w)
+double EOS_Poly_pressure_rho0_w(double rho, double w, double K, double Gam)
 {
-  return ((w - rho)*(gam - 1.)/gam);
+  rho = fabs(rho+SMALL);
+  return K*pow(rho,Gam);
+}
+double EOS_Poly_enthalpy_rho0_u(double rho, double u, double K, double Gam)
+{
+  double P = EOS_Poly_pressure_rho0_u(rho,u,K,Gam);
+  return rho + u + P;
 }
 
-double EOS_Gamma_entropy_rho0_u(double rho, double u)
+double EOS_Poly_entropy_rho0_u(double rho, double u, double K, double Gam)
 {
-  return (gam - 1.0)*EOS_Gamma_adiabatic_constant_rho0_u(rho,u);
+  // TODO: units?
+  return K;
 }
 
-double EOS_Gamma_enthalpy_rho0_u(double rho, double u)
+double EOS_Poly_sound_speed_rho0_u(double rho, double u, double K, double Gam)
 {
-  return rho + u*gam;
+  rho = MY_MAX(0.0,rho);
+  u = MY_MAX(0.0,u);
+  double rhogam = K*pow(rho,Gam-1);
+  double cs2_num = Gam*rhogam;
+  double cs2_den = 1 + u + rhogam;
+  double cs2  = cs2_num / cs2_den;
+  return sqrt(cs2);
+}
+void EOS_Poly_set_floors(double scale, double rho, double u, double bsq,
+                         double* rhoflr, double* uflr)
+{
+  *rhoflr = EOS_Poly_rho_floor(scale,bsq);
+  *uflr = EOS_Poly_u_floor(scale,bsq);
 }
 
-double EOS_Gamma_adiabatic_constant_rho0_u(double rho, double u)
-{
-  return u*pow(rho,-gam);
-}
-void EOS_Gamma_set_floors(double scale, double rho, double u, double bsq,
-                            double* rhoflr, double* uflr)
-{
-  *rhoflr = EOS_Gamma_rho_floor(scale,bsq);
-  *uflr = EOS_Gamma_u_floor(scale,bsq);
-  *rhoflr = MY_MAX(*rhoflr, u/UORHOMAX);
-}
-
-double EOS_Gamma_rho_floor(double scale, double bsq)
+double EOS_Poly_rho_floor(double scale, double bsq)
 {
   double rhoflr = RHOMIN*scale;
   rhoflr = MY_MAX(rhoflr, RHOMINLIMIT);
@@ -304,71 +255,36 @@ double EOS_Gamma_rho_floor(double scale, double bsq)
 
   return rhoflr;
 }
-double EOS_Gamma_u_floor(double scale, double bsq)
+double EOS_Poly_u_floor(double scale, double bsq)
 {
-  double uscal = EOS_Gamma_u_scale(scale);
-  double uflr = UUMIN*uscal;
-  uflr =  MY_MAX(uflr, UUMINLIMIT);
+  double uflr = UUMIN*scale;
+  uflr = MY_MAX(uflr,UUMINLIMIT);
   uflr = MY_MAX(uflr, bsq/BSQOUMAX);
 
   return uflr;
 }
 
-double EOS_Gamma_sound_speed_rho0_u(double rho, double u)
+double EOS_Poly_adiabatic_constant(double rho, double u, double K, double Gam)
 {
-  double ef = EOS_Gamma_enthalpy_rho0_u(rho,u);
-  double press = EOS_Gamma_pressure_rho0_u(rho,u);
-  return sqrt(gam*press/ef);
+  return K/(Gam-1.);
 }
 
-double EOS_Gamma_u_press(double press)
+double EOS_Poly_temperature(double rho, double u, double K, double Gam)
 {
-  return press/(gam - 1.);
+  // TODO: is this right?
+  return 0.0; // Polytrope is at zero internal energy/temperature
 }
 
-double EOS_Gamma_temp(double rho, double u)
+double EOS_Poly_u_press(double press, double rho, double K, double Gam)
 {
-  //return TEMP_unit*(gam - 1.)*u/rho;
-  return (gam - 1.)*u/rho;
+  return 0.0; // pressure and internal energy independent
 }
-#endif // EOS_TYPE_GAMMA
 
-#if 0
-// eos_stellar_collapse.c
-#if EOS == EOS_TYPE_TABLE
-void EOS_SC_init(char *name);
-void EOS_SC_fill(double* rhoIn, double* uIn, double* yeIn, double* restrict eos);
-double EOS_SC_pressure_rho0_u(double lrho, double lT, double ye);
-double EOS_SC_pressure_rho0_w(double rho, double w, double ye, double *lTold);
-double EOS_SC_specific_enthalpy_rho0_u(double lrho, double lT, double ye);
-double EOS_SC_sound_speed(double lrho, double lT, double ye);
-double EOS_SC_entropy(double lrho, double lT, double ye);
-double EOS_SC_gamma(double lrho, double lT, double ye);
-double EOS_SC_temperature(double lT);
-double EOS_SC_get_u_of_T(double rho, double T, double ye);
-double EOS_SC_u_press(double press, double rho, double ye, double *lTold);
-void EOS_SC_mass_fractions(double Xi[NUM_MASS_FRACTIONS], const double* extra);
-void EOS_SC_avg_ions(double* Abar, double* Zbar, const double* extra);
-void EOS_SC_set_floors(double scale, double rho, double u, double ye,
-  double bsqr, double* rhoflr, double* uflr);
-double EOS_SC_rho_floor(double scale, double bsq);
-double EOS_SC_u_floor(double scale, double bsq, double ye);
-double EOS_SC_get_min_lrho();
-double EOS_SC_get_min_rho();
-double EOS_SC_get_min_lT();
-double EOS_SC_get_minu(double rho, double ye);
-void EOS_SC_get_polytrope(double lrho, double lT, double ye,
-  double* poly_K, double* poly_gamma);
-double EOS_SC_hm1_min_adiabat(const struct of_adiabat *a);
-int EOS_SC_find_adiabat_1d(double s, double ye,
-  double lrho_min, double lrho_max, struct of_adiabat *a);
-void EOS_SC_print_adiabat(const struct of_adiabat *a);
-void EOS_SC_adiabat_free(struct of_adiabat *a);
-void EOS_SC_isoentropy_hm1(double hm1, const struct of_adiabat *a,
-  double* lrho_guess, double *rho, double *u);
-void EOS_SC_get_bounds(struct of_tablebounds *b);
-#endif // EOS_TYPE_TABLE
-#endif
+double EOS_Poly_Theta_unit()
+{
+  return MP/ME;
+}
+#endif // POLYTROPE_FALLBACK
 
 //Utilities
 void *safe_malloc(int size)
@@ -477,9 +393,7 @@ void set_units()
   RHO_unit = M_unit*pow(L_unit,-3.);
   U_unit = RHO_unit*CL*CL;
   B_unit = CL*sqrt(4.*M_PI*RHO_unit);
-  #if EOS == EOS_TYPE_TABLE
   TEMP_unit = MEV;
-  #endif
 
   #if RADIATION
   Ne_unit = RHO_unit/(MP + ME);
@@ -492,10 +406,8 @@ void set_units()
   Thetae_unit = EOS_Theta_unit();
   #endif // ELECTRONS
   #endif // RADIATION
-
-  #if EOS == EOS_TYPE_TABLE && POLYTROPE_FALLBACK
   rho_poly_thresh = EOS_SC_get_min_rho();
-  #endif
+
 }
 #endif // NEED UNITS
 
