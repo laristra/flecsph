@@ -15,19 +15,28 @@
 
 #if 0
 // TODO : Need to coporate with FleCSPH unit system
-//        below const definition doesn't change unit. 
+//        below const definition doesn't change unit.
 //        just define like that to work it
 const double RHO_unit = 1.0; // For density
 const double U_unit = 1.0;  // For internel specific energy
 #endif
 
-// HDF5 
+// HDF5
 #include <hdf5.h>
 
 // Init
 // ----------------------------------------------------------------------
-void EOS_SC_init(char *name)
+void EOS_SC_init(const char *name)
 {
+
+  std::ifstream infile(name);
+  if(!infile.good()){
+    clog_one(error)<<"File "<<name<<" not found."<<std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+
+
   hsize_t file_grid_dims[3], file_start[3], file_count[3];
   hsize_t mem_grid_dims[3], mem_start[3];
 
@@ -372,7 +381,7 @@ void EOS_SC_init(char *name)
   tab_dpdrhoe_max   = find_max(tab_dpdrhoe, tab_size);
   tab_dpderho_min   = find_min(tab_dpderho, tab_size);
   tab_dpderho_max   = find_max(tab_dpderho, tab_size);
-  
+
 
   tab_e_min = le2e(tab_le_min);
   tab_e_max = le2e(tab_le_max);
@@ -514,8 +523,8 @@ void EOS_SC_fill(double* rhoIn, double* uIn, double* yeIn, double* eos)
   //double ye     = yedens / (fabs(rho) + SMALL);
 
   // into CGS
-  u      *= U_unit;
-  rho    *= RHO_unit;
+  u      *= GV::U_unit;
+  rho    *= GV::RHO_unit;
 
   // dont' fall off the table
   lrho = catch_rho(rho);
@@ -547,7 +556,7 @@ void EOS_SC_fill(double* rhoIn, double* uIn, double* yeIn, double* eos)
   }
   #endif // SC_DEBUG
   #endif
-  
+
   int status = find_lT(lrho, lTguess, ye,
 		       tab_le, le,
 		       &leosTemp);
@@ -562,7 +571,7 @@ void EOS_SC_fill(double* rhoIn, double* uIn, double* yeIn, double* eos)
 	    "\tle       = %g\n"
 	    "\tlTguess  = %g\n"
 	    "\tleosTemp = %g\n",
-	    rho/RHO_unit, u/U_unit, e, ye,
+	    rho/GV::RHO_unit, u/GV::U_unit, e, ye,
 	    lrho, le, lTguess,
 	    leosTemp);
     exit(1); // TODO: Handle this more gracefully
@@ -598,7 +607,7 @@ void EOS_SC_fill(double* rhoIn, double* uIn, double* yeIn, double* eos)
 double EOS_SC_pressure_rho0_u(double lrho, double lT, double ye)
 {
   const double lP  = EOS_SC_interp(lrho,lT,ye,tab_lP);
-  return pow(10.,lP)/U_unit;  
+  return pow(10.,lP)/GV::U_unit;
 }
 
 double EOS_SC_specific_enthalpy_rho0_u(double lrho, double lT, double ye)
@@ -611,7 +620,7 @@ double EOS_SC_specific_enthalpy_rho0_u(double lrho, double lT, double ye)
 
 double EOS_SC_sound_speed(double lrho, double lT, double ye)
 {
-  double cs2 = EOS_SC_interp(lrho,lT,ye,tab_cs2);  
+  double cs2 = EOS_SC_interp(lrho,lT,ye,tab_cs2);
   return sqrt(cs2);
 }
 
@@ -648,7 +657,7 @@ double EOS_SC_get_u_of_T(double rho, double T, double ye)
   const double le = EOS_SC_interp(lrho, lT, ye, tab_le);
   const double e = le2e(le);
   const double u = e*rho;
-  return u / U_unit;
+  return u / GV::U_unit;
 }
 
 double EOS_SC_pressure_rho0_w(double rho, double w, double ye, double *lTold)
@@ -661,8 +670,8 @@ double EOS_SC_pressure_rho0_w(double rho, double w, double ye, double *lTold)
   w -= rho;
 
   // convert to CGS
-  rho *= RHO_unit;
-  w   *= U_unit;
+  rho *= GV::RHO_unit;
+  w   *= GV::U_unit;
 
   // dont' fall off the table
   double lrho = catch_rho(rho);
@@ -732,7 +741,7 @@ double EOS_SC_pressure_rho0_w(double rho, double w, double ye, double *lTold)
   double press = pow(10., log_press);
 
   // back into code units
-  press /= U_unit;
+  press /= GV::U_unit;
 
   #if SC_DEBUG
   if ( isnan(press) ) {
@@ -741,7 +750,7 @@ double EOS_SC_pressure_rho0_w(double rho, double w, double ye, double *lTold)
     exit(1);
   }
   #endif // SC_DEBUG
-  
+
   *lTold = leosTemp;
   return press;
 }
@@ -753,8 +762,8 @@ double EOS_SC_u_press(double press, double rho, double ye, double *lTold)
   lTguess = catch_lT(lTguess);
 
   // Units to CGS
-  press *= U_unit;
-  rho   *= RHO_unit;
+  press *= GV::U_unit;
+  rho   *= GV::RHO_unit;
 
   const double lrho = catch_rho(rho);
   double lp = catch_press(press);
@@ -781,7 +790,7 @@ double EOS_SC_u_press(double press, double rho, double ye, double *lTold)
   int status = find_lT(lrho, lTguess, ye,
 		       tab_lP, lp,
 		       &leosTemp);
-                       
+
   if( status != ROOT_SUCCESS ) {
   /*
     fprintf(stderr,"[EOS_SC_u_press]: "
@@ -798,7 +807,7 @@ double EOS_SC_u_press(double press, double rho, double ye, double *lTold)
   double u = e*rho;
 
   // to code units
-  u /= U_unit;
+  u /= GV::U_unit;
 
   #if SC_DEBUG
   if ( isnan(u) ) {
@@ -810,7 +819,7 @@ double EOS_SC_u_press(double press, double rho, double ye, double *lTold)
     exit(1);
   }
   #endif // SC_DEBUG
-  
+
   *lTold = leosTemp;
   return u;
 }
@@ -840,15 +849,15 @@ void EOS_SC_set_floors(double scale, double rho, double u, double ye,
 {
   *rhoflr = EOS_SC_rho_floor(scale, bsq);
   *uflr = EOS_SC_u_floor(scale, bsq, ye);
-  *rhoflr = MY_MAX(*rhoflr, u/UORHOMAX);
+  *rhoflr = std::max(*rhoflr, u/UORHOMAX);
 }
 
 double EOS_SC_rho_floor(double scale, double bsq)
 {
   double rhoflr = RHOMIN*scale;
   double rhominlimit = RHOMINLIMIT;
-  rhoflr = MY_MAX(rhoflr,rhominlimit); 
-  rhoflr = MY_MAX(rhoflr, bsq/BSQORHOMAX);
+  rhoflr = std::max(rhoflr,rhominlimit);
+  rhoflr = std::max(rhoflr, bsq/BSQORHOMAX);
   return rhoflr;
 }
 
@@ -860,7 +869,7 @@ double EOS_SC_get_min_rho() {
   double delrho      = tab_lrho_max - tab_lrho_min;
   double lrho_min    = tab_lrho_min + 0.01*delrho;
   double rho_min_cgs = pow(10.,lrho_min);
-  double rho_min     = rho_min_cgs/RHO_unit;
+  double rho_min     = rho_min_cgs/GV::RHO_unit;
   return rho_min;
 }
 
@@ -877,13 +886,13 @@ double EOS_SC_get_minu(double rho, double ye)
   double le = EOS_SC_interp(lrho,lT,ye,tab_le);
   double e = le2e(le);
   double u = e*rho;
-  return u/U_unit;
+  return u/GV::U_unit;
 }
 
 double EOS_SC_u_floor(double scale, double bsq, double ye)
 {
   //return -INFINITY;
-  double rhoflr = EOS_SC_rho_floor(scale, bsq)*RHO_unit;
+  double rhoflr = EOS_SC_rho_floor(scale, bsq)*GV::RHO_unit;
   double minu = EOS_SC_get_minu(rhoflr, ye);
   if ((bsq/BSQOUMAX) > fabs(minu)) { // Good idea?
     minu = bsq/BSQOUMAX;
@@ -899,7 +908,7 @@ void EOS_SC_get_polytrope(double lrho, double lT, double ye,
   ye = catch_ye(ye);
   double K   = EOS_SC_interp(lrho,lT,ye,tab_poly_K);
   double Gam = EOS_SC_interp(lrho,lT,ye,tab_poly_gamma);
-  double K_unit = U_unit/pow(RHO_unit,Gam);
+  double K_unit = GV::U_unit/pow(GV::RHO_unit,Gam);
   *poly_K = K/K_unit;
   *poly_gamma = Gam;
 }
@@ -931,7 +940,7 @@ static int find_adiabat_0d(double lrho, double lTguess, double ye,
   lTguess = catch_lT(lTguess);
   ye = catch_ye(ye);
   s = catch_s(s);
-  
+
   struct of_lT_params p;
   p.lrho = lrho;
   p.ye = ye;
@@ -978,7 +987,7 @@ int EOS_SC_find_adiabat_1d(double s, double ye,
     if (hm1 > hm1_max) hm1_max = hm1;
     if (status != ROOT_SUCCESS) return ROOT_FAIL;
   }
-  
+
   a->s  = s;
   a->ye = ye;
   a->lrho_min = lrho_min;
@@ -1045,7 +1054,7 @@ void EOS_SC_isoentropy_hm1(double hm1, const struct of_adiabat *a,
 	    "\tye         = %e\n"
 	    "\tlrho_guess = %e\n",
 	    hm1,hm1_min,s,ye,*lrho_guess);
-    
+
     printf("ADIABAT MAP\n");
     printf("rho\thm1\n");
     for (int i = a->imin; i < a->imax; i++) {
@@ -1065,8 +1074,8 @@ void EOS_SC_isoentropy_hm1(double hm1, const struct of_adiabat *a,
   double rho_cgs = pow(10.,lrho);
   double u_cgs   = rho_cgs*e;
   // and to cgs
-  *rho = rho_cgs/RHO_unit;
-  *u = u_cgs/U_unit;
+  *rho = rho_cgs/GV::RHO_unit;
+  *u = u_cgs/GV::U_unit;
   // save initial guesses
   *lrho_guess = lrho;
 
@@ -1440,7 +1449,7 @@ static double catch_hm1(const double hm1)
 
 double EOS_bad_eos_error()
 {
-  fprintf(stderr, "ERROR! UNKNOWN EOS TYPE! TYPE = %i\n",EOS);
+  fprintf(stderr, "ERROR! UNKNOWN EOS TYPE!\n");
   exit(1);
 }
 
@@ -1449,20 +1458,24 @@ double EOS_bad_eos_error()
 *******************************************************************************/
 void init_EOS()
 {
-  //HL : this should be parameterized with our code. 
+  //HL : this should be parameterized with our code.
   //     This makes eos_cache that will use to initialize
   //     eos table
-  char* eospath;
-  EOS_SC_init(eospath);
+  clog_one(info)<<"Reading EOS from file: "<<param::eos_tab_file_path<<std::endl;
+  EOS_SC_init(param::eos_tab_file_path);
 }
 
-double EOS_pressure_rho0_u(double rho, double u,
-                           const double* extra)
+//double rho, double u,const double* extra
+double EOS_pressure_rho0_u(body& b)
 {
+  // Particles data
+  double rho = b.getDensity();
+  double u = b.getInternalenergy();
+  double ye = b.getElectronfraction();
+  double lrho = log(rho);
+  double lT = 1.0;
+
   double press;
-  double lrho = extra[EOS_LRHO];
-  double lT   = extra[EOS_LT];
-  double ye   = extra[EOS_YE];
   double rho_poly_thresh = EOS_SC_get_min_rho();
   if (rho < rho_poly_thresh) {
     double K,Gam;
@@ -1491,7 +1504,7 @@ double EOS_enthalpy_rho0_u(double rho, double u, const double* extra)
     lrho = EOS_SC_get_min_lrho();
     lT = EOS_SC_get_min_lT();
     EOS_SC_get_polytrope(lrho, lT, ye, &K, &Gam);
-    enth = EOS_Poly_enthalpy_rho0_u(rho,MY_MAX(u,0.0),K,Gam);
+    enth = EOS_Poly_enthalpy_rho0_u(rho,std::max(u,0.0),K,Gam);
   } else {
     double h = EOS_SC_specific_enthalpy_rho0_u(lrho,lT,ye);
     enth = h*rho;
@@ -1524,12 +1537,17 @@ double EOS_entropy_rho0_u(double rho, double u, const double* extra)
   return ent;
 }
 
-double EOS_sound_speed_rho0_u(double rho, double u, const double* extra)
+//double rho, double u, const double* extra
+double EOS_sound_speed_rho0_u(body& b)
 {
+  // particle data
+  double rho = b.getDensity();
+  double lrho = log(rho);
+  double u = b.getInternalenergy();
+  double ye = b.getElectronfraction();
+  double lT = 1.0;
+
   double cs;
-  double lrho = extra[EOS_LRHO];
-  double lT   = extra[EOS_LT];
-  double ye   = extra[EOS_YE];
   double rho_poly_thresh = EOS_SC_get_min_rho();
   if (rho < rho_poly_thresh) {
     double K,Gam;
@@ -1608,5 +1626,3 @@ double EOS_u_press(double press, double rho, double* extra)
   #endif // EOS
   return u;
 }
-
-

@@ -20,7 +20,6 @@
 #include <unistd.h>
 #include <mpi.h>
 
-#if 1
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_linalg.h>
@@ -29,62 +28,57 @@
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_integration.h>
 #include <gsl/gsl_sf_bessel.h>
-#endif
+
+#include "params.h"
 
 // Fundamental constants in CGS
-#define EE          (4.80320680e-10  ) // Electron charge 
-#define CL          (2.99792458e10   ) // Speed of light
-#define ME          (9.1093826e-28   ) // Electron mass
-#define MP          (1.67262171e-24  ) // Proton mass
-#define MN          (1.67492728e-24  ) // Neutron mass
-#define HPL         (6.6260693e-27   ) // Planck constant
-#define HBAR        (HPL/(2.*M_PI)   ) // Reduced Planck constant
-#define KBOL        (1.3806505e-16   ) // Boltzmann constant
-#define GNEWT       (6.6742e-8       ) // Gravitational constant
-#define SIG         (5.670400e-5     ) // Stefan-Boltzmann constant
-#define AR          (4*SIG/CL        ) // Radiation constant
-#define THOMSON     (0.665245873e-24 ) // Thomson cross section
-#define COULOMB_LOG (20.             ) // Coulomb logarithm
-#define ALPHAFS     (0.007299270073  ) // Fine structure constant ~ 1./137.
-#define GFERM       (1.435850814e-49 ) // Fermi constant
-#define GA          (-1.272323       ) // Axial-vector coupling
-#define GA2         (GA*GA)
-#define S2THW       (0.222321) // sin^2(Theta_W), Theta_W = Weinberg angle
-#define S4THW       (S2THW*S2THW)
-#define NUSIGMA0    (1.7611737037e-44) // Fundamental neutrino cross section
+constexpr double EE =          4.80320680e-10;   // Electron charge
+constexpr double CL =          2.99792458e10;    // Speed of light
+constexpr double ME =          9.1093826e-28;    // Electron mass
+constexpr double MP =          1.67262171e-24;   // Proton mass
+constexpr double MN =          1.67492728e-24;   // Neutron mass
+constexpr double HPL =         6.6260693e-27;    // Planck constant
+constexpr double HBAR =        HPL/(2.*M_PI);    // Reduced Planck constant
+constexpr double KBOL =        1.3806505e-16;    // Boltzmann constant
+constexpr double GNEWT =       6.6742e-8;        // Gravitational constant
+constexpr double SIG =         5.670400e-5;      // Stefan-Boltzmann constant
+constexpr double AR =          4*SIG/CL;         // Radiation constant
+constexpr double THOMSON =     0.665245873e-24;  // Thomson cross section
+constexpr double COULOMB_LOG = 20.;              // Coulomb logarithm
+constexpr double ALPHAFS =     0.007299270073;   // Fine structure constant ~ 1./137.
+constexpr double GFERM =       1.435850814e-49;  // Fermi constant
+constexpr double GA =          -1.272323;        // Axial-vector coupling
+constexpr double GA2 =         GA*GA;
+constexpr double S2THW =       0.222321;         // sin^2(Theta_W), Theta_W = Weinberg angle
+constexpr double S4THW =       S2THW*S2THW;
+constexpr double NUSIGMA0 =    1.7611737037e-44; // Fundamental neutrino cross section
 
 // Unit Conversion factors
-#define EV   (1.60217653e-12  ) // Electron-volt
-#define MEV  (1.0e6*EV        ) // Mega-Electron-Volt
-#define GEV  (1.0e9*EV        ) // Giga-Electron-Volt
-#define JY   (1.e-23          ) // Jansky
-#define PC   (3.085678e18     ) // Parsec
-#define AU   (1.49597870691e13) // Astronomical unit
-#define YEAR (31536000.       )
-#define DAY  (86400.          )
-#define HOUR (3600.           )
-#define MSUN (1.989e33        ) // Solar mass
+constexpr double EV =   1.60217653e-12;   // Electron-volt
+constexpr double MEV =  1.0e6*EV;         // Mega-Electron-Volt
+constexpr double GEV =  1.0e9*EV;         // Giga-Electron-Volt
+constexpr double JY =   1.e-23;           // Jansky
+constexpr double PC =   3.085678e18;      // Parsec
+constexpr double AU =   1.49597870691e13; // Astronomical unit
+constexpr double YEAR = 31536000.;
+constexpr double DAY =  86400.;
+constexpr double HOUR = 3600.;
+constexpr double MSUN = 1.989e33;         // Solar mass
 
 
 // Macros
 // ----------------------------------------------------------------------
 
-// EOS settings
-#define EOS (EOS_TYPE_TABLE)
-#define POLYTROPE_FALLBACK (1)
-#define NVAR_PASSIVE (1) // Ye
-#define RADIATION (0)
-
 // Primitive and conserved variables
-#define RHO (0)
-#define UU  (1)
-#define U1  (2)
-#define U2  (3)
-#define U3  (4)
-#define B1  (5)
-#define B2  (6)
-#define B3  (7)
-#define NVAR_BASE (B3 + 1)
+constexpr int RHO = 0;
+constexpr int UU =  1;
+constexpr int U1 =  2;
+constexpr int U2 =  3;
+constexpr int U3 =  4;
+constexpr int B1 =  5;
+constexpr int B2 =  6;
+constexpr int B3 =  7;
+constexpr int NVAR_BASE = B3 + 1;
 
 // Passive variables (if present)
 #define PASSIVE_START (NVAR_BASE)
@@ -110,23 +104,23 @@
 
 // Fixup parameters
 // may only apply for EOS GAMMA
-#define RHOMINLIMIT (1.e-17)
-#define UUMINLIMIT  (1.e-20)
-#define RHOMIN      (1.e-5)
-#define UUMIN       (1.e-8)
-#define BSQORHOMAX  (50.)
-#define BSQOUMAX    (2500.)
-#define RHOEPS      (2.0)
-#define UORHOMAX    (50.)
+constexpr double RHOMINLIMIT = 1.e-17;
+constexpr double UUMINLIMIT =  1.e-20;
+constexpr double RHOMIN =      1.e-5;
+constexpr double UUMIN =       1.e-8;
+constexpr double BSQORHOMAX =  50.;
+constexpr double BSQOUMAX =    2500.;
+constexpr double RHOEPS =      2.0;
+constexpr double UORHOMAX =    50.;
 
 // Root finding
-#define ROOT_SUCCESS (1)
-#define ROOT_FAIL    (0)
+constexpr bool ROOT_SUCCESS = true;
+constexpr bool ROOT_FAIL = false;
 #define FCOUNT_NBINS (6)
 #define FCOUNT_MORE  (FCOUNT_NBINS-1)
 
 // Numerical convenience to represent a small (<< 1) non-zero quantity
-#define SMALL (1.e-20)
+constexpr double SMALL = 1.e-20;
 
 // Loop over primitive variables
 #define PLOOP for(int ip = 0; ip < NVAR; ip++)
@@ -136,12 +130,9 @@
 // TODO: Figure out how to make this conditionally defined.
 #define EOS_ELOOP for (int e = 0; e < EOS_NUM_EXTRA; e++)
 
-// Simple macro
-#define MY_MAX(a, b) ( ( a > b) ? a : b ) 
-
 
 // ----------------------------------------------------------------------
-// Function defs 
+// Function defs
 // TODO : Make it correct order. We define above here because of ordering
 double EOS_Poly_pressure_rho0_u(double rho, double u, double K, double Gam);
 double EOS_Poly_pressure_rho0_w(double rho, double w, double K, double Gam);
@@ -218,14 +209,22 @@ struct of_tablebounds {
 
 // Important global variables
 // ----------------------------------------------------------------------
-extern double rho_poly_thresh;
-extern double poly_K, poly_gam;
-extern double M_unit;
-extern double Reh;
-extern double Risco;
-extern double mbh, Mbh, L_unit, T_unit, M_unit, RHO_unit, U_unit, B_unit;
-extern double TEMP_unit;
-
+struct GV{
+  static double rho_poly_thresh;
+  static double poly_K, poly_gam;
+  static double Reh;
+  static double Risco;
+  static double mbh, Mbh, L_unit, T_unit, M_unit, RHO_unit, U_unit, B_unit;
+  static double TEMP_unit;
+};
+// Default values for Global Variables
+double GV::B_unit = 1;
+double GV::L_unit = 1;
+double GV::M_unit = 1;
+double GV::T_unit = 1;
+double GV::U_unit = 1;
+double GV::RHO_unit = 1;
+double GV::TEMP_unit = 1;
 
 // Public function APIs
 // ----------------------------------------------------------------------
@@ -260,8 +259,8 @@ double EOS_Poly_entropy_rho0_u(double rho, double u, double K, double Gam)
 
 double EOS_Poly_sound_speed_rho0_u(double rho, double u, double K, double Gam)
 {
-  rho = MY_MAX(0.0,rho);
-  u = MY_MAX(0.0,u);
+  rho = std::max(0.0,rho);
+  u = std::max(0.0,u);
   double rhogam = K*pow(rho,Gam-1);
   double cs2_num = Gam*rhogam;
   double cs2_den = 1 + u + rhogam;
@@ -272,8 +271,8 @@ double EOS_Poly_sound_speed_rho0_u(double rho, double u, double K, double Gam)
 double EOS_Poly_rho_floor(double scale, double bsq)
 {
   double rhoflr = RHOMIN*scale;
-  rhoflr = MY_MAX(rhoflr, RHOMINLIMIT);
-  rhoflr = MY_MAX(rhoflr, bsq/BSQORHOMAX);
+  rhoflr = std::max(rhoflr, RHOMINLIMIT);
+  rhoflr = std::max(rhoflr, bsq/BSQORHOMAX);
 
   return rhoflr;
 }
@@ -281,8 +280,8 @@ double EOS_Poly_rho_floor(double scale, double bsq)
 double EOS_Poly_u_floor(double scale, double bsq)
 {
   double uflr = UUMIN*scale;
-  uflr = MY_MAX(uflr,UUMINLIMIT);
-  uflr = MY_MAX(uflr, bsq/BSQOUMAX);
+  uflr = std::max(uflr,UUMINLIMIT);
+  uflr = std::max(uflr, bsq/BSQOUMAX);
 
   return uflr;
 }
@@ -417,11 +416,11 @@ double interp_1d(double x,
 
 void set_units()
 {
-  T_unit = L_unit/CL;
-  RHO_unit = M_unit*pow(L_unit,-3.);
-  U_unit = RHO_unit*CL*CL;
-  B_unit = CL*sqrt(4.*M_PI*RHO_unit);
-  TEMP_unit = MEV;
+  GV::T_unit = GV::L_unit/CL;
+  GV::RHO_unit = GV::M_unit*pow(GV::L_unit,-3.);
+  GV::U_unit = GV::RHO_unit*CL*CL;
+  GV::B_unit = CL*sqrt(4.*M_PI*GV::RHO_unit);
+  GV::TEMP_unit = MEV;
 }
 
 // Root-finder based on gsl root finder API

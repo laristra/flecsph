@@ -107,10 +107,10 @@ namespace eos {
   void compute_pressure_ppt( body& source)
   {
     using namespace param;
-    
+
     //TODO : transient density might be parametrized
     //       or determining automatically.
-    //       But here I put certian value that is 
+    //       But here I put certian value that is
     //       reasonalbe transition between
     //       relativisitc and non-relativistic regimes
     double density_transition = 500000000000000;
@@ -119,7 +119,7 @@ namespace eos {
        double pressure = source.getAdiabatic()*
        pow(source.getDensity(),poly_gamma);
        source.setPressure(pressure);
-    } 
+    }
     else {
        double pressure = (source.getAdiabatic()*
        pow(density_transition,poly_gamma)/
@@ -130,7 +130,6 @@ namespace eos {
   } //compute_pressure_ppt
   #endif
 
-#if 0
 /************************************************************************/
 //May.30.2019
 // Start SC EOS reader merging
@@ -141,31 +140,24 @@ namespace eos {
   void
   EOS_prep(body& source)
   {
-    EOS_SC_fill(source.getDensity(), source.getInternalenergy(),
-                source.getElectronfraction(),
-                1.0//This field should be field for eos cache);
-  //May need different source field?
+    EOS_pressure_rho0_u(source);
+    EOS_sound_speed_rho0_u(source);
   }
 
-// Getting pressure 
+// Getting pressure
   void
   compute_pressure_sc(body& source)
   {
-    using namespace param;
-    double pressure = EOS_pressure_rho0_u(source->eoscache());
-    source->setPressure(pressure)
+    EOS_pressure_rho0_u(source);
   } // compute_pressure_sc
 
 // Getting soundspeed
   void
   compute_soundspeed_sc(body& source)
   {
-    using namespace param;
-    double soundspeec = EOS_SC_sound_speed(source->eoscache());
-    source.setSoundspeed(soundspeed)
+    EOS_sound_speed_rho0_u(source);
   }
 /***************************************************************************/
-#endif
 
  /**
    * @brief      Compute sound speed for ideal fluid or polytropic eos
@@ -230,9 +222,9 @@ namespace eos {
     double cc   = 29979245800.0;
 
     double sterm = sqrt(1.0 + SQ(x_wd));
-    double numer = 3.0/sterm + sterm*(6.0*SQ(x_wd) - 3.0) 
+    double numer = 3.0/sterm + sterm*(6.0*SQ(x_wd) - 3.0)
                  + SQ(x_wd) * (2.0*SQ(x_wd) - 3.0)/sterm;
-    double denom = -1.0/sterm + sterm*(1.0 + 6.0*SQ(x_wd)) 
+    double denom = -1.0/sterm + sterm*(1.0 + 6.0*SQ(x_wd))
                  + SQ(x_wd)*(1.0 + 2.0*SQ(x_wd))/sterm;
 
     double soundspeed = sqrt(numer/(3.0*denom))*cc;
@@ -291,13 +283,14 @@ void select(const std::string& eos_type) {
     compute_pressure = compute_pressure_ppt;
     compute_soundspeed = compute_soundspeed_ppt;
   }
-  #if 0
   else if(boost::iequals(eos_type, "stellar collapse")) {
-    init = init_ideal;  // TODO
+    // Reading the table
+    init_EOS();
+    // Initializing the particles
+    init = EOS_prep;  // TODO
     compute_pressure = compute_pressure_sc;
     compute_soundspeed = compute_soundspeed_sc;
   }
-  #endif
   else {
     std::cerr << "Bad eos_type parameter" << std::endl;
   }
