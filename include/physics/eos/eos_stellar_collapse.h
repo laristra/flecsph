@@ -1458,9 +1458,13 @@ double EOS_bad_eos_error()
 *******************************************************************************/
 void init_EOS()
 {
-  //HL : this should be parameterized with our code.
-  //     This makes eos_cache that will use to initialize
-  //     eos table
+  /* 
+     @brief  EOS initialization
+             Users will define a path to their EOS table 
+             with initialization. Currently, we only accept HDF5 file
+     
+     @param[in] eos_tab_file_path : Path to tabulated EOS file
+  */
   clog_one(info)<<"Reading EOS from file: "<<param::eos_tab_file_path<<std::endl;
   EOS_SC_init(param::eos_tab_file_path);
 }
