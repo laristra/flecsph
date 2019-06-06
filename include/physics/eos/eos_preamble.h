@@ -86,11 +86,10 @@ static double enthalpy_shift;
 // HL : Func defs from eos.c
 // TODO : Remove this with correct order
 void init_EOS();
-double EOS_pressure_rho0_u(double rho, double u,
-                           const double* extra);
+double EOS_pressure_rho0_u(body& b);
 double EOS_enthalpy_rho0_u(double rho, double u, const double* extra);
 double EOS_entropy_rho0_u(double rho, double u, const double* extra);
-double EOS_sound_speed_rho0_u(double rho, double u, const double* extra);
+double EOS_sound_speed_rho0_u(body& b);
 void EOS_set_floors(double scale, double rho, double u, double bsq,
   double* rhoflr, double* uflr, const double* extra);
 double EOS_adiabatic_constant(double rho, double u, const double* extra);
@@ -155,7 +154,8 @@ static double catch_hm1(const double hm1);
 
 // SC related function
 void EOS_SC_init(char *name);
-void EOS_SC_fill(double* rhoIn, double* uIn, double* yeIn, double* eos);
+void EOS_SC_fill(body& b, double* eos);
+//void EOS_SC_fill(double* rhoIn, double* uIn, double* yeIn, double* eos);
 double EOS_SC_pressure_rho0_u(double lrho, double lT, double ye);
 double EOS_SC_specific_enthalpy_rho0_u(double lrho, double lT, double ye);
 double EOS_SC_sound_speed(double lrho, double lT, double ye);

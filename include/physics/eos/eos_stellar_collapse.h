@@ -510,13 +510,18 @@ void do_ye_fixup(int i, int j, int k,
 
 // Front-facing API
 // ----------------------------------------------------------------------
-void EOS_SC_fill(double* rhoIn, double* uIn, double* yeIn, double* eos)
+//void EOS_SC_fill(double* rhoIn, double* uIn, double* yeIn, double* eos)
+void EOS_SC_fill(body& b, double* eos)
 {
   double lTguess,leosTemp;
   double lrho, e, le;
-  double u      = uIn[UU];
-  double rho    = rhoIn[RHO];
-  double ye     = yeIn[YE];
+  double u      = b.getInternalenergy();
+  double rho    = b.getDensity();
+  double ye     = b.getElectronfraction();
+  
+  //double u      = uIn[UU];
+  //double rho    = rhoIn[RHO];
+  //double ye     = yeIn[YE];
   //double yedens = p[YE];
   double lT     = eos[EOS_LT];
 
@@ -1469,15 +1474,21 @@ void init_EOS()
   EOS_SC_init(param::eos_tab_file_path);
 }
 
-//double rho, double u,const double* extra
+// Getting pressure from rho and u
+// eos_cache saves unevolved additional variables.
 double EOS_pressure_rho0_u(body& b)
 {
+  // Call EOS_SC_fill that put neccessary cache data.
+  // Log(T) is calculated and save from this function
+  double eos_cache[3]; 
+  EOS_SC_fill(b, eos_cache);
+  
   // Particles data
   double rho = b.getDensity();
   double u = b.getInternalenergy();
   double ye = b.getElectronfraction();
-  double lrho = log(rho);
-  double lT = 1.0;
+  double lrho = eos_cache[EOS_LRHO];
+  double lT = eos_cache[EOS_LT];
 
   double press;
   double rho_poly_thresh = EOS_SC_get_min_rho();
@@ -1544,12 +1555,17 @@ double EOS_entropy_rho0_u(double rho, double u, const double* extra)
 //double rho, double u, const double* extra
 double EOS_sound_speed_rho0_u(body& b)
 {
+  
+  // Call EOS_SC_fill to save eos_cache data
+  double eos_cache[3];
+  EOS_SC_fill(b, eos_cache);
+  
   // particle data
   double rho = b.getDensity();
-  double lrho = log(rho);
+  double lrho = eos_cache[EOS_LRHO];
   double u = b.getInternalenergy();
   double ye = b.getElectronfraction();
-  double lT = 1.0;
+  double lT = eos_cache[EOS_LT];
 
   double cs;
   double rho_poly_thresh = EOS_SC_get_min_rho();
