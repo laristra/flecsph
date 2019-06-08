@@ -28,8 +28,8 @@ COPY sonar/ /home/flecsi/.sonar
 USER root
 RUN chown -R flecsi:flecsi /home/flecsi/flecsph /home/flecsi/.ccache /home/flecsi/.sonar
 RUN yum install -y which; exit 0
-RUN yum install gsl-devel; exit 0 
-RUN apt-get install gsl-bin libgsl0-dev; exit 0 
+RUN yum install -y gsl-devel; exit 0 
+RUN apt-get -y install gsl-bin libgsl0-dev; exit 0 
 
 #build flecsi
 RUN cd /home/flecsi && \ 
