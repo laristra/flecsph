@@ -275,7 +275,7 @@ typedef enum sph_kernel_keyword_enum {
 
 //- tolerance to lattice mismatch for periodic boundaries:
 //  when generating initial data with two lattice blocks
-//  with different densities that need to be periodic, 
+//  with different densities that need to be periodic,
 //  allow this mismatch between lattice synchronization
 //  at the boundary
 //
@@ -333,13 +333,24 @@ typedef enum sph_kernel_keyword_enum {
 //  * "ideal fluid" (default)
 //  * "polytropic"
 //  * "white dwarf"
+//  * "piecewise polytropic"
 #ifndef eos_type
   DECLARE_STRING_PARAM(eos_type,"ideal fluid")
+#endif
+
+// - file for tabulated EOS
+#ifndef eos_tab_file_path
+  DECLARE_STRING_PARAM(eos_tab_file_path,".")
 #endif
 
 //- polytropic index
 #ifndef poly_gamma
   DECLARE_PARAM(double,poly_gamma,1.4)
+#endif
+
+//- additional polytropic index for piecewise polytrope
+#ifndef poly_gamma
+  DECLARE_PARAM(double,poly_gamma2,2.5)
 #endif
 
 // - which viscosity computation to use?
@@ -478,7 +489,7 @@ typedef enum sph_kernel_keyword_enum {
 // * 'constant'  :constant uniform-density spherical configuration
 // * 'parabolic' :spherically-symmetric parabolic shape, rho ~ rho0*(1 - r^2)
 // * 'mesa'      :constant density with a smooth parabolic fade-out on edge
-// * 'from file' :setup density from the input_density_file 
+// * 'from file' :setup density from the input_density_file
 #ifndef density_profile
   DECLARE_STRING_PARAM(density_profile,"constant")
 #endif
@@ -838,8 +849,16 @@ void set_param(const std::string& param_name,
   READ_STRING_PARAM(eos_type)
 # endif
 
+# ifndef eos_tab_file_path
+  READ_STRING_PARAM(eos_tab_file_path)
+# endif
+
 # ifndef poly_gamma
   READ_NUMERIC_PARAM(poly_gamma)
+# endif
+
+# ifndef poly_gamma2
+  READ_NUMERIC_PARAM(poly_gamma2)
 # endif
 
 # ifndef sph_viscosity

@@ -32,6 +32,9 @@
 #include "tree.h"
 #include <boost/algorithm/string.hpp>
 
+// HL : This is for adding tabulated EOS redaer
+#include "eos_stellar_collapse.h"
+
 #define SQ(x) ((x)*(x))
 #define CU(x) ((x)*(x)*(x))
 
@@ -95,30 +98,68 @@ namespace eos {
     source.setPressure(pressure);
   } // compute_pressure_wd
 
-// HL : Compute pressure from tabulated EOS. Linking to static lib somewhat
-//      need to be fixing
+  #if 1
+  // HL : since we are merging tab EOS, I am adding ppt anyway
+  /**
+   * @brief      Compute the pressure based on piecewise polytrope
+   * @param      srch  The source's body holder
+   */
+  void compute_pressure_ppt( body& source)
+  {
+    using namespace param;
+
+    //TODO : transient density might be parametrized
+    //       or determining automatically.
+    //       But here I put certian value that is
+    //       reasonalbe transition between
+    //       relativisitc and non-relativistic regimes
+    double density_transition = 500000000000000;
+
+    if(source.getDensity() <= density_transition) {
+       double pressure = source.getAdiabatic()*
+       pow(source.getDensity(),poly_gamma);
+       source.setPressure(pressure);
+    }
+    else {
+       double pressure = (source.getAdiabatic()*
+       pow(density_transition,poly_gamma)/
+       pow(density_transition,poly_gamma2))*
+       pow(source.getDensity(),poly_gamma2);
+       source.setPressure(pressure);
+    }
+  } //compute_pressure_ppt
+  #endif
+
+/************************************************************************/
+//May.30.2019
+// Start SC EOS reader merging
+// This is a pusedo-code. This just shows guideline how we can
+// use SC reader to get P and Cs
 
 // EOS prep stage for fill eos info from table
-
-#if 0
   void
   EOS_prep(body& source)
   {
-    EOS_SC_fill(source.getDensity(), source.getInternalenergy(),
-                source.getElectronfraction(),
-                1.0//This field should be field for eos cache);
-  //May need different source field?
+    EOS_pressure_rho0_u(source);
+    EOS_sound_speed_rho0_u(source);
   }
-#endif
+
+// Getting pressure
   void
   compute_pressure_sc(body& source)
   {
-    using namespace param;
-    //double pressure = EOS_pressure_rho0_u(source->eoscache());
-    //source->setPressure(pressure)
+    EOS_pressure_rho0_u(source);
   } // compute_pressure_sc
 
-  /**
+// Getting soundspeed
+  void
+  compute_soundspeed_sc(body& source)
+  {
+    EOS_sound_speed_rho0_u(source);
+  }
+/***************************************************************************/
+
+ /**
    * @brief      Compute sound speed for ideal fluid or polytropic eos
    * From CES-Seminar 13/14 - Smoothed Particle Hydrodynamics
    *
@@ -129,6 +170,26 @@ namespace eos {
     double soundspeed = sqrt(poly_gamma*source.getPressure()
                                        /source.getDensity());
     source.setSoundspeed(soundspeed);
+  }
+
+ /**
+   * @brief      Compute sound speed for piecewise polytropic eos
+   *
+   * @param      srch  The source's body holder
+   */
+  void compute_soundspeed_ppt(body& source) {
+    using namespace param;
+    double density_transition = 500000000000000;
+    if(source.getDensity() <= density_transition) {
+       double soundspeed = sqrt(poly_gamma*source.getPressure()
+                                         /source.getDensity());
+       source.setSoundspeed(soundspeed);
+    }
+    else {
+       double soundspeed = sqrt(poly_gamma2*source.getPressure()
+                                          /source.getDensity());
+       source.setSoundspeed(soundspeed);
+    }
   }
 
   /**
@@ -161,9 +222,9 @@ namespace eos {
     double cc   = 29979245800.0;
 
     double sterm = sqrt(1.0 + SQ(x_wd));
-    double numer = 3.0/sterm + sterm*(6.0*SQ(x_wd) - 3.0) 
+    double numer = 3.0/sterm + sterm*(6.0*SQ(x_wd) - 3.0)
                  + SQ(x_wd) * (2.0*SQ(x_wd) - 3.0)/sterm;
-    double denom = -1.0/sterm + sterm*(1.0 + 6.0*SQ(x_wd)) 
+    double denom = -1.0/sterm + sterm*(1.0 + 6.0*SQ(x_wd))
                  + SQ(x_wd)*(1.0 + 2.0*SQ(x_wd))/sterm;
 
     double soundspeed = sqrt(numer/(3.0*denom))*cc;
@@ -217,10 +278,18 @@ void select(const std::string& eos_type) {
     compute_pressure = compute_pressure_wd;
     compute_soundspeed = compute_soundspeed_wd;
   }
-  else if(boost::iequals(eos_type, "stellar collapse")) {
+  else if(boost::iequals(eos_type, "piecewise polytropic")) {
     init = init_ideal;  // TODO
+    compute_pressure = compute_pressure_ppt;
+    compute_soundspeed = compute_soundspeed_ppt;
+  }
+  else if(boost::iequals(eos_type, "stellar collapse")) {
+    // Reading the table
+    init_EOS();
+    // Initializing the particles
+    init = EOS_prep;  // TODO
     compute_pressure = compute_pressure_sc;
-    compute_soundspeed = compute_soundspeed_ideal;
+    compute_soundspeed = compute_soundspeed_sc;
   }
   else {
     std::cerr << "Bad eos_type parameter" << std::endl;

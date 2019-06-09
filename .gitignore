@@ -9,3 +9,5 @@ bld
 *.a
 *.swp
 .DS_Store
+*.h5
+__pycache__

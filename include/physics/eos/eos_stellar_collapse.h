@@ -11,28 +11,32 @@
  *                                                                            *
  ******************************************************************************/
 
-/*
- * TODO: Make EOS reader use gamma law as fallback if we fall off the table
- *       by going to too low densities.
- */
+#include "eos_preamble.h"
 
-#include "eos_stellar_collapse.h"
-
-#if EOS == EOS_TYPE_TABLE
-
+#if 0
 // TODO : Need to coporate with FleCSPH unit system
-//        below const definition doesn't change unit. 
+//        below const definition doesn't change unit.
 //        just define like that to work it
 const double RHO_unit = 1.0; // For density
 const double U_unit = 1.0;  // For internel specific energy
+#endif
 
-// HDF5 
+// HDF5
 #include <hdf5.h>
 
 // Init
 // ----------------------------------------------------------------------
-void EOS_SC_init(char *name)
+void EOS_SC_init(const char *name)
 {
+
+  std::ifstream infile(name);
+  if(!infile.good()){
+    clog_one(error)<<"File "<<name<<" not found."<<std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+
+
   hsize_t file_grid_dims[3], file_start[3], file_count[3];
   hsize_t mem_grid_dims[3], mem_start[3];
 
@@ -96,34 +100,34 @@ void EOS_SC_init(char *name)
   int tab_size = NYe*NT*Nrho;
   int tab_size_2d = NYe*Nrho;
 
-  tab_lrho = safe_malloc(Nrho*sizeof(double));
-  tab_lT   = safe_malloc(NT*sizeof(double));
-  tab_Ye   = safe_malloc(NYe*sizeof(double));
+  tab_lrho = safe_malloc<double>(Nrho);
+  tab_lT = safe_malloc<double>(NT);
+  tab_Ye = safe_malloc<double>(NYe);
 
-  tab_lP         = safe_malloc(tab_size*sizeof(double));
-  tab_ent        = safe_malloc(tab_size*sizeof(double));
-  tab_cs2        = safe_malloc(tab_size*sizeof(double));
-  tab_Xa         = safe_malloc(tab_size*sizeof(double));
-  tab_Xh         = safe_malloc(tab_size*sizeof(double));
-  tab_Xn         = safe_malloc(tab_size*sizeof(double));
-  tab_Xp         = safe_malloc(tab_size*sizeof(double));
-  tab_Abar       = safe_malloc(tab_size*sizeof(double));
-  tab_Zbar       = safe_malloc(tab_size*sizeof(double));
-  tab_le         = safe_malloc(tab_size*sizeof(double));
-  tab_lwmrho     = safe_malloc(tab_size*sizeof(double));
-  tab_hm1        = safe_malloc(tab_size*sizeof(double));
-  tab_dpderho    = safe_malloc(tab_size*sizeof(double));
-  tab_dpdrhoe    = safe_malloc(tab_size*sizeof(double));
-  tab_poly_gamma = safe_malloc(tab_size*sizeof(double));
-  tab_poly_K     = safe_malloc(tab_size*sizeof(double));
+  tab_lP         = safe_malloc<double>(tab_size);
+  tab_ent        = safe_malloc<double>(tab_size);
+  tab_cs2        = safe_malloc<double>(tab_size);
+  tab_Xa         = safe_malloc<double>(tab_size);
+  tab_Xh         = safe_malloc<double>(tab_size);
+  tab_Xn         = safe_malloc<double>(tab_size);
+  tab_Xp         = safe_malloc<double>(tab_size);
+  tab_Abar       = safe_malloc<double>(tab_size);
+  tab_Zbar       = safe_malloc<double>(tab_size);
+  tab_le         = safe_malloc<double>(tab_size);
+  tab_lwmrho     = safe_malloc<double>(tab_size);
+  tab_hm1        = safe_malloc<double>(tab_size);
+  tab_dpderho    = safe_malloc<double>(tab_size);
+  tab_dpdrhoe    = safe_malloc<double>(tab_size);
+  tab_poly_gamma = safe_malloc<double>(tab_size);
+  tab_poly_K     = safe_malloc<double>(tab_size);
 
-  tab_le_min_2d     = safe_malloc(tab_size_2d*sizeof(double));
-  tab_le_max_2d     = safe_malloc(tab_size_2d*sizeof(double));
-  tab_lP_min_2d     = safe_malloc(tab_size_2d*sizeof(double));
-  tab_lP_max_2d     = safe_malloc(tab_size_2d*sizeof(double));
-  tab_lwmrho_min_2d = safe_malloc(tab_size_2d*sizeof(double));
-  tab_lwmrho_max_2d = safe_malloc(tab_size_2d*sizeof(double));
-  tab_hm1_min_1d    = safe_malloc(NYe*sizeof(double));
+  tab_le_min_2d     = safe_malloc<double>(tab_size_2d);
+  tab_le_max_2d     = safe_malloc<double>(tab_size_2d);
+  tab_lP_min_2d     = safe_malloc<double>(tab_size_2d);
+  tab_lP_max_2d     = safe_malloc<double>(tab_size_2d);
+  tab_lwmrho_min_2d = safe_malloc<double>(tab_size_2d);
+  tab_lwmrho_max_2d = safe_malloc<double>(tab_size_2d);
+  tab_hm1_min_1d    = safe_malloc<double>(NYe);
 
   hsize_t Narr = Nrho;
   file_grid_dims[0] = Narr;
@@ -377,7 +381,7 @@ void EOS_SC_init(char *name)
   tab_dpdrhoe_max   = find_max(tab_dpdrhoe, tab_size);
   tab_dpderho_min   = find_min(tab_dpderho, tab_size);
   tab_dpderho_max   = find_max(tab_dpderho, tab_size);
-  
+
 
   tab_e_min = le2e(tab_le_min);
   tab_e_max = le2e(tab_le_max);
@@ -387,7 +391,7 @@ void EOS_SC_init(char *name)
   fill_max_min_2d(tab_lP_max_2d, tab_lP_min_2d, tab_lP);
 
   { // make enthalpy table
-    double *tab_wmrho = safe_malloc(tab_size*sizeof(double));
+    double *tab_wmrho = safe_malloc<double>(tab_size);
     //double *tab_hm1   = safe_malloc(tab_size*sizeof(double));
     double lrho,rho,le,lP,e,P,w,lw,h;
     // first tabulate the real enthalpy
@@ -506,21 +510,26 @@ void do_ye_fixup(int i, int j, int k,
 
 // Front-facing API
 // ----------------------------------------------------------------------
- void EOS_SC_fill(double* rhoIn, double* uIn, double* yeIn, double* restrict eos)
+//void EOS_SC_fill(double* rhoIn, double* uIn, double* yeIn, double* eos)
+void EOS_SC_fill(body& b, double* eos)
 {
   double lTguess,leosTemp;
   double lrho, e, le;
-  double u      = uIn[UU];
-  double rho    = rhoIn[RHO];
-  double ye     = yeIn[YE];
+  double u      = b.getInternalenergy();
+  double rho    = b.getDensity();
+  double ye     = b.getElectronfraction();
+  
+  //double u      = uIn[UU];
+  //double rho    = rhoIn[RHO];
+  //double ye     = yeIn[YE];
   //double yedens = p[YE];
   double lT     = eos[EOS_LT];
 
   //double ye     = yedens / (fabs(rho) + SMALL);
 
   // into CGS
-  u      *= U_unit;
-  rho    *= RHO_unit;
+  u      *= GV::U_unit;
+  rho    *= GV::RHO_unit;
 
   // dont' fall off the table
   lrho = catch_rho(rho);
@@ -528,12 +537,15 @@ void do_ye_fixup(int i, int j, int k,
   e = u / rho;
   le = catch_e(e);
   le = catch_var_2d(lrho,ye,le,tab_le_min_2d,tab_le_max_2d);
+  #if 0
   #if SC_MONOTONE_SAFE
   le = catch_var_2d_monotone(lrho,ye,le,tab_le);
   #endif // SC_MONOTONE_SAFE
+  #endif
   // Get a good guess
   lTguess = catch_lT(lT);
 
+  #if 0 // HL : We may need this but not now
   // crash and die if something went wrong here
   #if SC_DEBUG
   if (isnan(le)) {
@@ -548,7 +560,8 @@ void do_ye_fixup(int i, int j, int k,
     exit(1);
   }
   #endif // SC_DEBUG
-  
+  #endif
+
   int status = find_lT(lrho, lTguess, ye,
 		       tab_le, le,
 		       &leosTemp);
@@ -563,7 +576,7 @@ void do_ye_fixup(int i, int j, int k,
 	    "\tle       = %g\n"
 	    "\tlTguess  = %g\n"
 	    "\tleosTemp = %g\n",
-	    rho/RHO_unit, u/U_unit, e, ye,
+	    rho/GV::RHO_unit, u/GV::U_unit, e, ye,
 	    lrho, le, lTguess,
 	    leosTemp);
     exit(1); // TODO: Handle this more gracefully
@@ -599,7 +612,7 @@ void do_ye_fixup(int i, int j, int k,
 double EOS_SC_pressure_rho0_u(double lrho, double lT, double ye)
 {
   const double lP  = EOS_SC_interp(lrho,lT,ye,tab_lP);
-  return pow(10.,lP)/U_unit;  
+  return pow(10.,lP)/GV::U_unit;
 }
 
 double EOS_SC_specific_enthalpy_rho0_u(double lrho, double lT, double ye)
@@ -612,7 +625,7 @@ double EOS_SC_specific_enthalpy_rho0_u(double lrho, double lT, double ye)
 
 double EOS_SC_sound_speed(double lrho, double lT, double ye)
 {
-  double cs2 = EOS_SC_interp(lrho,lT,ye,tab_cs2);  
+  double cs2 = EOS_SC_interp(lrho,lT,ye,tab_cs2);
   return sqrt(cs2);
 }
 
@@ -649,7 +662,7 @@ double EOS_SC_get_u_of_T(double rho, double T, double ye)
   const double le = EOS_SC_interp(lrho, lT, ye, tab_le);
   const double e = le2e(le);
   const double u = e*rho;
-  return u / U_unit;
+  return u / GV::U_unit;
 }
 
 double EOS_SC_pressure_rho0_w(double rho, double w, double ye, double *lTold)
@@ -662,8 +675,8 @@ double EOS_SC_pressure_rho0_w(double rho, double w, double ye, double *lTold)
   w -= rho;
 
   // convert to CGS
-  rho *= RHO_unit;
-  w   *= U_unit;
+  rho *= GV::RHO_unit;
+  w   *= GV::U_unit;
 
   // dont' fall off the table
   double lrho = catch_rho(rho);
@@ -676,6 +689,7 @@ double EOS_SC_pressure_rho0_w(double rho, double w, double ye, double *lTold)
   lw = catch_var_2d_monotone(lrho,ye,lw,tab_lwmrho);
   #endif // SC_MONOTONE_SAFE
 
+  #if 0 // HL : again turn off
   // crash and die if something went wrong here
   #if SC_DEBUG
   if (isnan(lw)) {
@@ -690,12 +704,14 @@ double EOS_SC_pressure_rho0_w(double rho, double w, double ye, double *lTold)
     exit(1);
   }
   #endif // SC_DEBUG
+  #endif
 
   int status = find_lT(lrho, lTguess, ye,
 		       tab_lwmrho, lw,
 		       &leosTemp);
 
   if ( status != ROOT_SUCCESS ) {
+    /*
     fprintf(stderr,
 	    "[EOS_SC_pressure_rho0_w %d]: "
 	    "Failed to root find table\n"
@@ -708,7 +724,19 @@ double EOS_SC_pressure_rho0_w(double rho, double w, double ye, double *lTold)
 	    mpi_io_proc(),rho,
 	    lrho, lTguess, ye, leosTemp,
 	    lw);
-    
+        */
+    fprintf(stderr,
+	    "Failed to root find table\n"
+	    "\trho      = %g\n"
+	    "\tlrho     = %g\n"
+	    "\tlTguess  = %g\n"
+	    "\tye       = %g\n"
+	    "\tleosTemp = %g\n"
+	    "\tlwmrho   = %g\n",
+	    rho,
+	    lrho, lTguess, ye, leosTemp,
+	    lw);
+
     fprintf(stderr,"tab_lwwmrho = \n");
     temp_map(lrho,ye,tab_lwmrho);
     exit(1); // TODO: Handle this more gracefully
@@ -718,7 +746,7 @@ double EOS_SC_pressure_rho0_w(double rho, double w, double ye, double *lTold)
   double press = pow(10., log_press);
 
   // back into code units
-  press /= U_unit;
+  press /= GV::U_unit;
 
   #if SC_DEBUG
   if ( isnan(press) ) {
@@ -727,7 +755,7 @@ double EOS_SC_pressure_rho0_w(double rho, double w, double ye, double *lTold)
     exit(1);
   }
   #endif // SC_DEBUG
-  
+
   *lTold = leosTemp;
   return press;
 }
@@ -739,14 +767,15 @@ double EOS_SC_u_press(double press, double rho, double ye, double *lTold)
   lTguess = catch_lT(lTguess);
 
   // Units to CGS
-  press *= U_unit;
-  rho   *= RHO_unit;
+  press *= GV::U_unit;
+  rho   *= GV::RHO_unit;
 
   const double lrho = catch_rho(rho);
   double lp = catch_press(press);
   ye = catch_ye(ye);
   lp = catch_var_2d(lrho,ye,lp,tab_lP_min_2d,tab_lP_max_2d);
 
+  #if 0
   // crash and die if something went wrong here
   #if SC_DEBUG
   if (isnan(lp)) {
@@ -761,14 +790,21 @@ double EOS_SC_u_press(double press, double rho, double ye, double *lTold)
     exit(1);
   }
   #endif // SC_DEBUG
+  #endif
 
   int status = find_lT(lrho, lTguess, ye,
 		       tab_lP, lp,
 		       &leosTemp);
+
   if( status != ROOT_SUCCESS ) {
+  /*
     fprintf(stderr,"[EOS_SC_u_press]: "
 	    "Failed to root find table %g %g %g %g   %g %d\n",
-	    lrho, lTguess, ye, leosTemp, rho, mpi_io_proc());
+            lrho, lTguess, ye, leosTemp, rho, mpi_io_proc());
+  */
+    fprintf(stderr,"[EOS_SC_u_press]: "
+	    "Failed to root find table %g %g %g %g %g\n",
+	    lrho, lTguess, ye, leosTemp, rho);
     exit(1); // TODO: Handle this more gracefully
   }
   const double le = EOS_SC_interp(lrho, leosTemp, ye, tab_le);
@@ -776,7 +812,7 @@ double EOS_SC_u_press(double press, double rho, double ye, double *lTold)
   double u = e*rho;
 
   // to code units
-  u /= U_unit;
+  u /= GV::U_unit;
 
   #if SC_DEBUG
   if ( isnan(u) ) {
@@ -788,7 +824,7 @@ double EOS_SC_u_press(double press, double rho, double ye, double *lTold)
     exit(1);
   }
   #endif // SC_DEBUG
-  
+
   *lTold = leosTemp;
   return u;
 }
@@ -818,15 +854,15 @@ void EOS_SC_set_floors(double scale, double rho, double u, double ye,
 {
   *rhoflr = EOS_SC_rho_floor(scale, bsq);
   *uflr = EOS_SC_u_floor(scale, bsq, ye);
-  *rhoflr = MY_MAX(*rhoflr, u/UORHOMAX);
+  *rhoflr = std::max(*rhoflr, u/UORHOMAX);
 }
 
 double EOS_SC_rho_floor(double scale, double bsq)
 {
   double rhoflr = RHOMIN*scale;
   double rhominlimit = RHOMINLIMIT;
-  rhoflr = MY_MAX(rhoflr,rhominlimit); 
-  rhoflr = MY_MAX(rhoflr, bsq/BSQORHOMAX);
+  rhoflr = std::max(rhoflr,rhominlimit);
+  rhoflr = std::max(rhoflr, bsq/BSQORHOMAX);
   return rhoflr;
 }
 
@@ -838,7 +874,7 @@ double EOS_SC_get_min_rho() {
   double delrho      = tab_lrho_max - tab_lrho_min;
   double lrho_min    = tab_lrho_min + 0.01*delrho;
   double rho_min_cgs = pow(10.,lrho_min);
-  double rho_min     = rho_min_cgs/RHO_unit;
+  double rho_min     = rho_min_cgs/GV::RHO_unit;
   return rho_min;
 }
 
@@ -855,13 +891,13 @@ double EOS_SC_get_minu(double rho, double ye)
   double le = EOS_SC_interp(lrho,lT,ye,tab_le);
   double e = le2e(le);
   double u = e*rho;
-  return u/U_unit;
+  return u/GV::U_unit;
 }
 
 double EOS_SC_u_floor(double scale, double bsq, double ye)
 {
   //return -INFINITY;
-  double rhoflr = EOS_SC_rho_floor(scale, bsq)*RHO_unit;
+  double rhoflr = EOS_SC_rho_floor(scale, bsq)*GV::RHO_unit;
   double minu = EOS_SC_get_minu(rhoflr, ye);
   if ((bsq/BSQOUMAX) > fabs(minu)) { // Good idea?
     minu = bsq/BSQOUMAX;
@@ -877,7 +913,7 @@ void EOS_SC_get_polytrope(double lrho, double lT, double ye,
   ye = catch_ye(ye);
   double K   = EOS_SC_interp(lrho,lT,ye,tab_poly_K);
   double Gam = EOS_SC_interp(lrho,lT,ye,tab_poly_gamma);
-  double K_unit = U_unit/pow(RHO_unit,Gam);
+  double K_unit = GV::U_unit/pow(GV::RHO_unit,Gam);
   *poly_K = K/K_unit;
   *poly_gamma = Gam;
 }
@@ -887,7 +923,7 @@ void EOS_SC_get_polytrope(double lrho, double lT, double ye,
 // Root-finding
 // ----------------------------------------------------------------------
 static int find_lT(const double lrho, double lTguess, const double ye,
-    double* restrict tab, const double val,
+    double* tab, const double val,
     double* lT)
 {
   struct of_lT_params p;
@@ -909,7 +945,7 @@ static int find_adiabat_0d(double lrho, double lTguess, double ye,
   lTguess = catch_lT(lTguess);
   ye = catch_ye(ye);
   s = catch_s(s);
-  
+
   struct of_lT_params p;
   p.lrho = lrho;
   p.ye = ye;
@@ -940,7 +976,7 @@ int EOS_SC_find_adiabat_1d(double s, double ye,
   int ilrho_min     = find_index(lrho_min,tab_lrho,Nrho);
   int ilrho_max     = find_index(lrho_max,tab_lrho,Nrho);
   double slope      = tab_dlT / tab_dlrho;
-  double *lT_of_rho = safe_malloc(Nrho*sizeof(double));
+  double *lT_of_rho = safe_malloc<double>(Nrho);
 
   double hm1_min = INFINITY;
   double hm1_max = -INFINITY;
@@ -956,7 +992,7 @@ int EOS_SC_find_adiabat_1d(double s, double ye,
     if (hm1 > hm1_max) hm1_max = hm1;
     if (status != ROOT_SUCCESS) return ROOT_FAIL;
   }
-  
+
   a->s  = s;
   a->ye = ye;
   a->lrho_min = lrho_min;
@@ -1023,7 +1059,7 @@ void EOS_SC_isoentropy_hm1(double hm1, const struct of_adiabat *a,
 	    "\tye         = %e\n"
 	    "\tlrho_guess = %e\n",
 	    hm1,hm1_min,s,ye,*lrho_guess);
-    
+
     printf("ADIABAT MAP\n");
     printf("rho\thm1\n");
     for (int i = a->imin; i < a->imax; i++) {
@@ -1043,8 +1079,8 @@ void EOS_SC_isoentropy_hm1(double hm1, const struct of_adiabat *a,
   double rho_cgs = pow(10.,lrho);
   double u_cgs   = rho_cgs*e;
   // and to cgs
-  *rho = rho_cgs/RHO_unit;
-  *u = u_cgs/U_unit;
+  *rho = rho_cgs/GV::RHO_unit;
+  *u = u_cgs/GV::U_unit;
   // save initial guesses
   *lrho_guess = lrho;
 
@@ -1056,7 +1092,7 @@ void EOS_SC_isoentropy_hm1(double hm1, const struct of_adiabat *a,
 // Interpolation
 // ----------------------------------------------------------------------
 static double EOS_SC_interp(const double lrho, const double lT, const double Ye,
-			    double* restrict tab)
+			    double* tab)
 {
   // We don't want our indices to fall off the table,
   // but we want to extrapolate appropriately
@@ -1115,7 +1151,7 @@ static double interp_2d(const double lrho, const double Ye,
 static double lT_f(const double lT, const void* params)
 {
   struct of_lT_params *p = (struct of_lT_params *) params;
-  double* restrict tab   = p->tab;
+  double* tab   = p->tab;
   const double lrho      = p->lrho;
   const double ye        = p->ye;
   return EOS_SC_interp(lrho,lT,ye,tab);
@@ -1125,7 +1161,7 @@ static double lT_f_adiabat(const double lrho, const void* params)
 {
   struct of_lT_adiabat_params *p = (struct of_lT_adiabat_params *) params;
   const struct of_adiabat *a = p->a;
-  double* restrict tab = p->tab;
+  double* tab = p->tab;
 
   const double ye = a->ye;
   const double lT = interp_1d(lrho,
@@ -1236,7 +1272,7 @@ static double catch_var_2d(const double lrho, const double Ye,
 
 static double catch_var_2d_monotone(const double lrho, const double Ye,
 				    const double var,
-				    double* restrict tab)
+				    double* tab)
 {
   const double varmin = EOS_SC_interp(lrho,tab_lT_min,Ye,tab);
   if (var <= varmin) return varmin + TABLE_TOL/100.;
@@ -1411,4 +1447,202 @@ static double catch_hm1(const double hm1)
   }
 }
 // ----------------------------------------------------------------------
-#endif // EOS == EOS_TYPE_TABLE
+//
+//
+// from eos.c. This contains all main functionalities after above SC
+// readers
+
+double EOS_bad_eos_error()
+{
+  fprintf(stderr, "ERROR! UNKNOWN EOS TYPE!\n");
+  exit(1);
+}
+
+/*******************************************************************************
+      Wrappers
+*******************************************************************************/
+void init_EOS()
+{
+  /* 
+     @brief  EOS initialization
+             Users will define a path to their EOS table 
+             with initialization. Currently, we only accept HDF5 file
+     
+     @param[in] eos_tab_file_path : Path to tabulated EOS file
+  */
+  clog_one(info)<<"Reading EOS from file: "<<param::eos_tab_file_path<<std::endl;
+  EOS_SC_init(param::eos_tab_file_path);
+}
+
+// Getting pressure from rho and u
+// eos_cache saves unevolved additional variables.
+double EOS_pressure_rho0_u(body& b)
+{
+  // Call EOS_SC_fill that put neccessary cache data.
+  // Log(T) is calculated and save from this function
+  double eos_cache[3]; 
+  EOS_SC_fill(b, eos_cache);
+  
+  // Particles data
+  double rho = b.getDensity();
+  double u = b.getInternalenergy();
+  double ye = b.getElectronfraction();
+  double lrho = eos_cache[EOS_LRHO];
+  double lT = eos_cache[EOS_LT];
+
+  double press;
+  double rho_poly_thresh = EOS_SC_get_min_rho();
+  if (rho < rho_poly_thresh) {
+    double K,Gam;
+    lrho = EOS_SC_get_min_lrho();
+    lT = EOS_SC_get_min_lT();
+    EOS_SC_get_polytrope(lrho, lT, ye, &K, &Gam);
+    press = EOS_Poly_pressure_rho0_u(rho,u,K,Gam);
+  } else {
+    press = EOS_SC_pressure_rho0_u(lrho,lT,ye);
+  }
+  #if 0
+  EOS_bad_eos_error();
+  #endif
+  return press;
+}
+
+double EOS_enthalpy_rho0_u(double rho, double u, const double* extra)
+{
+  double enth;
+  double lrho = extra[EOS_LRHO];
+  double lT   = extra[EOS_LT];
+  double ye   = extra[EOS_YE];
+  double rho_poly_thresh = EOS_SC_get_min_rho();
+  if (rho < rho_poly_thresh) {
+    double K,Gam;
+    lrho = EOS_SC_get_min_lrho();
+    lT = EOS_SC_get_min_lT();
+    EOS_SC_get_polytrope(lrho, lT, ye, &K, &Gam);
+    enth = EOS_Poly_enthalpy_rho0_u(rho,std::max(u,0.0),K,Gam);
+  } else {
+    double h = EOS_SC_specific_enthalpy_rho0_u(lrho,lT,ye);
+    enth = h*rho;
+  }
+  #if 0
+  EOS_bad_eos_error();
+  #endif
+  return enth;
+}
+
+double EOS_entropy_rho0_u(double rho, double u, const double* extra)
+{
+  double ent;
+  double lrho = extra[EOS_LRHO];
+  double lT   = extra[EOS_LT];
+  double ye   = extra[EOS_YE];
+  double rho_poly_thresh = EOS_SC_get_min_rho();
+  if (rho < rho_poly_thresh) {
+    double K,Gam;
+    lrho = EOS_SC_get_min_lrho();
+    lT = EOS_SC_get_min_lT();
+    EOS_SC_get_polytrope(lrho, lT, ye, &K, &Gam);
+    ent = EOS_Poly_entropy_rho0_u(rho,u,K,Gam);
+  } else {
+    ent = EOS_SC_entropy(lrho,lT,ye);
+  }
+  #if 0
+  EOS_bad_eos_error();
+  #endif
+  return ent;
+}
+
+//double rho, double u, const double* extra
+double EOS_sound_speed_rho0_u(body& b)
+{
+  
+  // Call EOS_SC_fill to save eos_cache data
+  double eos_cache[3];
+  EOS_SC_fill(b, eos_cache);
+  
+  // particle data
+  double rho = b.getDensity();
+  double lrho = eos_cache[EOS_LRHO];
+  double u = b.getInternalenergy();
+  double ye = b.getElectronfraction();
+  double lT = eos_cache[EOS_LT];
+
+  double cs;
+  double rho_poly_thresh = EOS_SC_get_min_rho();
+  if (rho < rho_poly_thresh) {
+    double K,Gam;
+    lrho = EOS_SC_get_min_lrho();
+    lT = EOS_SC_get_min_lT();
+    EOS_SC_get_polytrope(lrho, lT, ye, &K, &Gam);
+    cs = EOS_Poly_sound_speed_rho0_u(rho,u,K,Gam);
+  } else {
+    cs = EOS_SC_sound_speed(lrho,lT,ye);
+  }
+  #if 0 //HL : will put correct conditional statement to call bad eos
+  EOS_bad_eos_error();
+  #endif
+  return cs;
+}
+
+void EOS_set_floors(double scale, double rho, double u, double bsq,
+  double* rhoflr, double* uflr, const double* extra)
+{
+  double ye = extra[EOS_YE];
+  EOS_SC_set_floors(scale, rho, u, ye, bsq, rhoflr, uflr);
+  #if 0
+  EOS_bad_eos_error();
+  #endif
+}
+
+double EOS_adiabatic_constant(double rho, double u, const double* extra)
+{
+  double cad;
+  double gam = EOS_get_gamma(extra);
+  cad = u*pow(rho,-gam);
+  #if 0
+  EOS_bad_eos_error();
+  #endif
+  return cad;
+}
+
+double EOS_get_gamma(const double* extra)
+{
+  double lrho = extra[EOS_LRHO];
+  double lT   = extra[EOS_LT];
+  double ye   = extra[EOS_YE];
+  double gam  = EOS_SC_gamma(lrho,lT,ye);
+  return gam;
+  #if 0
+  EOS_bad_eos_error();
+  #endif
+}
+
+double EOS_temperature(double rho, double u, const double* extra)
+{
+  double lT = extra[EOS_LT];
+  return EOS_SC_temperature(lT);
+  #if 0
+  EOS_bad_eos_error();
+  #endif
+}
+
+double EOS_u_press(double press, double rho, double* extra)
+{
+  double u;
+  double ye = extra[EOS_YE];
+  //double yedens = extra[EOS_YE];
+  //double ye     = fabs(yedens) / (fabs(rho) + SMALL);
+  double lTold  = extra[EOS_LT];
+  double rho_poly_thresh = EOS_SC_get_min_rho();
+  if (rho < rho_poly_thresh) {
+    u = EOS_SC_get_minu(rho,ye);
+    lTold = EOS_SC_get_min_lT();
+  } else {
+    u = EOS_SC_u_press(press, rho, ye, &lTold);
+  }
+  extra[EOS_LT] = lTold;
+  #if 0
+  EOS_bad_eos_error();
+  #endif // EOS
+  return u;
+}
