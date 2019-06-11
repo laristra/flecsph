@@ -66,6 +66,7 @@ TEST(hilbert,sanity) {
 
 }
 
+#if 0 
 TEST(hilbert,rnd_2d){
   using namespace flecsi;
   // Test the generation 2D
@@ -123,6 +124,7 @@ TEST(hilbert,rnd_3d){
     ASSERT_TRUE(dist<1.0e-4);
   }
 } // TEST
+#endif 
 
 TEST(morton,sanity) {
   range_t range;
