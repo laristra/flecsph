@@ -209,33 +209,33 @@ std::ostream &operator<<(std::ostream &ostr,
 }
 
 /*----------------------------------------------------------------------------*
- * class hilbert_curve
+ * class hilbert_curve_u
  * @brief Implementation of the hilbert peano space filling curve
  *----------------------------------------------------------------------------*/
 template <size_t DIM, typename T>
-class hilbert_curve : public filling_curve<DIM, T, hilbert_curve<DIM, T>> {
+class hilbert_curve_u : public filling_curve<DIM, T, hilbert_curve_u<DIM, T>> {
   using int_t = T;
   static constexpr size_t dimension = DIM;
   using coord_t = std::array<int_t, dimension>;
   using point_t = point__<double, dimension>;
 
-  using filling_curve<DIM, T, hilbert_curve>::value_;
-  using filling_curve<DIM, T, hilbert_curve>::max_depth_;
+  using filling_curve<DIM, T, hilbert_curve_u>::value_;
+  using filling_curve<DIM, T, hilbert_curve_u>::max_depth_;
 
 public:
-  hilbert_curve() : filling_curve<DIM, T, hilbert_curve>() {}
-  hilbert_curve(const int_t &id) : filling_curve<DIM, T, hilbert_curve>(id) {}
-  hilbert_curve(const hilbert_curve &bid)
-      : filling_curve<DIM, T, hilbert_curve>(bid.value_) {}
-  hilbert_curve(const std::array<point_t, 2> &range, const point_t &p)
-      : hilbert_curve(range, p,
-                      filling_curve<DIM, T, hilbert_curve>::max_depth_) {}
+  hilbert_curve_u() : filling_curve<DIM, T, hilbert_curve_u>() {}
+  hilbert_curve_u(const int_t &id) : filling_curve<DIM, T, hilbert_curve_u>(id) {}
+  hilbert_curve_u(const hilbert_curve_u &bid)
+      : filling_curve<DIM, T, hilbert_curve_u>(bid.value_) {}
+  hilbert_curve_u(const std::array<point_t, 2> &range, const point_t &p)
+      : hilbert_curve_u(range, p,
+                      filling_curve<DIM, T, hilbert_curve_u>::max_depth_) {}
 
   //! Hilbert key is always generated to the max_depth_ and then truncated
   //! otherwise the key will not be the same
-  hilbert_curve(const std::array<point_t, 2> &range, const point_t &p,
+  hilbert_curve_u(const std::array<point_t, 2> &range, const point_t &p,
                 const size_t depth) {
-    *this = filling_curve<DIM, T, hilbert_curve>::min();
+    *this = filling_curve<DIM, T, hilbert_curve_u>::min();
     assert(depth <= max_depth_);
     std::array<int_t, dimension> coords;
     // Convert the position to integer
@@ -422,34 +422,34 @@ private:
 }; // class hilbert
 
 /*----------------------------------------------------------------------------*
- * class morton_curve
+ * class morton_curve_u
  * @brief Implementation of the Morton space filling curve (Z ordering)
  *----------------------------------------------------------------------------*/
 template <size_t DIM, typename T>
-class morton_curve : public filling_curve<DIM, T, morton_curve<DIM, T>> {
+class morton_curve_u : public filling_curve<DIM, T, morton_curve_u<DIM, T>> {
 
   using int_t = T;
   static constexpr size_t dimension = DIM;
   using coord_t = std::array<int_t, dimension>;
   using point_t = point__<double, dimension>;
 
-  using filling_curve<DIM, T, morton_curve>::value_;
-  using filling_curve<DIM, T, morton_curve>::max_depth_;
-  using filling_curve<DIM, T, morton_curve>::bits_;
+  using filling_curve<DIM, T, morton_curve_u>::value_;
+  using filling_curve<DIM, T, morton_curve_u>::max_depth_;
+  using filling_curve<DIM, T, morton_curve_u>::bits_;
 
 public:
-  morton_curve() : filling_curve<DIM, T, morton_curve>() {}
-  morton_curve(const int_t &id) : filling_curve<DIM, T, morton_curve>(id) {}
-  morton_curve(const morton_curve &bid)
-      : filling_curve<DIM, T, morton_curve>(bid.value_) {}
-  morton_curve(const std::array<point_t, 2> &range, const point_t &p)
-      : morton_curve(range, p,
-                     filling_curve<DIM, T, morton_curve>::max_depth_) {}
+  morton_curve_u() : filling_curve<DIM, T, morton_curve_u>() {}
+  morton_curve_u(const int_t &id) : filling_curve<DIM, T, morton_curve_u>(id) {}
+  morton_curve_u(const morton_curve_u &bid)
+      : filling_curve<DIM, T, morton_curve_u>(bid.value_) {}
+  morton_curve_u(const std::array<point_t, 2> &range, const point_t &p)
+      : morton_curve_u(range, p,
+                     filling_curve<DIM, T, morton_curve_u>::max_depth_) {}
 
   //! Morton key can be generated directly up to the right depth
-  morton_curve(const std::array<point_t, 2> &range, const point_t &p,
+  morton_curve_u(const std::array<point_t, 2> &range, const point_t &p,
                const size_t depth) {
-    *this = filling_curve<DIM, T, morton_curve>::min();
+    *this = filling_curve<DIM, T, morton_curve_u>::min();
     assert(depth <= max_depth_);
     std::array<int_t, dimension> coords;
     for (size_t i = 0; i < dimension; ++i) {
@@ -465,7 +465,7 @@ public:
       } // for
       ++k;
     } // for
-  }   // morton_curve
+  }   // morton_curve_u
 
   /*! Convert this id to coordinates in range. */
   void coordinates(const std::array<point_t, 2> &range, point_t &p) {
@@ -500,7 +500,7 @@ public:
     result[1] = range[1];
     // Copy the key
     int_t tmp = value_;
-    int_t root = filling_curve<DIM, T, morton_curve>::root().value_;
+    int_t root = filling_curve<DIM, T, morton_curve_u>::root().value_;
     // Extract x,y and z
     std::array<int_t, dimension> coords;
     coords.fill(int_t(0));

@@ -52,7 +52,7 @@ public:
   using key_int_t = uint64_t;
   static const size_t dimension = gdimension;
   using element_t = type_t;
-  using key_t = flecsi::hilbert_curve<dimension,uint64_t>;
+  using key_t = flecsi::hilbert_curve_u<dimension,uint64_t>;
   using point_t = flecsi::point__<element_t, dimension>;
   using space_vector_t = flecsi::space_vector<element_t,dimension>;
   using geometry_t = flecsi::topology::tree_geometry<element_t, gdimension>;
