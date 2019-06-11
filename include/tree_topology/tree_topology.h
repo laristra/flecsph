@@ -1661,10 +1661,10 @@ public:
    * @brief Compute the keys of all the entities present in the structure
    */
   void compute_keys() {
-    key_t::set_range(range_); 
+    //key_t::set_range(range_);
 #pragma omp parallel for
     for (size_t i = 0; i < entities_.size(); ++i) {
-      entities_[i].set_key(key_t(entities_[i].coordinates()));
+      entities_[i].set_key(key_t(range_,entities_[i].coordinates()));
     }
   }
 
