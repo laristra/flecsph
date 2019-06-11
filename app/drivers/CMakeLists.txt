@@ -23,6 +23,7 @@ set(CMAKE_CXX_FLAGS_RELEASE
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/include/physics)
+include_directories(${CMAKE_SOURCE_DIR}/include/physics/eos)
 include_directories(${CMAKE_SOURCE_DIR}/include/physics/specific)
 include_directories(${CMAKE_SOURCE_DIR}/app/drivers/include)
 include_directories(${CMAKE_SOURCE_DIR}/mpisph)

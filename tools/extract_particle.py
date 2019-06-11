@@ -39,7 +39,7 @@ except:
     sys.exit ("ERROR: cannot determine file dimensionality")
 
 # access the data
-key_step = h5file.keys()[0]
+key_step = list(h5file.keys())[0]
 Nsteps = len(h5file.keys())
 dset = h5file[key_step]
 Npart = dset['x'].len()

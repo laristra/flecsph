@@ -10,8 +10,8 @@
 from __future__ import print_function
 import numpy as np
 import h5py
-from units import UnitSystem
-import units as bunits
+from units_local import UnitSystem
+import units_local as bunits
 
 # constants, in CGS
 GNEWT = bunits.cgs['GNEWT']  # Gravitational constant
@@ -60,7 +60,7 @@ def sound_speed(rho, eps, gam):
 def make_filename(gam):
     gamstring = str(gam)
     gamstring = gamstring.replace('.','p')
-    name = "sc_eos_gamma_{}.h5".format(gamstring)
+    name = "dummy_eos_gamma_tab_{}.h5".format(gamstring)
     return name
 
 def make_table_u(rho_min, rho_max, n_rho,

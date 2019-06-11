@@ -11,18 +11,10 @@
  *                                                                            *
  ******************************************************************************/
 
-/* The header for stellar collapse simply got too long, so I split it
- * into a separate file. These declarations belong here, not in decs.h 
- * because they are intended ot have private scope.
- * ~JMM
- */
-
 #pragma once
 
-// decs
-#include "decs.h"
-
-#if EOS == EOS_TYPE_TABLE
+// Save all utilities
+#include "eos_utils.h"
 
 #define TABLE_TOL        (1.e-10)
 #define TABLE_FTOL       (1.e-10)
@@ -91,40 +83,55 @@ static double tab_hm1_min,   tab_hm1_max;
 
 static double energy_shift;
 static double enthalpy_shift;
+// HL : Func defs from eos.c
+// TODO : Remove this with correct order
+void init_EOS();
+double EOS_pressure_rho0_u(body& b);
+double EOS_enthalpy_rho0_u(double rho, double u, const double* extra);
+double EOS_entropy_rho0_u(double rho, double u, const double* extra);
+double EOS_sound_speed_rho0_u(body& b);
+void EOS_set_floors(double scale, double rho, double u, double bsq,
+  double* rhoflr, double* uflr, const double* extra);
+double EOS_adiabatic_constant(double rho, double u, const double* extra);
+double EOS_get_gamma(const double* extra);
+double EOS_temperature(double rho, double u, const double* extra);
+double EOS_u_press(double press, double rho, double* extra);
 
+//HL : func defs for eos_stellar_collapse.h
+//TODO : Re-ordering funcs to remove this
 // core
 static double EOS_SC_interp(const double lrho, const double lT, const double Ye,
-			    double* restrict tab);
+                            double* tab);
 
 // max, min, etc.
 static void fill_min_1d(double* tab_min_1d, double* tab);
 static void fill_max_min_2d(double* tab_max_2d,
-			    double* tab_min_2d, double* tab);
+                            double* tab_min_2d, double* tab);
 static double interp_2d(const double lrho, const double Ye,
-			const double* tab_2d);
+                        const double* tab_2d);
 static void temp_map(double lrho, double Ye, const double* tab);
 static double catch_var_2d(const double lrho, const double Ye,
-			   const double var,
-			   const double* tab_min_2d,
-			   const double* tab_max_2d);
+                           const double var,
+                           const double* tab_min_2d,
+                           const double* tab_max_2d);
 static double catch_var_2d_monotone(const double lrho, const double Ye,
-				    const double var,
-				    double* restrict tab);
+                                    const double var,
+                                    double* tab);
 
 // Root finding
 static int find_lT(const double lrho, double lTguess, const double ye,
-		   double* restrict tab, const double val,
-		   double* lT);
+                   double* tab, const double val,
+                   double* lT);
 static int find_adiabat_0d(double lrho, double lTguess, double ye,
-			   double s, double* lT);
+                           double s, double* lT);
 static double lT_f(const double lT, const void* params);
 struct of_lT_params {
   double lrho, ye;
-  double* restrict tab;
+  double* tab;
 };
 static double lT_f_adiabat(double lT, const void* params);
 struct of_lT_adiabat_params {
-  double* restrict tab;
+  double* tab;
   const struct of_adiabat *a;
 };
 
@@ -145,4 +152,30 @@ static double catch_lT(const double lT);
 static double catch_s(const double s);
 static double catch_hm1(const double hm1);
 
-#endif // EOS_TYPE_TABLE
+// SC related function
+void EOS_SC_init(char *name);
+void EOS_SC_fill(body& b, double* eos);
+//void EOS_SC_fill(double* rhoIn, double* uIn, double* yeIn, double* eos);
+double EOS_SC_pressure_rho0_u(double lrho, double lT, double ye);
+double EOS_SC_specific_enthalpy_rho0_u(double lrho, double lT, double ye);
+double EOS_SC_sound_speed(double lrho, double lT, double ye);
+double EOS_SC_entropy(double lrho, double lT, double ye);
+double EOS_SC_gamma(double lrho, double lT, double ye);
+double EOS_SC_temperature(double lT);
+double EOS_SC_get_u_of_T(double rho, double T, double ye);
+double EOS_SC_pressure_rho0_w(double rho, double w, double ye, double *lTold);
+double EOS_SC_u_press(double press, double rho, double ye, double *lTold);
+void EOS_SC_mass_fractions(double Xi[NUM_MASS_FRACTIONS], const double* extra);
+void EOS_SC_avg_ions(double* Abar, double* Zbar, const double* extra);
+void EOS_SC_set_floors(double scale, double rho, double u, double ye,
+                       double bsq, double* rhoflr, double* uflr);
+double EOS_SC_rho_floor(double scale, double bsq);
+double EOS_SC_get_min_lrho();
+double EOS_SC_get_min_rho();
+double EOS_SC_get_min_lT();
+double EOS_SC_get_minu(double rho, double ye);
+double EOS_SC_u_floor(double scale, double bsq, double ye);
+void EOS_SC_get_polytrope(double lrho, double lT, double ye,
+                          double* poly_K, double* poly_gamma);
+
+

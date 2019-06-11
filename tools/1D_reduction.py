@@ -20,7 +20,7 @@ import argparse
 
 
 def create_output(dataset):
-    print dataset
+    print (dataset)
 
     # Get timestep number
     s = dataset[5:]
@@ -45,14 +45,14 @@ def create_output(dataset):
     z_rc = z_data - z_c
     rad_distance = np.sqrt(np.multiply(x_rc, x_rc) + np.multiply(y_rc, y_rc) + np.multiply(z_rc, z_rc))
 
-    #print i, np.max(rad_distance)
+    print (i, np.max(rad_distance))
 
     # Create table
     head = 'column1:x, column2:y, column3:z, column4:r, column5:rho, column6:P, column7:u'
     data = np.column_stack((x_data, y_data, z_data, rad_distance, rho_data, P_data, u_data))
 
 #    # Write table
-    with open("1d_output_{0:05d}.dat".format(i), 'w+') as datafile_id:
+    with open("1d_output_{0:05d}.dat".format(i), 'wb+') as datafile_id:
         np.savetxt(datafile_id, data, fmt='%04.03e', header = head)
     return;
 
