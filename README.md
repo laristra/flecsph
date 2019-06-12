@@ -65,6 +65,7 @@ You will need the following tools:
 - boost library version > 1.59;
 - Python version > 2.7.
 - HDF5 compiled with parallel flag version > 1.8
+- GSL library 
 
 ## FleCSI
 
