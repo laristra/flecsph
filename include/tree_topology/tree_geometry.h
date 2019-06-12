@@ -199,7 +199,7 @@ template <typename T> struct tree_geometry<T, 3> {
   }
 
   //! Return true if dist^2 < radius^2
-  inline static bool within_square(const point_t &origin, const point_t &center,
+  static bool within_square(const point_t &origin, const point_t &center,
                                    const element_t &r1, const element_t &r2) {
     return distance(origin,center) <= std::max(r1,r2);
   }
