@@ -160,7 +160,7 @@ namespace physics{
     std::vector<body*>& nbs)
   {
     compute_density(particle,nbs);
-    if (thermokinetic_formulation)
+    if (evolve_internal_energy and thermokinetic_formulation)
       recover_internal_energy(particle);
     eos::compute_pressure(particle);
     eos::compute_soundspeed(particle);
