@@ -425,6 +425,10 @@ typedef enum sph_kernel_keyword_enum {
   DECLARE_PARAM(double,relaxation_repulsion_gamma,0.0)
 # endif
 
+# ifndef evolve_internal_energy
+  DECLARE_PARAM(bool,evolve_internal_energy,true)
+# endif
+
 
 //
 // Parameters for external acceleration
@@ -911,6 +915,11 @@ void set_param(const std::string& param_name,
 # ifndef relaxation_repulsion_gamma
   READ_NUMERIC_PARAM(relaxation_repulsion_gamma)
 # endif
+
+# ifndef evolve_internal_energy
+  READ_BOOLEAN_PARAM(evolve_internal_energy)
+# endif
+
 
   // external force  --------------------------------------------------------
 # ifndef thermokinetic_formulation

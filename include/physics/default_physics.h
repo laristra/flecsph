@@ -496,7 +496,7 @@ namespace physics{
     double dtmin = timestep_cfl_factor * std::min(std::min(dt_v,dt_a), dt_c);
 
     // timestep based on positivity of internal energy
-    if (thermokinetic_formulation) {
+    if (evolve_internal_energy and thermokinetic_formulation) {
       const double eint = source.getInternalenergy();
       const point_t pos = source.coordinates();
       const double epot = external_force::potential(pos);
