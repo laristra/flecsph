@@ -54,10 +54,10 @@ namespace physics{
   /**
    * @brief      Computes the density in "vanilla sph" formulation
    *             [Rosswog'09, eq.(13)]:
-   *             
+   *
    *             $\rho_a =\sum_b {m_b W_ab(r_ab, (h_a + h_b)/2)}$
    *
-   * @param      particle  The particle body 
+   * @param      particle  The particle body
    * @param      nbs       Vector of neighbor particles
    */
   void
@@ -151,7 +151,7 @@ namespace physics{
    * @brief      Compute the density, EOS and spundspeed in the same function
    * reduce time to gather the neighbors
    *
-   * @param      particle  The particle body 
+   * @param      particle  The particle body
    * @param      nbs       Vector of neighbor particles
    */
   void
@@ -174,8 +174,8 @@ namespace physics{
    *     (dv_a)                (  P_a       P_b            )
    *     (----)   = -sum_b m_b ( -----  +  -----   + Pi_ab ) D_i Wab  + ext_i
    *     ( dt )_i              (rho_a^2   rho_b^2          )
-   * 
-   * @param      particle  The particle body 
+   *
+   * @param      particle  The particle body
    * @param      nbs       Vector of neighbor particles
    */
   void
@@ -256,8 +256,8 @@ namespace physics{
    *     (dv_a)                             (  r_b - r_a       )
    *     (----)   += -gamma_repulsion  sum_b( ---------- * m_b )
    *     ( dt )_i                           (  |r_ab|^3        )
-   * 
-   * @param      particle  The particle body 
+   *
+   * @param      particle  The particle body
    * @param      nbs       Vector of neighbor particles
    */
   void
@@ -302,8 +302,8 @@ namespace physics{
    *             du_a             (  P_a      1       )
    *             ---- = sum_b m_b ( -----  +  - Pi_ab ) (D_i Wab . v_ab)
    *              dt              (rho_a^2    2       )
-   * 
-   * @param      particle  The particle body 
+   *
+   * @param      particle  The particle body
    * @param      nbs       Vector of neighbor particles
    */
   void compute_dudt(
@@ -509,11 +509,11 @@ namespace physics{
       }
 
       if (i>=20) {
-        std::cerr << "ERROR: eint-based dt estimator loop did not converge " 
+        std::cerr << "ERROR: eint-based dt estimator loop did not converge "
                   << "for particle " << source.id() << std::endl;
         std::cerr << "particle position: " << pos << std::endl
                   << "particle velocity: " << vel << std::endl
-                  << "particle acceleration: " 
+                  << "particle acceleration: "
                   << source.getAcceleration() << std::endl;
         std::cerr << "smoothing length:  " << source.radius()
                                            << std::endl;
@@ -632,17 +632,19 @@ namespace physics{
 
 
   /**
-   * @brief estimates maximum mach number within the smoothing length 
-   * of a particle. The estimated mach number is used for adaptive 
-   * time stepping 
+   * @brief estimates maximum mach number within the smoothing length
+   * of a particle. The estimated mach number is used for adaptive
+   * time stepping
    *
    * M = max(2*sqrt(max(pb,pa)/min(pb,pa)))
    *
-   */ 
+   */
   void estimate_maxmachnumber(
       body& particle,
       std::vector<body*>& nbs)
   {
+
+   particle.setNeighbors(nbs.size()); 
    double P_a = particle.getPressure();
    const int n_nb = nbs.size();
    double P_max;

@@ -38,7 +38,6 @@ namespace diagnostic {
   size_t id_N_min, id_N_max, id_h_min, id_h_max;
   double V_min, V_max, V_average;
 
-#if 0
   /**
    * @brief      Compute the min, max and average number of neighbor
    * Also compute the minimum distance in smoothing length
@@ -47,60 +46,16 @@ namespace diagnostic {
   void
   compute_neighbors_stats(
       std::vector<body>& bodies,
-      tree_topology_t* tree,
       int64_t totalnbodies )
   {
-    min_dist = std::numeric_limits<double>::max();
-    int64_t ncritical = 32;
+
+    N_min = bodies[0].getNeighbors(); 
     uint64_t N_total = 0;
-    N_ghosts = 0;
-    average_dist_in_h = 0.;
-    N_min = std::numeric_limits<std::uint64_t>::max();
-    N_max = 0;
-    // Find in radius the number of neighbors
-    tree->apply_sub_cells(
-        tree->root(),
-        0.,
-        ncritical,
-        param::sph_variable_h,
-        [](body_holder * srch,
-          std::vector<body_holder*>& nbh,
-          double& min_d, double& average_dist, uint64_t& N_ghosts)
-        {
-            // \TODO assert all bodies not nullptr and in interaction?
-            srch->getBody()->set_neighbors(nbh.size()-1);
-
-            double dist = std::numeric_limits<double>::max();
-            double total_distance = 0.;
-            uint64_t g = 0;
-            for(auto n: nbh)
-            {
-              double d = distance(srch->coordinates(),
-                n->coordinates());
-
-              total_distance+=d;
-
-              if(d!=0.)
-                dist = std::min(dist,d);
-
-              if(!n->is_local()) ++n;
-            }
-            // Min distance
-            #pragma omp critical
-            {
-              N_ghosts += g;
-              min_d = std::min(min_d,dist);
-              average_dist += total_distance/(nbh.size()-1);
-            }
-        },min_dist,average_dist_in_h,N_ghosts
-    );
-
     for(auto& b: bodies)
     {
-      uint64_t N = b.neighbors();
+      uint64_t N = b.getNeighbors();
       N_min = std::min(N_min,N);
       N_max = std::max(N_max,N);
-
       N_total += N;
     }
 
@@ -113,7 +68,6 @@ namespace diagnostic {
     average_dist_in_h /= totalnbodies;
     N_average = N_total/ totalnbodies;
   }
-#endif
 
   /**
    * @brief      Compute the min, max and average smoothing length
@@ -175,7 +129,7 @@ namespace diagnostic {
       return;
 
     // compute diagnostic quantities
-    // bs.get_all(compute_neighbors_stats,bs.tree(),bs.getNBodies());
+    bs.get_all(compute_neighbors_stats,bs.getNBodies());
     bs.get_all(compute_smoothinglength_stats,bs.getNBodies());
     bs.get_all(compute_velocity_stats,bs.getNBodies());
 

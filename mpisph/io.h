@@ -971,6 +971,12 @@ void outputDataHDF5(std::vector<body> &bodies, const char *fileprefix,
   }
   H5P_writeDataset(dataFile, "key", bi);
 
+  pos = 0L;
+  for (auto bid : bodies) {
+    bi[pos++] = bid.getNeighbors();
+  }
+  H5P_writeDataset(dataFile, "neighbors", bi);
+
   H5P_closeFile(dataFile);
 
   delete[] b1;

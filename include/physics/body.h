@@ -109,6 +109,9 @@ public:
     void setMaxmachnumber(double maxmachnumber){maxmachnumber_ = maxmachnumber;};
     double getMaxmachnumber() const{return maxmachnumber_;}
 
+    void setNeighbors(const size_t& neighbors) { neighbors_ = neighbors;} 
+    size_t getNeighbors() const {return neighbors_;}
+
   friend std::ostream& operator<<(std::ostream& os, const body_u& b){
     // TODO change regarding to dimension
     os << std::setprecision(10);
@@ -123,6 +126,7 @@ public:
     os << " id: " << b.id_;
     os << " key: "<<b.key_;
     os << " owner: "<<b.owner_;
+    os << " neighbors: "<<b.neighbors_; 
     return os;
   }
 
@@ -145,6 +149,7 @@ private:
   double mumax_;
   double maxmachnumber_;
   particle_type_t type_;
+  size_t neighbors_; 
 }; // class body
 
 #endif // body_h
