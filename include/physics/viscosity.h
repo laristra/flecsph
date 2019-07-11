@@ -78,7 +78,7 @@ namespace viscosity{
    */
   inline double
   artificial_viscosity(
-    const double & rho_ab, 
+    const double & rho_ab,
     const double & c_ab,
     const double & mu_ab)
   {
@@ -104,6 +104,72 @@ namespace viscosity{
       clog_fatal("Bad viscosity parameter"<<std::endl);
     }
   }
+
+  /**
+   * @brief      alpha_loc_i for the artificial viscosity
+   * From Cullen'10 (arXiv:1006.1524) -
+   * Inviscid SPH, eq.(14)
+   *
+   * @param      srch       The source particle
+   * @param      nbsh       The neighbor particle
+   *
+   * @return     Contribution for alpha_loc_i
+   *
+   * @uses       alpha_max  global parameter
+   */
+  inline double
+  alpha_loc(
+      )
+  {
+
+    using namespace param;
+    double result = 0.0;
+
+    double dotproduct = alpha_max*flecsi::dot(vel_ab, pos_ab);
+    double dist2 = flecsi::dot(pos_ab,pos_ab);
+    result = h_ab*dotproduct / (dist2 + sph_viscosity_epsilon*h_ab*h_ab + TINY);
+
+    //mpi_assert(result < 0.0);
+    return result*(dotproduct < 0.0);
+  } // alpha_loc
+
+  /**
+   * @brief      A_i for the artificial viscosity
+   * From Cullen'10 (arXiv:1006.1524) -
+   * Inviscid SPH, eq.(13)
+   *
+   * @param      srch       The source particle
+   * @param      nbsh       The neighbor particle
+   *
+   * @return     Trigger for  viscosity
+   *
+   */
+  inline double
+  A_trigger(
+    body& particle,
+    std::vector<body*>& nbs)
+  {
+
+    using namespace param;
+    const double DivV_old = particle.getDivergenceV();
+    double dDivVdt = 0.0;
+    double result = 0.0;
+    double eeeeeee = 0.0;
+
+    compute_DivergenceV(particle);
+    dDivVdt = (particle.getDivergenceV()-DivV_old)/physics::dt;
+
+    result = std::max(dDivVdt,0.0);
+
+    eeeeeee = 
+
+    double dotproduct = alpha_max*flecsi::dot(vel_ab, pos_ab);
+    double dist2 = flecsi::dot(pos_ab,pos_ab);
+    result = h_ab*dotproduct / (dist2 + sph_viscosity_epsilon*h_ab*h_ab + TINY);
+
+    //mpi_assert(result < 0.0);
+    return result*(dotproduct < 0.0);
+  } // alpha_loc
 
 }; // viscosity
 
