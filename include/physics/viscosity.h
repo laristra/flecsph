@@ -154,14 +154,14 @@ namespace viscosity{
     const double DivV_old = particle.getDivergenceV();
     double dDivVdt = 0.0;
     double result = 0.0;
-    double eeeeeee = 0.0;
+    double xi = 0.0;
 
     compute_DivergenceV(particle);
     dDivVdt = (particle.getDivergenceV()-DivV_old)/physics::dt;
 
     result = std::max(dDivVdt,0.0);
 
-    eeeeeee = 
+    xi = compute_xi();
 
     double dotproduct = alpha_max*flecsi::dot(vel_ab, pos_ab);
     double dist2 = flecsi::dot(pos_ab,pos_ab);
@@ -169,7 +169,54 @@ namespace viscosity{
 
     //mpi_assert(result < 0.0);
     return result*(dotproduct < 0.0);
-  } // alpha_loc
+  } // A_trigger
+
+  /**
+   * @brief      R_a for the artificial viscosity
+   * From Cullen'10 (arXiv:1006.1524) -
+   * Inviscid SPH, eq.(17)
+   *
+   * @param      srch       The source particle
+   * @param      nbsh       The neighbor particle
+   *
+   * @return     ratio of density summation with weighted terms
+   *
+   */
+  inline double
+  compute_Ri(
+    body& particle,
+    std::vector<body*>& nbs)
+  {
+    using namespace kernels;
+    const double h_a = particle.radius();
+    const double rho_a = particle.getDensity();
+    const point_t pos_a = particle.coordinates();
+    const int n_nb = nbs.size();
+    mpi_assert(n_nb>0);
+
+    double r_a_[n_nb], m_[n_nb], h_[n_nb], divV_[n_nb];
+    for(int b = 0 ; b < n_nb; ++b){
+      const body * const nb = nbs[b];
+      m_[b]  = nb->mass();
+      h_[b]  = nb->radius();
+      divV_[b] = nb->getDivergenceV();
+      point_t pos_b = nb->coordinates();
+      r_a_[b] = flecsi::distance(pos_a, pos_b);
+    }
+
+    double R_a = 0.0;
+    for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+      double Wab =  sph_kernel_function(r_a_[b],.5*(h_a+h_[b]));
+      R_a += signnum_c(divV_[b])*m_[b]*Wab;
+    } // for
+    return R_a/rho_a;
+  } // compute_Ri
+
+  double signnum_c(double x) {
+    if (x > 0.0) return 1.0;
+    if (x < 0.0) return -1.0;
+    return x;
+  }
 
 }; // viscosity
 
