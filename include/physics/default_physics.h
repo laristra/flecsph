@@ -662,44 +662,6 @@ namespace physics{
    particle.setMaxmachnumber(Mach);
   }
 
-  /**
-   * @brief update viscosity alpha for particles
-   *
-   * alpha_a = eta/N \sum_b pow(m_b / rho_b,1/dimension)
-   */
-  void
-  compute_viscosity_alpha(
-      std::vector<body>& bodies)
-  {
-    if (gdimension == 1) {
-      #pragma omp parallel for
-      for(size_t i = 0 ; i < bodies.size(); ++i){
-        double m_b   = bodies[i].mass();
-        double rho_b = bodies[i].getDensity();
-        bodies[i].set_radius(
-          m_b/rho_b * sph_eta*kernels::kernel_width);
-      }
-    }
-    else if (gdimension == 2) {
-      #pragma omp parallel for
-      for(size_t i = 0 ; i < bodies.size(); ++i){
-        double m_b   = bodies[i].mass();
-        double rho_b = bodies[i].getDensity();
-        bodies[i].set_radius(
-          sqrt(m_b/rho_b) * sph_eta*kernels::kernel_width);
-      }
-    }
-    else {
-      #pragma omp parallel for
-      for(size_t i = 0 ; i < bodies.size(); ++i){
-        double m_b   = bodies[i].mass();
-        double rho_b = bodies[i].getDensity();
-        bodies[i].set_radius(
-          cbrt(m_b/rho_b) * sph_eta*kernels::kernel_width);
-      }
-    } // if gdimension
-  }
-
 }; // physics
 
 #endif // _default_physics_h_

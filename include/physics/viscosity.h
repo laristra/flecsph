@@ -218,6 +218,57 @@ namespace viscosity{
     return x;
   }
 
+  /**
+   * @brief      xi_a for the artificial viscosity
+   * From Cullen'10 (arXiv:1006.1524) -
+   * Inviscid SPH, eq.(18)
+   *
+   * @param      srch       The source particle
+   * @param      nbsh       The neighbor particle
+   *
+   * @return     limiter to reduce unwanted dissipation
+   *
+   */
+  inline double
+  compute_xi(
+    body& particle)
+  {
+    using namespace kernels;
+    double R_val = compute_Ri(); //compute Ra for particle a
+
+    const double divV = particle.getDivergenceV();
+
+    
+    const double h_a = particle.radius();
+    const double rho_a = particle.getDensity();
+    const point_t pos_a = particle.coordinates();
+    const int n_nb = nbs.size();
+    mpi_assert(n_nb>0);
+
+    double r_a_[n_nb], m_[n_nb], h_[n_nb], divV_[n_nb];
+    for(int b = 0 ; b < n_nb; ++b){
+      const body * const nb = nbs[b];
+      m_[b]  = nb->mass();
+      h_[b]  = nb->radius();
+      divV_[b] = nb->getDivergenceV();
+      point_t pos_b = nb->coordinates();
+      r_a_[b] = flecsi::distance(pos_a, pos_b);
+    }
+
+    double R_a = 0.0;
+    for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+      double Wab =  sph_kernel_function(r_a_[b],.5*(h_a+h_[b]));
+      R_a += signnum_c(divV_[b])*m_[b]*Wab;
+    } // for
+    return R_a/rho_a;
+  } // compute_Ri
+
+  double signnum_c(double x) {
+    if (x > 0.0) return 1.0;
+    if (x < 0.0) return -1.0;
+    return x;
+  }
+
 }; // viscosity
 
 #endif // _viscosity_h_
