@@ -194,7 +194,8 @@ namespace physics{
     const double h_a = particle.radius(),
                rho_a = particle.getDensity(),
                  P_a = particle.getPressure(),
-                 c_a = particle.getSoundspeed();
+                 c_a = particle.getSoundspeed(),
+             alpha_a = particle.getAlpha();
     const point_t pos_a = particle.coordinates(),
                   v12_a = particle.getVelocityhalf();
 
@@ -212,6 +213,7 @@ namespace physics{
       c_[b]   = nb->getSoundspeed();
       h_[b]   = nb->radius();
       m_[b]   = nb->mass() * (pos_[b]!=pos_a); // if same particle, m_b->0
+      alpha_[b] = nb->getAlpha();
     }
 
     // precompute viscosity and kernel gradients
@@ -221,7 +223,7 @@ namespace physics{
       const space_vector_t pos_ab = point_to_vector(pos_a - pos_[b]);
       double h_ab = .5*(h_a + h_[b]);
       double mu_ab = mu(h_ab, v12_ab, pos_ab);
-      Pi_a_[b] = artificial_viscosity(.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
+      Pi_a_[b] = viscosity_cullen(alpha_a,alpha_[b],.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
       DiWa_[b] = sph_kernel_gradient(pos_a - pos_[b],h_ab);
     }
 
@@ -323,7 +325,8 @@ namespace physics{
     const double h_a = particle.radius(),
                rho_a = particle.getDensity(),
                  P_a = particle.getPressure(),
-                 c_a = particle.getSoundspeed();
+                 c_a = particle.getSoundspeed(),
+             alpha_a = particle.getAlpha();
     const point_t pos_a = particle.coordinates(),
                   vel_a = particle.getVelocity(),
                   v12_a = particle.getVelocityhalf();
@@ -345,6 +348,7 @@ namespace physics{
       c_[b]   = nb->getSoundspeed();
       h_[b]   = nb->radius();
       m_[b]   = nb->mass() * (pos_[b]!=pos_a);
+      alpha_[b] = nb->getAlpha();
     }
 
     // precompute viscosity and kernel gradients
@@ -354,7 +358,7 @@ namespace physics{
       space_vector_t vel_ab = point_to_vector(vel_a - vel_[b]);
       double h_ab = .5*(h_a + h_[b]);
       double mu_ab = mu(h_ab, v12_ab, point_to_vector(pos_ab));
-      Pi_a_[b] = artificial_viscosity(.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
+      Pi_a_[b] = viscosity_cullen(alpha_a,alpha_[b],.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
       space_vector_t DiWab  = point_to_vector (
           sph_kernel_gradient(pos_ab,h_ab));
       vab_dot_DiWa_[b] = dot(vel_ab, DiWab);
@@ -396,7 +400,8 @@ namespace physics{
     const double h_a = particle.radius(),
                rho_a = particle.getDensity(),
                  P_a = particle.getPressure(),
-                 c_a = particle.getSoundspeed();
+                 c_a = particle.getSoundspeed(),
+             alpha_a = particle.getAlpha();
     const point_t pos_a = particle.coordinates(),
                   vel_a = particle.getVelocity(),
                   v12_a = particle.getVelocityhalf();
@@ -409,14 +414,15 @@ namespace physics{
 
     for(int b = 0; b < n_nb; ++b) {
       const body * const nb = nbs[b];
-      rho_[b] = nb->getDensity();
-      P_[b]   = nb->getPressure();
-      pos_[b] = nb->coordinates();
-      vel_[b] = nb->getVelocity();
-      v12_[b] = nb->getVelocityhalf();
-      c_[b]   = nb->getSoundspeed();
-      h_[b]   = nb->radius();
-      m_[b]   = nb->mass() * (pos_[b]!=pos_a);
+      rho_[b]   = nb->getDensity();
+      P_[b]     = nb->getPressure();
+      pos_[b]   = nb->coordinates();
+      vel_[b]   = nb->getVelocity();
+      v12_[b]   = nb->getVelocityhalf();
+      c_[b]     = nb->getSoundspeed();
+      h_[b]     = nb->radius();
+      m_[b]     = nb->mass() * (pos_[b]!=pos_a);
+      alpha_[b] = nb->getAlpha();
     }
 
     // precompute viscosity and kernel gradients
@@ -426,7 +432,7 @@ namespace physics{
       space_vector_t vel_ab = point_to_vector(vel_a - vel_[b]);
       double h_ab = .5*(h_a + h_[b]);
       double mu_ab = mu(h_ab, v12_ab, point_to_vector(pos_ab));
-      Pi_a_[b] = artificial_viscosity(.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
+      Pi_a_[b] = viscosity_cullen(alpha_a, alpha_[b],.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
 
       space_vector_t DiWab = point_to_vector(sph_kernel_gradient(pos_ab,h_ab));
       va_dot_DiWa_[b] = dot(point_to_vector(vel_a), DiWab);
