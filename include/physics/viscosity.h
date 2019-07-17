@@ -178,38 +178,48 @@ namespace viscosity{
     // this particle (index 'a')
     const double c_a = particle.getSoundspeed(),
                  h_a = particle.radius(),
-             alpha_a = particle.getAlpha();
+             alpha_a = particle.getAlpha(),
+               rho_a = particle.getDensity();
     const point_t pos_a = particle.coordinates(),
                     v_a = particle.getVelocityhalf();
 
     // neighbor particles (index 'b')
     const int n_nb = nbs.size();
-    double c_a_[n_nb];
-    point_t pos_a_[n_nb], v_a_[n_nb], ;
+    double h_[n_nb], m_[n_nb], c_a_[n_nb];
+    point_t pos_[n_nb], pos_a_[n_nb], v_a_[n_nb], DiWab;
 
     for(int b = 0; b < n_nb; ++b) {
       const body * const nb = nbs[b];
-      pos_a_[b] = (pos_a - nb->coordinates())/flecsi::distance(pos_a, pos_b);
+      pos_[b]   = nb->coordinates();
+      pos_a_[b] = (pos_a - pos_[b])/flecsi::distance(pos_a, pos_[b]);
       v_a_[b]   = v_a - nb->getVelocity();
       c_a_[b] = 0.5*(c_a + nb->getSoundspeed());
+      h_[b]     = nb->radius();
+      m_[b]     = nb->mass() * (pos_[b]!=pos_a); // if same particle, m_b->0
     }
 
     // compute signal velocity
     double vsig = 0.0;
     for(int b = 0 ; b < n_nb; ++b){ // Vectorized
-      double temp = std::min(0.0,flecsi::dot(v_a_[b], pos_a_[b]));
+      double dotval = v_a_[b][0]*pos_a_[b][0];
+      for (unsigned short i=1; i<gdimension; ++i)
+        dotval += v_a_[b][i]*pos_a_[b][i];
+      double temp = std::min(0.0,dotval);
       temp = c_a_[b] - temp;
 
       if (temp > vsig){
         vsig = temp;
       }
     }
-
+    double result = 0.0;
     // compute the divergence
     for(int b = 0 ; b < n_nb; ++b){ // Vectorized
       double h_ab = .5*(h_a + h_[b]);
       DiWab = sph_kernel_gradient(pos_a - pos_[b],h_ab);
-      result += m_[b]*flecsi::dot(v_a_[b],DiWab)/rho_a;
+      double dotval = v_a_[b][0]*DiWab[0];
+      for (unsigned short i=1; i<gdimension; ++i)
+        dotval += v_a_[b][i]*DiWab[i];
+      result += m_[b]*dotval/rho_a;
     }
 
     double Atrig = A_trigger(particle, nbs, result);
@@ -252,7 +262,7 @@ namespace viscosity{
     double xi = 0.0;
 
     //compute_DivergenceV(particle, nbs);
-    dDivVdt = (DivV_a_new - DivV_old)/physics::dt;
+    dDivVdt = (DivV_a_new - DivV_a_old)/physics::dt;
 
     result = std::max(-dDivVdt,0.0);
 
@@ -284,7 +294,8 @@ namespace viscosity{
 
     // this particle (index 'a')
     const double divV_a = particle.getDivergenceV(),
-                  rho_a = particle.getDensity();
+                  rho_a = particle.getDensity(),
+                    h_a = particle.radius();
     const point_t pos_a = particle.coordinates(),
                     v_a = particle.getVelocity();
     double gradV_a[gdimension*gdimension];
@@ -310,7 +321,7 @@ namespace viscosity{
     // precompute velocity difference and kernel gradients
     // compute R_a
     for(int b = 0 ; b < n_nb; ++b){ // Vectorized
-      const space_vector_t pos_ab = point_to_vector(pos_a - pos_[b]);
+      const point_t pos_ab = point_to_vector(pos_a - pos_[b]);
       double h_ab = .5*(h_a + h_[b]);
       v_a_[b]  = point_to_vector(v_[b] - v_a);
       DiWa_[b] = sph_kernel_gradient(pos_ab,h_ab);
@@ -345,49 +356,6 @@ namespace viscosity{
     result = SQ(2.0*QU(1.0-R_a)*divV_a);
     return result = result/(result + traceSS_a);
   } // compute_xi
-
-  /**
-   * @brief      Computes the divergence of velocity for a particle a
-   *
-   * @param      particle  The particle body
-   * @param      nbs       Vector of neighbor particles
-   */
-  void
-  compute_DivergenceV(
-      body& particle,
-      std::vector<body*>& nbs)
-  {
-    using namespace param;
-    using namespace kernels;
-    // this particle (index 'a')
-    const double h_a = particle.radius(),
-               rho_a = particle.getDensity();
-    const point_t pos_a = particle.coordinates(),
-                  v_a = particle.getVelocityhalf();
-
-    // neighbor particles (index 'b')
-    const int n_nb = nbs.size();
-    double h_[n_nb],m_[n_nb];
-    point_t pos_[n_nb], v_a_[n_nb], DiWab;
-
-    for(int b = 0; b < n_nb; ++b) {
-      const body * const nb = nbs[b];
-      pos_[b] = nb->coordinates();
-      v_a[b]  = nb->getVelocity() - v_a;
-      h_[b]   = nb->radius();
-      m_[b]   = nb->mass() * (pos_[b]!=pos_a); // if same particle, m_b->0
-    }
-
-    // compute the final answer
-    for(int b = 0 ; b < n_nb; ++b){ // Vectorized
-      double h_ab = .5*(h_a + h_[b]);
-      DiWab = sph_kernel_gradient(pos_a - pos_[b],h_ab);
-      result += m_[b]*flecsi::dot(v_a[b],DiWab);
-    }
-    result /= rho_a;
-    particle.setDivergenceV(result);
-
-  } // compute_DivergenceV
 
   /**
    * @brief      return the sign of double given to function

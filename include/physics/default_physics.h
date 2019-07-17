@@ -201,7 +201,7 @@ namespace physics{
 
     // neighbor particles (index 'b')
     const int n_nb = nbs.size();
-    double rho_[n_nb],P_[n_nb],h_[n_nb],m_[n_nb],c_[n_nb],Pi_a_[n_nb];
+    double rho_[n_nb],P_[n_nb],h_[n_nb],m_[n_nb],c_[n_nb],Pi_a_[n_nb],alpha_[n_nb];
     point_t pos_[n_nb], v12_[n_nb], DiWa_[n_nb];
 
     for(int b = 0; b < n_nb; ++b) {
@@ -334,7 +334,7 @@ namespace physics{
 
     // neighbor particles (index 'b')
     const int n_nb = nbs.size();
-    double rho_[n_nb],P_[n_nb],h_[n_nb],m_[n_nb],c_[n_nb],Pi_a_[n_nb];
+    double rho_[n_nb],P_[n_nb],h_[n_nb],m_[n_nb],c_[n_nb],Pi_a_[n_nb],alpha_[n_nb];
     double vab_dot_DiWa_[n_nb];
     point_t pos_[n_nb], vel_[n_nb], v12_[n_nb];
 
@@ -408,7 +408,7 @@ namespace physics{
 
     // neighbor particles (index 'b')
     const int n_nb = nbs.size();
-    double rho_[n_nb],P_[n_nb],h_[n_nb],m_[n_nb],c_[n_nb],Pi_a_[n_nb];
+    double rho_[n_nb],P_[n_nb],h_[n_nb],m_[n_nb],c_[n_nb],Pi_a_[n_nb],alpha_[n_nb];
     double va_dot_DiWa_[n_nb], vb_dot_DiWa_[n_nb];
     point_t pos_[n_nb], vel_[n_nb], v12_[n_nb];
 
