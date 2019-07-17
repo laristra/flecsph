@@ -374,6 +374,16 @@ typedef enum sph_kernel_keyword_enum {
   DECLARE_PARAM(double,sph_viscosity_epsilon,0.01)
 #endif
 
+//- artificial viscosity: parameter alpha_max
+#ifndef sph_viscosity_alpha_max
+  DECLARE_PARAM(double,sph_viscosity_alpha_max,1.0)
+#endif
+
+//- artificial viscosity: parameter alpha_max
+#ifndef sph_viscosity_l
+  DECLARE_PARAM(double,sph_viscosity_l,0.05)
+#endif
+
 //
 // Gravity-related parameters
 //
@@ -875,6 +885,14 @@ void set_param(const std::string& param_name,
 
 # ifndef sph_viscosity_epsilon
   READ_NUMERIC_PARAM(sph_viscosity_epsilon)
+# endif
+
+# ifndef sph_viscosity_alpha_max
+  READ_NUMERIC_PARAM(sph_viscosity_alpha_max)
+# endif
+
+# ifndef sph_viscosity_l
+  READ_NUMERIC_PARAM(sph_viscosity_l)
 # endif
 
   // gravity-related  -------------------------------------------------------

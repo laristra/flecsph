@@ -139,6 +139,23 @@ namespace viscosity{
   }
 
 
+  /**
+   * @brief      alpha parameter for the artificial viscosity
+   * From Cullen'10 (arXiv:1006.1524) -
+   *
+   * @param      srch       The source particle
+   * @param      nbsh       The neighbor particle
+   *
+   * @return
+   *
+   * @uses       sph_viscosity_alpha_max  global parameter
+   */
+  void
+  initialize_alpha(
+    body& particle)
+  {
+    particle.setAlpha(0.0);
+  } // initialize_alpha
 
   /**
    * @brief      alpha parameter for the artificial viscosity
@@ -149,7 +166,7 @@ namespace viscosity{
    *
    * @return
    *
-   * @uses       alpha_max  global parameter
+   * @uses       sph_viscosity_alpha_max  global parameter
    */
   void
   compute_alpha(
@@ -182,28 +199,27 @@ namespace viscosity{
     for(int b = 0 ; b < n_nb; ++b){ // Vectorized
       double temp = std::min(0.0,flecsi::dot(v_a[b], pos_a[b]));
       temp = c_a[b] - temp;
-      
+
       if (temp > vsig){
         vsig = temp;
       }
     }
 
-        // compute the final answer
+    // compute the divergence
     for(int b = 0 ; b < n_nb; ++b){ // Vectorized
       double h_ab = .5*(h_a + h_[b]);
       DiWab = sph_kernel_gradient(pos_a - pos_[b],h_ab);
-      result += m_[b]*flecsi::dot(v_a[b],DiWab);
+      result += m_[b]*flecsi::dot(v_a[b],DiWab)/rho_a;
     }
-    result /= rho_a;
 
     double Atrig = A_trigger(particle, nbs, result);
-    double alpha_loc = alpha_max*Atrig/(Atrig + SQ(vsig)/SQ(h_a));
+    double alpha_loc = sph_viscosity_alpha_max*Atrig/(Atrig + SQ(vsig)/SQ(h_a));
 
     if (alpha_a <= alpha_loc){
       particle.setAlpha(alpha_loc);
     }
     else {
-      double decayt = h_a/(2.0*viscosity_l*vsig);
+      double decayt = h_a/(2.0*sph_viscosity_l*vsig);
       double dalphadt = (alpha_loc - alpha_a)/decayt;
       particle.setAlpha(alpha_a + dalphadt*physics::dt);
     }
@@ -225,7 +241,7 @@ namespace viscosity{
   inline double
   A_trigger(
     body& particle,
-    std::vector<body*>& nbs, 
+    std::vector<body*>& nbs,
     const double& DivV_a_new)
   {
 
@@ -308,7 +324,7 @@ namespace viscosity{
       for(int j = 0; j < gdimension; j++){
         for(int b = 0 ; b < n_nb; ++b){
           gradV_a[(gdimension*i)+j] += m_[b]*v_a_[b][i]*DiWa_[b][j];
-          gradV_a[(gdimension*i)+j] /= rho_a; 
+          gradV_a[(gdimension*i)+j] /= rho_a;
         }
       }
     }
@@ -381,7 +397,7 @@ namespace viscosity{
    * @return     sign of double
    *
    */
-  template<typename T> 
+  template<typename T>
   T signnum_c(T x) {
     if (x > 0.0) return T(1);
     if (x < 0.0) return T(-1);

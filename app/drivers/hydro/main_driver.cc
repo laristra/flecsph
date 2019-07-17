@@ -117,9 +117,16 @@ mpi_init_task(const char * parameter_file){
         bs.apply_all(physics::set_total_energy);
       }
 
+      bs.apply_all(viscosity::initialize_alpha);
+
       clog_one(trace) << "compute density pressure cs"<<std::endl << std::flush;
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
       bs.apply_all(integration::save_velocityhalf);
+
+      // necessary for computing alpha in the next step
+      bs.reset_ghosts();
+
+      bs.apply_in_smoothinglength(viscosity::compute_alpha);
 
       // necessary for computing dv/dt and du/dt in the next step
       bs.reset_ghosts();
@@ -164,6 +171,11 @@ mpi_init_task(const char * parameter_file){
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
 
       // Sync density/pressure/cs
+      bs.reset_ghosts();
+
+      bs.apply_in_smoothinglength(viscosity::compute_alpha);
+
+      // necessary for computing dv/dt and du/dt in the next step
       bs.reset_ghosts();
 
       clog_one(trace) << "leapfrog: kick two (velocity)" << std::flush<<std::endl;
