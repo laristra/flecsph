@@ -184,21 +184,21 @@ namespace viscosity{
 
     // neighbor particles (index 'b')
     const int n_nb = nbs.size();
-    double c_a[n_nb];
-    point_t pos_a[n_nb], v_a[n_nb], ;
+    double c_a_[n_nb];
+    point_t pos_a_[n_nb], v_a_[n_nb], ;
 
     for(int b = 0; b < n_nb; ++b) {
       const body * const nb = nbs[b];
-      pos_a[b] = (pos_a - nb->coordinates())/flecsi::distance(pos_a, pos_b);
-      v_a[b]   = v_a - nb->getVelocity();
-      c_a[b] = 0.5*(c_a + nb->getSoundspeed());
+      pos_a_[b] = (pos_a - nb->coordinates())/flecsi::distance(pos_a, pos_b);
+      v_a_[b]   = v_a - nb->getVelocity();
+      c_a_[b] = 0.5*(c_a + nb->getSoundspeed());
     }
 
     // compute signal velocity
     double vsig = 0.0;
     for(int b = 0 ; b < n_nb; ++b){ // Vectorized
-      double temp = std::min(0.0,flecsi::dot(v_a[b], pos_a[b]));
-      temp = c_a[b] - temp;
+      double temp = std::min(0.0,flecsi::dot(v_a_[b], pos_a_[b]));
+      temp = c_a_[b] - temp;
 
       if (temp > vsig){
         vsig = temp;
@@ -209,7 +209,7 @@ namespace viscosity{
     for(int b = 0 ; b < n_nb; ++b){ // Vectorized
       double h_ab = .5*(h_a + h_[b]);
       DiWab = sph_kernel_gradient(pos_a - pos_[b],h_ab);
-      result += m_[b]*flecsi::dot(v_a[b],DiWab)/rho_a;
+      result += m_[b]*flecsi::dot(v_a_[b],DiWab)/rho_a;
     }
 
     double Atrig = A_trigger(particle, nbs, result);
@@ -368,7 +368,7 @@ namespace viscosity{
     // neighbor particles (index 'b')
     const int n_nb = nbs.size();
     double h_[n_nb],m_[n_nb];
-    point_t pos_[n_nb], v_a[n_nb], DiWab;
+    point_t pos_[n_nb], v_a_[n_nb], DiWab;
 
     for(int b = 0; b < n_nb; ++b) {
       const body * const nb = nbs[b];
