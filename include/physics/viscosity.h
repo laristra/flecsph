@@ -182,28 +182,32 @@ namespace viscosity{
     for(int b = 0 ; b < n_nb; ++b){ // Vectorized
       double temp = std::min(0.0,flecsi::dot(v_a[b], pos_a[b]));
       temp = c_a[b] - temp;
+      
       if (temp > vsig){
         vsig = temp;
       }
     }
-    double Atrig = A_trigger(particle, nbs);
-    double alpha_loc = alpha_max*Atrig/(Atrig + SQ(vsig)/SQ(h_a));
 
-    if (alpha_a < alpha_loc){
-      particle.setAlpha(alpha_loc);
-    }
-    else if (alpha_a > alpha_loc){
-      double decayt = h_a/(2.0*viscosity_l*vsig);
-      double dalphadt = (alpha_loc - alpha_a)/decayt;
-      particle.setAlpha(alpha_a + dalphadt*physics::dt);
-    }
-    // compute the final answer
+        // compute the final answer
     for(int b = 0 ; b < n_nb; ++b){ // Vectorized
       double h_ab = .5*(h_a + h_[b]);
       DiWab = sph_kernel_gradient(pos_a - pos_[b],h_ab);
       result += m_[b]*flecsi::dot(v_a[b],DiWab);
     }
     result /= rho_a;
+
+    double Atrig = A_trigger(particle, nbs, result);
+    double alpha_loc = alpha_max*Atrig/(Atrig + SQ(vsig)/SQ(h_a));
+
+    if (alpha_a <= alpha_loc){
+      particle.setAlpha(alpha_loc);
+    }
+    else {
+      double decayt = h_a/(2.0*viscosity_l*vsig);
+      double dalphadt = (alpha_loc - alpha_a)/decayt;
+      particle.setAlpha(alpha_a + dalphadt*physics::dt);
+    }
+
     particle.setDivergenceV(result);
   } // compute_alpha
 
@@ -221,7 +225,8 @@ namespace viscosity{
   inline double
   A_trigger(
     body& particle,
-    std::vector<body*>& nbs)
+    std::vector<body*>& nbs, 
+    const double& DivV_a_new)
   {
 
     using namespace param;
@@ -230,8 +235,8 @@ namespace viscosity{
     double result = 0.0;
     double xi = 0.0;
 
-    compute_DivergenceV(particle, nbs);
-    dDivVdt = (particle.getDivergenceV() - DivV_old)/physics::dt;
+    //compute_DivergenceV(particle, nbs);
+    dDivVdt = (DivV_a_new - DivV_old)/physics::dt;
 
     result = std::max(-dDivVdt,0.0);
 
@@ -303,24 +308,18 @@ namespace viscosity{
       for(int j = 0; j < gdimension; j++){
         for(int b = 0 ; b < n_nb; ++b){
           gradV_a[(gdimension*i)+j] += m_[b]*v_a_[b][i]*DiWa_[b][j];
+          gradV_a[(gdimension*i)+j] /= rho_a; 
         }
       }
     }
-    gradV_a /= rho_a;
 
     // traceless symmetric part of velocity gradient
     for(int i = 0; i < gdimension; i++){
       for(int j = 0; j < gdimension; j++){
         SymT_a[(gdimension*i)+j] = gradV_a[(gdimension*i)+j]+gradV_a[(gdimension*j)+i];
+        SymT_a[(gdimension*i)+j] /= 2;
       }
-    }
-    SymT_a /= 2.0;
-    for(int i = 0; i < gdimension; i++){
       SymT_a[(gdimension*i)+i] -= divV_a/gdimension;
-    }
-
-    // trace of (S S^dagger)
-    for(int i = 0; i < gdimension; i++){
       for(int j = 0; j < gdimension; j++){
         traceSS_a += SymT_a[(gdimension*i)+j]*SymT_a[(gdimension*i)+j];
       }
@@ -382,9 +381,10 @@ namespace viscosity{
    * @return     sign of double
    *
    */
-  double signnum_c(double x) {
-    if (x > 0.0) return 1.0;
-    if (x < 0.0) return -1.0;
+  template<typename T> 
+  T signnum_c(T x) {
+    if (x > 0.0) return T(1);
+    if (x < 0.0) return T(-1);
     return x;
   }
 }; // viscosity
