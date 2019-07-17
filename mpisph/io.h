@@ -961,6 +961,16 @@ void outputDataHDF5(std::vector<body> &bodies, const char *fileprefix,
   H5P_writeDataset(dataFile, "id", bi);
   H5P_writeDataset(dataFile, "type", bint);
 
+  // Pressure, Mass, Id, timestep
+  pos = 0L;
+  // Extract data from bodies
+  for (auto bid : bodies) {
+    b1[pos] = bid.getAlpha();
+    b2[pos++] = bid.getDivergenceV();
+  }
+  H5P_writeDataset(dataFile, "alpha", b1);
+  H5P_writeDataset(dataFile, "divergenceV", b2);
+
   // Output the rank for analysis
   std::fill(bi, bi + IO_nparticlesproc, rank);
   H5P_writeDataset(dataFile, "rank", bi);

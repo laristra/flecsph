@@ -37,7 +37,20 @@ namespace viscosity{
   using namespace param;
   static const double TINY = 1e10*DBL_MIN;
 
-
+  /**
+   * @brief      return the sign of double given to function
+   *
+   * @param      x          The double
+   *
+   * @return     sign of double
+   *
+   */
+  template<typename T>
+  T signnum_c(T x) {
+    if (x > 0.0) return T(1);
+    if (x < 0.0) return T(-1);
+    return x;
+  }
 
   /**
    * @brief      mu_ij for the artificial viscosity
@@ -158,6 +171,129 @@ namespace viscosity{
   } // initialize_alpha
 
   /**
+   * @brief      xi_a for the artificial viscosity:
+   *             calc R_a
+   * From Cullen'10 (arXiv:1006.1524) -
+   * Inviscid SPH, eqs.(17, 18)
+   *
+   * @param      srch       The source particle
+   * @param      nbsh       The neighbor particle
+   *
+   * @return     limiter to reduce unwanted dissipation
+   *
+   */
+  
+  inline double
+  compute_xi(
+    body& particle,
+    std::vector<body*>& nbs)
+  {
+    using namespace param;
+    using namespace kernels;
+
+    // this particle (index 'a')
+    const double divV_a = particle.getDivergenceV(),
+                  rho_a = particle.getDensity(),
+                    h_a = particle.radius();
+    const point_t pos_a = particle.coordinates(),
+                    v_a = particle.getVelocity();
+    double gradV_a[gdimension*gdimension];
+    double SymT_a[gdimension*gdimension];
+    double traceSS_a = 0.0;
+    double R_a = 0.0;
+    double result = 0.0;
+
+    // neighbor particles (index 'b')
+    const int n_nb = nbs.size();
+    double h_[n_nb], m_[n_nb], divV_[n_nb];
+    point_t pos_[n_nb], v_[n_nb], v_a_[n_nb], DiWa_[n_nb];
+
+    for(int b = 0; b < n_nb; ++b) {
+      const body * const nb = nbs[b];
+      pos_[b]  = nb->coordinates();
+      v_[b]    = nb->getVelocity();
+      h_[b]    = nb->radius();
+      divV_[b] = nb->getDivergenceV();
+      m_[b]    = nb->mass() * (pos_[b]!=pos_a); // if same particle, m_b->0
+    }
+
+    // precompute velocity difference and kernel gradients
+    // compute R_a
+    for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+      point_t pos_ab = pos_a - pos_[b];
+      double h_ab = .5*(h_a + h_[b]);
+      v_a_[b]  = v_[b] - v_a;
+      DiWa_[b] = sph_kernel_gradient(pos_ab,h_ab);
+
+      double Wab =  sph_kernel_function(flecsi::distance(pos_a, pos_[b]),h_ab);
+      R_a += signnum_c(divV_[b])*m_[b]*Wab;
+    }
+
+    // calculate the gradient of velocity matrix
+    for(int i = 0; i < gdimension; i++){
+      for(int j = 0; j < gdimension; j++){
+        gradV_a[(gdimension*i)+j] = 0; 
+        for(int b = 0 ; b < n_nb; ++b){
+          gradV_a[(gdimension*i)+j] += m_[b]*v_a_[b][i]*DiWa_[b][j];
+          gradV_a[(gdimension*i)+j] /= rho_a;
+        }
+      }
+    }
+
+    // traceless symmetric part of velocity gradient
+    for(int i = 0; i < gdimension; i++){
+      for(int j = 0; j < gdimension; j++){
+        SymT_a[(gdimension*i)+j] = gradV_a[(gdimension*i)+j]+gradV_a[(gdimension*j)+i];
+        SymT_a[(gdimension*i)+j] /= 2;
+      }
+      SymT_a[(gdimension*i)+i] -= divV_a/gdimension;
+      for(int j = 0; j < gdimension; j++){
+        traceSS_a += SymT_a[(gdimension*i)+j]*SymT_a[(gdimension*i)+j];
+      }
+    }
+    // compute the final answer
+    result = SQ(2.0*QU(1.0-R_a)*divV_a);
+    if(result == 0)
+      return 0; 
+    return result = result/(result + traceSS_a);
+  } // compute_xi
+
+  /**
+   * @brief      A_i for the artificial viscosity
+   * From Cullen'10 (arXiv:1006.1524) -
+   * Inviscid SPH, eq.(13)
+   *
+   * @param      srch       The source particle
+   * @param      nbsh       The neighbor particle
+   *
+   * @return     Trigger for  viscosity
+   *
+   */
+  inline double
+  A_trigger(
+    body& particle,
+    std::vector<body*>& nbs,
+    const double& DivV_a_new)
+  {
+
+    using namespace param;
+    const double DivV_a_old = particle.getDivergenceV();
+    double dDivVdt = 0.0;
+    double result = 0.0;
+    double xi = 0.0;
+
+    //compute_DivergenceV(particle, nbs);
+    dDivVdt = (DivV_a_new - DivV_a_old)/physics::dt;
+
+    result = std::max(-dDivVdt,0.0);
+
+    xi = compute_xi(particle,nbs);
+
+    result = xi*result;
+    return result;
+  } // A_trigger
+
+  /**
    * @brief      alpha parameter for the artificial viscosity
    * From Cullen'10 (arXiv:1006.1524) -
    *
@@ -237,140 +373,7 @@ namespace viscosity{
     particle.setDivergenceV(result);
   } // compute_alpha
 
-  /**
-   * @brief      A_i for the artificial viscosity
-   * From Cullen'10 (arXiv:1006.1524) -
-   * Inviscid SPH, eq.(13)
-   *
-   * @param      srch       The source particle
-   * @param      nbsh       The neighbor particle
-   *
-   * @return     Trigger for  viscosity
-   *
-   */
-  inline double
-  A_trigger(
-    body& particle,
-    std::vector<body*>& nbs,
-    const double& DivV_a_new)
-  {
 
-    using namespace param;
-    const double DivV_a_old = particle.getDivergenceV();
-    double dDivVdt = 0.0;
-    double result = 0.0;
-    double xi = 0.0;
-
-    //compute_DivergenceV(particle, nbs);
-    dDivVdt = (DivV_a_new - DivV_a_old)/physics::dt;
-
-    result = std::max(-dDivVdt,0.0);
-
-    xi = compute_xi(particle,nbs);
-
-    result = xi*result;
-    return result;
-  } // A_trigger
-
-  /**
-   * @brief      xi_a for the artificial viscosity:
-   *             calc R_a
-   * From Cullen'10 (arXiv:1006.1524) -
-   * Inviscid SPH, eqs.(17, 18)
-   *
-   * @param      srch       The source particle
-   * @param      nbsh       The neighbor particle
-   *
-   * @return     limiter to reduce unwanted dissipation
-   *
-   */
-  inline double
-  compute_xi(
-    body& particle,
-    std::vector<body*>& nbs)
-  {
-    using namespace param;
-    using namespace kernels;
-
-    // this particle (index 'a')
-    const double divV_a = particle.getDivergenceV(),
-                  rho_a = particle.getDensity(),
-                    h_a = particle.radius();
-    const point_t pos_a = particle.coordinates(),
-                    v_a = particle.getVelocity();
-    double gradV_a[gdimension*gdimension];
-    double SymT_a[gdimension*gdimension];
-    double traceSS_a = 0.0;
-    double R_a = 0.0;
-    double result = 0.0;
-
-    // neighbor particles (index 'b')
-    const int n_nb = nbs.size();
-    double h_[n_nb], m_[n_nb], divV_[n_nb];
-    point_t pos_[n_nb], v_[n_nb], v_a_[n_nb], DiWa_[n_nb];
-
-    for(int b = 0; b < n_nb; ++b) {
-      const body * const nb = nbs[b];
-      pos_[b]  = nb->coordinates();
-      v_[b]    = nb->getVelocity();
-      h_[b]    = nb->radius();
-      divV_[b] = nb->getDivergenceV();
-      m_[b]    = nb->mass() * (pos_[b]!=pos_a); // if same particle, m_b->0
-    }
-
-    // precompute velocity difference and kernel gradients
-    // compute R_a
-    for(int b = 0 ; b < n_nb; ++b){ // Vectorized
-      const point_t pos_ab = point_to_vector(pos_a - pos_[b]);
-      double h_ab = .5*(h_a + h_[b]);
-      v_a_[b]  = point_to_vector(v_[b] - v_a);
-      DiWa_[b] = sph_kernel_gradient(pos_ab,h_ab);
-
-      double Wab =  sph_kernel_function(flecsi::distance(pos_a, pos_[b]),h_ab);
-      R_a += signnum_c(divV_[b])*m_[b]*Wab;
-    }
-
-    // calculate the gradient of velocity matrix
-    for(int i = 0; i < gdimension; i++){
-      for(int j = 0; j < gdimension; j++){
-        for(int b = 0 ; b < n_nb; ++b){
-          gradV_a[(gdimension*i)+j] += m_[b]*v_a_[b][i]*DiWa_[b][j];
-          gradV_a[(gdimension*i)+j] /= rho_a;
-        }
-      }
-    }
-
-    // traceless symmetric part of velocity gradient
-    for(int i = 0; i < gdimension; i++){
-      for(int j = 0; j < gdimension; j++){
-        SymT_a[(gdimension*i)+j] = gradV_a[(gdimension*i)+j]+gradV_a[(gdimension*j)+i];
-        SymT_a[(gdimension*i)+j] /= 2;
-      }
-      SymT_a[(gdimension*i)+i] -= divV_a/gdimension;
-      for(int j = 0; j < gdimension; j++){
-        traceSS_a += SymT_a[(gdimension*i)+j]*SymT_a[(gdimension*i)+j];
-      }
-    }
-
-    // compute the final answer
-    result = SQ(2.0*QU(1.0-R_a)*divV_a);
-    return result = result/(result + traceSS_a);
-  } // compute_xi
-
-  /**
-   * @brief      return the sign of double given to function
-   *
-   * @param      x          The double
-   *
-   * @return     sign of double
-   *
-   */
-  template<typename T>
-  T signnum_c(T x) {
-    if (x > 0.0) return T(1);
-    if (x < 0.0) return T(-1);
-    return x;
-  }
 }; // viscosity
 #undef SQ
 #undef QU
