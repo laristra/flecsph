@@ -288,7 +288,8 @@ namespace viscosity{
     result = std::max(-dDivVdt,0.0);
 
     xi = compute_xi(particle,nbs);
-
+    particle.setXi(xi);
+    particle.setTrigger(result);
     result = xi*result;
     return result;
   } // A_trigger

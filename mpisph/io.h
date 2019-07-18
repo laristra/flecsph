@@ -865,6 +865,7 @@ void outputDataHDF5(std::vector<body> &bodies, const char *fileprefix,
   double *b1 = new double[IO_nparticlesproc];
   double *b2 = new double[IO_nparticlesproc];
   double *b3 = new double[IO_nparticlesproc];
+  double *b4 = new double[IO_nparticlesproc];
   int64_t *bi = new int64_t[IO_nparticlesproc];
   int32_t *bint = new int32_t[IO_nparticlesproc];
 
@@ -966,10 +967,14 @@ void outputDataHDF5(std::vector<body> &bodies, const char *fileprefix,
   // Extract data from bodies
   for (auto bid : bodies) {
     b1[pos] = bid.getAlpha();
-    b2[pos++] = bid.getDivergenceV();
+    b2[pos] = bid.getDivergenceV();
+    b3[pos] = bid.getTrigger();
+    b4[pos++] = bid.getXi();
   }
   H5P_writeDataset(dataFile, "alpha", b1);
   H5P_writeDataset(dataFile, "divergenceV", b2);
+  H5P_writeDataset(dataFile, "trigger", b3);
+  H5P_writeDataset(dataFile, "xi", b4);
 
   // Output the rank for analysis
   std::fill(bi, bi + IO_nparticlesproc, rank);

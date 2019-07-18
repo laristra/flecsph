@@ -112,6 +112,10 @@ public:
     double getAlpha() const{return alpha_;}
     void setDivergenceV(double divergenceV){divergenceV_ = divergenceV;};
     double getDivergenceV() const{return divergenceV_;}
+    void setTrigger(double trigger){trigger_ = trigger;};
+    double getTrigger() const{return trigger_;}
+    void setXi(double xi){xi_ = xi;};
+    double getXi() const{return xi_;}
 
     void setNeighbors(const size_t& neighbors) { neighbors_ = neighbors;}
     size_t getNeighbors() const {return neighbors_;}
@@ -154,6 +158,8 @@ private:
   double maxmachnumber_;
   double alpha_;
   double divergenceV_;
+  double trigger_;
+  double xi_;
   particle_type_t type_;
   size_t neighbors_;
 }; // class body
