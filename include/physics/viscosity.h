@@ -182,7 +182,7 @@ namespace viscosity{
    * @return     limiter to reduce unwanted dissipation
    *
    */
-  
+
   inline double
   compute_xi(
     body& particle,
@@ -232,7 +232,7 @@ namespace viscosity{
     // calculate the gradient of velocity matrix
     for(int i = 0; i < gdimension; i++){
       for(int j = 0; j < gdimension; j++){
-        gradV_a[(gdimension*i)+j] = 0; 
+        gradV_a[(gdimension*i)+j] = 0;
         for(int b = 0 ; b < n_nb; ++b){
           gradV_a[(gdimension*i)+j] += m_[b]*v_a_[b][i]*DiWa_[b][j];
           gradV_a[(gdimension*i)+j] /= rho_a;
@@ -251,10 +251,11 @@ namespace viscosity{
         traceSS_a += SymT_a[(gdimension*i)+j]*SymT_a[(gdimension*i)+j];
       }
     }
+    particle.setTraceSS(traceSS_a);
     // compute the final answer
     result = SQ(2.0*QU(1.0-R_a)*divV_a);
     if(result == 0)
-      return 0; 
+      return 0;
     return result = result/(result + traceSS_a);
   } // compute_xi
 

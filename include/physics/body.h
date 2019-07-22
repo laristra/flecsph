@@ -56,7 +56,7 @@ public:
   point_t getVelocity() const{return velocity_;}
   point_t getVelocityhalf() const{return velocityhalf_;}
   point_t getAcceleration() const{return acceleration_;}
-  particle_type_t type() const {return type_;};
+  particle_type_t type() const {return type_;}
 
   point_t getLinMomentum() const {
     point_t res = {};
@@ -67,8 +67,8 @@ public:
   };
   double getDt(){return dt_;};
   double getMumax(){return mumax_;}
-  particle_type_t getType() const {return type_;};
-  bool is_wall(){return type_ == 1;};
+  particle_type_t getType() const {return type_;}
+  bool is_wall(){return type_ == 1;}
 
   void setAcceleration(const point_t& acceleration)
   {
@@ -98,24 +98,26 @@ public:
         {internalenergy_=internalenergy;}
     double getTotalenergy() const{return totalenergy_;}
     void setTotalenergy(double totalenergy) {totalenergy_=totalenergy;}
-    void setDudt(double dudt){dudt_ = dudt;};
-    void setDedt(double dedt){dedt_ = dedt;};
-    double getDudt(){return dudt_;};
-    double getDedt(){return dedt_;};
+    void setDudt(double dudt){dudt_ = dudt;}
+    void setDedt(double dedt){dedt_ = dedt;}
+    double getDudt(){return dudt_;}
+    double getDedt(){return dedt_;}
     double getAdiabatic() const{return adiabatic_;}
-    void setAdiabatic(double adiabatic){adiabatic_ = adiabatic;};
-    double getDadt() const{return dadt_;};
-    void setDadt(double dadt){dadt_ = dadt;};
-    void setMaxmachnumber(double maxmachnumber){maxmachnumber_ = maxmachnumber;};
+    void setAdiabatic(double adiabatic){adiabatic_ = adiabatic;}
+    double getDadt() const{return dadt_;}
+    void setDadt(double dadt){dadt_ = dadt;}
+    void setMaxmachnumber(double maxmachnumber){maxmachnumber_ = maxmachnumber;}
     double getMaxmachnumber() const{return maxmachnumber_;}
-    void setAlpha(double alpha){alpha_ = alpha;};
+    void setAlpha(double alpha){alpha_ = alpha;}
     double getAlpha() const{return alpha_;}
-    void setDivergenceV(double divergenceV){divergenceV_ = divergenceV;};
+    void setDivergenceV(double divergenceV){divergenceV_ = divergenceV;}
     double getDivergenceV() const{return divergenceV_;}
-    void setTrigger(double trigger){trigger_ = trigger;};
+    void setTrigger(double trigger){trigger_ = trigger;}
     double getTrigger() const{return trigger_;}
-    void setXi(double xi){xi_ = xi;};
+    void setXi(double xi){xi_ = xi;}
     double getXi() const{return xi_;}
+    void setTraceSS(double traceSS){traceSS_ = traceSS;}
+    double getTraceSS() const{return traceSS_;}
 
     void setNeighbors(const size_t& neighbors) { neighbors_ = neighbors;}
     size_t getNeighbors() const {return neighbors_;}
@@ -160,6 +162,7 @@ private:
   double divergenceV_;
   double trigger_;
   double xi_;
+  double traceSS_;
   particle_type_t type_;
   size_t neighbors_;
 }; // class body

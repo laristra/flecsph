@@ -953,12 +953,14 @@ void outputDataHDF5(std::vector<body> &bodies, const char *fileprefix,
     b1[pos] = bid.getPressure();
     b2[pos] = bid.mass();
     b3[pos] = bid.getDt();
+    b4[pos] = bid.getTraceSS();
     bi[pos] = bid.id();
     bint[pos++] = bid.getType();
   }
   H5P_writeDataset(dataFile, "P", b1);
   H5P_writeDataset(dataFile, "m", b2);
   H5P_writeDataset(dataFile, "dt", b3);
+  H5P_writeDataset(dataFile, "traceSS", b4);
   H5P_writeDataset(dataFile, "id", bi);
   H5P_writeDataset(dataFile, "type", bint);
 
@@ -997,6 +999,7 @@ void outputDataHDF5(std::vector<body> &bodies, const char *fileprefix,
   delete[] b1;
   delete[] b2;
   delete[] b3;
+  delete[] b4;
   delete[] bi;
   delete[] bint;
 
