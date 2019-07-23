@@ -126,7 +126,7 @@ namespace viscosity{
     const double & mu_ab)
   {
     using namespace param;
-    double alpha = (alpha_a+alpha_b)/2.0;
+    double alpha = 0.5*(alpha_a+alpha_b);
     double res = ( -alpha*c_ab
                   + 2.0*alpha*mu_ab)*mu_ab/rho_ab;
     //mpi_assert(res>=0.0);
@@ -214,15 +214,15 @@ namespace viscosity{
       v_[b]    = nb->getVelocity();
       h_[b]    = nb->radius();
       divV_[b] = nb->getDivergenceV();
-      m_[b]    = nb->mass() * (pos_[b]!=pos_a); // if same particle, m_b->0
+      m_[b]    = nb->mass();
     }
 
     // precompute velocity difference and kernel gradients
     // compute R_a
-    for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+    for(int b = 0 ; b < n_nb; ++b){
       point_t pos_ab = pos_a - pos_[b];
       double h_ab = .5*(h_a + h_[b]);
-      v_a_[b]  = v_[b] - v_a;
+      v_a_[b]  = v_a - v_[b];
       DiWa_[b] = sph_kernel_gradient(pos_ab,h_ab);
 
       double Wab =  sph_kernel_function(flecsi::distance(pos_a, pos_[b]),h_ab);
@@ -234,17 +234,17 @@ namespace viscosity{
       for(int j = 0; j < gdimension; j++){
         gradV_a[(gdimension*i)+j] = 0;
         for(int b = 0 ; b < n_nb; ++b){
-          gradV_a[(gdimension*i)+j] += m_[b]*v_a_[b][i]*DiWa_[b][j];
-          gradV_a[(gdimension*i)+j] /= rho_a;
+          gradV_a[(gdimension*i)+j] += m_[b]*(-v_a_[b][i])*DiWa_[b][j];
         }
+        gradV_a[(gdimension*i)+j] /= rho_a;
       }
     }
+    particle.setGradV(gradV_a[0]);
 
     // traceless symmetric part of velocity gradient
     for(int i = 0; i < gdimension; i++){
       for(int j = 0; j < gdimension; j++){
-        SymT_a[(gdimension*i)+j] = gradV_a[(gdimension*i)+j]+gradV_a[(gdimension*j)+i];
-        SymT_a[(gdimension*i)+j] /= 2;
+        SymT_a[(gdimension*i)+j] = 0.5*(gradV_a[(gdimension*i)+j]+gradV_a[(gdimension*j)+i]);
       }
       SymT_a[(gdimension*i)+i] -= divV_a/gdimension;
       for(int j = 0; j < gdimension; j++){
@@ -333,12 +333,12 @@ namespace viscosity{
       v_a_[b]   = v_a - nb->getVelocity();
       c_a_[b] = 0.5*(c_a + nb->getSoundspeed());
       h_[b]     = nb->radius();
-      m_[b]     = nb->mass() * (pos_[b]!=pos_a); // if same particle, m_b->0
+      m_[b]     = nb->mass();
     }
 
     // compute signal velocity
     double vsig = 0.0;
-    for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+    for(int b = 0 ; b < n_nb; ++b){
       double dotval = v_a_[b][0]*pos_a_[b][0];
       for (unsigned short i=1; i<gdimension; ++i)
         dotval += v_a_[b][i]*pos_a_[b][i];
@@ -354,12 +354,12 @@ namespace viscosity{
     for(int b = 0 ; b < n_nb; ++b){ // Vectorized
       double h_ab = .5*(h_a + h_[b]);
       DiWab = sph_kernel_gradient(pos_a - pos_[b],h_ab);
-      double dotval = v_a_[b][0]*DiWab[0];
+      double dotval = -v_a_[b][0]*DiWab[0];
       for (unsigned short i=1; i<gdimension; ++i)
-        dotval += v_a_[b][i]*DiWab[i];
-      result += m_[b]*dotval/rho_a;
+        dotval += -v_a_[b][i]*DiWab[i];
+      result += m_[b]*dotval;
     }
-
+    result /= rho_a;
     double Atrig = A_trigger(particle, nbs, result);
     double alpha_loc = sph_viscosity_alpha_max*Atrig/(Atrig + SQ(vsig)/SQ(h_a));
 

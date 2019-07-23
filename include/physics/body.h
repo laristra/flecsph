@@ -118,6 +118,8 @@ public:
     double getXi() const{return xi_;}
     void setTraceSS(double traceSS){traceSS_ = traceSS;}
     double getTraceSS() const{return traceSS_;}
+    void setGradV(double gradv){gradv_ = gradv;}
+    double getGradV() const{return gradv_;}
 
     void setNeighbors(const size_t& neighbors) { neighbors_ = neighbors;}
     size_t getNeighbors() const {return neighbors_;}
@@ -163,6 +165,7 @@ private:
   double trigger_;
   double xi_;
   double traceSS_;
+  double gradv_;
   particle_type_t type_;
   size_t neighbors_;
 }; // class body

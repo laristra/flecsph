@@ -914,6 +914,7 @@ void outputDataHDF5(std::vector<body> &bodies, const char *fileprefix,
   // Extract data from bodies
   for (auto bi : bodies) {
     b1[pos] = bi.getAcceleration()[0];
+    b4[pos] = bi.getGradV();
     if (gdimension > 1) {
       b2[pos] = bi.getAcceleration()[1];
     } else {
@@ -928,6 +929,7 @@ void outputDataHDF5(std::vector<body> &bodies, const char *fileprefix,
   H5P_writeDataset(dataFile, "ax", b1);
   H5P_writeDataset(dataFile, "ay", b2);
   H5P_writeDataset(dataFile, "az", b3);
+  H5P_writeDataset(dataFile, "gradV", b4);
 
   // Smoothing length, Density, Internal Energy
   pos = 0L;
