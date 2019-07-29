@@ -319,7 +319,7 @@ namespace viscosity{
              alpha_a = particle.getAlpha(),
                rho_a = particle.getDensity();
     const point_t pos_a = particle.coordinates(),
-                    v_a = particle.getVelocityhalf();
+                    v_a = particle.getVelocity();
 
     // neighbor particles (index 'b')
     const int n_nb = nbs.size();
