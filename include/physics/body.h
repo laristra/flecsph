@@ -48,6 +48,7 @@ public:
    body_u(): flecsi::topology::entity<gdimension,type_t,KEY>(),
     type_(NORMAL){};
 
+  double getMass() const{return mass_;}
   double getPressure() const{return pressure_;}
   double getSoundspeed() const{return soundspeed_;}
   double getEntropy() const{return entropy_;}

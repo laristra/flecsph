@@ -71,6 +71,22 @@ target_link_libraries(hydro_3d ${FleCSPH_LIBRARIES})
 target_compile_definitions(hydro_3d PUBLIC -DEXT_GDIMENSION=3)
 install(TARGETS hydro_3d RUNTIME DESTINATION bin/drivers)
 
+
+#------------------------------------------------------------------------------#
+# WVT drivers
+#------------------------------------------------------------------------------#
+
+# 2D-version
+add_executable(wvt_2d
+  wvt/main.cc
+  wvt/main_driver.cc
+  ${FleCSI_RUNTIME}/runtime_driver.cc
+)
+target_link_libraries(wvt_2d ${FleCSPH_LIBRARIES})
+target_compile_definitions(wvt_2d PUBLIC -DEXT_GDIMENSION=2)
+install(TARGETS wvt_2d RUNTIME DESTINATION bin/drivers)
+
+
 #------------------------------------------------------------------------------#
 # Hydro drivers with Newtonian gravity
 #------------------------------------------------------------------------------#

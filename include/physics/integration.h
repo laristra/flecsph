@@ -107,9 +107,47 @@ namespace integration{
    * @param      srch  The source's body holder
    */
   void
-  leapfrog_drift (body& source) {
-    source.set_coordinates(source.coordinates()
-                   + physics::dt*source.getVelocity());
+  leapfrog_drift (body& source) {    
+    point_t rp = source.coordinates() + 0.01*source.radius()*source.getAcceleration();
+  
+    double r = sqrt(rp[0]*rp[0] + rp[1]*rp[1]);
+    double theta = atan2(rp[1],rp[0]); 
+
+    point_t vp = source.getVelocity();
+    double vr = cos(theta)*vp[0] + sin(theta)*vp[1];
+    double vt = -sin(theta)*vp[0] + cos(theta)*vp[1];
+
+/*
+    if (r > 1.0) {
+        rp = source.coordinates();
+        r = sqrt(rp[0]*rp[0] + rp[1]*rp[1]);
+        vp = 0.0;
+        source.setVelocity(vp);
+    }
+*/
+
+    if (r/sphere_radius >= 1.00) {
+        if ((rp[0]*vp[0] + rp[1]*vp[1]) <= 0.0) {
+            vr = -1.0*vr;
+        }
+        vp[0] = cos(theta)*vr - r*sin(theta)*vt;
+        vp[1] = sin(theta)*vr + r*cos(theta)*vt;
+        r = r - 2.0*(r - sphere_radius);
+        rp[0] = r*cos(theta);
+        rp[1] = r*sin(theta);
+        source.setVelocity(vp);
+    }
+
+    double rho = (1.0/sqrt(2.0*M_PI*0.1))*(exp(-r*r/(2*0.1)));
+    if (r > 1.0) {
+      rho = (1.0/sqrt(2.0*M_PI*0.1))*(exp(-1.0*1.0/(2*0.1)));
+    }
+
+    double mass = source.getMass();
+    double h_a = sph_eta * kernels::kernel_width
+          * pow(mass/rho,1./gdimension);
+    source.set_radius(h_a);
+    source.set_coordinates(rp);
   }
 
 }; // integration
