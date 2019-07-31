@@ -228,6 +228,7 @@ namespace viscosity{
       double Wab =  sph_kernel_function(flecsi::distance(pos_a, pos_[b]),h_ab);
       R_a += signnum_c(divV_[b])*m_[b]*Wab;
     }
+    R_a /= rho_a;
 
     // calculate the gradient of velocity matrix
     for(int i = 0; i < gdimension; i++){
