@@ -66,36 +66,40 @@ namespace physics{
       std::vector<body*>& nbs)
   {
     using namespace kernels;
-    const double h_a = particle.radius();
-    const point_t pos_a = particle.coordinates();
-    const int n_nb = nbs.size();
-    mpi_assert(n_nb>0);
-
-    double r_a_[n_nb], m_[n_nb], h_[n_nb];
-    for(int b = 0 ; b < n_nb; ++b){
-      const body * const nb = nbs[b];
-      m_[b]  = nb->mass();
-      h_[b]  = nb->radius();
-      point_t pos_b = nb->coordinates();
-      r_a_[b] = flecsi::distance(pos_a, pos_b);
-    }
-
     double rho_a = 0.0;
-    for(int b = 0 ; b < n_nb; ++b){ // Vectorized
-      double Wab =  sph_kernel_function(r_a_[b],.5*(h_a+h_[b]));
-      rho_a += m_[b]*Wab;
-    } // for
-    if (not (rho_a>0)) {
-      std::cout << "Density of a particle is not a positive number: "
-                << "rho = " << rho_a << std::endl;
-      std::cout << "Failed particle id: " << particle.id() << std::endl;
-      std::cerr << "particle position: " << particle.coordinates() << std::endl;
-      std::cerr << "particle velocity: " << particle.getVelocity() << std::endl;
-      std::cerr << "particle acceleration: " << particle.getAcceleration() << std::endl;
-      std::cerr << "smoothing length:  " << particle.radius()
-                                         << std::endl;
-      assert (false);
+    const double h_a = particle.radius();
+    if (h_a > 0) {
+      const point_t pos_a = particle.coordinates();
+      const int n_nb = nbs.size();
+      mpi_assert(n_nb>0);
+    
+      double r_a_[n_nb], m_[n_nb], h_[n_nb];
+      for(int b = 0 ; b < n_nb; ++b){
+        const body * const nb = nbs[b];
+        m_[b]  = nb->mass();
+        h_[b]  = nb->radius();
+        point_t pos_b = nb->coordinates();
+        r_a_[b] = flecsi::distance(pos_a, pos_b);
+      }
+
+      //double rho_a = 0.0;
+      for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+        double Wab =  sph_kernel_function(r_a_[b],.5*(h_a+h_[b]));
+        rho_a += m_[b]*Wab;
+      } // for
+      if (not (rho_a>0)) {
+        std::cout << "Density of a particle is not a positive number: "
+                  << "rho = " << rho_a << std::endl;
+        std::cout << "Failed particle id: " << particle.id() << std::endl;
+        std::cerr << "particle position: " << particle.coordinates() << std::endl;
+        std::cerr << "particle velocity: " << particle.getVelocity() << std::endl;
+        std::cerr << "particle acceleration: " << particle.getAcceleration() << std::endl;
+        std::cerr << "smoothing length:  " << particle.radius()
+                                           << std::endl;
+        assert (false);
+      }
     }
+
     particle.setDensity(rho_a);
   } // compute_density
 
@@ -187,31 +191,52 @@ namespace physics{
     using namespace viscosity;
     using namespace kernels;
 
-    // Reset the acceleration
+    // Reset the accelerastion
     // \TODO add a function to reset in main_driver
 
     // this particle (index 'a')
-    const double h_a = particle.radius();
-    const point_t pos_a = particle.coordinates();
+    const double h_a = particle.radius(),
+               rho_a = particle.getDensity(),
+                 P_a = particle.getPressure(),
+                 c_a = particle.getSoundspeed();
+    const point_t pos_a = particle.coordinates(),
+                  v12_a = particle.getVelocityhalf();
 
     // neighbor particles (index 'b')
     const int n_nb = nbs.size();
-
-    point_t acc_a = 0.0;
-    point_t res = 0.0;
+    double rho_[n_nb],P_[n_nb],h_[n_nb],m_[n_nb],c_[n_nb],Pi_a_[n_nb];
+    point_t pos_[n_nb], v12_[n_nb], DiWa_[n_nb];
 
     for(int b = 0; b < n_nb; ++b) {
       const body * const nb = nbs[b];
-      double h_b   = nb->radius();
-      double h_ab = (h_a + h_b)/2.0;
-
-      point_t pos_b = nb->coordinates();
-      double dist = flecsi::distance(pos_a,pos_b);
-      double dist_c = dist + 0.1*h_a;
-      res = h_ab*h_ab/(dist_c*dist_c*dist_c)*(pos_a-pos_b);
-      acc_a += res;
+      rho_[b] = nb->getDensity();
+      P_[b]   = nb->getPressure();
+      pos_[b] = nb->coordinates();
+      v12_[b] = nb->getVelocityhalf();
+      c_[b]   = nb->getSoundspeed();
+      h_[b]   = nb->radius();
+      m_[b]   = nb->mass() * (pos_[b]!=pos_a); // if same particle, m_b->0
     }
 
+    // precompute viscosity and kernel gradients
+    particle.setMumax(0.0);  // needed for adaptive timestep calculation
+    for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+      const space_vector_t v12_ab = point_to_vector(v12_a - v12_[b]);
+      const space_vector_t pos_ab = point_to_vector(pos_a - pos_[b]);
+      double h_ab = .5*(h_a + h_[b]);
+      double mu_ab = mu(h_ab, v12_ab, pos_ab);
+      Pi_a_[b] = artificial_viscosity(.5*(rho_a+rho_[b]),.5*(c_a+c_[b]),mu_ab);
+      DiWa_[b] = sph_kernel_gradient(pos_a - pos_[b],h_ab);
+    }
+
+    // compute the final answer
+    const double Prho2_a = P_a/(rho_a*rho_a);
+    point_t acc_a = 0.0;
+    for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+      const double Prho2_b = P_[b]/(rho_[b]*rho_[b]);
+      acc_a += -m_[b]*(Prho2_a + Prho2_b + Pi_a_[b])*DiWa_[b];
+    }
+    acc_a += external_force::acceleration(particle);
     particle.setAcceleration(acc_a);
   } // compute_hydro_acceleration
 
@@ -225,7 +250,7 @@ namespace physics{
     point_t       acc = particle.getAcceleration();
     const point_t vel = particle.getVelocity();
     acc += external_force::acceleration_drag(vel);
-    //particle.setAcceleration(acc);
+    particle.setAcceleration(acc);
   } // add_drag_acceleration
 
 
@@ -270,7 +295,7 @@ namespace physics{
       acc_r += m_b*(pos_a - pos_b)/(r_ab*r_ab*r_ab);
     }
     acc_r *= relaxation_repulsion_gamma;
-    //particle.setAcceleration(acc_a + acc_r);
+    particle.setAcceleration(acc_a + acc_r);
   } // add_short_range_repulsion
 
 
@@ -547,46 +572,6 @@ namespace physics{
 
 
   void
-  compute_smoothinglength_wvt(
-      std::vector<body>& bodies)
-  {
-    double Vsph = 0.0;
-    double scaling = 1.0;    
-
-    if (gdimension == 1) {
-      #pragma omp parallel for
-      for(size_t i = 0 ; i < bodies.size(); ++i){
-        double m_b   = bodies[i].mass();
-        double rho_b = bodies[i].getDensity();
-        bodies[i].set_radius(
-          m_b/rho_b * sph_eta*kernels::kernel_width);
-      }
-    }
-    else if (gdimension == 2) {
-      double h_a = 0.0;
-      for(size_t i = 0 ; i < bodies.size(); ++i){
-        h_a = bodies[i].radius();
-        Vsph += M_PI*4.0*h_a*h_a;
-      }
-      #pragma omp parallel for
-      for(size_t i = 0 ; i < bodies.size(); ++i){
-        scaling = sqrt(M_PI*sphere_radius*sphere_radius*20.0/Vsph);
-        bodies[i].set_radius(scaling * h_a);
-      }
-      std::cout << Vsph << " " << M_PI*sphere_radius*sphere_radius*20.0 << " " << scaling << std::endl;
-    }
-    else {
-      #pragma omp parallel for
-      for(size_t i = 0 ; i < bodies.size(); ++i){
-        double m_b   = bodies[i].mass();
-        double rho_b = bodies[i].getDensity();
-        bodies[i].set_radius(
-          cbrt(m_b/rho_b) * sph_eta*kernels::kernel_width);
-      }
-    } // if gdimension
-  }
-
-  void
   compute_smoothinglength(
       std::vector<body>& bodies)
   {
@@ -618,7 +603,6 @@ namespace physics{
       }
     } // if gdimension
   }
-
 
   /**
    * @brief update smoothing length for particles (Rosswog'09, eq.51)
