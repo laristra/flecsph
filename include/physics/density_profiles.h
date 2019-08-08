@@ -57,49 +57,6 @@ namespace density_profiles {
   static std::vector<double> drhodr_grid;
 
   /**
-   * @brief  gaussian density domain of radius R = 1,
-   *         M = 1, and maximum density 1.60235 (2D), 
-   *         2.0458 (3D) for sigma2 = 0.1
-   *         
-   *    rho = 1/(sqrt(2*Pi*sigma**2) * exp(-r**2/(2*sigma**2))
-   *
-   * @param  r     - spherical radius
-   */
-  double rho_gaussian_density(const double r) {
-    using namespace param;
-
-    double sigma2 = 0.1;
-    double coeff  = 1.0/(2.0*sigma2);
-
-    double norm_inner = 1.0;
-    double norm_outer = 0.0;
-
-    double sr = param::sphere_radius;
-    
-    double rho = 1.0*exp(-r*r*coeff);
-    if (r > 1.0) {
-      rho = exp(-1.0*coeff);
-    }
-
-    if constexpr (gdimension == 2) {
-      norm_inner = 2.0*M_PI*(1.0 - exp(-1.0*coeff))*sigma2;
-      if (r > 1.0) {
-        norm_outer = rho*M_PI*(sr*sr - 1.0);
-      }
-    }
-    if constexpr (gdimension == 3) {
-      norm_inner = 4.0*M_PI*(-sigma2*exp(-1.0*coeff) 
-                 + 1.25331*sqrt(sigma2*sigma2*sigma2)
-                 *erf(sqrt(coeff)));
-      if (r > 1.0) {
-        norm_outer = rho*(4.0*M_PI/3.0)*(sr*sr*sr - 1.0);
-      }
-    }      
-    return rho/(norm_inner);
-  }
-
-
-  /**
    * @brief  constant uniform density in a domain of radius R = 1,
    *         normalized such that the total mass M = 1
    * @param  r     - spherical radius

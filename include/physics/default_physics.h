@@ -66,40 +66,36 @@ namespace physics{
       std::vector<body*>& nbs)
   {
     using namespace kernels;
-    double rho_a = 0.0;
     const double h_a = particle.radius();
-    if (h_a > 0) {
-      const point_t pos_a = particle.coordinates();
-      const int n_nb = nbs.size();
-      mpi_assert(n_nb>0);
-    
-      double r_a_[n_nb], m_[n_nb], h_[n_nb];
-      for(int b = 0 ; b < n_nb; ++b){
-        const body * const nb = nbs[b];
-        m_[b]  = nb->mass();
-        h_[b]  = nb->radius();
-        point_t pos_b = nb->coordinates();
-        r_a_[b] = flecsi::distance(pos_a, pos_b);
-      }
+    const point_t pos_a = particle.coordinates();
+    const int n_nb = nbs.size();
+    mpi_assert(n_nb>0);
 
-      //double rho_a = 0.0;
-      for(int b = 0 ; b < n_nb; ++b){ // Vectorized
-        double Wab =  sph_kernel_function(r_a_[b],.5*(h_a+h_[b]));
-        rho_a += m_[b]*Wab;
-      } // for
-      if (not (rho_a>0)) {
-        std::cout << "Density of a particle is not a positive number: "
-                  << "rho = " << rho_a << std::endl;
-        std::cout << "Failed particle id: " << particle.id() << std::endl;
-        std::cerr << "particle position: " << particle.coordinates() << std::endl;
-        std::cerr << "particle velocity: " << particle.getVelocity() << std::endl;
-        std::cerr << "particle acceleration: " << particle.getAcceleration() << std::endl;
-        std::cerr << "smoothing length:  " << particle.radius()
-                                           << std::endl;
-        assert (false);
-      }
+    double r_a_[n_nb], m_[n_nb], h_[n_nb];
+    for(int b = 0 ; b < n_nb; ++b){
+      const body * const nb = nbs[b];
+      m_[b]  = nb->mass();
+      h_[b]  = nb->radius();
+      point_t pos_b = nb->coordinates();
+      r_a_[b] = flecsi::distance(pos_a, pos_b);
     }
 
+    double rho_a = 0.0;
+    for(int b = 0 ; b < n_nb; ++b){ // Vectorized
+      double Wab =  sph_kernel_function(r_a_[b],.5*(h_a+h_[b]));
+      rho_a += m_[b]*Wab;
+    } // for
+    if (not (rho_a>0)) {
+      std::cout << "Density of a particle is not a positive number: "
+                << "rho = " << rho_a << std::endl;
+      std::cout << "Failed particle id: " << particle.id() << std::endl;
+      std::cerr << "particle position: " << particle.coordinates() << std::endl;
+      std::cerr << "particle velocity: " << particle.getVelocity() << std::endl;
+      std::cerr << "particle acceleration: " << particle.getAcceleration() << std::endl;
+      std::cerr << "smoothing length:  " << particle.radius()
+                                         << std::endl;
+      assert (false);
+    }
     particle.setDensity(rho_a);
   } // compute_density
 
@@ -603,6 +599,7 @@ namespace physics{
       }
     } // if gdimension
   }
+
 
   /**
    * @brief update smoothing length for particles (Rosswog'09, eq.51)

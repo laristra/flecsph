@@ -29,68 +29,9 @@
 #include <vector>
 
 #include "params.h"
-#include "utils.h"
-#include "user.h"
-#include "kernels.h"
-#include "tree.h"
-
 
 namespace integration{
   using namespace param;
-
-  /** 
-   * @brief:    Converts cartesian particle coordinates into 
-   *            spherical 
-   *
-   * @param     pos_c   Particle position in cartesian coord.
-   */
-  point_t
-  cartesian_to_spherical (const point_t& pos_c) {
-    double r = norm2(pos_c);
-    point_t pos_s = 0.0;
-
-    if (gdimension == 1) {
-      pos_s[0] = r;
-    }
-    else if (gdimension == 2) {
-      pos_s[0] = r;
-      pos_s[1] = atan2(pos_c[1],pos_c[0]);
-    }
-    else {
-      pos_s[0] = r;
-      pos_s[1] = atan2(pos_c[1],pos_c[0]);
-      pos_s[2] = acos(pos_c[2]/r);
-    }
-    return pos_s;
-  }
-
-
-  /** 
-   * @brief:    Converts spherical particle coordinates into 
-   *            cartesian 
-   *
-   * @param     pos_s   Particle position in spherical coord.
-   */
-  point_t
-  spherical_to_cartesian (const point_t& pos_s) {
-    double r = pos_s[0];
-    point_t pos_c = 0.0;
-
-    if (gdimension == 1) {
-      pos_c[0] = r;
-    }
-    else if (gdimension == 2) {
-      pos_c[0] = r*cos(pos_s[1]);
-      pos_c[1] = r*sin(pos_s[1]);
-    }
-    else {
-      pos_c[0] = r*sin(pos_s[2])*cos(pos_s[1]);
-      pos_c[1] = r*sin(pos_s[2])*sin(pos_s[1]);
-      pos_c[2] = r*cos(pos_s[2]);
-    }
-    return pos_c;
-  }
-
 
   /**
    * @brief      Integrate the internal energy variation, update internal energy
@@ -171,7 +112,6 @@ namespace integration{
                    + physics::dt*source.getVelocity());
   }
 
-}; //integration 
+}; // integration
 
-
- #endif // _integration_h_
+#endif // _integration_h_

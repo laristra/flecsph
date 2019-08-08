@@ -127,7 +127,6 @@ mpi_init_task(const char * parameter_file){
 
       clog_one(trace) << "compute wvt acceleration"<<std::endl << std::flush;
       bs.apply_in_smoothinglength(wvt::wvt_acceleration);
-      //bs.apply_in_smoothinglength(wvt::wvt_acceleration_arth);
       clog_one(trace) << ".done" << std::endl;
     }
     else {
@@ -146,7 +145,6 @@ mpi_init_task(const char * parameter_file){
 
       clog_one(trace) << "compute wvt acceleration"<<std::endl << std::flush;
       bs.apply_in_smoothinglength(wvt::wvt_acceleration);
-       //bs.apply_in_smoothinglength(wvt::wvt_acceleration_arth);
       clog_one(trace) << ".done" << std::endl;
 
       // sync velocities
