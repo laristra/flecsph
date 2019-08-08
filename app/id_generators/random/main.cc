@@ -10,7 +10,7 @@
 #include <math.h>
 
 #include "user.h"
-#include "sedov.h"
+#include "random.h"
 #include "params.h"
 #include "lattice.h"
 #include "kernels.h"
@@ -24,7 +24,7 @@ using namespace io;
 
 /*
 Random particle distribution generator. 
-For WVT relaxation
+Main usage for WVT initial conditions
 */
 
 
@@ -33,8 +33,8 @@ For WVT relaxation
 //
 void print_usage() {
   std::cout
-      << "Initial data generator for the " << gdimension << "D Sedov blast wave"
-      << std::endl << "Usage: ./sedov_generator <parameter-file.par>"
+      << "Initial data generator for the " << gdimension << "D random distribution"
+      << std::endl << "Usage: ./random_generator <parameter-file.par>"
       << std::endl;
 }
 
@@ -241,16 +241,14 @@ int main(int argc, char * argv[]){
       }
       r = norm2(rp);
 
-      double func_maximum = 1.0/sqrt(2.0*M_PI*0.1);
+      double func_maximum = rho_initial;
       std::uniform_real_distribution<double>distribution_function(0.,func_maximum);
 
       double random = distribution_function(generator_function); 
-      double exact  = (1.0/sqrt(2.0*M_PI*0.1))*(exp(-r*r/(2*0.1)));
-      if (r > 1.0) {
-        exact = (1.0/sqrt(2.0*M_PI*0.1))*(exp(-1.0*1.0/(2*0.1)));
-      }
-      
-      if (random <= exact && r <= sphere_radius) {
+      double exact  = rho_initial/rho0
+                    * density_profiles::spherical_density_profile(r/sphere_radius);
+
+      if (random <= exact && r/sphere_radius <= 1) {
         particle.set_coordinates(rp);
         rejected = false;
       }
@@ -267,15 +265,11 @@ int main(int argc, char * argv[]){
       id_a  = particle.id();
     }
     else {
-      rho_a = (1.0/sqrt(2.0*M_PI*0.1))*(exp(-r*r/(2*0.1)));
-      if (r > 1.0) {
-        rho_a = (1.0/sqrt(2.0*M_PI*0.1))*(exp(-1.0*1.0/(2*0.1)));
-      }
-      double rf = 1.0;
-      double rs = sphere_radius;
-      double rho_rf = (1.0/sqrt(2.0*M_PI*0.1))*(exp(-rf*rf/(2*0.1)));
-      m_a = (0.787325 + M_PI*rho_rf*(rs*rs - rf*rf))/nparticles;
-
+      rho_a = (rho_initial/rho0)  
+            * density_profiles::spherical_density_profile(r/sphere_radius);
+      m_a = (rho_initial * pow(sphere_radius,1.0*gdimension)/rho0)
+            * density_profiles::spherical_mass_profile(sphere_radius/sphere_radius);
+      m_a = m_a/nparticles;
       h_a = sph_eta * kernels::kernel_width
           * pow(m_a/rho_a,1./gdimension);
       id_a = a;
