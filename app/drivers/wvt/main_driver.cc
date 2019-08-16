@@ -137,7 +137,7 @@ mpi_init_task(const char * parameter_file){
       // sync velocities?
       bs.update_iteration();
       clog_one(trace) << "compute density (for output)"<<std::endl << std::flush;
-      //bs.apply_in_smoothinglength(physics::compute_density);
+      bs.apply_in_smoothinglength(physics::compute_density);
       clog_one(trace) << ".done" << std::endl;
 
       // necessary?
