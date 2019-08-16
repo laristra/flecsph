@@ -110,6 +110,8 @@ namespace wvt{
     using namespace param;
     using namespace kernels;
 
+    particle.setNeighbors(nbs.size());
+
     // this particle (index 'a')
     const point_t pos_a = particle.coordinates();
     const double r_a    = norm2(pos_a);
@@ -184,19 +186,17 @@ namespace wvt{
     using namespace param;
     using namespace kernels;
 
+    particle.setNeighbors(nbs.size());
+
     // this particle (index 'a')
-    const double h_a    = particle.radius();
     const point_t pos_a = particle.coordinates();
     const double r_a    = norm2(pos_a);
+    const double h_a    = particle.radius();
 
     // neighbor particles (index 'b')
     const int n_nb = nbs.size();
 
     point_t acc_a = 0.0;
-    point_t fab   = 0.0;
-
-    // Prevent large acceleration when particles are very close        
-    double eps = 0.1;
 
     // Set particle acceleration only inside the sphere
     if (r_a <= sphere_radius) {
@@ -205,57 +205,46 @@ namespace wvt{
       for(int b = 0; b < n_nb; ++b) {
         const body * const nb = nbs[b];
         double h_b  = nb->radius();
-        double h_ab = (h_a + h_b)/2.0;
+        double h_ab = 0.5*(h_a + h_b);
 
         point_t pos_b = nb->coordinates();
-        double dist   = flecsi::distance(pos_a,pos_b);
-        double dist_c = dist + eps*h_a;
-        double dist_h = h_ab + eps*h_a;
-        fab = 0.0;
-        // Acceleration if particle distance is 0 < dist <= 2.0*h_a
-        if (dist <= 2.0*h_a && dist > 0.0) {
-          double constant = 0.0;
-          fab = h_a*(h_ab*h_ab/(dist_c*dist_c) + constant)
-                *((pos_a-pos_b)/dist);
+        double r_ab = flecsi::distance(pos_a,pos_b);
+        double W_ab = h_ab*h_ab/((r_ab+0.3*h_ab)*(r_ab+0.3*h_ab)) 
+                    - h_ab*h_ab/((h_ab+0.3*h_ab)*(h_ab+0.3*h_ab));
+        if (r_ab > 0.0 && r_ab <= h_ab) {
+           acc_a += (h_ab*W_ab) * (pos_a-pos_b)/r_ab;
         }
-        acc_a += fab;
         
-        // If particle sees the edge of the sphere, create mirror 
-        // particles to interact with 
+        // If particle sees the edge, interact with mirror particles 
         if ((r_a + h_a) > sphere_radius) {
           point_t pos_bs = cartesian_to_spherical(pos_b);
           if (pos_bs[0] < sphere_radius) {
             pos_bs[0] = sphere_radius + (sphere_radius - pos_bs[0]);
-
-            pos_b  = spherical_to_cartesian(pos_bs);
-            dist   = flecsi::distance(pos_a,pos_b);
-            dist_c = dist + eps*h_a;
-            dist_h = h_ab + eps*h_a;
-            fab = 0.0;
-            // Acceleration if particle distance is 0 < dist <= 2.0*h_a
-            if (dist <= 2.0*h_a && dist > 0.0) {
-              fab = h_a*(h_ab*h_ab/(dist_c*dist_c))*((pos_a-pos_b)/dist);
+            pos_b = spherical_to_cartesian(pos_bs);
+            r_ab  = flecsi::distance(pos_a,pos_b);
+            W_ab  = h_ab*h_ab/((r_ab+0.3*h_ab)*(r_ab+0.3*h_ab)) 
+                  - h_ab*h_ab/((h_ab+0.3*h_ab)*(h_ab+0.3*h_ab));
+            if (r_ab > 0.0 && r_ab <= h_ab) {
+              acc_a += (h_ab*W_ab) * (pos_a-pos_b)/r_ab;
             }
-            acc_a += fab;
           }
         }
       }
 
-      // If particle sees the edge of the sphere it should interact 
-      // with its mirror image 
+      // If particle sees the edge, interact with own mirror image 
       if ((r_a + h_a) > sphere_radius) {
-        point_t pos_rs = cartesian_to_spherical(pos_a);
-        pos_rs[0] = sphere_radius + (sphere_radius - pos_rs[0]);
+        point_t pos_ms = cartesian_to_spherical(pos_a);
+        pos_ms[0] = sphere_radius + (sphere_radius - pos_ms[0]);
 
-        point_t pos_r = spherical_to_cartesian(pos_rs);
-        double dist   = flecsi::distance(pos_a,pos_r);
-        double dist_c = dist + eps*h_a;
-        double dist_h = h_a  + eps*h_a;
-        fab = h_a*(h_a*h_a/(dist_c*dist_c))*((pos_a-pos_r)/dist);
-        acc_a += fab;
+        point_t pos_m = spherical_to_cartesian(pos_ms);
+        double r_am = flecsi::distance(pos_a,pos_m);
+        double W_am = h_a*h_a/((r_am+0.3*h_a)*(r_am+0.3*h_a)) 
+                    - h_a*h_a/((h_a+0.3*h_a)*(h_a+0.3*h_a));
+        if (r_am > 0.0 && r_am <= h_a) {
+          acc_a += (h_a*W_am) * (pos_a-pos_m)/r_am;
+        }
       }
     }
-
     particle.setAcceleration(acc_a);
   }//wvt_acceleration_diehl
 
@@ -370,7 +359,6 @@ namespace wvt{
     double rho0 = density_profiles::spherical_density_profile(0);
     double rho  = ((param::rho_initial)/rho0) 
             * density_profiles::spherical_density_profile(r/sphere_radius);
-    rho = std::max(rho, 1.e1);
     double h_a = kernels::kernel_width*pow(mass/rho,1./gdimension);
     source.set_radius(h_a);
     source.set_coordinates(rp);
