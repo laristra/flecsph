@@ -320,7 +320,7 @@ namespace wvt{
     point_t rp = source.coordinates() + wvt_mu_it
                * source.getAcceleration();
 
-    double mass = source.getMass();
+    double mass = source.mass();
     double r = norm2(rp);
 
     // Always decrease "timestep" when particles move too far out.
