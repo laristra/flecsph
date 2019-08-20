@@ -154,6 +154,8 @@ cinch_add_unit(collapse_MPI_test
     ${FleCSPH_LIBRARIES}
   DEFINES
     -DEXT_GDIMENSION=3
+  ARGUMENTS
+    --oversubscribe
   POLICY MPI
    THREADS 4
 )
@@ -202,6 +204,8 @@ cinch_add_unit(sodtube_MPI_test
     ${FleCSPH_LIBRARIES}
   DEFINES
     -DEXT_GDIMENSION=1
+  ARGUMENTS
+    --oversubscribe
   POLICY MPI
    THREADS 4
 )
