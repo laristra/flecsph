@@ -67,6 +67,15 @@ namespace eos {
     source.setPressure(pressure);
   }
 
+  /**
+   * @brief      Output pressure same as input pressure
+   * @param      srch  The source's body holder
+   */
+  void compute_pressure_no_eos(body& source) {
+    using namespace param;
+    double pressure = source.getPressure();
+    source.setPressure(pressure);
+  }
 
   /**
    * @brief      Compute the pressure based on adiabatic index
@@ -266,6 +275,11 @@ void select(const std::string& eos_type) {
   if(boost::iequals(eos_type, "ideal fluid")) {
     init = init_ideal;
     compute_pressure = compute_pressure_ideal;
+    compute_soundspeed = compute_soundspeed_ideal;
+  }
+  else if(boost::iequals(eos_type, "no eos")) {
+    init = init_polytropic;
+    compute_pressure = compute_pressure_no_eos;
     compute_soundspeed = compute_soundspeed_ideal;
   }
   else if(boost::iequals(eos_type, "polytropic")) {

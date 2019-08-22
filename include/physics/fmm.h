@@ -66,7 +66,7 @@ namespace fmm {
     double dist = flecsi::distance(sink_coordinates,source_coordinates);
     double dist_2 = dist*dist;
     point_t diffPos =  sink_coordinates - source_coordinates;
-    double jacobicoeff = -source_mass/(dist_2*dist);
+    double jacobicoeff = -gravitational_constant*source_mass/(dist_2*dist);
     for(int i = 0; i < 9; ++i){
       int a = i/3; int b = i%3;
       double valjacobian = jacobicoeff*((a==b)-3*diffPos[a]*diffPos[b]/(dist_2));
@@ -89,7 +89,7 @@ namespace fmm {
     double dist = flecsi::distance(sink_coordinates,source_coordinates);
     double dist_2 = dist*dist;
     point_t diffPos =  sink_coordinates - source_coordinates;
-    double hessiancoeff = -3.0*source_mass/(dist_2*dist_2*dist);
+    double hessiancoeff = -gravitational_constant*3.0*source_mass/(dist_2*dist_2*dist);
     for(int i = 0 ; i < 27 ; ++i){
       int a = i/9; int b = (i%9)/3; int c = i%3;
       double term_1 = (a==b)*diffPos[c]+(c==a)*diffPos[b]+(b==c)*diffPos[a];
@@ -154,7 +154,7 @@ namespace fmm {
     for(size_t i=0;i<gdimension;++i){
       grav[i] += 0.5*tmpVector[i];
     } // for
-    sink->setAcceleration(gravitational_constant*grav+sink->getAcceleration());
+    sink->setAcceleration(grav+sink->getAcceleration());
   }
 
 } // namespace fmm
