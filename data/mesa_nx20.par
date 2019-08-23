@@ -1,0 +1,53 @@
+#
+# "Mesa" density configuration in 3D: uniform sphere 
+# with parabolic radial density profile on the rim
+# (see density_profiles.h for details)
+#
+# Usage: ./sedov_3d_generator <this_file>.par to generate initial data
+#
+  initial_data_prefix = "mesa_nx20"
+
+# geometry: spherical domain with radius R = 1
+  domain_type = 1          # 0:box, 1:sphere
+  sphere_radius = 1.0
+  density_profile = "mesa"
+  external_force_type = "spherical density support"
+
+# icosahedral lattice with small perturbations
+  lattice_nx = 20
+  lattice_type = 3         # 0:rectangular, 1:hcp, 2:fcc, 3:icosahedral
+  lattice_perturbation_amplitude = 0.15     # in units of sm. length
+
+# equation of state type and parameters
+  eos_type = "polytropic"
+  poly_gamma = 1.4         # polytropic index
+
+# density and pressure for relaxation stage
+  rho_initial = 1.0
+  pressure_initial = 0.1
+
+# since we only need spherical distribution of particles,
+# set Sedov energy to zero
+  sedov_blast_energy = 0.0
+
+# parameters for relaxation / evolution
+  relaxation_steps = 200
+  relaxation_beta  = 1.0
+  relaxation_gamma = 0.0001
+
+  out_screen_every = 1
+  out_scalar_every = 1
+  out_h5data_every = 10
+  output_h5data_prefix = "mesa_3d"
+
+  sph_eta = 1.6
+  sph_kernel = "Wendland C4"
+  initial_dt = 1.e-4
+  thermokinetic_formulation = yes
+  final_iteration = 10
+  adaptive_timestep = yes
+  sph_variable_h = yes
+  adaptive_timestep = yes
+  timestep_cfl_factor = 0.25
+  evolve_internal_energy = no
+
