@@ -153,7 +153,7 @@ template <typename T> struct tree_geometry<T, 2> {
   //! Intersection of two spheres based on center and radius
   static bool intersects_sphere_sphere(const point_t &c1, const element_t r1,
                                        const point_t &c2, const element_t r2) {
-    return distance(c1, c2) - r1 + r2 <= tol;
+    return distance(c1, c2) - (r1 + r2) <= tol;
   }
 
   //! Intersection of sphere and box; Compute the closest point from the
