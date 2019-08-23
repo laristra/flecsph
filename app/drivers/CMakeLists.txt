@@ -273,6 +273,35 @@ add_dependencies(sedov_test sedov_2d_generator_test)
 endif()
 
 #------------------------------------------------------------------------------#
+# relaxation test for the "mesa" potential in 3D using mesa_nx20.par file
+#------------------------------------------------------------------------------#
+
+if(ENABLE_UNIT_TESTS)
+cinch_add_unit(mesa_relaxation_test
+  SOURCES
+    test/mesa.cc
+    hydro/main_driver.cc
+    ${FleCSI_RUNTIME}/runtime_driver.cc
+  INPUTS
+    ${PROJECT_SOURCE_DIR}/data/mesa_nx20.par
+  LIBRARIES
+    ${FleCSPH_LIBRARIES}
+  DEFINES
+    -DEXT_GDIMENSION=3
+  POLICY MPI
+  #THREADS 2
+)
+
+add_custom_target(
+    mesa_3d_generator_test
+    COMMAND ${MPIEXEC} -n 1 ../id_generators/sedov_3d_generator ${PROJECT_SOURCE_DIR}/data/mesa_nx20.par
+    COMMAND mv mesa_nx20.h5part ../../test/drivers
+    DEPENDS ../id_generators/sedov_3d_generator
+)
+add_dependencies(mesa_relaxation_test mesa_3d_generator_test)
+endif()
+
+#------------------------------------------------------------------------------#
 # noh test, with the default parameter file
 #------------------------------------------------------------------------------#
 
