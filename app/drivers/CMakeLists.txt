@@ -46,7 +46,7 @@ add_executable(hydro_1d
 
 target_link_libraries(hydro_1d ${FleCSPH_LIBRARIES})
 target_compile_definitions(hydro_1d PUBLIC -DEXT_GDIMENSION=1)
-install(TARGETS hydro_1d RUNTIME DESTINATION bin/drivers)
+install(TARGETS hydro_1d RUNTIME DESTINATION bin)
 
 # MPILEGION version: 2D
 add_executable(hydro_2d
@@ -58,7 +58,7 @@ add_executable(hydro_2d
 
 target_link_libraries(hydro_2d ${FleCSPH_LIBRARIES})
 target_compile_definitions(hydro_2d PUBLIC -DEXT_GDIMENSION=2)
-install(TARGETS hydro_2d RUNTIME DESTINATION bin/drivers)
+install(TARGETS hydro_2d RUNTIME DESTINATION bin)
 
 # MPILEGION version: 3D
 add_executable(hydro_3d
@@ -69,7 +69,34 @@ add_executable(hydro_3d
 
 target_link_libraries(hydro_3d ${FleCSPH_LIBRARIES})
 target_compile_definitions(hydro_3d PUBLIC -DEXT_GDIMENSION=3)
-install(TARGETS hydro_3d RUNTIME DESTINATION bin/drivers)
+install(TARGETS hydro_3d RUNTIME DESTINATION bin)
+
+
+#------------------------------------------------------------------------------#
+# WVT drivers
+#------------------------------------------------------------------------------#
+
+# 2D-version
+add_executable(wvt_2d
+  wvt/main.cc
+  wvt/main_driver.cc
+  ${FleCSI_RUNTIME}/runtime_driver.cc
+)
+target_link_libraries(wvt_2d ${FleCSPH_LIBRARIES})
+target_compile_definitions(wvt_2d PUBLIC -DEXT_GDIMENSION=2)
+install(TARGETS wvt_2d RUNTIME DESTINATION bin/drivers)
+
+
+# 3D-version
+add_executable(wvt_3d
+  wvt/main.cc
+  wvt/main_driver.cc
+  ${FleCSI_RUNTIME}/runtime_driver.cc
+)
+target_link_libraries(wvt_3d ${FleCSPH_LIBRARIES})
+target_compile_definitions(wvt_3d PUBLIC -DEXT_GDIMENSION=3)
+install(TARGETS wvt_3d RUNTIME DESTINATION bin/drivers)
+
 
 #------------------------------------------------------------------------------#
 # Hydro drivers with Newtonian gravity
@@ -86,7 +113,7 @@ target_link_libraries(newtonian_3d ${FleCSPH_LIBRARIES})
 # target_link_libraries(newtonian_3d ${CMAKE_SOURCE_DIR}/third-party-libraries/stellar_collapse/libTABEOS_RF.a)
 # target_link_libraries(newtonian_3d ${CMAKE_SOURCE_DIR}/third-party-libraries/stellar_collapse/libTABEOS_SC.a)
 target_compile_definitions(newtonian_3d PUBLIC -DEXT_GDIMENSION=3)
-install(TARGETS newtonian_3d RUNTIME DESTINATION bin/drivers)
+install(TARGETS newtonian_3d RUNTIME DESTINATION bin)
 
 #------------------------------------------------------------------------------#
 # collapse test, call the default parameter file

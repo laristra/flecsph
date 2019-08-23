@@ -70,7 +70,7 @@ install(TARGETS
     fluid_2d_generator
     fluid_3d_generator
     RUNTIME
-    DESTINATION bin/id_generators)
+    DESTINATION bin)
 
 target_link_libraries(sodtube_1d_generator
   ${MPI_LIBRARIES} ${H5hut_LIBRARIES} ${HDF5_LIBRARIES})
