@@ -213,6 +213,37 @@ add_dependencies(RT_test RT_2d_generator_test)
 endif()
 
 #------------------------------------------------------------------------------#
+# KH test: uses KH_2d.par from data directory
+#------------------------------------------------------------------------------#
+
+if(ENABLE_UNIT_TESTS)
+
+cinch_add_unit(KH_test
+  SOURCES
+    test/KH.cc
+    hydro/main_driver.cc
+    ${FleCSI_RUNTIME}/runtime_driver.cc
+  INPUTS
+    ${PROJECT_SOURCE_DIR}/data/KH_2d.par
+  LIBRARIES
+    ${FleCSPH_LIBRARIES}
+  DEFINES
+    -DEXT_GDIMENSION=2
+  POLICY MPI
+  #THREADS 2
+)
+
+add_custom_target(
+    KH_2d_generator_test
+    COMMAND ${MPIEXEC} -n 1 ../id_generators/KH_2d_generator ${PROJECT_SOURCE_DIR}/data/KH_2d.par
+    COMMAND mv KH_t1_n30.h5part ../../test/drivers
+    DEPENDS ../id_generators/KH_2d_generator
+)
+add_dependencies(KH_test KH_2d_generator_test)
+
+endif() # ENABLE_UNIT_TESTS
+
+#------------------------------------------------------------------------------#
 # sedov test with the default parameter file
 #------------------------------------------------------------------------------#
 
