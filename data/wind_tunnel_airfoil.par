@@ -1,5 +1,5 @@
 #
-# Sedov blast wave test
+# Wind tunnel test with an airfoil boundary: 2D
 #
 # initial data
   initial_data_prefix = "wind_tunnel_airfoil"
@@ -8,8 +8,7 @@
   rho_initial = 1.0
   pressure_initial = 0.1
   flow_velocity = 0.2
-  sph_separation = 0.001   # TODO: use sph_eta instead
-  #sph_eta = 1.5
+  sph_eta = 1.5
   lattice_type = 1         # 0:rectangular, 1:hcp, 2:fcc
   external_force_type = "airfoil,walls:xy"
   box_length = 2.0
@@ -24,9 +23,11 @@
   airfoil_anchor_y = -0.3
 
 # evolution parameters:
-  #sph_kernel = "Quintic Spline"
-  initial_dt = 2e-3 # TODO: better use Courant factor X sph_separation
-  final_iteration = 5000
+  sph_kernel = "wendland c6"
+  initial_dt = 2e-3
+  adaptive_timestep = yes
+  thermokinetic_formulation = yes
+  final_iteration = 10
   out_screen_every = 1
   out_scalar_every = 10
   out_h5data_every = 10

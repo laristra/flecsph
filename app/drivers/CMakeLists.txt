@@ -240,6 +240,37 @@ add_dependencies(RT_test RT_2d_generator_test)
 endif()
 
 #------------------------------------------------------------------------------#
+# KH test: uses KH_2d.par from data directory
+#------------------------------------------------------------------------------#
+
+if(ENABLE_UNIT_TESTS)
+
+cinch_add_unit(KH_test
+  SOURCES
+    test/KH.cc
+    hydro/main_driver.cc
+    ${FleCSI_RUNTIME}/runtime_driver.cc
+  INPUTS
+    ${PROJECT_SOURCE_DIR}/data/KH_2d.par
+  LIBRARIES
+    ${FleCSPH_LIBRARIES}
+  DEFINES
+    -DEXT_GDIMENSION=2
+  POLICY MPI
+  #THREADS 2
+)
+
+add_custom_target(
+    KH_2d_generator_test
+    COMMAND ${MPIEXEC} -n 1 ../id_generators/KH_2d_generator ${PROJECT_SOURCE_DIR}/data/KH_2d.par
+    COMMAND mv KH_t1_n30.h5part ../../test/drivers
+    DEPENDS ../id_generators/KH_2d_generator
+)
+add_dependencies(KH_test KH_2d_generator_test)
+
+endif() # ENABLE_UNIT_TESTS
+
+#------------------------------------------------------------------------------#
 # sedov test with the default parameter file
 #------------------------------------------------------------------------------#
 
@@ -266,6 +297,35 @@ add_custom_target(
     DEPENDS ../id_generators/sedov_2d_generator
 )
 add_dependencies(sedov_test sedov_2d_generator_test)
+endif()
+
+#------------------------------------------------------------------------------#
+# relaxation test for the "mesa" potential in 3D using mesa_nx20.par file
+#------------------------------------------------------------------------------#
+
+if(ENABLE_UNIT_TESTS)
+cinch_add_unit(mesa_relaxation_test
+  SOURCES
+    test/mesa.cc
+    hydro/main_driver.cc
+    ${FleCSI_RUNTIME}/runtime_driver.cc
+  INPUTS
+    ${PROJECT_SOURCE_DIR}/data/mesa_nx20.par
+  LIBRARIES
+    ${FleCSPH_LIBRARIES}
+  DEFINES
+    -DEXT_GDIMENSION=3
+  POLICY MPI
+  #THREADS 2
+)
+
+add_custom_target(
+    mesa_3d_generator_test
+    COMMAND ${MPIEXEC} -n 1 ../id_generators/sedov_3d_generator ${PROJECT_SOURCE_DIR}/data/mesa_nx20.par
+    COMMAND mv mesa_nx20.h5part ../../test/drivers
+    DEPENDS ../id_generators/sedov_3d_generator
+)
+add_dependencies(mesa_relaxation_test mesa_3d_generator_test)
 endif()
 
 #------------------------------------------------------------------------------#

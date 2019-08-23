@@ -67,7 +67,7 @@ void set_derived_params() {
   // iteration and time
   physics::iteration = initial_iteration;
   physics::totaltime = initial_time;
-  physics::dt = initial_dt; // TODO: use particle separation and Courant factor
+  physics::dt = initial_dt;
 
   // set equation of state
   eos::select(eos_type);
@@ -91,9 +91,6 @@ mpi_init_task(const char * parameter_file){
   // set simulation parameters
   param::mpi_read_params(parameter_file);
   set_derived_params();
-
-  // remove output file
-  //remove(output_h5data_file.c_str());
 
   // read input file and initialize equation of state
   body_system<double,gdimension> bs;
@@ -126,19 +123,21 @@ mpi_init_task(const char * parameter_file){
 
       clog_one(trace) << "compute rhs of evolution equations"<<std::endl << std::flush;
       bs.apply_in_smoothinglength(physics::compute_acceleration);
-      if (thermokinetic_formulation){
-        clog_one(trace) << "compute dedt" << std::flush;
-        bs.apply_in_smoothinglength(physics::compute_dedt);
-      }else{
-        clog_one(trace) << "compute dudt" << std::flush;
-        bs.apply_in_smoothinglength(physics::compute_dudt);
+      if (evolve_internal_energy) {
+        if (thermokinetic_formulation){
+          clog_one(trace) << "compute dedt" << std::flush;
+          bs.apply_in_smoothinglength(physics::compute_dedt);
+        }else{
+          clog_one(trace) << "compute dudt" << std::flush;
+          bs.apply_in_smoothinglength(physics::compute_dudt);
+        }
       }
       clog_one(trace) << ".done" << std::endl;
 
       if (physics::iteration < relaxation_steps) {
         clog_one(trace) << "add relaxation terms" << std::flush;
         bs.apply_all(physics::add_drag_acceleration);
-        if (thermokinetic_formulation)
+        if (thermokinetic_formulation and evolve_internal_energy)
           bs.apply_all(physics::add_drag_dedt);
         bs.apply_in_smoothinglength(physics::add_short_range_repulsion);
         clog_one(trace) << ".done" << std::endl;
@@ -147,10 +146,12 @@ mpi_init_task(const char * parameter_file){
     else {
       clog_one(trace) << "leapfrog: kick one" << std::flush;
       bs.apply_all(integration::leapfrog_kick_v);
-      if (thermokinetic_formulation)
-        bs.apply_all(integration::leapfrog_kick_e);
-      else
-        bs.apply_all(integration::leapfrog_kick_u);
+      if (evolve_internal_energy) {
+        if (thermokinetic_formulation)
+          bs.apply_all(integration::leapfrog_kick_e);
+        else
+          bs.apply_all(integration::leapfrog_kick_u);
+      }
       bs.apply_all(integration::save_velocityhalf);
       clog_one(trace) << ".done" << std::endl;
 
@@ -178,20 +179,22 @@ mpi_init_task(const char * parameter_file){
       // sync velocities
       bs.reset_ghosts();
 
-      clog_one(trace) << "leapfrog: kick two (energy)" << std::flush<<std::endl;
-      if (thermokinetic_formulation) {
-        clog_one(trace) << "compute dedt" << std::flush;
-        bs.apply_in_smoothinglength(physics::compute_dedt);
-        if (physics::iteration < relaxation_steps)
-          bs.apply_all(physics::add_drag_dedt);
-        bs.apply_all(integration::leapfrog_kick_e);
+      if (evolve_internal_energy) {
+        clog_one(trace) << "leapfrog: kick two (energy)" << std::flush<<std::endl;
+        if (thermokinetic_formulation) {
+          clog_one(trace) << "compute dedt" << std::flush;
+          bs.apply_in_smoothinglength(physics::compute_dedt);
+          if (physics::iteration < relaxation_steps)
+            bs.apply_all(physics::add_drag_dedt);
+          bs.apply_all(integration::leapfrog_kick_e);
+        }
+        else {
+          clog_one(trace) << "compute dudt" << std::flush;
+          bs.apply_in_smoothinglength(physics::compute_dudt);
+          bs.apply_all(integration::leapfrog_kick_u);
+        }
+        clog_one(trace) << ".done" << std::endl;
       }
-      else {
-        clog_one(trace) << "compute dudt" << std::flush;
-        bs.apply_in_smoothinglength(physics::compute_dudt);
-        bs.apply_all(integration::leapfrog_kick_u);
-      }
-      clog_one(trace) << ".done" << std::endl;
     }
 
     if(sph_variable_h){
