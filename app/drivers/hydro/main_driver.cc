@@ -67,7 +67,7 @@ void set_derived_params() {
   // iteration and time
   physics::iteration = initial_iteration;
   physics::totaltime = initial_time;
-  physics::dt = initial_dt; // TODO: use particle separation and Courant factor
+  physics::dt = initial_dt;
 
   // set equation of state
   eos::select(eos_type);
@@ -91,9 +91,6 @@ mpi_init_task(const char * parameter_file){
   // set simulation parameters
   param::mpi_read_params(parameter_file);
   set_derived_params();
-
-  // remove output file
-  //remove(output_h5data_file.c_str());
 
   // read input file and initialize equation of state
   body_system<double,gdimension> bs;
