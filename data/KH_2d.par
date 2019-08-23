@@ -21,14 +21,14 @@
   sph_variable_h = yes
   adaptive_timestep = yes
   timestep_cfl_factor = 0.25
-  final_iteration = 4000
+  final_iteration = 10
   out_screen_every = 1
   out_scalar_every = 1
   out_h5data_every = 10
   out_diagnostic_every = 1
   output_h5data_prefix = "ev_KH_t1_n30"
 
-  # boundaries
+# boundary conditions
   box_width = 1.
   box_length = 1.
   periodic_boundary_y = yes
