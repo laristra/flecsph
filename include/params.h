@@ -326,6 +326,44 @@ typedef enum sph_kernel_keyword_enum {
   DECLARE_PARAM(bool,out_h5data_separate_iterations,false)
 #endif
 
+// WVT parameters 
+// Method: 
+// * Diehl et al., PASA 2015
+// * Arth et al., 2019
+//
+// Boundary conditions:
+// * reflective (default)
+// * frozen 
+//
+// wvt_mu
+// * 0.01 (default)
+// 
+// wvt_ngb
+// Number of desired wvt neighbors
+// 
+
+
+// - method for wvt pseudo-acceleration 
+#ifndef wvt_method
+  DECLARE_STRING_PARAM(wvt_method,"diehl")
+#endif 
+
+// - boundary condition for wvt particles
+#ifndef wvt_boundary
+  DECLARE_STRING_PARAM(wvt_boundary,"reflective")
+#endif 
+
+// - wvt_mu
+#ifndef wvt_mu
+DECLARE_PARAM(double,wvt_mu,0.01)
+#endif
+
+// - wvt_ngb
+#ifndef wvt_ngb
+DECLARE_PARAM(double,wvt_ngb,128)
+#endif
+
+
 //
 // Viscosity and equation of state
 //
@@ -423,6 +461,10 @@ typedef enum sph_kernel_keyword_enum {
 
 # ifndef relaxation_repulsion_gamma
   DECLARE_PARAM(double,relaxation_repulsion_gamma,0.0)
+# endif
+
+# ifndef evolve_internal_energy
+  DECLARE_PARAM(bool,evolve_internal_energy,true)
 # endif
 
 
@@ -844,6 +886,23 @@ void set_param(const std::string& param_name,
   READ_BOOLEAN_PARAM(out_h5data_separate_iterations)
 # endif
 
+  // wvt parameters ---------------------------------------------------------
+# ifndef wvt_method
+  READ_STRING_PARAM(wvt_method)
+# endif
+
+# ifndef wvt_boundary
+  READ_STRING_PARAM(wvt_boundary)
+# endif
+
+# ifndef wvt_mu
+  READ_NUMERIC_PARAM(wvt_mu)
+# endif
+
+# ifndef wvt_ngb
+  READ_NUMERIC_PARAM(wvt_ngb)
+# endif
+
   // viscosity and equation of state ----------------------------------------
 # ifndef eos_type
   READ_STRING_PARAM(eos_type)
@@ -911,6 +970,11 @@ void set_param(const std::string& param_name,
 # ifndef relaxation_repulsion_gamma
   READ_NUMERIC_PARAM(relaxation_repulsion_gamma)
 # endif
+
+# ifndef evolve_internal_energy
+  READ_BOOLEAN_PARAM(evolve_internal_energy)
+# endif
+
 
   // external force  --------------------------------------------------------
 # ifndef thermokinetic_formulation

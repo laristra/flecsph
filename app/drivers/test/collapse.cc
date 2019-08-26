@@ -22,7 +22,7 @@ namespace execution{
 using namespace flecsi;
 using namespace execution;
 
-TEST(sodtube, working) {
+TEST(collapse, working) {
   //int provided;
   //MPI_Query_thread(&provided);
   //ASSERT_TRUE(provided == MPI_THREAD_MULTIPLE);

@@ -70,6 +70,7 @@ RUN cd /home/flecsi/flecsph && \
           -DFleCSI_RUNTIME=/usr/local/share/FleCSI/runtime \
           -DFleCSI_LIBRARY=/usr/local/lib*/libFleCSI.so \
           -DENABLE_MPI_THREAD_MULITPLE=ON \
+          -DMPIEXEC_PREFLAGS=--oversubscribe \
           ${COVERAGE:+-DENABLE_COVERAGE_BUILD=ON} .. && \
     HDF5_USE_SHLIB=yes ${SONARQUBE:+build-wrapper-linux-x86-64 --out-dir bw-output} make -j2 && \
     ccache -s && \
