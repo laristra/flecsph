@@ -1,0 +1,9 @@
+ignore:
+  - /usr/include/
+  - /usr/local/include/
+  - cinch/
+  - include/tree_topology/test/
+  - include/physics/test/
+  - app/drivers/test/
+  - mpisph/test/
+
