@@ -6,7 +6,10 @@
 [![Quality Gate](https://sonarqube.com/api/badges/gate?key=flecsph%3A%2Fmaster)](https://sonarqube.com/dashboard?id=flecsph%3A%2Fmaster)
 --->
 
-# SPH with FleCSI
+# Introduction 
+
+FleCSPH is a multi-physics compact application that exercises FleCSI parallel data structures for tree-based particle methods. In particular, FleCSPH implements a smoothed-particle hydrodynamics (SPH) solver for the solution of Lagrangian problems in astrophysics and cosmology. FleCSPH includes support for gravitational forces using the fast multipole method (FMM).
+
 
 This project implements smoothed particles hydrodynamics (SPH) method of
 simulating fluids and gases using the FleCSI framework.
