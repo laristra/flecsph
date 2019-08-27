@@ -25,7 +25,30 @@ We provide several examples of physics problems in 1D, 2D and 3D:
 - pressure-induced spherical implosion (2D/3D);
 - single and binary stars with Newtonian gravity in 3D.
 
-# Building the FleCSPH
+# Spack 
+
+Spack now provides a FleCSPH package. 
+
+In order to install FleCSPH on your machine using spack: 
+- Download spack at: github.com/spack/spack 
+- Follow installation instructions 
+- Run: 
+```{engine=sh}
+spack install flecsph 
+```
+This will build all the dependencies and compile FleCSPH. 
+In order to use FleCSPH executables simply run: 
+```{engine=sh}
+spack load flecsph 
+```
+
+You will then have access to the generators and the drivers: 
+- sodtube\_{1-2-3}d\_generator, sedov\_{1-2-3}d\_generator...
+- hydro\_{1-2-3}d, newtonian\_{1-2-3}d...
+
+The initial data parameter files can be found on the FleCSPH github repository. 
+
+# Building FleCSPH
 
 FleCSPH can be installed anywhere in your system; to be particular, below we
 assume that all repositories are downloaded in FLECSPH root directory `${HOME}/FLECSPH`.
