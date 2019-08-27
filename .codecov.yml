@@ -6,4 +6,3 @@ ignore:
   - ".*/include/physics/test"
   - ".*/app/drivers/test"
   - ".*/mpisph/test"
-
