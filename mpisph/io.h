@@ -493,10 +493,10 @@ int H5P_findIterationSnapshot(const char *prefix, const int iteration) {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   // open the prefix directory
-  sprintf(buf, prefix);
-  sprintf(prefix_dirname, dirname(buf));
-  sprintf(buf, prefix);
-  sprintf(prefix_basename, basename(buf));
+  sprintf(buf,"%s", prefix);
+  sprintf(prefix_dirname,"%s", dirname(buf));
+  sprintf(buf,"%s", prefix);
+  sprintf(prefix_basename,"%s", basename(buf));
   d = opendir(prefix_dirname);
   if (d) {
     // go through individual files
@@ -562,10 +562,10 @@ int H5P_removePrefix(const char *output_file_prefix,
     DIR *d;
     struct dirent *dir;
 
-    sprintf(buf, output_file_prefix);
-    sprintf(output_dirname, dirname(buf));
-    sprintf(buf, output_file_prefix);
-    sprintf(output_basename, basename(buf));
+    sprintf(buf,"%s", output_file_prefix);
+    sprintf(output_dirname,"%s", dirname(buf));
+    sprintf(buf,"%s", output_file_prefix);
+    sprintf(output_basename,"%s", basename(buf));
     d = opendir(output_dirname);
     if (d) {
       while ((dir = readdir(d)) != NULL) {
