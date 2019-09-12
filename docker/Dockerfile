@@ -33,7 +33,7 @@ RUN apt-get -y install gsl-bin libgsl0-dev; exit 0
 
 #build flecsi
 RUN cd /home/flecsi && \ 
-    git clone -b feature/flecsph --depth 1 --recursive https://github.com/laristra/flecsi flecsi && \
+    git clone --depth 1 --recursive https://github.com/laristra/flecsi flecsi && \
     cd flecsi && mkdir build && cd build && \ 
     cmake .. -DFLECSI_RUNTIME_MODEL=mpi \
               -DENABLE_CLOG=OFF \
