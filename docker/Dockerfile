@@ -81,33 +81,6 @@ RUN cd /home/flecsi/flecsph && \
 # COVERAGE & SONARQUE 
 WORKDIR /home/flecsi/flecsph
 RUN if [ ${COVERAGE} ]; then \
-      if [ ${CC} = clang ]; then \
-        $HOME/.local/bin/codecov -F "${CC}" --gcov-exec "llvm-cov gcov"; \
-      else \
-        $HOME/.local/bin/codecov -F "${CC}"; \
-      fi; \
+      $HOME/.local/bin/codecov -F "${CC}"; \
     fi 
-RUN if [ ${SONARQUBE} ]; then \
-      sonar-scanner \
-      -Dsonar.projectKey=${TRAVIS_REPO_SLUG##*/} \
-      -Dsonar.projectName=${TRAVIS_REPO_SLUG#*/} \
-      -Dsonar.projectVersion=${TRAVIS_COMMIT} \
-      -Dsonar.branch=/${TRAVIS_BRANCH} \
-      -Dsonar.links.homepage=http://${TRAVIS_REPO_SLUG%%/*}.github.io/${TRAVIS_REPO_SLUG#*/} \
-      -Dsonar.links.ci=https://travis-ci.org/${TRAVIS_REPO_SLUG} \
-      -Dsonar.links.scm=https://github.com/${TRAVIS_REPO_SLUG} \
-      -Dsonar.links.issue=https://github.com/${TRAVIS_REPO_SLUG}/issues \
-      -Dsonar.sources=. \
-      -Dsonar.exclusions=build/CMakeFiles/**,cinch/**,build/doc/doxygen/**,build/include/** \
-      -Dsonar.cfamily.build-wrapper-output=build/bw-output \
-      -Dsonar.cfamily.gcov.reportsPath=. \
-      -Dsonar.host.url=https://sonarcloud.io \
-      -Dsonar.organization=${TRAVIS_REPO_SLUG%%/*} \
-      $([ ${TRAVIS_PULL_REQUEST} != false ] && echo \
-        -Dsonar.analysis.mode=preview \
-        -Dsonar.github.pullRequest=${TRAVIS_PULL_REQUEST} \
-        -Dsonar.github.repository=${TRAVIS_REPO_SLUG} \
-        -Dsonar.github.oauth=${SONARQUBE_GITHUB_TOKEN}) \
-        -Dsonar.login=${SONARQUBE_TOKEN}; \
-    fi
 WORKDIR /home/flecsi
