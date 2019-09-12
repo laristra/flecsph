@@ -39,7 +39,7 @@ class body_u : public flecsi::topology::entity<gdimension,type_t,KEY> {
 
   static const size_t dimension = gdimension;
   using element_t = type_t;
-  using point_t = flecsi::point__<element_t, dimension>;
+  using point_t = flecsi::point_u<element_t, dimension>;
 
   using flecsi::topology::entity<gdimension,type_t,KEY>::mass_;
 
