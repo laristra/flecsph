@@ -86,7 +86,7 @@ public:
 
   static const size_t dimension = Policy::dimension; // Current dimension: 1,2,3
   using element_t = typename Policy::element_t; // Type of element either F or D
-  using point_t = point__<element_t, dimension>;
+  using point_t = point_u<element_t, dimension>;
   using range_t = std::array<point_t, 2>;
   using key_t = typename Policy::key_t;
   using branch_id_t = key_t;
@@ -126,8 +126,7 @@ public:
     Construct a tree topology with specified ranges [end, start] for each
     dimension.
    */
-  tree_topology(const point__<element_t, dimension> &start,
-                const point__<element_t, dimension> &end) {
+  tree_topology(const point_t &start, const point_t &end) {
     branch_map_.emplace(branch_id_t::root(), branch_id_t::root());
     root_ = branch_map_.find(branch_id_t::root());
     assert(root_ != branch_map_.end());
@@ -485,7 +484,7 @@ public:
   /**
    * @brief Get the range
    */
-  const std::array<point__<element_t, dimension>, 2> &range() { return range_; }
+  const std::array<point_t, 2> &range() { return range_; }
 
   /**
    * @brief Get the ci-th child of the given branch.

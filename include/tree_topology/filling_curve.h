@@ -36,7 +36,7 @@ namespace flecsi {
 template <size_t DIM, typename T, class DERIVED> class filling_curve {
   static constexpr size_t dimension = DIM;
   using int_t = T;
-  using point_t = point__<double, dimension>;
+  using point_t = point_u<double, dimension>;
 
 protected:
   static constexpr size_t bits_ = sizeof(int_t) * 8; //! Maximum number of bits
@@ -217,7 +217,7 @@ class hilbert_curve_u : public filling_curve<DIM, T, hilbert_curve_u<DIM, T>> {
   using int_t = T;
   static constexpr size_t dimension = DIM;
   using coord_t = std::array<int_t, dimension>;
-  using point_t = point__<double, dimension>;
+  using point_t = point_u<double, dimension>;
 
   using filling_curve<DIM, T, hilbert_curve_u>::value_;
   using filling_curve<DIM, T, hilbert_curve_u>::max_depth_;
@@ -431,7 +431,7 @@ class morton_curve_u : public filling_curve<DIM, T, morton_curve_u<DIM, T>> {
   using int_t = T;
   static constexpr size_t dimension = DIM;
   using coord_t = std::array<int_t, dimension>;
-  using point_t = point__<double, dimension>;
+  using point_t = point_u<double, dimension>;
 
   using filling_curve<DIM, T, morton_curve_u>::value_;
   using filling_curve<DIM, T, morton_curve_u>::max_depth_;

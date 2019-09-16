@@ -95,7 +95,7 @@ You will need the following tools:
 
 ## FleCSI
 
-Clone FleCSI repo and change to the `feature/flecsph` branch.
+Clone FleCSI repo at the `master` branch (default).
 Checkout submodules recursively, then configure as below:
 
 ```{engine=sh}    
@@ -103,7 +103,6 @@ Checkout submodules recursively, then configure as below:
    cd $HOME/FLECSPH
    git clone --recursive git@github.com:laristra/flecsi.git
    cd flecsi
-   git checkout feature/flecsph
    git submodule update --recursive
    mkdir build ; cd build
    cmake .. \

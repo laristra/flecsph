@@ -56,7 +56,7 @@ template <size_t D, typename E, class KEY> class tree_branch {
   using element_t = E;
   static constexpr size_t dimension = D;
   using key_t = KEY;
-  using point_t = point__<element_t, D>;
+  using point_t = point_u<element_t, D>;
 
   //! Maximum number of children regarding the dimension
   static constexpr size_t num_children = 1 << dimension;
@@ -213,7 +213,7 @@ protected:
 template <size_t D, typename E, class KEY> class entity {
   using element_t = E;
   static constexpr size_t dimension = D;
-  using point_t = point__<element_t, dimension>;
+  using point_t = point_u<element_t, dimension>;
   using key_t = KEY;
 
 public:
@@ -281,7 +281,7 @@ template <size_t D, typename E, class KEY, class ENT> class tree_entity {
 public:
   using element_t = E;
   static constexpr size_t dimension = D;
-  using point_t = point__<element_t, dimension>;
+  using point_t = point_u<element_t, dimension>;
   using key_t = KEY;
 
   using range_t = std::array<point_t, 2>;
