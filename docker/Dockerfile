@@ -57,7 +57,8 @@ USER flecsi
 RUN cd /home/flecsi/flecsph && \
     mkdir build && cd build && \
     ccache -z && \
-    cmake -DENABLE_MPI=ON \
+    cmake -DCMAKE_BUILD_TYPE=Debug \
+          -DENABLE_MPI=ON \
           -DENABLE_UNIT_TESTS=ON \
           -DENABLE_OPENMP=ON \
           -DENABLE_DOXYGEN=ON \
@@ -76,7 +77,7 @@ RUN cd /home/flecsi/flecsph && \
     ccache -s && \
     make doxygen && \
     make install DESTDIR=${PWD}/install && rm -rf ${PWD}/install  && \
-    make test ARGS="-V"
+    make test
 
 # COVERAGE & SONARQUE 
 WORKDIR /home/flecsi/flecsph
