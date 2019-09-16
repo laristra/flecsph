@@ -53,7 +53,7 @@ public:
   static const size_t dimension = gdimension;
   using element_t = type_t;
   using key_t = flecsi::hilbert_curve_u<dimension,uint64_t>;
-  using point_t = flecsi::point__<element_t, dimension>;
+  using point_t = flecsi::point_u<element_t, dimension>;
   using space_vector_t = flecsi::space_vector<element_t,dimension>;
   using geometry_t = flecsi::topology::tree_geometry<element_t, gdimension>;
   using entity_t = body_u<key_t>;
@@ -166,6 +166,24 @@ inline double norm_point( const point_t& p) {
   else
     res = sqrt(p[0]*p[0] + p[1]*p[1] + p[2]*p[2]);
   return res;
+}
+
+namespace flecsi{
+  template<typename TYPE, size_t DIMENSION>
+  TYPE
+  norm2( point_u<TYPE, DIMENSION> const & a) {
+    TYPE sum(0);
+    if constexpr (DIMENSION>1) {
+      for (size_t d(0); d < DIMENSION; ++d) {
+        sum += utils::square(a[d]);
+      } // for
+      sum= std::sqrt(sum);
+    }
+    else {
+      sum= std::abs(a[0]);
+    }
+    return sum;
+  } // norm2
 }
 
 #endif // tree_h

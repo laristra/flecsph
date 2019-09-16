@@ -49,7 +49,7 @@ template <typename T, size_t D> struct tree_geometry {};
  *-----------------------------------------------------------------------------*/
 template <typename T> struct tree_geometry<T, 1> {
 
-  using point_t = point__<T, 1>;
+  using point_t = point_u<T, 1>;
   using element_t = T;
   //! Tolerance for the computations
   static constexpr element_t tol =
@@ -115,7 +115,7 @@ template <typename T> struct tree_geometry<T, 1> {
  * class tree_geometry 2D specification
  *-----------------------------------------------------------------------------*/
 template <typename T> struct tree_geometry<T, 2> {
-  using point_t = point__<T, 2>;
+  using point_t = point_u<T, 2>;
   using element_t = T;
 
   //! Tolerance for the computations
@@ -185,7 +185,7 @@ template <typename T> struct tree_geometry<T, 2> {
  * class tree_geometry 3D specification
  *-----------------------------------------------------------------------------*/
 template <typename T> struct tree_geometry<T, 3> {
-  using point_t = point__<T, 3>;
+  using point_t = point_u<T, 3>;
   using element_t = T;
   //! Tolerance for the computations
   static constexpr element_t tol =
