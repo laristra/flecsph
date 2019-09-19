@@ -60,8 +60,12 @@ convenient to use spack to automatically handle the dependencies:
 
 1. Follow the steps above to install FleCSPH with spack. 
 This will ensure that all the dependencies are satisfied.
+Select your compiler / MPI combination at this step, e.g. use:
+```{engine=sh}
+spack install flecsph %gcc@9.1.0 ^openmpi@3.1.4
+```
 
-2. To inspect the dependencies, use:
+2. To inspect the dependencies:
 ```{engine=sh}
 spack module tcl loads --dependencies flecsph
 ```
