@@ -59,7 +59,7 @@ In order to develop FleCSPH follow the instruction to install FleCSPH with spack
 We will them only load the dependencies of FleCSPH, not FleCPSH itself. 
 1. We need to load the compiler you want to use and eventually the cmake installed by Spack: 
 ```{engine=sh}
-spack module tcl loads --dependencies flecsph
+spack load gcc@9.1.0
 ```
 2. We can now load the FleCSPH dependencies installed by spack 
 ```{engine=sh}
