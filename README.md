@@ -25,22 +25,22 @@ We provide several examples of physics problems in 1D, 2D and 3D:
 - pressure-induced spherical implosion (2D/3D);
 - single and binary stars with Newtonian gravity in 3D.
 
-# Spack 
+# Building FleCSPH with Spack
 
-Spack now provides a FleCSPH package. 
+FleCSPH can now be installed as a Spack package. 
 
 In order to install FleCSPH on your machine using spack: 
 - Download spack at: github.com/spack/spack 
 - Follow installation instructions 
-In order to add the basic modules for spack and the modules themselves: 
+- Use the following command to install core spack utilities:
 ```{engine=sh}
 spack bootstrap
 ```
-- Run: 
+- Run:
 ```{engine=sh}
 spack install flecsph 
 ```
-This will build all the dependencies and compile FleCSPH. 
+This will build all the dependencies, compile and install FleCSPH. 
 In order to use FleCSPH executables simply run: 
 ```{engine=sh}
 spack load flecsph 
@@ -50,29 +50,31 @@ You will then have access to the generators and the drivers:
 - sodtube\_{1-2-3}d\_generator, sedov\_{1-2-3}d\_generator...
 - hydro\_{1-2-3}d, newtonian\_{1-2-3}d...
 
-The initial data parameter files can be found on the FleCSPH github repository. 
+Sample parameter files and the intial data can be found on the FleCSPH github repository.
 
 
-## Developers using Spack: 
+## Using Spack in the development workflow
 
-In order to develop FleCSPH follow the instruction to install FleCSPH with spack. 
-We will them only load the dependencies of FleCSPH, not FleCPSH itself. 
-1. We need to load the compiler you want to use and eventually the cmake installed by Spack: 
+If you have downloaded FleCSPH from github and working on a development branch, it is very
+convenient to use spack to automatically handle the dependencies:
+
+1. Follow the steps above to install FleCSPH with spack. 
+This will ensure that all the dependencies are satisfied.
+
+2. To inspect the dependencies, use:
 ```{engine=sh}
 spack module tcl loads --dependencies flecsph
 ```
-2. We can now load the FleCSPH dependencies installed by spack 
-```{engine=sh}
-spack module tcl loads --dependencies flecsph
-```
-The previous command will list the modules to load. 
-In order to load them in one command use: 
+3. Load the FleCSPH dependencies installed by spack into the ``bash`` environment:
 ```{engine=sh}
 source <(spack module tcl loads --dependencies flecsph)
 ```
-You can now develop as you usually do using git clone from this repository and cmake should find all the dependencies from what you loaded from Spack. 
+4. You can now build your development version with cmake as described below, 
+skipping all the dependencies.
+cmake should find all the dependencies from what you loaded with spack. 
 
-# Building FleCSPH
+
+# Building FleCSPH manually
 
 FleCSPH can be installed anywhere in your system; to be particular, below we
 assume that all repositories are downloaded in FLECSPH root directory `${HOME}/FLECSPH`.
