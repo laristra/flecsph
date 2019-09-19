@@ -218,20 +218,24 @@ public:
       }
     }
 
-    // Find the first position of ghosts in tree_entities_
-    // Empty the ghosts arrays
-    size_t index_ghosts = tree_entities_.size();
-    for (int i = 0; i <= current_ghosts; ++i) {
-      index_ghosts -= ghosts_entities_[i].size();
-      ghosts_entities_[i].clear();
-    }
-    current_ghosts = 0;
-    index_ghosts -= shared_entities_.size();
-    shared_entities_.clear();
-    assert(!tree_entities_[index_ghosts].is_local());
+    if(current_ghosts == 0 && ghosts_entities_[0].size() == 0){
 
-    tree_entities_.erase(tree_entities_.begin() + index_ghosts,
-                         tree_entities_.end());
+    }else{
+      // Find the first position of ghosts in tree_entities_
+      // Empty the ghosts arrays
+      size_t index_ghosts = tree_entities_.size();
+      for (int i = 0; i <= current_ghosts; ++i) {
+        index_ghosts -= ghosts_entities_[i].size();
+        ghosts_entities_[i].clear();
+      }
+      current_ghosts = 0;
+      index_ghosts -= shared_entities_.size();
+      shared_entities_.clear();
+      assert(!tree_entities_[index_ghosts].is_local());
+
+      tree_entities_.erase(tree_entities_.begin() + index_ghosts,
+                          tree_entities_.end());
+    }
     // Do not share edge in the case of keeping the tree
     if (do_share_edge) {
       share_edge();
@@ -645,15 +649,16 @@ public:
     }
 
     // Prepare for the eventual next tree traversal, use other ghosts vector
-    ++current_ghosts;
-    assert(current_ghosts < max_traversal);
-
-    // Recompute the COFM because new entities are present in the tree
-    // Vector useless because in this case no ghosts can be found
-    if (remaining_branches.size() > 0) {
-      std::vector<branch_t *> ignore;
-      traverse_sph(remaining_branches, ignore, true, ef,
-                   std::forward<ARGS>(args)...);
+    if(ghosts_entities_[current_ghosts].size() > 0){
+      ++current_ghosts;
+      assert(current_ghosts < max_traversal);
+      // Recompute the COFM because new entities are present in the tree
+      // Vector useless because in this case no ghosts can be found
+      if (remaining_branches.size() > 0) {
+        std::vector<branch_t *> ignore;
+        traverse_sph(remaining_branches, ignore, true, ef,
+                     std::forward<ARGS>(args)...);
+      }
     }
     // Copy back the results
     entities_ = entities_w_;
@@ -896,16 +901,18 @@ public:
       // Set the parent to local for the search
       find_parent(g.key()).set_ghosts_local(true);
     }
-    ++current_ghosts;
-    assert(current_ghosts < max_traversal);
-
-    // compute the particle to particle interaction on each sub-branches
-    if (size != 1) {
-      std::vector<branch_t *> ignore;
-      traverse_fmm(remaining_branches, ignore, MAC, f_fc, f_dfcdr, f_dfcdrdr,
-                    f_c2p);
-    } else {
-      assert(remaining_branches.size() == 0);
+    if(ghosts_entities_[current_ghosts].size() > 0){
+      ++current_ghosts;
+      assert(current_ghosts < max_traversal);
+   
+      // compute the particle to particle interaction on each sub-branches
+      if (size != 1) {
+        std::vector<branch_t *> ignore;
+        traverse_fmm(remaining_branches, ignore, MAC, f_fc, f_dfcdr, f_dfcdrdr,
+                      f_c2p);
+      } else {
+        assert(remaining_branches.size() == 0);
+      }
     }
     entities_ = entities_w_;
 
