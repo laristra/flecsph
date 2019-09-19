@@ -32,6 +32,10 @@ Spack now provides a FleCSPH package.
 In order to install FleCSPH on your machine using spack: 
 - Download spack at: github.com/spack/spack 
 - Follow installation instructions 
+In order to add the basic modules for spack and the modules themselves: 
+```{engine=sh}
+spack bootstrap
+```
 - Run: 
 ```{engine=sh}
 spack install flecsph 
@@ -47,6 +51,26 @@ You will then have access to the generators and the drivers:
 - hydro\_{1-2-3}d, newtonian\_{1-2-3}d...
 
 The initial data parameter files can be found on the FleCSPH github repository. 
+
+
+## Developers using Spack: 
+
+In order to develop FleCSPH follow the instruction to install FleCSPH with spack. 
+We will them only load the dependencies of FleCSPH, not FleCPSH itself. 
+1. We need to load the compiler you want to use and eventually the cmake installed by Spack: 
+```{engine=sh}
+spack module tcl loads --dependencies flecsph
+```
+2. We can now load the FleCSPH dependencies installed by spack 
+```{engine=sh}
+spack module tcl loads --dependencies flecsph
+```
+The previous command will list the modules to load. 
+In order to load them in one command use: 
+```{engine=sh}
+source <(spack module tcl loads --dependencies flecsph)
+```
+You can now develop as you usually do using git clone from this repository and cmake should find all the dependencies from what you loaded from Spack. 
 
 # Building FleCSPH
 
