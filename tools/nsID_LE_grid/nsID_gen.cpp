@@ -10,8 +10,13 @@
  * Binary Neutron Star Initial Data generator 
  */
 const int64_t nneighbs = 6;
+#if 0 //Geometrized unit value
 const double solarMass = 1.9885 * pow(10,30) * pow(10,3);
 const double gravConst = 1;
+#endif
+//Unit : cgs
+const double solarMass = 1.9885e33;
+const double gravConst = 6.674e-8;
 const double ksi_1 = M_PI;
 const double radiusKM = pow(10,-5);
 const double mass = 1.; 
@@ -24,7 +29,7 @@ const double centralDensity = (mass*Aconstant*Aconstant*Aconstant)/
 	(4.*M_PI*(sin(Aconstant*radiusCM)-Aconstant*radiusCM*cos(Aconstant*radiusCM)));
 const double tRelax = pow(gravConst*centralDensity,-1./2.);
 const double volPart = (4./3.*M_PI*pow(radiusCM,3.));
-const double dist_stars = 2.9;
+const double dist_stars = 16;
 
 double H_ratio = 1./radiusCM;
 double Hconstant = 0.;
@@ -299,6 +304,7 @@ int main(int argc, char* argv[])
 	<< *std::max_element(data3.begin(),data3.end()) <<"]"<<std::endl;
 
 	// Empty data sets 
+	// HL : might need some values for testing
 	std::fill(data1.begin(),data1.end(),0);
 	write_dataset(dataFile, "/Step#0/ax",data1);
 	write_dataset(dataFile, "/Step#0/ay",data1);
