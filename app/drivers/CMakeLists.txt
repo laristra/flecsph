@@ -71,6 +71,36 @@ target_link_libraries(hydro_3d ${FleCSPH_LIBRARIES})
 target_compile_definitions(hydro_3d PUBLIC -DEXT_GDIMENSION=3)
 install(TARGETS hydro_3d RUNTIME DESTINATION bin)
 
+#------------------------------------------------------------------------------#
+# Tree drivers
+#------------------------------------------------------------------------------#
+
+# MPILEGION version: 1D
+add_executable(tree_1d
+  tree/main.cc
+  tree/main_driver.cc
+  ${FleCSI_RUNTIME}/runtime_driver.cc
+)
+target_link_libraries(tree_1d ${FleCSPH_LIBRARIES})
+target_compile_definitions(tree_1d PUBLIC -DEXT_GDIMENSION=1)
+
+# MPILEGION version: 2D
+add_executable(tree_2d
+  tree/main.cc
+  tree/main_driver.cc
+  ${FleCSI_RUNTIME}/runtime_driver.cc
+)
+target_link_libraries(tree_2d ${FleCSPH_LIBRARIES})
+target_compile_definitions(tree_2d PUBLIC -DEXT_GDIMENSION=2)
+
+# MPILEGION version: 3D
+add_executable(tree_3d
+  tree/main.cc
+  tree/main_driver.cc
+  ${FleCSI_RUNTIME}/runtime_driver.cc
+)
+target_link_libraries(tree_3d ${FleCSPH_LIBRARIES})
+target_compile_definitions(tree_3d PUBLIC -DEXT_GDIMENSION=3)
 
 #------------------------------------------------------------------------------#
 # WVT drivers
