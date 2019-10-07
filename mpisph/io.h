@@ -296,7 +296,10 @@ void H5P_bodiesReadDataset(std::vector<body> &bodies, hid_t &file_id,
   if (!strcmp(dsname, "type")) {
     for (int64_t i = 0; i < IO_nparticlesproc; ++i)
       bodies[i].setType(data[i]);
-  } else if (!strcmp(dsname, "id")) {
+  } else if (!strcmp(dsname,"state")) {
+    for (int64_t i = 0; i < IO_nparticlesproc; ++i)
+      bodies[i].set_state(data[i]);
+  }else if (!strcmp(dsname, "id")) {
     if (err == 0) {
       // set existing IDs from file
       for (int64_t i = 0; i < IO_nparticlesproc; ++i)
@@ -323,7 +326,7 @@ void H5P_bodiesReadDataset(std::vector<body> &bodies, hid_t &file_id,
   } else if (!strcmp(dsname, "P")) {
     for (int64_t i = 0; i < IO_nparticlesproc; ++i)
       bodies[i].setPressure(data[i]);
-  }
+  } 
 #ifdef INTERNAL_ENERGY
   else if (!strcmp(dsname, "u")) {
     for (int64_t i = 0; i < IO_nparticlesproc; ++i)
@@ -804,6 +807,8 @@ void inputDataHDF5(std::vector<body> &bodies, const char *input_file_prefix,
   H5P_bodiesReadDataset(bodies, dataFile, "id", dataInt);
   H5P_bodiesReadDataset(bodies, dataFile, "dt", dataX);
   H5P_bodiesReadDataset(bodies, dataFile, "type", dataInt32);
+  H5P_bodiesReadDataset(bodies, dataFile, "state", dataInt32);
+
 
   delete[] dataX;
   delete[] dataInt;
@@ -960,6 +965,13 @@ void outputDataHDF5(std::vector<body> &bodies, const char *fileprefix,
   H5P_writeDataset(dataFile, "dt", b3);
   H5P_writeDataset(dataFile, "id", bi);
   H5P_writeDataset(dataFile, "type", bint);
+
+  pos = 0L; 
+  for (auto bid : bodies) {
+    bint[pos++] = bid.state();
+  }
+  H5P_writeDataset(dataFile, "state", bint);
+
 
   // Output the rank for analysis
   std::fill(bi, bi + IO_nparticlesproc, rank);

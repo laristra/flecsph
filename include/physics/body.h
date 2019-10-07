@@ -34,6 +34,8 @@
 
 enum particle_type_t : int {NORMAL = 0 ,WALL = 1};
 
+enum state_t : int {NONE = 0, STAR1 = 1, STAR2 = 2};
+
 template<class KEY>
 class body_u : public flecsi::topology::entity<gdimension,type_t,KEY> {
 
@@ -46,7 +48,7 @@ class body_u : public flecsi::topology::entity<gdimension,type_t,KEY> {
 public:
 
    body_u(): flecsi::topology::entity<gdimension,type_t,KEY>(),
-    type_(NORMAL){};
+    type_(NORMAL), state_(NONE){};
 
   double getPressure() const{return pressure_;}
   double getSoundspeed() const{return soundspeed_;}
@@ -68,6 +70,7 @@ public:
   double getDt(){return dt_;};
   double getMumax(){return mumax_;}
   particle_type_t getType() const {return type_;};
+  state_t state() const { return state_;}
   bool is_wall(){return type_ == 1;};
 
   void setAcceleration(const point_t& acceleration)
@@ -91,7 +94,8 @@ public:
   void setMumax(const double& mumax){mumax_ = mumax;}
   void setType(const particle_type_t& type){type_ = type;}
   void setType(const int& type){type_= static_cast<particle_type_t>(type);}
-
+  void set_state(const state_t& state){ state_ = state; }
+  void set_state(const int& state){state_ = static_cast<state_t>(state);}
   // Dependent of the problem
     double getInternalenergy() const{return internalenergy_;}
     void setInternalenergy(double internalenergy)
@@ -150,6 +154,7 @@ private:
   double maxmachnumber_;
   particle_type_t type_;
   size_t neighbors_; 
+  state_t state_; 
 }; // class body
 
 #endif // body_h
