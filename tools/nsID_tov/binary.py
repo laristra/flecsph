@@ -271,6 +271,7 @@ def get_initial_data(separation,file1,file2,output_name):
     u = np.hstack((u1,u2))
     ye = np.hstack((ye1,ye2))
     parttype = np.hstack((parttype1,parttype2))
+    state = np.hstack(np.full(x1.shape,1),np.full(x2.shape,2))
 
     # output to file
     print("Writing data")
@@ -285,6 +286,7 @@ def get_initial_data(separation,file1,file2,output_name):
 	udset = f.create_dataset('u', data = u)
 	mdset = f.create_dataset('m', data = m)
 	hdset = f.create_dataset('h', data = h)
+        statedset = f.create_dataset('state',data=state)
 	#yedset = f.create_dataset('ye', data = ye)
 	#partdset = f.create_dataset('particel-type', data = parttype)
 
