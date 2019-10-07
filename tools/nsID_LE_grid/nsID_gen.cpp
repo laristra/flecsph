@@ -159,6 +159,23 @@ write_dataset(
 }
 
 void 
+write_dataset_int(
+	hid_t file, 
+	const char * name,
+	std::vector<int> data)
+{
+	hsize_t size = data.size();
+	hid_t space_id = H5Screate_simple(1,&size,NULL);
+	hid_t dataset = H5Dcreate(
+		file, name, H5T_NATIVE_INT,space_id,
+		H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
+
+	herr_t status = H5Dwrite(dataset,H5T_NATIVE_INT,
+		H5S_ALL,H5S_ALL,H5P_DEFAULT,&data[0]);
+	status = H5Sclose (space_id);
+    status = H5Dclose (dataset);
+}
+void 
 write_attribute(
 	hid_t file, 
 	const char * name,
@@ -263,13 +280,19 @@ int main(int argc, char* argv[])
 	std::vector<double> data2(nparticles*2); 
 	std::vector<double> data3(nparticles*2);
 
+	// Define state for star tracking
+	std::vector<int> state(nparticles*2);
+
 	// Positions 1st star 
 	for(int64_t i = 0 ; i < 2*nparticles; ++i){
 		data1[i] = particles[i%nparticles].x_ + dist_stars/2.*pow(-1,i/nparticles); 
 		data2[i] = particles[i%nparticles].y_; 
 		data3[i] = particles[i%nparticles].z_; 
+	        //Filling state by position of stars
+	        state[i] = data1[i] <0?1:2;
 	}
 
+        write_dataset_int(dataFile,"/Step#0/state",state);
 	write_dataset(dataFile, "/Step#0/x",data1);
 	write_dataset(dataFile, "/Step#0/y",data2);
 	write_dataset(dataFile, "/Step#0/z",data3);
