@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
 
+# Copyright (c) 2017 Triad National Security, LLC
+# All rights reserved.
+
+# Author : Hyun Lim
+# Date : Jun3.27.2017, Updated : Oct.8.2019
+# This is a python script that generates binary system in Keperlian orbit
+
+# Usage : binary.py <separation> <input1> <input2> <output_name>
+
 from __future__ import print_function
 import numpy as np
 import h5py
