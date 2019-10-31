@@ -1,23 +1,18 @@
+#!/usr/bin/env python3
+
 # Copyright (c) 2017 Triad National Security, LLC
 # All rights reserved.
 
-#!/usr/bin/env python
-
 # Author : Hyun Lim
-# Date : Jun3.27.2017
+# Date : Jun3.27.2017, Updated : Oct.8.2019
 # This is a python script that generates binary system in Keperlian orbit
 
 # Usage : binary.py <separation> <input1> <input2> <output_name>
 
-#from __future__ import print_function # UNUSED
+from __future__ import print_function
 import numpy as np
 import h5py
 import sys
-#import multiprocessing as multi  # UNUSED
-#from matplotlib import pylab   # UNUSED
-#from scipy.interpolate import interp1d  # UNUSED
-#from random import uniform  # UNUSED
-#from scipy import optimize # UNUSED
 
 USE_PN=True
 USE_TIDALLY_LOCKED=True
@@ -95,13 +90,13 @@ def get_offsets(m1,m2,separation):
     # Returns radii of m1 and m2 in binary
     # r1,r2 are DISPLACEMENTS, not magnitudes
     r2 = separation*m1/(m1+m2)
-    r1 = r2 - separation 
+    r1 = r2 - separation
     return r1,r2
 
 def separate(r1,r2,x1,y1,z1,x2,y2,z2):
     #Separate stars by radius and return new position arrays.
-    #By default we separate along x-axis. 
-    
+    #By default we separate along x-axis.
+
     x1new = x1 + r1
     y1new = y1
     z1new = z1
@@ -138,12 +133,13 @@ def get_initial_data(separation,file1,file2,output_name):
     f1 = h5py.File(file1,'r')
     f2 = h5py.File(file2,'r')
 
-    # NOTE: Assumes center of mass is origin for each file. 
+    # NOTE: Assumes center of mass is origin for each file.
     # TODO: Fix this if need be.
 
     # Grab each data set from h5part file
     # Extract the data from h5part Step#0 group
-    # We use this format because paraview requires that format
+    # We use this format because paraview requires that format 
+
     group_data1=f1.get('Step#0')
     group_data2=f2.get('Step#0')
 
@@ -177,7 +173,7 @@ def get_initial_data(separation,file1,file2,output_name):
     m2=group_data2.get('m')
     m2=np.array(m2)
 
-    
+
     # HL : Unit conversion part
     # Convert to cgs
     # currently everything goes into memory
@@ -229,8 +225,8 @@ def get_initial_data(separation,file1,file2,output_name):
     x1,y1,z1 = center_star(m1,x1,y1,z1)
     x2,y2,z2 = center_star(m2,x2,y2,z2)
 
-    # Reflect star 1 about its origin so the stars 
-    # are perfectly symmetric about their 
+    # Reflect star 1 about its origin so the stars
+    # are perfectly symmetric about their
     # center of mass
     x1 *= -1
     y1 *= -1
@@ -271,22 +267,24 @@ def get_initial_data(separation,file1,file2,output_name):
     u = np.hstack((u1,u2))
     ye = np.hstack((ye1,ye2))
     parttype = np.hstack((parttype1,parttype2))
+    state = np.hstack((np.full(x1.shape,1,dtype=int),np.full(x2.shape,2,dtype=int)))
 
-    # output to file
+    #output to file
     print("Writing data")
     with h5py.File(output_name,'w') as g:
-	f = g.create_group("Step#0")
-	xdset = f.create_dataset('x', data = x)
-	ydset = f.create_dataset('y', data = y)
-	zdset = f.create_dataset('z', data = z)
-	vxdset = f.create_dataset('vx', data = vx)
-	vydset = f.create_dataset('vy', data = vy)
-	vzdset = f.create_dataset('vz', data = vz)
-	udset = f.create_dataset('u', data = u)
-	mdset = f.create_dataset('m', data = m)
-	hdset = f.create_dataset('h', data = h)
-	#yedset = f.create_dataset('ye', data = ye)
-	#partdset = f.create_dataset('particel-type', data = parttype)
+        f = g.create_group("Step#0")
+        xdset = f.create_dataset('x', data = x)
+        ydset = f.create_dataset('y', data = y)
+        zdset = f.create_dataset('z', data = z)
+        vxdset = f.create_dataset('vx', data = vx)
+        vydset = f.create_dataset('vy', data = vy)
+        vzdset = f.create_dataset('vz', data = vz)
+        udset = f.create_dataset('u', data = u)
+        mdset = f.create_dataset('m', data = m)
+        hdset = f.create_dataset('h', data = h)
+        statedset = f.create_dataset('state',data=state)
+        #yedset = f.create_dataset('ye', data = ye)
+        #partdset = f.create_dataset('particel-type', data = parttype)
 
 if __name__ == "__main__":
     separation = float(sys.argv[1])*distance_cu_to_cgs
