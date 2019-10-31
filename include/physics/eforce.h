@@ -314,7 +314,7 @@ namespace external_force {
     // parse efstr: external force specification string is a comma-separated
     // list of potentials / accelerations which need to be added up: e.g.
     // "spherical wall,walls:xyz,gravity"
-    vector<string> split_efstr;
+    std::vector<string> split_efstr;
     boost::split(split_efstr, efstr, boost::is_any_of(","));
     for (auto it = split_efstr.begin(); it!= split_efstr.end(); ++it) {
       if (boost::iequals(*it,"spherical wall")) {

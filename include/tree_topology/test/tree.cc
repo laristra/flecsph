@@ -25,7 +25,8 @@ TEST(tree, add_entities) {
 
 
   tree_topology_t *tree;
-  tree = new tree_topology_t(range[0], range[1]);
+  tree = new tree_topology_t();
+  tree->set_range(range); 
 
   // clog(trace)<<"Creating bodies"<<std::endl<<std::flush;
   // Create bodies

@@ -89,17 +89,10 @@ public:
   using point_t = point_u<element_t, dimension>;
   using range_t = std::array<point_t, 2>;
   using key_t = typename Policy::key_t;
-  using branch_id_t = key_t;
-  using branch_id_vector_t = std::vector<branch_id_t>;
   using branch_t = typename Policy::branch_t;
-  using branch_vector_t = std::vector<branch_t *>;
   using entity_t = typename Policy::entity_t;
   using tree_entity_t = tree_entity<dimension, element_t, key_t, entity_t>;
-  using entity_vector_t = std::vector<tree_entity_t *>;
-  using apply_function = std::function<void(branch_t &)>;
-  using entity_id_vector_t = std::vector<size_t>;
   using geometry_t = tree_geometry<element_t, dimension>;
-  using entity_space_ptr_t = std::vector<tree_entity_t *>;
 
   // Hasher for the branch id used in the unordered_map data structure
   template <class KEY> struct branch_id_hasher__ {
@@ -113,27 +106,11 @@ public:
     dimension is in range [0, 1].
    */
   tree_topology() {
-    branch_map_.emplace(branch_id_t::root(), branch_id_t::root());
-    root_ = branch_map_.find(branch_id_t::root());
+    branch_map_.emplace(key_t::root(), key_t::root());
+    root_ = branch_map_.find(key_t::root());
     assert(root_ != branch_map_.end());
 
     max_depth_ = 0;
-    ghosts_entities_.resize(max_traversal);
-    current_ghosts = 0;
-  }
-
-  /*!
-    Construct a tree topology with specified ranges [end, start] for each
-    dimension.
-   */
-  tree_topology(const point_t &start, const point_t &end) {
-    branch_map_.emplace(branch_id_t::root(), branch_id_t::root());
-    root_ = branch_map_.find(branch_id_t::root());
-    assert(root_ != branch_map_.end());
-
-    max_depth_ = 0;
-    range_[0] = start;
-    range_[1] = end;
     ghosts_entities_.resize(max_traversal);
     current_ghosts = 0;
   }
@@ -160,8 +137,9 @@ public:
       ghosts_entities_[i].clear();
     current_ghosts = 0;
     shared_entities_.clear();
-    branch_map_.emplace(branch_id_t::root(), branch_id_t::root());
-    root_ = branch_map_.find(branch_id_t::root());
+
+    branch_map_.emplace(key_t::root(), key_t::root());
+    root_ = branch_map_.find(key_t::root());
     assert(root_ != branch_map_.end());
     max_depth_ = 0;
   }
@@ -495,7 +473,7 @@ public:
    */
   branch_t *child(branch_t *b, size_t ci) {
     // Use the hash table
-    branch_id_t bid = b->key();         // Branch id
+    key_t bid = b->key();         // Branch id
     bid.push(ci);                       // Add child number
     auto child = branch_map_.find(bid); // Search for the child
     // If it does not exists, return nullptr
@@ -775,8 +753,16 @@ public:
 
     bool missing_branch = false;
 
+    // Small number of particles, root is a leaf 
+    if(root()->is_leaf()){
+      inter_list.push_back(root());
+      return false;  
+    }
+
     queue.push_back(root());
     while (!queue.empty()) {
+      // Check the current queue 
+      
       new_queue.clear();
       // Add the next level in the queue
       for (int i = 0; i < queue.size(); ++i) {
@@ -1017,6 +1003,11 @@ public:
       }
       queue.clear();
       queue = new_queue;
+    }
+
+    if(root()->is_leaf()){
+      assert(c2c_coordinates.size() == 0); 
+      assert(non_local.size() == 0); 
     }
 
     // Compute the C2C
@@ -1482,9 +1473,9 @@ public:
     spheroid.
    */
   template <typename EF>
-  entity_space_ptr_t find_in_radius(const point_t &center, element_t radius,
+  std::vector<tree_entity_t*> find_in_radius(const point_t &center, element_t radius,
                                     EF &&ef) {
-    entity_space_ptr_t ents;
+    std::vector<tree_entity_t*> ents;
 
     // ITERATIVE VERSION
     std::stack<branch_t *> stk;
@@ -1522,9 +1513,9 @@ public:
       Box
      */
   template <typename EF>
-  entity_space_ptr_t find_in_box(const point_t &min, const point_t &max,
+  std::vector<tree_entity_t*> find_in_box(const point_t &min, const point_t &max,
                                  EF &&ef) {
-    entity_space_ptr_t ents;
+    std::vector<tree_entity_t*> ents;
 
     // ITERATIVE VERSION
     std::stack<branch_t *> stk;
@@ -1690,7 +1681,7 @@ public:
   /**
    * @brief Get a branch by its id
    */
-  branch_t *get(branch_id_t id) {
+  branch_t *get(key_t id) {
     auto itr = branch_map_.find(id);
     assert(itr != branch_map_.end());
     return &itr->second;
@@ -1829,7 +1820,7 @@ public:
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     // Find parent of the id
     auto ent = &(tree_entities_[id]);
-    branch_id_t bid = ent->key();
+    key_t bid = ent->key();
     assert(bid.depth() > max_depth_);
     branch_t &b = find_parent(bid);
     // It is not a leaf, need to insert intermediate branch
@@ -1859,8 +1850,8 @@ private:
    * @details First truncate the key to the lowest possible in the tree, then
    * loop on the key to find an existing branch. At least it will find the root
    */
-  branch_t &find_parent(branch_id_t bid) {
-    branch_id_t pid = bid;
+  branch_t &find_parent(key_t bid) {
+    key_t pid = bid;
     pid.truncate(max_depth_);
     while (pid != root_->second.key()) {
       auto itr = branch_map_.find(pid);
@@ -1876,11 +1867,11 @@ private:
    * @brief Refine the current branch b if there is a conflict of children
    */
   void refine_(branch_t &b) {
-    branch_id_t pid = b.key();
+    key_t pid = b.key();
     size_t depth = pid.depth() + 1;
 
     // For every children
-    char bit_child = 0;
+    uint bit_child = 0;
     for (auto ent : b) {
       key_t k = get(ent)->key();
       k.truncate(depth);
@@ -1898,26 +1889,38 @@ private:
     b.set_bit_child(bit_child);
   }
 
+  /** Hashtable Type used to store the branches of the tree */
   // using branch_map_t = hashtable<key_int_t,branch_t>;
   using branch_map_t =
-      std::unordered_map<branch_id_t, branch_t, branch_id_hasher__<key_t>>;
+      std::unordered_map<key_t, branch_t, branch_id_hasher__<key_t>>;
 
+  /** Hashtable of branches */
   branch_map_t branch_map_;
+  /** Direct iterator to the root of the tree */
+  typename branch_map_t::iterator root_;
+
+  /** Lowest depth of branches in the tree */
   size_t max_depth_;
-  typename std::unordered_map<branch_id_t, branch_t,
-                              branch_id_hasher__<key_t>>::iterator root_;
-  // typename branch_map_t::iterator root_;
+  /** Range of the particle system */
   range_t range_;
+  /** Tree entities, light representation of entities */
   std::vector<tree_entity_t> tree_entities_;
+
+  /** Entities vectors for read/write during traversal */
   std::vector<entity_t> entities_;
   std::vector<entity_t> entities_w_;
 
-  const size_t max_traversal = 5;
+  /** Max number of traversals */
+  const size_t max_traversal = 10;
+  /** Ghosts entities frmo other ranks */
   std::vector<std::vector<entity_t>> ghosts_entities_;
+  /** Current position in the array of ghosts */
   size_t current_ghosts = 0;
 
+  /** Entities gathered with direct neighbors */
   std::vector<entity_t> shared_entities_;
 
+  /** Number of entities in the branches during traversal */
   const int ncritical = 32;
 };
 

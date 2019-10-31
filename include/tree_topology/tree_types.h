@@ -33,6 +33,8 @@
 #include <math.h>
 #include <vector>
 
+#include <mutex>
+
 #include "flecsi/geometry/point.h"
 
 namespace flecsi {
@@ -54,16 +56,19 @@ namespace topology {
 //----------------------------------------------------------------------------//
 template <size_t D, typename E, class KEY> class tree_branch {
   using element_t = E;
-  static constexpr size_t dimension = D;
+  static constexpr uint dimension = D;
   using key_t = KEY;
   using point_t = point_u<element_t, D>;
 
   //! Maximum number of children regarding the dimension
-  static constexpr size_t num_children = 1 << dimension;
+  static constexpr uint num_children = 1 << dimension;
 
 public:
   //! Describe the locality of a tree_branch
-  enum b_locality : size_t { LOCAL = 0, EMPTY = 1, NONLOCAL = 2, SHARED = 3 };
+  enum b_locality : uint { EMPTY = 0, LOCAL = 1, NONLOCAL = 2, SHARED = 3 };
+
+  enum bits : uint {CHILD = 0, LEAF = 8, LOC = 9, GHS_LOC = 11, RQST = 12};
+
   tree_branch() {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -78,23 +83,39 @@ public:
               const element_t &mass, const point_t &bmin, const point_t &bmax,
               const b_locality &locality, const int &owner)
       : key_(key), coordinates_(coordinates), mass_(mass), bmin_(bmin),
-        bmax_(bmax), locality_(locality), owner_(owner) {}
+        bmax_(bmax), owner_(owner) {
+    set_locality(locality); 
+  }
 
   ~tree_branch() { ents_.clear(); }
 
   // Getters
   key_t key() const { return key_; }
-  point_t coordinates() { return coordinates_; };
-  element_t mass() { return mass_; };
-  point_t bmin() { return bmin_; };
-  point_t bmax() { return bmax_; };
+  point_t coordinates() const { return coordinates_; };
+  element_t mass() const { return mass_; };
+  point_t bmin() const { return bmin_; };
+  point_t bmax() const { return bmax_; };
   uint64_t sub_entities() const { return sub_entities_; }
-  b_locality locality() { return locality_; }
-  int owner() { return owner_; };
-  bool ghosts_local() { return ghosts_local_; };
-  bool requested() { return requested_; };
-  char bit_child() { return bit_child_; };
+  int owner() const { return owner_; };
 
+  b_locality locality() const {  
+    return static_cast<b_locality>((type_ & (uint(3) << bits::LOC)) >> bits::LOC);
+  }
+  bool ghosts_local() const { return type_ & (uint(1) << bits::GHS_LOC);}
+  bool requested() const { return type_ & (uint(1) << bits::RQST);}
+  char bit_child() const { return static_cast<char>(type_ & uint(255));}
+  bool is_leaf() const { 
+    bool res = type_ & (uint(1) << bits::LEAF);
+    return type_ & (uint(1) << bits::LEAF); 
+  }
+  bool is_local() const {
+    b_locality loc = locality(); 
+    return loc == LOCAL || loc == EMPTY || loc == SHARED;
+  }
+  bool is_shared() const {
+    b_locality loc = locality(); 
+    return loc == SHARED; 
+  }
   // Setters
   void set_coordinates(const point_t &coordinates) {
     coordinates_ = coordinates;
@@ -108,25 +129,60 @@ public:
   void set_end_tree_entities(const size_t &end_tree_entities) {
     end_tree_entities_ = end_tree_entities;
   }
-  size_t begin_tree_entities() { return begin_tree_entities_; }
-  size_t end_tree_entities() { return end_tree_entities_; }
-  void set_locality(b_locality locality) { locality_ = locality; }
-  void set_sub_entities(uint64_t sub_entities) { sub_entities_ = sub_entities; }
-  void set_leaf(bool leaf) { leaf_ = leaf; }
-  void set_owner(int owner) { owner_ = owner; };
-  void set_ghosts_local(const bool ghosts_local) {
-    ghosts_local_ = ghosts_local;
-  };
-  void set_requested(bool requested) { requested_ = requested; };
-  void set_bit_child(char bit_child) { bit_child_ = bit_child; };
+  size_t begin_tree_entities()const { return begin_tree_entities_; }
+  size_t end_tree_entities() const { return end_tree_entities_; }
+  void set_sub_entities(const uint64_t& sub_entities) { sub_entities_ = sub_entities; }
+  void set_owner(const int& owner) { owner_ = owner; };
 
-  // Checker
-  bool is_leaf() const { return leaf_; }
-  bool is_valid() const { return true; }
-  bool is_local() const {
-    return locality_ == LOCAL || locality_ == EMPTY || locality_ == SHARED;
+  void set_locality(const b_locality& locality) { 
+    uint value = locality; 
+    assert(value >= 0 || value <= 3); 
+    constexpr uint mask_loc = ~(uint(3) << bits::LOC);  
+    type_ &= mask_loc;
+    type_ |= value << bits::LOC; 
   }
-  bool is_shared() const { return locality_ == SHARED; }
+  void set_leaf(const bool leaf) { 
+    uint value = leaf; 
+    assert(value == 0 || value == 1); 
+    constexpr uint mask_leaf = ~(uint(1) << bits::LEAF); 
+    type_ &= mask_leaf; 
+    type_ |= value << bits::LEAF; 
+  }
+  void set_ghosts_local(const bool ghosts_local) {
+    uint value = ghosts_local; 
+    assert(value == 0 || value == 1); 
+    constexpr uint mask_gl = ~(uint(1) << bits::GHS_LOC); 
+    type_ &= mask_gl; 
+    type_ |= value << bits::GHS_LOC; 
+  }
+  void set_requested(const bool requested) {
+    uint value = requested; 
+    assert(value == 0 || value == 1); 
+    constexpr uint mask_rq = ~(uint(1) << bits::RQST); 
+    type_ &= mask_rq; 
+    type_ |= value << bits::RQST; 
+  }
+  void set_bit_child(const uint bit_child) { 
+    constexpr uint mask_ch = ~uint(255); 
+    type_ &= mask_ch;
+    type_ |= bit_child; 
+  }
+  //! Add a specific child in the child bitmap
+  void add_bit_child(const uint i) {
+    assert(!(type_ & uint(1) << i));
+    type_ |= uint(1) << i;
+  }
+  //! Check if this branch have a specific child in the bitset
+  bool as_child(const uint i) { 
+    bool res = (type_ & (uint(1)<<i)); 
+    return type_ & uint(1) << i; 
+  };
+  // Remove a specific entity from the child bitmap
+  void remove_bit(const uint& bit) {
+    assert(type_ & (1 << bit));
+    type_ ^= uint(1) << bit;
+    assert(!(type_ & (uint(1) << bit)));
+  }
 
   //! Insert an entity in the branch vector
   void insert(const size_t &id) {
@@ -134,8 +190,9 @@ public:
     ents_.push_back(id);
   } // insert
 
+
   //! Number of entities in this branch
-  int size() { return ents_.size(); }
+  int size() const { return ents_.size(); }
 
   //! Remove a specific entity from the branch
   void remove(const size_t &id) {
@@ -143,28 +200,15 @@ public:
     assert(itr != ents_.end());
     ents_.erase(itr);
   }
-  // Remove a specific entity from the child bitmap
-  void remove_bit(const int &bit) {
-    assert(bit_child_ & (1 << bit));
-    bit_child_ ^= 1 << bit;
-    assert(!(bit_child_ & (1 << bit)));
-  }
+
 
   auto begin() { return ents_.begin(); }
   auto end() { return ents_.end(); }
   auto clear() {
     ents_.clear();
-    requested_ = false;
-    ghosts_local_ = false;
+    set_requested(false); 
+    set_ghosts_local(false);
   }
-
-  //! Add a specific child in the child bitmap
-  void add_bit_child(int i) {
-    assert(!(bit_child_ & 1 << i));
-    bit_child_ |= 1 << i;
-  };
-  //! Check if this branch have a specific child in the bitset
-  bool as_child(int i) { return bit_child_ & 1 << i; };
 
 protected:
   void set_key_(key_t key) { key_ = key; }
@@ -181,17 +225,20 @@ protected:
 
   key_t key_;                 // Key of this branch
   uint64_t sub_entities_ = 0; // Subentities in this subtree
-  bool leaf_ = true;
-  b_locality locality_ = EMPTY;
   point_t bmin_;
   point_t bmax_;
   int owner_;
   point_t coordinates_;
   element_t mass_;
   std::vector<size_t> ents_;
-  bool ghosts_local_ = true;
-  bool requested_ = false;
-  char bit_child_ = 0;
+  /** Bit representation of boolean value
+   * | rqsted_ | ghs_loc | locality_ 2bits | leaf_ | children 8bits | 
+   * Default rqsted = false, ghs_loc = true, loc = EMPTY, leaf = true, 8(0)
+   */
+  unsigned int type_ =  
+      (uint(1)<<bits::LEAF) 
+    | (uint(1)<<bits::GHS_LOC) 
+    | (uint(EMPTY) << bits::LOC);
   size_t begin_tree_entities_;
   size_t end_tree_entities_;
 };
