@@ -1,8 +1,8 @@
-#include <cinchdevel.h>
-#include <cinchtest.h>
+#include "gtest/gtest.h"
 
 #include <cmath>
 #include <iostream>
+#include <log.h>
 #include <mpi.h>
 
 #include "bodies_system.h"
@@ -13,13 +13,15 @@ using namespace topology;
 
 namespace flecsi {
 namespace execution {
-void driver(int argc, char *argv[]) {}
+void
+driver(int argc, char * argv[]) {}
 } // namespace execution
 } // namespace flecsi
 
 TEST(body_system, write_range_read) {
+  MPI_Init(nullptr, nullptr);
 
-  const char *fileprefix = "io_test";
+  const char * fileprefix = "io_test";
 
   body_system<double, gdimension> bs;
   bs.read_bodies(fileprefix, fileprefix, 0);
@@ -27,10 +29,11 @@ TEST(body_system, write_range_read) {
   double h = bs.getSmoothinglength();
   ASSERT_TRUE(h == 0.05);
   std::array<point_t, 2> range = bs.getRange();
-  for (size_t i = 0; i < gdimension; ++i) {
+  for(size_t i = 0; i < gdimension; ++i) {
     ASSERT_TRUE(range[0][i] == -0.05);
     ASSERT_TRUE(fabs(range[1][i] - 0.50) < 1.0e-15);
   }
 
   bs.write_bodies(fileprefix, 0, 0);
+  MPI_Finalize();
 }

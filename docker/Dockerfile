@@ -20,7 +20,6 @@ ARG TRAVIS_COMMIT
 ARG TRAVIS_OS_NAME
 
 # Cleans and install 
-ENV CLOG_ENABLE_STDLOG=0
 RUN rm -rf /home/flecsi/.ccache
 COPY flecsph /home/flecsi/flecsph
 COPY ccache/ /home/flecsi/.ccache
@@ -36,7 +35,7 @@ RUN cd /home/flecsi && \
     git clone --depth 1 --recursive https://github.com/laristra/flecsi flecsi && \
     cd flecsi && mkdir build && cd build && \ 
     cmake .. -DFLECSI_RUNTIME_MODEL=mpi \
-              -DENABLE_CLOG=OFF \
+              -DENABLE_LOG=OFF \
               -DENABLE_MPI=ON \
               -DENABLE_OPENMP=ON \
               -DENABLE_MPI_CXX_BINDINGS=ON \
@@ -65,7 +64,7 @@ RUN cd /home/flecsi/flecsph && \
           -DCMAKE_CXX_FLAGS="-fpermissive" \
           -DCXX_CONFORMANCE_STANDARD=c++17 \
           -DENABLE_BOOST_PREPROCESSOR=ON \
-          -DENABLE_CLOG=ON \
+          -DENABLE_LOG=ON \
           -DENABLE_COLOR_UNIT_TESTS=ON \
           -DFleCSI_INCLUDE_DIR=/usr/local/include \
           -DFleCSI_RUNTIME=/usr/local/share/FleCSI/runtime \

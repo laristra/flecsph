@@ -8,11 +8,11 @@
 
 # Introduction 
 
-FleCSPH is a multi-physics compact application that exercises FleCSI parallel data structures for tree-based particle methods. In particular, FleCSPH implements a smoothed-particle hydrodynamics (SPH) solver for the solution of Lagrangian problems in astrophysics and cosmology. FleCSPH includes support for gravitational forces using the fast multipole method (FMM).
-
-
-This project implements smoothed particles hydrodynamics (SPH) method of
-simulating fluids and gases using the FleCSI framework.
+FleCSPH is a multi-physics compact application that exercises FleCSI parallel
+data structures for tree-based particle methods. In particular, FleCSPH
+implements a smoothed-particle hydrodynamics (SPH) solver for the solution of
+Lagrangian problems in astrophysics and cosmology. FleCSPH includes support
+for gravitational forces using the fast multipole method (FMM).
 Currently, particle affinity and gravitation is handled using the parallel
 implementation of the octree data structure provided by FleCSI.
 
@@ -27,9 +27,7 @@ We provide several examples of physics problems in 1D, 2D and 3D:
 
 # Building FleCSPH with Spack
 
-FleCSPH can now be installed as a Spack package. 
-
-In order to install FleCSPH on your machine using spack: 
+FleCSPH can now be installed as a Spack package:
 - Download spack at: github.com/spack/spack 
 - Follow installation instructions 
 - Use the following command to install core spack utilities:
@@ -47,10 +45,10 @@ spack load flecsph
 ```
 
 You will then have access to the generators and the drivers: 
-- sodtube\_{1-2-3}d\_generator, sedov\_{1-2-3}d\_generator...
-- hydro\_{1-2-3}d, newtonian\_{1-2-3}d...
+- sodtube\_{1-2-3}d\_generator, sedov\_{2-3}d\_generator...
+- hydro\_{1-2-3}d, newtonian\_3d...
 
-Sample parameter files and the intial data can be found on the FleCSPH github repository.
+Sample parameter files and the intial data can be found in the `data` subdirectory.
 
 
 ## Using Spack in the development workflow
@@ -60,36 +58,51 @@ convenient to use spack to automatically handle the dependencies:
 
 1. Follow the steps above to install FleCSPH with spack. 
 This will ensure that all the dependencies are satisfied.
-Select your compiler / MPI combination at this step, e.g. use:
-```{engine=sh}
-spack install flecsph %gcc@9.1.0 ^openmpi@3.1.4
-```
 
 2. To inspect the dependencies:
 ```{engine=sh}
-spack module tcl loads --dependencies flecsph
+spack module tcl loads --dependencies flecsph@refactor
 ```
+If this command returns empty, use `spack bootstrap` for tcl.
+
 3. Load the FleCSPH dependencies installed by spack into the ``bash`` environment:
 ```{engine=sh}
 source <(spack module tcl loads --dependencies flecsph)
 ```
+Unload FleCSPH itself as you will be using your own custom built version:
+```{engine=sh}
+module unload $(spack module tcl find flecsph)
+```
+Inspect your module environment to make sure dependencies have been loaded:
+```{engine=sh}
+module list
+```
+
 4. You can now build your development version with cmake as described below, 
 skipping all the dependencies.
-cmake should find all the dependencies from what you loaded with spack. 
-
+cmake should find all the dependencies from what you loaded with spack:
+```{engine=sh}
+mkdir build; cd build
+cmake .. \
+    -DCMAKE_BUILD_TYPE=debug \
+    -DENABLE_UNIT_TESTS=ON   \
+    -DENABLE_DEBUG=OFF       \
+    -DLOG_STRIP_LEVEL=1
+```
 
 # Building FleCSPH manually
 
-FleCSPH can be installed anywhere in your system; to be particular, below we
-assume that all repositories are downloaded in FLECSPH root directory `${HOME}/FLECSPH`.
+Below we assume that FleCSPH is installed in FLECSPH root directory 
+`${FLECSPH_ROOT}`.
 
 ## Suggested directory structure
 
-We recommend to use an isolated installation of FleCSPH and FleCSI, such that the software and all their
-dependencies in a separate directory, with the following directory structure:
+We recommend to use an isolated installation of FleCSPH and FleCSI, such that
+the software and all the dependencies in a separate directory, with the 
+following directory structure:
 
 ```{engine=sh}
-  ${HOME}/FLECSPH
+  ${FLECSPH_ROOT}
   ├── flecsi
   │   └── build
   ├── flecsph
@@ -103,10 +116,11 @@ dependencies in a separate directory, with the following directory structure:
       └── share
 ```
 
-Below we use `${HOME}/FLECSPH/local` for an installation directory.
+All the build happens in `build` subdirectories, and compiled dependencies are
+installed in `local` subdirectory. 
 Make sure to set your CMAKE prefix to this location:
 
-    % export CMAKE_PREFIX_PATH=${HOME}/FLECSPH/local
+    % export CMAKE_PREFIX_PATH=${FLECSPH_ROOT}/local
 
 ## Prerequisites
 
@@ -114,9 +128,7 @@ You will need the following tools:
 
 - C++17 - capable compiler, such as gcc version >= 7;
 - git version > 2.14;
-- MPI libraries, compiled with the gcc compiler above and multithread support
-  (`--enable-mpi-thread-multiple` for OpenMPI and
-   `--enable-threads=multiple` for MPICH);
+- MPI libraries;
 - cmake version > 3.7;
 - boost library version > 1.59;
 - Python version > 2.7.
@@ -125,67 +137,56 @@ You will need the following tools:
 
 ## FleCSI
 
-Clone FleCSI repo at the `master` branch (default).
+Clone FleCSI repo at the `stable/flecsph` branch.
 Checkout submodules recursively, then configure as below:
 
 ```{engine=sh}    
-   export CMAKE_PREFIX_PATH=${HOME}/FLECSPH/local
-   cd $HOME/FLECSPH
+   export CMAKE_PREFIX_PATH=${FLECSPH_ROOT}/local
+   cd ${FLECSPH_ROOT}
    git clone --recursive git@github.com:laristra/flecsi.git
    cd flecsi
+   git checkout stable/flecsph
    git submodule update --recursive
    mkdir build ; cd build
    cmake .. \
-       -DCMAKE_INSTALL_PREFIX=$CMAKE_PREFIX_PATH  \
-       -DENABLE_MPI=ON                            \
-       -DENABLE_MPI_CXX_BINDINGS=ON               \
-       -DENABLE_OPENMP=ON                         \
-       -DCXX_CONFORMANCE_STANDARD=c++17           \
-       -DENABLE_CLOG=ON                           \
-       -DFLECSI_RUNTIME_MODEL=mpi                 \
-       -DENABLE_FLECSIT=OFF                       \
-       -DENABLE_FLECSI_TUTORIAL=OFF               
+       -DENABLE_OPENMP=OFF \
+       -DCXX_CONFORMANCE_STANDARD=c++17 \
+       -DENABLE_METIS=ON \
+       -DENABLE_PARMETIS=ON \
+       -DENABLE_COLORING=ON \
+       -DENABLE_DEVEL_TARGETS=ON \
+       -DENABLE_LOG=ON           \
+       -DFLECSI_RUNTIME_MODEL=mpi
 ```    
 
-In this configuration, MPI is used as FleCSI backend.
-If you want to use other FleCSI backends (Legion, HPX), you will need to install them separately: see https://github.com/laristra/flecsi-third-party for further info.
+In this configuration, FleCSI is installed with the MPI backend.
 
-In a final step, build and install:
+Build as a final step:
 
-    % make -j install
+    % make -j
 
 ## FleCSPH
 
-Clone the master branch from the FleCSPH git repo:
+Clone FleCSPH git repo:
 ```{engine=sh}
-   cd $HOME/FLECSPH
+   cd ${FLECSPH_ROOT}
    git clone --recursive git@github.com:laristra/flecsph.git
 ```    
 
 ### Building FleCSPH
 
-Configure command:
+Configure and build commands:
 
 ```{engine=sh}
-   # in ${HOME}/FLECSPH/build:
-   export CMAKE_PREFIX_PATH=${HOME}/FLECSPH/local
+   # in ${FLECSPH_ROOT}/build:
+   export CMAKE_PREFIX_PATH=${FLECSPH_ROOT}/local
    cmake .. \
-       -DCMAKE_INSTALL_PREFIX=$CMAKE_PREFIX_PATH  \
-       -DENABLE_MPI=ON                            \
-       -DENABLE_OPENMP=ON                         \
-       -DENABLE_UNIT_TESTS=ON                     \
-       -DCXX_CONFORMANCE_STANDARD=c++17           \
-       -DENABLE_CLOG=ON                           \
-       -DENABLE_MPI_THREAD_MULTIPLE=ON            \
-       -DHDF5_IS_PARALLEL=ON                      \
-       -DCLOG_STRIP_LEVEL=1                       \
-       -DENABLE_UNIT_TESTS=ON                     \
-       -Wno-dev
+       -DCMAKE_BUILD_TYPE=debug \
+       -DENABLE_UNIT_TESTS=ON   \
+       -DENABLE_DEBUG=OFF       \
+       -DLOG_STRIP_LEVEL=1
+   make -j
 ```
-
-Build and install:
-
-    % make -j install
 
 
 ### Building FleCSPH on various architectures
@@ -256,36 +257,24 @@ correctly, you can copy them from other subprojects such as `sodtube` or `hydro`
 
 # For developers
 Please refer to the following page:
-[Development Guidelines](https://github.com/laristra/flecsph/blob/doc/hlim/doc/development.md)
-
-## Style guide
-
-FleCSPH follows the FleCSI coding style, which in turn follows (in general) the Google coding conventions.
-FleCSI coding style is documented here:
-https://github.com/laristra/flecsi/blob/master/flecsi/style.md
+[Development Guidelines](https://github.com/laristra/flecsph/blob/master/doc/development.md)
 
 # Logs
 
-Cinch Log is the logging tool for this project.
-In order to display log set the environment variable as:
-```bash
-export CLOG_ENABLE_STDLOG=1
-```
-
 In the code, you can set the level of output from trace(0) and info(1) to warn(2), error(3) and fatal(4).
-You can then control the level of output at compile time by setting the flag `CLOG_STRIP_LEVEL`:
+You can then control the level of output at compile time by setting the flag `LOG_STRIP_LEVEL`:
 by default it is set to 0 (trace), but for simulations it is perhaps preferrable to set it to 1 (info).
 ```cpp
-clog(trace) << "This is verbose output  (level 0)" << std::endl;
-clog(info) << "This is essential output (level 1)" << std::endl;
-clog(warn) << "This is a warning output (level 2)" << std::endl;
-clog(fatal) << "Farewell!" << std::endl;
+  log_one(trace) << "This is verbose output  (level 0)" << std::endl;
+  log_one(info) << "This is essential output (level 1)" << std::endl;
+  log_one(warn) << "This is a warning output (level 2)" << std::endl;
+  log_one(fatal) << "Farewell!" << std::endl;
 ```
 
 For further details, refer to the documentation at:
 https://github.com/laristra/cinch/blob/master/logging/README.md
 
- # Contacts
+# Contacts
 
- If you have any questions or concerns regarding FleCSPH, please contact Julien Loiseau (jloiseau@lanl.gov), 
-Oleg Korobkin (korobkin@lanl.gov) and/or Hyun Lim (hyunlim@lanl.gov)
+If you have any questions or concerns regarding FleCSPH, please contact us 
+via the mailing list flecsph-support@lanl.gov

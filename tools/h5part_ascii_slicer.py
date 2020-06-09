@@ -65,7 +65,7 @@ out1d = args.x or args.y or args.z or args.r
 
 # read the input file
 try:
-  h5file = h5py.File(args.ifile)
+  h5file = h5py.File(args.ifile, 'r')
 except:
   sys.exit ("ERROR: cannot read input file %s" % args.ifile)
 

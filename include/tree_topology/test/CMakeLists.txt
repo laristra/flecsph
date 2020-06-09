@@ -29,32 +29,11 @@ include_directories(${CMAKE_SOURCE_DIR}/mpisph/)
 # tree topology tests
 #------------------------------------------------------------------------------#
 
-
-#cinch_add_unit(filling_curves
-#  SOURCES
-#    filling_curves.cc
-#    ${FleCSI_RUNTIME}/runtime_driver.cc
-#  LIBRARIES
-#    ${FleCSPH_LIBRARIES}
-#)
-
-#cinch_add_unit(hilbert
-#  SOURCES
-#    hilbert.cc
-#    ${FleCSI_RUNTIME}/runtime_driver.cc
-#  LIBRARIES
-#    ${FleCSPH_LIBRARIES}
-#)
-
-cinch_add_unit(tree
-  SOURCES
-  tree.cc
-    ${FleCSI_RUNTIME}/runtime_driver.cc
-  LIBRARIES
-    ${FleCSPH_LIBRARIES}
-  POLICY MPI
-)
-
+if(ENABLE_UNIT_TESTS)
+package_add_test(filling_curves filling_curves.cc)
+package_add_test(tree tree.cc)
+package_add_test(tensors tensors.cc)
+endif()
 #~---------------------------------------------------------------------------~-#
 # Formatting options
 # vim: set tabstop=2 shiftwidth=2 expandtab :

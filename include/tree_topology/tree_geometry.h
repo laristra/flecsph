@@ -34,7 +34,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "flecsi/geometry/point.h"
+#include "space_vector.h"
 
 namespace flecsi {
 namespace topology {
@@ -42,58 +42,92 @@ namespace topology {
 /*-----------------------------------------------------------------------------*
  * class tree_geometry
  *-----------------------------------------------------------------------------*/
-template <typename T, size_t D> struct tree_geometry {};
+template<typename T, size_t D>
+struct tree_geometry {};
 
 /*-----------------------------------------------------------------------------*
  * class tree_geometry 1D specification
  *-----------------------------------------------------------------------------*/
-template <typename T> struct tree_geometry<T, 1> {
+template<typename T>
+struct tree_geometry<T, 1> {
 
-  using point_t = point_u<T, 1>;
+  using point_t = space_vector_u<T, 1>;
   using element_t = T;
   //! Tolerance for the computations
   static constexpr element_t tol =
-      std::numeric_limits<element_t>::epsilon() * 10.;
+    std::numeric_limits<element_t>::epsilon() * 10.;
+
+  static element_t distance2(const point_t & p1, const point_t & p2) {
+    return (p1[0] - p2[0]) * (p1[0] - p2[0]);
+  }
+
+  //! Return true if dist^2 < radius^2
+  static bool within_distance2(const point_t & p1,
+    const point_t & p2,
+    const element_t & r) {
+    return distance2(p1, p2) <= r * r;
+  }
 
   //! Return true if point origin lies within the spheroid centered at
   //! center with radius.
-  static bool within(const point_t &origin, const point_t &center, element_t r1,
-                     element_t r2 = 0) {
+  static bool within(const point_t & origin,
+    const point_t & center,
+    element_t r1,
+    element_t r2 = 0) {
     return distance(origin, center) - r1 <= tol;
   }
 
   //! Return true if dist^2 < radius^2
-  static bool within_square(const point_t &origin, const point_t &center,
-                            element_t r1, element_t r2) {
-    return distance(origin,center) <= std::max(r1,r2);
+  static bool within_square(const point_t & origin,
+    const point_t & center,
+    element_t r1,
+    element_t r2) {
+    return distance(origin, center) <= std::max(r1, r2);
   }
 
   //! Return true if point origin lies within the box specified by
   //! min/max point.
-  static bool within_box(const point_t &min, const point_t &max,
-                         const point_t &origin, const element_t &r) {
+  static bool within_box(const point_t & min,
+    const point_t & max,
+    const point_t & origin,
+    const element_t & r) {
     return origin[0] <= max[0] && origin[0] >= min[0];
   }
 
-  //! Intersection between two boxes defined by there min and max bound
-  static bool intersects_box_box(const point_t &min_b1, const point_t &max_b1,
-                                 const point_t &min_b2, const point_t &max_b2) {
-    return !((max_b1[0] < min_b2[0]) || (max_b2[0] < min_b1[0]));
-  }
-
   //! Intersection of two spheres based on center and radius
-  static bool intersects_sphere_sphere(const point_t &c1, const element_t r1,
-                                       const point_t &c2, const element_t r2) {
+  static bool intersects_sphere_sphere(const point_t & c1,
+    const element_t r1,
+    const point_t & c2,
+    const element_t r2) {
     return distance(c1, c2) - (r1 + r2) <= tol;
   }
 
   //! Intersection of sphere and box; Compute the closest point from the
   //! rectangle to the sphere and this distance less than sphere radius
-  static bool intersects_sphere_box(const point_t &min, const point_t &max,
-                                    const point_t &c, const element_t r) {
+  static bool intersects_sphere_box(const point_t & min,
+    const point_t & max,
+    const point_t & c,
+    const element_t r) {
     point_t x = point_t(std::max(min[0], std::min(c[0], max[0])));
     element_t dist = distance(x, c);
     return dist - r <= tol;
+  }
+
+  //! Intersection between two boxes defined by there min and max bound
+  static bool intersects_box_box(const point_t & min_b1,
+    const point_t & max_b1,
+    const point_t & min_b2,
+    const point_t & max_b2) {
+    return !((max_b1[0] < min_b2[0]) || (max_b2[0] < min_b1[0]));
+  }
+
+  static bool mac(const point_t & source,
+    const element_t & source_radius,
+    const point_t & sink,
+    const element_t & radius,
+    const element_t & mac_angle) {
+    double dist = flecsi::distance(source, sink);
+    return source_radius + radius < mac_angle * dist;
   }
 
   /**
@@ -101,10 +135,11 @@ template <typename T> struct tree_geometry<T, 1> {
    * The angle === l/r < MAC (l source box width, r distance sink -> source)
    * Barnes & Hut 1986
    */
-  static bool box_MAC(const point_t &position_source,
-                      const point_t &position_sink,
-                      const point_t &box_source_min,
-                      const point_t &box_source_max, double macangle) {
+  static bool box_MAC(const point_t & position_source,
+    const point_t & position_sink,
+    const point_t & box_source_min,
+    const point_t & box_source_max,
+    double macangle) {
     double dmax = flecsi::distance(box_source_min, box_source_max);
     double disttoc = flecsi::distance(position_sink, position_source);
     return dmax / disttoc - macangle <= tol;
@@ -114,56 +149,90 @@ template <typename T> struct tree_geometry<T, 1> {
 /*-----------------------------------------------------------------------------*
  * class tree_geometry 2D specification
  *-----------------------------------------------------------------------------*/
-template <typename T> struct tree_geometry<T, 2> {
-  using point_t = point_u<T, 2>;
+template<typename T>
+struct tree_geometry<T, 2> {
+  using point_t = space_vector_u<T, 2>;
   using element_t = T;
 
   //! Tolerance for the computations
   static constexpr element_t tol =
-      std::numeric_limits<element_t>::epsilon() * 10.;
+    std::numeric_limits<element_t>::epsilon() * 10.;
+
+  static element_t distance2(const point_t & p1, const point_t & p2) {
+    return (p1[0] - p2[0]) * (p1[0] - p2[0]) +
+           (p1[1] - p2[1]) * (p1[1] - p2[1]);
+  }
+
+  //! Return true if dist^2 < radius^2
+  static bool within_distance2(const point_t & p1,
+    const point_t & p2,
+    const element_t & r) {
+    return distance2(p1, p2) <= r * r;
+  }
 
   //! Return true if point origin lies within the spheroid centered at
   //! center with radius.
-  static bool within(const point_t &origin, const point_t &center, element_t r1,
-                     element_t r2 = 0) {
+  static bool within(const point_t & origin,
+    const point_t & center,
+    element_t r1,
+    element_t r2 = 0) {
     return distance(origin, center) - r1 <= tol;
   }
 
   //! Return true if dist^2 < radius^2
-  static bool within_square(const point_t &origin, const point_t &center,
-                            element_t r1, element_t r2) {
-    return distance(origin,center) <= std::max(r1,r2);
+  static bool within_square(const point_t & origin,
+    const point_t & center,
+    element_t r1,
+    element_t r2) {
+    return distance(origin, center) <= std::max(r1, r2);
   }
 
   //! Return true if point origin lies within the box specified by
   //! min/max point.
-  static bool within_box(const point_t &min, const point_t &max,
-                         const point_t &origin, const element_t &r) {
+  static bool within_box(const point_t & min,
+    const point_t & max,
+    const point_t & origin,
+    const element_t & r) {
     return origin[0] <= max[0] && origin[0] > min[0] && origin[1] <= max[1] &&
            origin[1] > min[1];
   }
 
   //! Intersection between two boxes defined by there min and max bound
-  static bool intersects_box_box(const point_t &min_b1, const point_t &max_b1,
-                                 const point_t &min_b2, const point_t &max_b2) {
+  static bool intersects_box_box(const point_t & min_b1,
+    const point_t & max_b1,
+    const point_t & min_b2,
+    const point_t & max_b2) {
     return !((max_b1[0] < min_b2[0] || max_b1[1] < min_b2[1]) ||
              (max_b2[0] < min_b1[0] || max_b2[1] < min_b1[1]));
   }
 
   //! Intersection of two spheres based on center and radius
-  static bool intersects_sphere_sphere(const point_t &c1, const element_t r1,
-                                       const point_t &c2, const element_t r2) {
+  static bool intersects_sphere_sphere(const point_t & c1,
+    const element_t r1,
+    const point_t & c2,
+    const element_t r2) {
     return distance(c1, c2) - (r1 + r2) <= tol;
   }
 
   //! Intersection of sphere and box; Compute the closest point from the
   //! rectangle to the sphere and this distance less than sphere radius
-  static bool intersects_sphere_box(const point_t &min, const point_t &max,
-                                    const point_t &c, const element_t r) {
+  static bool intersects_sphere_box(const point_t & min,
+    const point_t & max,
+    const point_t & c,
+    const element_t r) {
     point_t x = point_t(std::max(min[0], std::min(c[0], max[0])),
-                        std::max(min[1], std::min(c[1], max[1])));
+      std::max(min[1], std::min(c[1], max[1])));
     element_t dist = distance(x, c);
     return dist - r <= tol;
+  }
+
+  static bool mac(const point_t & source,
+    const element_t & source_radius,
+    const point_t & sink,
+    const element_t & radius,
+    const element_t & mac_angle) {
+    double dist = flecsi::distance(source, sink);
+    return source_radius + radius < mac_angle * dist;
   }
 
   /**
@@ -171,10 +240,11 @@ template <typename T> struct tree_geometry<T, 2> {
    * The angle === l/r < MAC (l source box width, r distance sink -> source)
    * Barnes & Hut 1986
    */
-  static bool box_MAC(const point_t &position_source,
-                      const point_t &position_sink,
-                      const point_t &box_source_min,
-                      const point_t &box_source_max, double macangle) {
+  static bool box_MAC(const point_t & position_source,
+    const point_t & position_sink,
+    const point_t & box_source_min,
+    const point_t & box_source_max,
+    double macangle) {
     double dmax = flecsi::distance(box_source_min, box_source_max);
     double disttoc = flecsi::distance(position_sink, position_source);
     return dmax / disttoc < macangle;
@@ -184,67 +254,99 @@ template <typename T> struct tree_geometry<T, 2> {
 /*-----------------------------------------------------------------------------*
  * class tree_geometry 3D specification
  *-----------------------------------------------------------------------------*/
-template <typename T> struct tree_geometry<T, 3> {
-  using point_t = point_u<T, 3>;
+template<typename T>
+struct tree_geometry<T, 3> {
+  using point_t = space_vector_u<T, 3>;
   using element_t = T;
   //! Tolerance for the computations
   static constexpr element_t tol =
-      std::numeric_limits<element_t>::epsilon() * 10.;
+    std::numeric_limits<element_t>::epsilon() * 10.;
+
+  static element_t distance2(const point_t & p1, const point_t & p2) {
+    return (p1[0] - p2[0]) * (p1[0] - p2[0]) +
+           (p1[1] - p2[1]) * (p1[1] - p2[1]) +
+           (p1[2] - p2[2]) * (p1[2] - p2[2]);
+  }
+
+  //! Return true if dist^2 < radius^2
+  static bool within_distance2(const point_t & p1,
+    const point_t & p2,
+    const element_t & r) {
+    return distance2(p1, p2) <= r * r;
+  }
 
   //! Return true if point origin lies within the spheroid centered at
   //! center with radius.
-  static bool within(const point_t &origin, const point_t &center, element_t r1,
-                     element_t r2 = 0) {
+  static bool within(const point_t & origin,
+    const point_t & center,
+    element_t r1,
+    element_t r2 = 0) {
     return distance(origin, center) - r1 <= tol;
   }
 
   //! Return true if dist^2 < radius^2
-  static bool within_square(const point_t &origin, const point_t &center,
-                                   const element_t &r1, const element_t &r2) {
-    return distance(origin,center) <= std::max(r1,r2);
+  static bool within_square(const point_t & origin,
+    const point_t & center,
+    const element_t & r1,
+    const element_t & r2) {
+    return distance(origin, center) <= std::max(r1, r2);
   }
 
   //! Return true if point origin lies within the box specified by
   //! min/max point.
-  static bool within_box(const point_t &min, const point_t &max,
-                         const point_t &origin, const element_t &r) {
+  static bool within_box(const point_t & min,
+    const point_t & max,
+    const point_t & origin,
+    const element_t & r) {
     return origin[0] <= max[0] && origin[0] > min[0] && origin[1] <= max[1] &&
            origin[1] > min[1] && origin[2] <= max[2] && origin[2] > min[2];
   }
 
   //! Intersection between two boxes defined by there min and max bound
-  inline static bool intersects_box_box(const point_t &min_b1,
-                                        const point_t &max_b1,
-                                        const point_t &min_b2,
-                                        const point_t &max_b2) {
+  inline static bool intersects_box_box(const point_t & min_b1,
+    const point_t & max_b1,
+    const point_t & min_b2,
+    const point_t & max_b2) {
     return !((max_b1[0] < min_b2[0] || max_b1[1] < min_b2[1] ||
-              max_b1[2] < min_b2[2]) ||
+               max_b1[2] < min_b2[2]) ||
              (max_b2[0] < min_b1[0] || max_b2[1] < min_b1[1] ||
-              max_b2[2] < min_b1[2]));
+               max_b2[2] < min_b1[2]));
   }
 
   //! Intersection of two spheres based on center and radius
-  static bool intersects_sphere_sphere(const point_t &c1, const element_t r1,
-                                       const point_t &c2, const element_t r2) {
+  static bool intersects_sphere_sphere(const point_t & c1,
+    const element_t r1,
+    const point_t & c2,
+    const element_t r2) {
     return (c2[0] - c1[0]) * (c2[0] - c1[0]) +
-               (c2[1] - c1[1]) * (c2[1] - c1[1]) +
-               (c2[2] - c1[2]) * (c2[2] - c1[2]) <=
+             (c2[1] - c1[1]) * (c2[1] - c1[1]) +
+             (c2[2] - c1[2]) * (c2[2] - c1[2]) <=
            (r1 + r2) * (r1 + r2);
   }
 
   //! Intersection of sphere and box; Compute the closest point from the
   //! rectangle to the sphere and this distance less than sphere radius
-  static bool intersects_sphere_box(const point_t &min, const point_t &max,
-                                    const point_t &c, const element_t &r) {
-    point_t x =
-        point_t(c[0] < max[0] ? c[0] : max[0], c[1] < max[1] ? c[1] : max[1],
-                c[2] < max[2] ? c[2] : max[2]);
+  static bool intersects_sphere_box(const point_t & min,
+    const point_t & max,
+    const point_t & c,
+    const element_t & r) {
+    point_t x = point_t(c[0] < max[0] ? c[0] : max[0],
+      c[1] < max[1] ? c[1] : max[1], c[2] < max[2] ? c[2] : max[2]);
     x = {x[0] < min[0] ? min[0] : x[0], x[1] < min[1] ? min[1] : x[1],
-         x[2] < min[2] ? min[2] : x[2]};
+      x[2] < min[2] ? min[2] : x[2]};
     element_t dist = (x[0] - c[0]) * (x[0] - c[0]) +
                      (x[1] - c[1]) * (x[1] - c[1]) +
                      (x[2] - c[2]) * (x[2] - c[2]);
     return dist <= r * r;
+  }
+
+  static bool mac(const point_t & source,
+    const element_t & source_radius,
+    const point_t & sink,
+    const element_t & radius,
+    const element_t & mac_angle) {
+    double dist = flecsi::distance(source, sink);
+    return source_radius + radius < mac_angle * dist;
   }
 
   /**
@@ -252,13 +354,14 @@ template <typename T> struct tree_geometry<T, 3> {
    * The angle === l/r < MAC (l source box width, r distance sink -> source)
    * Barnes & Hut 1986
    */
-  static bool box_MAC(const point_t &position_source,
-                      const point_t &position_sink,
-                      const point_t &box_source_min,
-                      const point_t &box_source_max, double macangle) {
+  static bool box_MAC(const point_t & position_source,
+    const point_t & position_sink,
+    const point_t & box_source_min,
+    const point_t & box_source_max,
+    double macangle) {
     double dmax = flecsi::distance(box_source_min, box_source_max);
     double disttoc = flecsi::distance(position_sink, position_source);
-    return dmax / disttoc < macangle;
+    return dmax < macangle * disttoc;
   }
 }; // class tree_geometry specification for 3D
 

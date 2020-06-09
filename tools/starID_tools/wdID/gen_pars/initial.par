@@ -1,0 +1,29 @@
+# Use ./sedov_3d_generator <this_file>.par
+
+  initial_data_prefix = "wd_initial"
+
+# geometry:
+  domain_type        = 1                    # 0:box, 1:sphere
+  sphere_radius      = 704000000.0
+  density_profile    = "from file"
+  input_density_file = "wd_radial_profile_rho01e7.dat"
+
+# icosahedra lattice with small perturbations
+  lattice_nx =  50                          # particle lattice dimension
+  lattice_type = 3                          # 0:rectangular, 1:hcp, 2:fcc, 3:icosahedral
+  lattice_perturbation_amplitude = 0.12     # in units of sm. length
+
+# equation of state type and parameters
+  eos_type = "white dwarf"
+
+# density and pressure for relaxation stage
+  rho_initial = 10000000.0
+  pressure_initial = 8.37239119678e+23
+
+# since we only need spherical distribution of particles,
+# set Sedov energy to zero
+  sedov_blast_energy = 0.0
+
+# use a good kernel
+  sph_kernel = "Wendland C6"
+  sph_eta = 1.6

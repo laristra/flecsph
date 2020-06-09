@@ -1,0 +1,46 @@
+# White Dwarf
+# Relaxation
+# Use ./hydro_3d <this_file>.par to evolve into relaxed state
+#
+
+# initial data
+  initial_data_prefix = "wd_initial"
+  initial_iteration = 0
+
+  # the "mesa" density profile is flat with a smooth density die-out
+  domain_type = 1                           # 0:box, 1:sphere
+  external_force_type = "spherical density support"
+  sphere_radius       = 704000000.0
+  density_profile     = "from file"
+  input_density_file  = "wd_radial_profile_rho01e7.dat"
+  rho_initial         = 10000000.0
+  pressure_initial    = 8.37239119678e+23
+
+# evolution
+  final_iteration  = 300000
+  relaxation_steps = 300000
+  relaxation_beta  = 1e-6
+  relaxation_gamma = 1e-11
+
+  relaxation_repulsion_radius = 0.4
+  relaxation_repulsion_gamma = 1e-7
+
+  initial_dt = 2.e-12
+  timestep_cfl_factor = 0.05
+
+# output
+  out_screen_every = 500
+  out_scalar_every = 500
+  out_h5data_every = 500
+  output_h5data_prefix = "wd_relaxation"
+
+  thermokinetic_formulation = yes
+  adaptive_timestep = yes
+
+# eos
+  eos_type = "white dwarf"
+
+# sph
+  sph_kernel = "Wendland C6"
+  sph_eta = 1.6
+  sph_variable_h = yes

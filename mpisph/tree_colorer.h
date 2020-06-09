@@ -34,7 +34,7 @@
 
 #ifdef BOOST
 #include <boost/sort/sort.hpp>
-#endif 
+#endif
 
 #include "default_physics.h"
 #include "tree.h"
@@ -69,14 +69,16 @@ struct mpi_branch_t {
  * @tparam     D     Dimension for the problem
  * @todo fix it for type
  */
-template <typename T, size_t D> class tree_colorer {
+template<typename T, size_t D>
+class tree_colorer
+{
 private:
   const int criterion_branches = 1; // Number of sub-entities in the branches
-  const size_t noct = 256 * 1024;   // Number of octets used for quicksort
+  const size_t noct = 256 * 1024; // Number of octets used for quicksort
 
 public:
   static const size_t dimension = D;
-  using point_t = flecsi::point_u<T, dimension>;
+  using point_t = flecsi::space_vector_u<T, dimension>;
 
   tree_colorer() {}
 
@@ -105,7 +107,7 @@ public:
    * @param      rbodies       The rbodies, local bodies of this process.
    * @param[in]  totalnbodies  The totalnbodies on the overall simulation.
    */
-  void mpi_qsort(std::vector<body> &rbodies, int totalnbodies) {
+  void mpi_qsort(std::vector<body> & rbodies, int totalnbodies) {
     int size, rank;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -117,19 +119,19 @@ public:
 #else
     std::sort(
 #endif
-        rbodies.begin(), rbodies.end(), [](auto &left, auto &right) {
-          if (left.key() < right.key()) {
-            return true;
-          }
-          if (left.key() == right.key()) {
-            return left.id() < right.id();
-          }
-          return false;
-        }); // sort
+      rbodies.begin(), rbodies.end(), [](auto & left, auto & right) {
+        if(left.key() < right.key()) {
+          return true;
+        }
+        if(left.key() == right.key()) {
+          return left.id() < right.id();
+        }
+        return false;
+      }); // sort
 
     // If one process, done
-    if (size == 1) {
-      clog_one(trace) << "Local particles: " << totalnbodies << std::endl;
+    if(size == 1) {
+      log_one(trace) << "Local particles: " << totalnbodies << std::endl;
       return;
     } // if
 
@@ -142,11 +144,12 @@ public:
     assert(splitters_.size() == size - 1 + 2);
 
     int64_t nbodies = rbodies.size();
-    for (size_t i = 0L; i < nbodies; ++i) {
-      if (rbodies[i].key() >= splitters_[cur_proc].first &&
-          rbodies[i].key() < splitters_[cur_proc + 1].first) {
+    for(size_t i = 0L; i < nbodies; ++i) {
+      if(rbodies[i].key() >= splitters_[cur_proc].first &&
+         rbodies[i].key() < splitters_[cur_proc + 1].first) {
         scount[cur_proc]++;
-      } else {
+      }
+      else {
         i--;
         cur_proc++;
       }
@@ -168,35 +171,35 @@ public:
 #else
     std::sort(
 #endif
-        rbodies.begin(), rbodies.end(), [](auto &left, auto &right) {
-          if (left.key() < right.key()) {
-            return true;
-          }
-          if (left.key() == right.key()) {
-            return left.id() < right.id();
-          }
-          return false;
-        }); // sort
+      rbodies.begin(), rbodies.end(), [](auto & left, auto & right) {
+        if(left.key() < right.key()) {
+          return true;
+        }
+        if(left.key() == right.key()) {
+          return left.id() < right.id();
+        }
+        return false;
+      }); // sort
 
 #ifdef OUTPUT
     std::vector<int> totalprocbodies;
     totalprocbodies.resize(size);
     int mybodies = rbodies.size();
     // Share the final array size of everybody
-    MPI_Allgather(&mybodies, 1, MPI_INT, &totalprocbodies[0], 1, MPI_INT,
-                  MPI_COMM_WORLD);
+    MPI_Allgather(
+      &mybodies, 1, MPI_INT, &totalprocbodies[0], 1, MPI_INT, MPI_COMM_WORLD);
 #ifdef OUTPUT_TREE_INFO
     std::ostringstream oss;
     oss << "Repartition: ";
-    for (auto num : totalprocbodies)
+    for(auto num : totalprocbodies)
       oss << num << ";";
-    clog_one(trace) << oss.str() << std::endl;
+    log_one(trace) << oss.str() << std::endl;
 #endif
 #endif // OUTPUT
-  }    // mpi_qsort
+  } // mpi_qsort
 
-  void mpi_branches_exchange_all_leaves(tree_topology_t &tree,
-                                        std::vector<body> &rbodies) {
+  void mpi_branches_exchange_all_leaves(tree_topology_t & tree,
+    std::vector<body> & rbodies) {
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -204,7 +207,7 @@ public:
 #ifdef OUTPUT
     MPI_Barrier(MPI_COMM_WORLD);
 #ifdef OUTPUT_TREE_INFO
-    clog_one(trace) << "Branches repartition" << std::endl << std::flush;
+    log_one(trace) << "Branches repartition" << std::endl << std::flush;
 #endif
 #endif
 
@@ -216,13 +219,12 @@ public:
     // Copy them localy
     std::vector<mpi_branch_t> branches(search_branches.size());
 #pragma omp parallel for
-    for (int i = 0; i < search_branches.size(); ++i) {
+    for(int i = 0; i < search_branches.size(); ++i) {
       assert(search_branches[i]->sub_entities() > 0);
-      branches[i] = mpi_branch_t{
-          search_branches[i]->coordinates(), search_branches[i]->mass(),
-          search_branches[i]->bmin(),        search_branches[i]->bmax(),
-          search_branches[i]->key(),         search_branches[i]->owner(),
-          search_branches[i]->sub_entities()};
+      branches[i] = mpi_branch_t{search_branches[i]->coordinates(),
+        search_branches[i]->mass(), search_branches[i]->bmin(),
+        search_branches[i]->bmax(), search_branches[i]->key(),
+        search_branches[i]->owner(), search_branches[i]->sub_entities()};
     }
 
     // Do the hypercube communciation to share the branches
@@ -232,11 +234,11 @@ public:
     // In case of non power two, consider dim + 1
     // In this case all rank also take size + 1 rank
     int ghosts_rank = -1;
-    if (1 << dim < size) {
+    if(1 << dim < size) {
       non_power_2 = true;
       dim++;
       ghosts_rank = rank + (1 << dim - 1);
-      if (ghosts_rank > (1 << dim) - 1)
+      if(ghosts_rank > (1 << dim) - 1)
         ghosts_rank = rank;
     }
 
@@ -246,67 +248,69 @@ public:
 
     int nsend;
     int last = branches.size();
-    for (int i = 0; i < dim; ++i) {
+    for(int i = 0; i < dim; ++i) {
       nsend = branches.size();
       int partner = rank ^ (1 << i);
       assert(partner != rank);
       mpi_one_to_one(rank, partner, branches, nsend, last);
       // Handle the non power two cases
-      if (non_power_2) {
+      if(non_power_2) {
         // If this ghosts_rank exists for a real rank don't use it
-        if (rank != ghosts_rank && ghosts_rank <= size - 1)
+        if(rank != ghosts_rank && ghosts_rank <= size - 1)
           continue;
         ghosts_nsend = ghosts_branches.size();
         assert(ghosts_rank != -1);
         int ghosts_partner = ghosts_rank ^ (1 << i);
         partner = ghosts_partner;
         // Case already handled before
-        if (ghosts_rank == rank && partner < size)
+        if(ghosts_rank == rank && partner < size)
           continue;
-        if (partner >= size) {
+        if(partner >= size) {
           partner -= (1 << dim - 1);
         }
-        if (partner == rank) {
+        if(partner == rank) {
           // Add into the buffer, no communication needed
-          branches.insert(branches.end(), ghosts_branches.begin(),
-                          ghosts_branches.end());
-        } else {
+          branches.insert(
+            branches.end(), ghosts_branches.begin(), ghosts_branches.end());
+        }
+        else {
           assert(partner != rank);
-          if (ghosts_rank == rank) {
+          if(ghosts_rank == rank) {
             mpi_one_to_one(rank, partner, branches, nsend, last);
-          } else {
-            mpi_one_to_one(rank, partner, ghosts_branches, ghosts_nsend,
-                           ghosts_last);
+          }
+          else {
+            mpi_one_to_one(
+              rank, partner, ghosts_branches, ghosts_nsend, ghosts_last);
           }
         }
       }
     }
     // Total branches
-    clog_one(trace) << rank << "total branches: " << branches.size()
-                    << std::endl;
+    log_one(trace) << rank << "total branches: " << branches.size()
+                   << std::endl;
 
 #if DEBUG
     // Check if everyone have the same number
     int nbranches = branches.size();
     int result;
     MPI_Reduce(&nbranches, &result, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-    if (rank == 0) {
+    if(rank == 0) {
       assert(result == branches.size() * size);
     }
 #endif
 
     // Add these branches informations in the tree
-    for (auto b : branches) {
-      // clog(trace)<<rank<<" owner: "<<b.owner<<" insert "<<b.key<<std::endl;
-      if (b.owner != rank) {
-        tree.insert_branch(b.coordinates, b.mass, b.min, b.max, b.key, b.owner,
-                           b.sub_entities);
+    for(auto b : branches) {
+      // logm(trace)<<rank<<" owner: "<<b.owner<<" insert "<<b.key<<std::endl;
+      if(b.owner != rank) {
+        tree.insert_branch(
+          b.coordinates, b.mass, b.min, b.max, b.key, b.owner, b.sub_entities);
       }
     }
 
 #ifdef OUTPUT_TREE_INFO
     MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace) << ".done " << std::endl;
+    log_one(trace) << ".done " << std::endl;
 #endif
   }
 
@@ -323,8 +327,8 @@ public:
    * @param      tree             The tree
    * @param      rbodies          The rbodies, local bodies of this process
    */
-  void mpi_branches_exchange(tree_topology_t &tree,
-                             std::vector<body> &rbodies) {
+  void mpi_branches_exchange(tree_topology_t & tree,
+    std::vector<body> & rbodies) {
 
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -333,7 +337,7 @@ public:
 #ifdef OUTPUT
     MPI_Barrier(MPI_COMM_WORLD);
 #ifdef OUTPUT_TREE_INFO
-    clog_one(trace) << "Branches repartition" << std::endl << std::flush;
+    log_one(trace) << "Branches repartition" << std::endl << std::flush;
 #endif
 #endif
 
@@ -345,13 +349,13 @@ public:
     std::vector<mpi_branch_t> branches(search_branches.size());
 
 #pragma omp parallel for
-    for (int i = 0; i < search_branches.size(); ++i) {
+    for(int i = 0; i < search_branches.size(); ++i) {
       assert(search_branches[i]->sub_entities() > 0);
-      branches[i] = mpi_branch_t{
-          search_branches[i]->coordinates(),  search_branches[i]->mass(),
-          search_branches[i]->bmin(),         search_branches[i]->bmax(),
-          search_branches[i]->key(),          search_branches[i]->owner(),
-          search_branches[i]->sub_entities(), search_branches[i]->is_leaf()};
+      branches[i] = mpi_branch_t{search_branches[i]->coordinates(),
+        search_branches[i]->mass(), search_branches[i]->bmin(),
+        search_branches[i]->bmax(), search_branches[i]->key(),
+        search_branches[i]->owner(), search_branches[i]->sub_entities(),
+        search_branches[i]->is_leaf()};
     }
 
     // Gather pointers on my local leaves
@@ -363,8 +367,8 @@ public:
     mpi_utils::mpi_allgatherv(branches, branches_nb, nbranches_nb);
     // Prefix sum
     std::vector<int> nbranches_offset(size);
-    std::partial_sum(nbranches_nb.begin(), nbranches_nb.end(),
-                     &nbranches_offset[0]);
+    std::partial_sum(
+      nbranches_nb.begin(), nbranches_nb.end(), &nbranches_offset[0]);
     nbranches_offset.insert(nbranches_offset.begin(), 0);
 
     std::vector<std::vector<mpi_branch_t>> recv_branches(size);
@@ -375,51 +379,49 @@ public:
     std::vector<std::vector<mpi_branch_t>> interact_leaves(size);
     ninteract_leaves[rank] = 0;
 #pragma omp parallel for
-    for (int i = 0; i < size; ++i) {
-      if (i == rank)
+    for(int i = 0; i < size; ++i) {
+      if(i == rank)
         continue;
-      for (int k = 0; k < leaves.size(); ++k) {
+      for(int k = 0; k < leaves.size(); ++k) {
         bool accepted = false;
-        for (int j = nbranches_offset[i];
-             j < nbranches_offset[i + 1] && !accepted; ++j) {
+        for(int j = nbranches_offset[i];
+            j < nbranches_offset[i + 1] && !accepted; ++j) {
           assert(branches_nb[j].owner != rank);
           accepted =
-              accepted ||
-              flecsi::topology::tree_geometry<
-                  type_t, gdimension>::intersects_box_box(leaves[k]->bmin(),
-                                                          leaves[k]->bmax(),
-                                                          branches_nb[j].min,
-                                                          branches_nb[j].max);
+            accepted ||
+            flecsi::topology::tree_geometry<type_t,
+              gdimension>::intersects_box_box(leaves[k]->bmin(),
+              leaves[k]->bmax(), branches_nb[j].min, branches_nb[j].max);
         }
-        if (accepted) {
-          interact_leaves[i].push_back(mpi_branch_t{
-              leaves[k]->coordinates(), leaves[k]->mass(), leaves[k]->bmin(),
-              leaves[k]->bmax(), leaves[k]->key(), leaves[k]->owner(),
-              leaves[k]->sub_entities(), leaves[k]->is_leaf()});
+        if(accepted) {
+          interact_leaves[i].push_back(mpi_branch_t{leaves[k]->coordinates(),
+            leaves[k]->mass(), leaves[k]->bmin(), leaves[k]->bmax(),
+            leaves[k]->key(), leaves[k]->owner(), leaves[k]->sub_entities(),
+            leaves[k]->is_leaf()});
         }
       }
       ninteract_leaves[i] = interact_leaves[i].size();
     }
 
-    mpi_utils::mpi_alltoallv_p2p(ninteract_leaves, interact_leaves,
-                                 recv_branches);
+    mpi_utils::mpi_alltoallv_p2p(
+      ninteract_leaves, interact_leaves, recv_branches);
     assert(recv_branches[rank].size() == 0);
 
     // Add these branches informations in the tree
-    for (int i = 0; i < size; ++i) {
-      if (rank == i)
+    for(int i = 0; i < size; ++i) {
+      if(rank == i)
         continue;
-      for (auto b : recv_branches[i]) {
-        if (b.owner != rank) {
+      for(auto b : recv_branches[i]) {
+        if(b.owner != rank) {
           tree.insert_branch(b.coordinates, b.mass, b.min, b.max, b.key,
-                             b.owner, b.sub_entities);
+            b.owner, b.sub_entities);
         }
       }
     }
 
 #ifdef OUTPUT_TREE_INFO
     MPI_Barrier(MPI_COMM_WORLD);
-    clog_one(trace) << ".done " << std::endl;
+    log_one(trace) << ".done " << std::endl;
 #endif
   }
 
@@ -433,8 +435,8 @@ public:
    * @param      bodies           The bodies, local of this process
    * @param      range            The range computed in that function
    */
-  void mpi_compute_range(const std::vector<body> &bodies,
-                         std::array<point_t, 2> &range) {
+  void mpi_compute_range(const std::vector<body> & bodies,
+    std::array<point_t, 2> & range) {
     int rank, size;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -452,18 +454,18 @@ public:
       trange[0] = bodies.back().coordinates();
 
 #pragma omp parallel for
-      for (size_t i = 0; i < bodies.size(); ++i) {
-        for (size_t d = 0; d < gdimension; ++d) {
+      for(size_t i = 0; i < bodies.size(); ++i) {
+        for(size_t d = 0; d < gdimension; ++d) {
 
-          if (bodies[i].coordinates()[d] + bodies[i].radius() > trange[1][d])
+          if(bodies[i].coordinates()[d] + bodies[i].radius() > trange[1][d])
             trange[1][d] = bodies[i].coordinates()[d] + bodies[i].radius();
 
-          if (bodies[i].coordinates()[d] - bodies[i].radius() < trange[0][d])
+          if(bodies[i].coordinates()[d] - bodies[i].radius() < trange[0][d])
             trange[0][d] = bodies[i].coordinates()[d] - bodies[i].radius();
         }
       }
 #pragma omp critical
-      for (size_t d = 0; d < gdimension; ++d) {
+      for(size_t d = 0; d < gdimension; ++d) {
         lrange[1][d] = std::max(lrange[1][d], trange[1][d]);
         lrange[0][d] = std::min(lrange[0][d], trange[0][d]);
       }
@@ -471,18 +473,18 @@ public:
 
     double max[gdimension];
     double min[gdimension];
-    for (size_t i = 0; i < gdimension; ++i) {
+    for(size_t i = 0; i < gdimension; ++i) {
       max[i] = lrange[1][i];
       min[i] = lrange[0][i];
     }
 
     // Do the MPI Reduction
-    MPI_Allreduce(MPI_IN_PLACE, max, dimension, MPI_DOUBLE, MPI_MAX,
-                  MPI_COMM_WORLD);
-    MPI_Allreduce(MPI_IN_PLACE, min, dimension, MPI_DOUBLE, MPI_MIN,
-                  MPI_COMM_WORLD);
+    MPI_Allreduce(
+      MPI_IN_PLACE, max, dimension, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(
+      MPI_IN_PLACE, min, dimension, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
 
-    for (size_t d = 0; d < gdimension; ++d) {
+    for(size_t d = 0; d < gdimension; ++d) {
       range[0][d] = min[d];
       range[1][d] = max[d];
     }
@@ -499,8 +501,9 @@ public:
    * @param[in]  rbodies  The local bodies of the process
    */
   void generate_splitters_samples(
-      std::vector<std::pair<key_type, int64_t>> &splitters,
-      std::vector<body> &rbodies, const int64_t totalnbodies) {
+    std::vector<std::pair<key_type, int64_t>> & splitters,
+    std::vector<body> & rbodies,
+    const int64_t totalnbodies) {
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -514,14 +517,14 @@ public:
     int64_t nvalues = rbodies.size();
     size_t nsample = maxnsamples * ((double)nvalues / (double)totalnbodies);
 
-    if (nvalues < (int64_t)nsample) {
+    if(nvalues < (int64_t)nsample) {
       nsample = nvalues;
     }
 
-    for (size_t i = 0; i < nsample; ++i) {
+    for(size_t i = 0; i < nsample; ++i) {
       int64_t position = (nvalues / (nsample + 1.)) * (i + 1.);
       keys_sample.push_back(
-          std::make_pair(rbodies[position].key(), rbodies[position].id()));
+        std::make_pair(rbodies[position].key(), rbodies[position].id()));
     } // for
     assert(keys_sample.size() == (size_t)nsample);
 
@@ -530,57 +533,57 @@ public:
     std::vector<int> master_offsets;
     int master_nkeys = 0;
 
-    if (rank == 0) {
+    if(rank == 0) {
       master_recvcounts.resize(size);
     } // if
 
     // Echange the number of samples
     MPI_Gather(&nsample, 1, MPI_INT, &master_recvcounts[0], 1, MPI_INT, 0,
-               MPI_COMM_WORLD);
+      MPI_COMM_WORLD);
 
     // Master
     // Sort the received keys and create the pivots
-    if (rank == 0) {
+    if(rank == 0) {
       master_offsets.resize(size);
-      master_nkeys = std::accumulate(master_recvcounts.begin(),
-                                     master_recvcounts.end(), 0);
-      if (totalnbodies < master_nkeys) {
+      master_nkeys =
+        std::accumulate(master_recvcounts.begin(), master_recvcounts.end(), 0);
+      if(totalnbodies < master_nkeys) {
         master_nkeys = totalnbodies;
       }
       // Number to receiv from each process
-      for (int i = 0; i < size; ++i) {
+      for(int i = 0; i < size; ++i) {
         master_recvcounts[i] *= sizeof(std::pair<key_type, int64_t>);
       } // for
-      std::partial_sum(master_recvcounts.begin(), master_recvcounts.end(),
-                       &master_offsets[0]);
+      std::partial_sum(
+        master_recvcounts.begin(), master_recvcounts.end(), &master_offsets[0]);
       master_offsets.insert(master_offsets.begin(), 0);
       master_keys.resize(master_nkeys);
     } // if
 
     MPI_Gatherv(&keys_sample[0], nsample * sizeof(std::pair<key_type, int64_t>),
-                MPI_BYTE, &master_keys[0], &master_recvcounts[0],
-                &master_offsets[0], MPI_BYTE, 0, MPI_COMM_WORLD);
+      MPI_BYTE, &master_keys[0], &master_recvcounts[0], &master_offsets[0],
+      MPI_BYTE, 0, MPI_COMM_WORLD);
 
     // Generate the splitters, add zero and max keys
     splitters.resize(size - 1 + 2);
-    if (rank == 0) {
-      std::sort(master_keys.begin(), master_keys.end(),
-                [](auto &left, auto &right) {
-                  if (left.first < right.first) {
-                    return true;
-                  }
-                  if (left.first == right.first) {
-                    return left.second < right.second;
-                  }
-                  return false;
-                });
+    if(rank == 0) {
+      std::sort(
+        master_keys.begin(), master_keys.end(), [](auto & left, auto & right) {
+          if(left.first < right.first) {
+            return true;
+          }
+          if(left.first == right.first) {
+            return left.second < right.second;
+          }
+          return false;
+        });
 
       splitters[0].first = key_type::min();
       splitters[0].second = 0L;
       splitters[size].first = key_type::max();
       splitters[size].second = LONG_MAX;
 
-      for (int i = 0; i < size - 1; ++i) {
+      for(int i = 0; i < size - 1; ++i) {
         int64_t position = (master_nkeys / size) * (i + 1);
         splitters[i + 1] = master_keys[position];
         assert(splitters[i + 1].first > splitters[0].first &&
@@ -595,8 +598,8 @@ public:
 
     // Bradcast the splitters
     MPI_Bcast(&splitters[0],
-              (size - 1 + 2) * sizeof(std::pair<key_type, int64_t>), MPI_BYTE,
-              0, MPI_COMM_WORLD);
+      (size - 1 + 2) * sizeof(std::pair<key_type, int64_t>), MPI_BYTE, 0,
+      MPI_COMM_WORLD);
   }
 
 private:

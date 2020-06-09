@@ -3,7 +3,7 @@
  * All rights reserved.
  *~--------------------------------------------------------------------------~*/
 
- /*~--------------------------------------------------------------------------~*
+/*~--------------------------------------------------------------------------~*
  *
  * /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
  * /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
@@ -27,7 +27,6 @@
 
 #include <iostream>
 #include <numeric> // For accumulate
-#include <iostream>
 
 #include <mpi.h>
 #ifdef ENABLE_LEGION
@@ -35,22 +34,23 @@
 #endif
 #include <omp.h>
 
-#include "flecsi/execution/execution.h"
-#include "flecsi/data/data_client.h"
 #include "flecsi/data/data.h"
+#include "flecsi/data/data_client.h"
+#include "flecsi/execution/execution.h"
 
 // #define poly_gamma 5./3.
-#include "params.h"
+#include "analysis.h"
 #include "bodies_system.h"
 #include "default_physics.h"
-#include "analysis.h"
 #include "diagnostic.h"
+#include "params.h"
 
 #define OUTPUT_ANALYSIS
 
 static std::string output_h5data_file; // = output_h5data_prefix + ".h5part"
 
-void set_derived_params() {
+void
+set_derived_params() {
   using namespace param;
 
   // set kernel
@@ -64,10 +64,8 @@ void set_derived_params() {
   oss << output_h5data_prefix << ".h5part";
   output_h5data_file = oss.str();
 
-  // iteration and time
-  physics::iteration = initial_iteration;
-  physics::totaltime = initial_time;
-  physics::dt = initial_dt;
+  // analysis: set output times
+  analysis::set_initial_time_iteration();
 
   // set equation of state
   eos::select(eos_type);
@@ -76,26 +74,25 @@ void set_derived_params() {
   external_force::select(external_force_type);
 }
 
-namespace flecsi{
-namespace execution{
+namespace flecsi {
+namespace execution {
 
 void
-mpi_init_task(const char * parameter_file){
+mpi_init_task(const char * parameter_file) {
   using namespace param;
 
   int rank;
   int size;
-  MPI_Comm_size(MPI_COMM_WORLD,&size);
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   // set simulation parameters
   param::mpi_read_params(parameter_file);
   set_derived_params();
 
   // read input file and initialize equation of state
-  body_system<double,gdimension> bs;
-  bs.read_bodies(initial_data_prefix,
-      output_h5data_prefix,initial_iteration);
+  body_system<double, gdimension> bs;
+  bs.read_bodies(initial_data_prefix, output_h5data_prefix, initial_iteration);
 
   MPI_Barrier(MPI_COMM_WORLD);
 
@@ -103,9 +100,9 @@ mpi_init_task(const char * parameter_file){
     analysis::screen_output(rank);
     MPI_Barrier(MPI_COMM_WORLD);
 
-    if (physics::iteration == param::initial_iteration){
+    if(physics::iteration == param::initial_iteration) {
 
-      clog_one(trace)<<"First iteration"<<std::endl << std::flush;
+      log_one(trace) << "First iteration" << std::endl << std::flush;
       bs.update_iteration();
       bs.apply_all(eos::init);
 
@@ -114,155 +111,158 @@ mpi_init_task(const char * parameter_file){
         bs.apply_all(physics::set_total_energy);
       }
 
-      clog_one(trace) << "compute density pressure cs"<<std::endl << std::flush;
+      log_one(trace) << "compute density pressure cs" << std::endl
+                     << std::flush;
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
       bs.apply_all(integration::save_velocityhalf);
 
       // necessary for computing dv/dt and du/dt in the next step
       bs.reset_ghosts();
 
-      clog_one(trace) << "compute rhs of evolution equations"<<std::endl << std::flush;
+      log_one(trace) << "compute rhs of evolution equations" << std::endl
+                     << std::flush;
       bs.apply_in_smoothinglength(physics::compute_acceleration);
-      if (evolve_internal_energy) {
-        if (thermokinetic_formulation){
-          clog_one(trace) << "compute dedt" << std::flush;
+      if(evolve_internal_energy) {
+        if(thermokinetic_formulation) {
+          log_one(trace) << "compute dedt" << std::endl;
           bs.apply_in_smoothinglength(physics::compute_dedt);
-        }else{
-          clog_one(trace) << "compute dudt" << std::flush;
+        }
+        else {
+          log_one(trace) << "compute dudt" << std::endl;
           bs.apply_in_smoothinglength(physics::compute_dudt);
         }
       }
-      clog_one(trace) << ".done" << std::endl;
+      log_one(trace) << ".done" << std::endl;
 
-      if (physics::iteration < relaxation_steps) {
-        clog_one(trace) << "add relaxation terms" << std::flush;
+      if(physics::iteration < relaxation_steps) {
+        log_one(trace) << "add relaxation terms" << std::endl << std::flush;
         bs.apply_all(physics::add_drag_acceleration);
-        if (thermokinetic_formulation and evolve_internal_energy)
+        if(thermokinetic_formulation and evolve_internal_energy)
           bs.apply_all(physics::add_drag_dedt);
         bs.apply_in_smoothinglength(physics::add_short_range_repulsion);
-        clog_one(trace) << ".done" << std::endl;
+        log_one(trace) << ".done" << std::endl;
       }
     }
     else {
-      clog_one(trace) << "leapfrog: kick one" << std::flush;
+      log_one(trace) << "leapfrog: kick one" << std::endl << std::flush;
       bs.apply_all(integration::leapfrog_kick_v);
-      if (evolve_internal_energy) {
-        if (thermokinetic_formulation)
+      if(evolve_internal_energy) {
+        if(thermokinetic_formulation)
           bs.apply_all(integration::leapfrog_kick_e);
         else
           bs.apply_all(integration::leapfrog_kick_u);
       }
       bs.apply_all(integration::save_velocityhalf);
-      clog_one(trace) << ".done" << std::endl;
+      log_one(trace) << ".done" << std::endl;
 
-      clog_one(trace) << "leapfrog: drift" << std::flush;
+      log_one(trace) << "leapfrog: drift" << std::endl << std::flush;
       bs.apply_all(integration::leapfrog_drift);
-      clog_one(trace) << ".done" << std::endl;
+      log_one(trace) << ".done" << std::endl;
 
       // sync velocities
       bs.update_iteration();
-      clog_one(trace) << "compute density pressure cs" << std::flush<<std::endl;
+      log_one(trace) << "compute density pressure cs" << std::flush
+                     << std::endl;
       bs.apply_in_smoothinglength(physics::compute_density_pressure_soundspeed);
 
       // Sync density/pressure/cs
       bs.reset_ghosts();
 
-      clog_one(trace) << "leapfrog: kick two (velocity)" << std::flush<<std::endl;
+      log_one(trace) << "leapfrog: kick two (velocity)" << std::flush
+                     << std::endl;
       bs.apply_in_smoothinglength(physics::compute_acceleration);
-      if (physics::iteration < relaxation_steps) {
+      if(physics::iteration < relaxation_steps) {
         bs.apply_all(physics::add_drag_acceleration);
         bs.apply_in_smoothinglength(physics::add_short_range_repulsion);
       }
       bs.apply_all(integration::leapfrog_kick_v);
-      clog_one(trace) << ".done" << std::endl;
+      log_one(trace) << ".done" << std::endl;
 
       // sync velocities
       bs.reset_ghosts();
 
-      if (evolve_internal_energy) {
-        clog_one(trace) << "leapfrog: kick two (energy)" << std::flush<<std::endl;
-        if (thermokinetic_formulation) {
-          clog_one(trace) << "compute dedt" << std::flush;
+      if(evolve_internal_energy) {
+        log_one(trace) << "leapfrog: kick two (energy)" << std::flush
+                       << std::endl;
+        if(thermokinetic_formulation) {
+          log_one(trace) << "compute dedt" << std::flush;
           bs.apply_in_smoothinglength(physics::compute_dedt);
-          if (physics::iteration < relaxation_steps)
+          if(physics::iteration < relaxation_steps)
             bs.apply_all(physics::add_drag_dedt);
           bs.apply_all(integration::leapfrog_kick_e);
         }
         else {
-          clog_one(trace) << "compute dudt" << std::flush;
+          log_one(trace) << "compute dudt" << std::endl << std::flush;
           bs.apply_in_smoothinglength(physics::compute_dudt);
           bs.apply_all(integration::leapfrog_kick_u);
         }
-        clog_one(trace) << ".done" << std::endl;
+        log_one(trace) << ".done" << std::endl;
       }
     }
 
-    if(sph_variable_h){
-      clog_one(trace) << "updating smoothing length"<<std::flush;
+    if(sph_variable_h) {
+      log_one(trace) << "updating smoothing length" << std::endl << std::flush;
       bs.get_all(physics::compute_smoothinglength);
-      clog_one(trace) << ".done" << std::endl << std::flush;
-    }else if(sph_update_uniform_h){
+      log_one(trace) << ".done" << std::endl << std::flush;
+    }
+    else if(sph_update_uniform_h) {
       // The particles moved, compute new smoothing length
-      clog_one(trace) << "updating smoothing length"<<std::flush;
-      bs.get_all(physics::compute_average_smoothinglength,bs.getNBodies());
-      clog_one(trace) << ".done" << std::endl << std::flush;
+      log_one(trace) << "updating smoothing length" << std::endl << std::flush;
+      bs.get_all(physics::compute_average_smoothinglength, bs.getNBodies());
+      log_one(trace) << ".done" << std::endl << std::flush;
     }
 
-    if (adaptive_timestep) {
+    // Periodic output
+    analysis::scalar_output(bs, rank);
+    analysis::h5data_output(bs, rank);
+    diagnostic::output(bs, rank);
+
+    // Check for nans
+    bs.apply_all(physics::check_nans);
+    bs.apply_all(physics::check_negativity);
+
+    if(adaptive_timestep) {
       // Update timestep
-      clog_one(trace) << "compute adaptive timestep" << std::flush;
-      bs.apply_in_smoothinglength(physics::estimate_maxmachnumber);
+      log_one(trace) << "compute adaptive timestep" << std::endl << std::flush;
       bs.apply_all(physics::compute_dt);
       bs.get_all(physics::set_adaptive_timestep);
-      clog_one(trace) << ".done" << std::endl;
+      log_one(trace) << ".done" << std::endl;
     }
 
-    // Compute and output scalar reductions and diagnostic
-    analysis::scalar_output(bs,rank);
-    diagnostic::output(bs,rank);
-
-    if(out_h5data_every > 0 && physics::iteration % out_h5data_every == 0){
-      bs.write_bodies(output_h5data_prefix,physics::iteration,
-          physics::totaltime);
-    }
     MPI_Barrier(MPI_COMM_WORLD);
-    ++physics::iteration;
 
-    physics::totaltime += physics::dt;
+    physics::advance_time();
 
-  } while(physics::iteration <= final_iteration);
+  } while(not physics::termination_criteria());
 } // mpi_init_task
-
 
 flecsi_register_mpi_task(mpi_init_task, flecsi::execution);
 
 void
-usage(int rank) {
-  clog_one(warn) << "Usage: ./hydro_" << gdimension << "d "
-                    << "<parameter-file.par>" << std::endl << std::flush;
+usage() {
+  log_one(warn) << "Usage: ./hydro_" << gdimension << "d "
+                << "<parameter-file.par>" << std::endl
+                << std::flush;
 }
 
 bool
-check_conservation(
-  const std::vector<analysis::e_conservation>& check
-)
-{
+check_conservation(const std::vector<analysis::e_conservation> & check) {
   return analysis::check_conservation(check);
 }
 
 void
-specialization_tlt_init(int argc, char * argv[]){
+specialization_tlt_init(int argc, char * argv[]) {
   int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  clog_set_output_rank(0);
+  log_set_output_rank(0);
 
-  clog_one(trace) << "In user specialization_driver" << std::endl;
+  log_one(trace) << "In user specialization_driver" << std::endl;
 
   // check options list: exactly one option is allowed
-  if (argc != 2) {
-    clog_one(error) << "ERROR: parameter file not specified!" << std::endl;
-    usage(rank);
+  if(argc != 2) {
+    log_one(error) << "ERROR: parameter file not specified!" << std::endl;
+    usage();
     return;
   }
 
@@ -270,14 +270,12 @@ specialization_tlt_init(int argc, char * argv[]){
 
 } // specialization driver
 
-
 void
-driver(int argc,  char * argv[]){
+driver(int, char **) {
   int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  clog_one(trace) << "In user driver" << std::endl;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  log_one(trace) << "In user driver" << std::endl;
 } // driver
-
 
 } // namespace execution
 } // namespace flecsi

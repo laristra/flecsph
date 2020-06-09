@@ -1,0 +1,35 @@
+# White Dwarf
+# Evolution
+# Use ./newtonian_3d <this_file>.par to evolve the WD with
+# self-gravity via FMM
+#
+
+# initial data
+  initial_data_prefix = "wd_relaxation"
+  initial_iteration = 300000
+
+# equation of state
+  eos_type = "white dwarf"
+
+# sph kernel
+  sph_kernel = "Wendland C6"
+  sph_eta = 1.6
+  sph_variable_h = yes
+
+# evolution parameters
+  initial_dt = 2.e-14
+  timestep_cfl_factor = 0.05
+  adaptive_timestep = yes
+  final_iteration = 500000
+  thermokinetic_formulation = FALSE
+
+# output
+  out_screen_every = 100
+  out_scalar_every = 100
+  out_h5data_every = 500
+  output_h5data_prefix = "wd_evolution"
+
+# gravity related parameters:
+  enable_fmm = yes
+  fmm_macangle = 0.0
+  gravitational_constant = 6.67408e-8

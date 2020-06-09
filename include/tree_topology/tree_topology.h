@@ -1,15 +1,19 @@
 /*~--------------------------------------------------------------------------~*
- *  @@@@@@@@  @@           @@@@@@   @@@@@@@@ @@
- * /@@/////  /@@          @@////@@ @@////// /@@
- * /@@       /@@  @@@@@  @@    // /@@       /@@
- * /@@@@@@@  /@@ @@///@@/@@       /@@@@@@@@@/@@
- * /@@////   /@@/@@@@@@@/@@       ////////@@/@@
- * /@@       /@@/@@//// //@@    @@       /@@/@@
- * /@@       @@@//@@@@@@ //@@@@@@  @@@@@@@@ /@@
- * //       ///  //////   //////  ////////  //
+ * Copyright (c) 2019 Triad National Security, LLC
+ * All rights reserved.
+ *~--------------------------------------------------------------------------~*/
+
+/*~--------------------------------------------------------------------------~*
  *
- * Copyright (c) 2016 Los Alamos National Laboratory, LLC
- * All rights reserved
+ * /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
+ * /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
+ * /@@       /@@  @@@@@  @@    // /@@       /@@   /@@/@@     /@@
+ * /@@@@@@@  /@@ @@///@@/@@       /@@@@@@@@@/@@@@@@@ /@@@@@@@@@@
+ * /@@////   /@@/@@@@@@@/@@       ////////@@/@@////  /@@//////@@
+ * /@@       /@@/@@//// //@@    @@       /@@/@@      /@@     /@@
+ * /@@       @@@//@@@@@@ //@@@@@@  @@@@@@@@ /@@      /@@     /@@
+ * //       ///  //////   //////  ////////  //       //      //
+ *
  *~--------------------------------------------------------------------------~*/
 
 #ifndef flecsi_topology_tree_topology_h
@@ -17,20 +21,8 @@
 
 /*!
   \file tree_topology.h
-  \authors nickm@lanl.gov
-  \date Initial file creation: Apr 5, 2016
+  \authors jloiseau@lanl.gov
  */
-
-/*
-  Tree topology is a statically configured N-dimensional hashed tree for
-  representing localized entities, e.g. particles. It stores entities in a
-  configurable branch type. Inserting entities into a branch can cause that
-  branch to be refined or coarsened correspondingly. A client of tree topology
-  defines a policy which defines its branch and entity types and other
-  compile-time parameters. Specializations can define a policy and default
-  branch types which can then be specialized in a simpler fashion
-  (see the basic_tree specialization).
-*/
 
 #include <algorithm>
 #include <array>
@@ -52,11 +44,19 @@
 #include <vector>
 
 #include "flecsi/data/data_client.h"
-#include "flecsi/geometry/point.h"
 
+#include "log.h"
+
+#include "space_vector.h"
+
+//#include "hashtable.h"
 #include "tree_geometry.h"
 #include "tree_types.h"
 
+#ifdef ENABLE_DEBUG_TREE
+#define _DEBUG_TREE_
+#warning "Tree in debug mode with assert"
+#endif
 
 namespace flecsi {
 namespace topology {
@@ -65,1656 +65,983 @@ namespace topology {
   The tree topology is parameterized on a policy P which defines its branch and
   entity types.
  */
-template <class P> class tree_topology : public P, public data::data_client_t {
+template<class P>
+class tree_topology : public P, public data::data_client_t
+{
+
+public:
+  using Policy = P;
+
+  static const size_t dimension = Policy::dimension;
+  using element_t = typename Policy::element_t;
+  using point_t = space_vector_u<element_t, dimension>;
+  using range_t = std::array<point_t, 2>;
+  using key_t = typename Policy::key_t;
+  using entity_t = typename Policy::entity_t;
+  using geometry_t = tree_geometry<element_t, dimension>;
+  using cofm_t = typename Policy::cofm_t;
+  using hcell_t = hcell<dimension, key_t, cofm_t, entity_t>;
+  using key_int_t = typename Policy::key_int_t;
+
+private:
+  /**
+   * @brief Entity type for MPI communication.
+   * It requires the entity, its key in the tree (not full key) and
+   * the rank that owns this entity for later communications.
+   */
+  struct share_entity_t {
+    share_entity_t() {}
+    share_entity_t(const int & o, const key_t & k, const entity_t & e)
+      : owner(o), key(k), entity(e){};
+    int owner;
+    key_t key;
+    entity_t entity;
+  };
+  /**
+   * @brief Node type for MPI communication.
+   * It requires the node (cofm), its keey in the tree and the rank
+   * that owns this node.
+   */
+  struct share_node_t {
+    share_node_t() {}
+    share_node_t(const int & o, const key_t & k, const cofm_t & n, int nc)
+      : owner(o), key(k), node(n), nchildren(nc) {};
+    int owner;
+    key_t key;
+    cofm_t node;
+    int nchildren;
+  };
 
   /**
-   * @ brief enum for the MPI asynchrnous communications
+   * @brief Types for MPI communications
+   * REQUEST: send a key request to another rank
+   * REPLY_NODE: reply to another rank request with nodes
+   * REPLY_ENTITY: reply to another rank request with entities
+   * DONE_COMMS: Local rank done, send notification to other ranks
    */
-  enum mpi_comm : int {
-    LOCAL_REQUEST = 1,
-    SOURCE_REQUEST = 2,
-    MPI_DONE = 3,
-    SOURCE_REPLY = 4,
-    MPI_RANK_DONE = 5,
-    FAILED_PROBE = 6,
-    MPI_SHARE_EDGE_K = 7,
-    MPI_SHARE_EDGE = 8
+  enum COMMS : int {
+    REQUEST = 10,
+    REQUEST_SUBTREE = 11,
+    REPLY_NODE = 12,
+    REPLY_ENTITY = 13,
+    DONE_COMMS = 14
   };
 
 public:
-  using Policy = P; // Tree policy defined by the user
-
-  static const size_t dimension = Policy::dimension; // Current dimension: 1,2,3
-  using element_t = typename Policy::element_t; // Type of element either F or D
-  using point_t = point_u<element_t, dimension>;
-  using range_t = std::array<point_t, 2>;
-  using key_t = typename Policy::key_t;
-  using branch_t = typename Policy::branch_t;
-  using entity_t = typename Policy::entity_t;
-  using tree_entity_t = tree_entity<dimension, element_t, key_t, entity_t>;
-  using geometry_t = tree_geometry<element_t, dimension>;
-
-  // Hasher for the branch id used in the unordered_map data structure
-  template <class KEY> struct branch_id_hasher__ {
-    size_t operator()(const KEY &k) const noexcept {
-      return k.value() & ((1 << 22) - 1);
-    }
-  };
-
-  /*!
-    Constuct a tree topology with unit coordinates, i.e. each coordinate
-    dimension is in range [0, 1].
-   */
   tree_topology() {
-    branch_map_.emplace(key_t::root(), key_t::root());
-    root_ = branch_map_.find(key_t::root());
-    assert(root_ != branch_map_.end());
-
-    max_depth_ = 0;
-    ghosts_entities_.resize(max_traversal);
-    current_ghosts = 0;
+    int size;
+    MPI_Comm_size(MPI_COMM_WORLD,&size);
+    comms_done_.resize(size);
   }
-
-  /**
-   * @brief Destroy the tree: empty the hash-table and destroy the entities
-   * lists
-   */
-  ~tree_topology() {
-    branch_map_.clear();
-    tree_entities_.clear();
-    ghosts_entities_.clear();
-    current_ghosts = 0;
-    shared_entities_.clear();
-  }
+  ~tree_topology() {}
 
   /**
    * Clean the tree topology but not the local bodies
+   * Remove shared entites and center of masses
    */
   void clean() {
-    branch_map_.clear();
-    tree_entities_.clear();
-    for (int i = 0; i <= current_ghosts; ++i)
-      ghosts_entities_[i].clear();
-    current_ghosts = 0;
+    cofm_.clear();
+    htable_.clear();
     shared_entities_.clear();
-
-    branch_map_.emplace(key_t::root(), key_t::root());
-    root_ = branch_map_.find(key_t::root());
-    assert(root_ != branch_map_.end());
-    max_depth_ = 0;
+    shared_nodes_.clear();
   }
 
   /**
-   * Reset the ghosts local information for the next tree traversal
+   * @brief Reset the ghosts, clean the tree and reconstruct it.
+   * Do not share the particles again, use the current version of the keys
    */
-  void reset_ghosts(bool do_share_edge = true) {
-    int rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    if (size == 1) {
-      current_ghosts = 0;
-      return;
-    }
-    // Same for the shared_edge entities
-    // More complex because we need to find them and remove elements
-    for (auto &s : shared_entities_) {
-      // Find the parent and change the status
-      key_t k = s.key();
-      auto &b = find_parent(k);
-      std::vector<size_t> remove;
-      for (auto eid : b) {
-        auto ent = get(eid);
-        if (ent->owner() != rank) {
-          ent->set_entity_ptr(nullptr);
-          remove.push_back(eid);
-        }
-      }
-      for (auto r : remove) {
-        b.remove(r);
-      }
-      b.set_ghosts_local(false);
-      b.set_requested(false);
-      if (b.is_shared()) {
-        b.set_locality(branch_t::LOCAL);
-      }
-    }
-
-    for (int i = 0; i <= current_ghosts; ++i) {
-      for (auto &g : ghosts_entities_[i]) {
-        // Find the parent and change the status
-        key_t k = g.key();
-        auto &b = find_parent(k);
-        assert(!b.is_local());
-        for (auto eid : b) {
-          auto ent = get(eid);
-          assert(ent->owner() != rank);
-          ent->set_entity_ptr(nullptr);
-        }
-        b.clear();
-        b.set_ghosts_local(false);
-        b.set_requested(false);
-      }
-    }
-
-    if(current_ghosts == 0 && ghosts_entities_[0].size() == 0){
-
-    }else{
-      // Find the first position of ghosts in tree_entities_
-      // Empty the ghosts arrays
-      size_t index_ghosts = tree_entities_.size();
-      for (int i = 0; i <= current_ghosts; ++i) {
-        index_ghosts -= ghosts_entities_[i].size();
-        ghosts_entities_[i].clear();
-      }
-      current_ghosts = 0;
-      index_ghosts -= shared_entities_.size();
-      shared_entities_.clear();
-      assert(!tree_entities_[index_ghosts].is_local());
-
-      tree_entities_.erase(tree_entities_.begin() + index_ghosts,
-                          tree_entities_.end());
-    }
-    // Do not share edge in the case of keeping the tree
-    if (do_share_edge) {
-      share_edge();
-    } else {
-      remove_non_local();
-    }
-    cofm(root(), 0, false);
-  }
-
-  /**
-   * \brief Share the edge particles to my direct neighbors
-   * regarding the key ordering: 0 <-> 1 <-> 2 <-> 3 for 4 processes
-   */
-  /**
-   * \brief Share the edge particles to my direct neighbors
-   * regarding the key ordering: 0 <-> 1 <-> 2 <-> 3 for 4 processes
-   */
-  void share_edge() {
-    // Communications 2 by 2
-    // Send my highest key and my lowest key
-    int rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    // First rank%2 == 0 send to rank%2 == 1
-    std::array<key_t, 2> my_keys;
-    std::array<key_t, 2> neighbor_keys;
-    size_t byte_size = sizeof(std::array<key_t, 2>);
-
-    std::vector<entity_t> received_ghosts;
-
-    int partner = rank;
-    for (int i = 0; i < 2; ++i) {
-      if (rank % 2 == i) {
-        partner = rank + 1;
-        if (partner < size) {
-          // Get my last key
-          my_keys[0] = entities_.back().key();
-          // Get the parent of this entity
-          my_keys[1] = find_parent(my_keys[0]).key();
-          MPI_Send(&(my_keys[0]), byte_size, MPI_BYTE, partner,
-              MPI_SHARE_EDGE_K,MPI_COMM_WORLD);
-          MPI_Recv(&(neighbor_keys[0]), byte_size, MPI_BYTE, partner,
-              MPI_SHARE_EDGE_K,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        }
-      } else {
-        partner = rank - 1;
-        if (partner >= 0) {
-          // Get my last key
-          my_keys[0] = entities_.front().key();
-          // Get the parent of this entity
-          my_keys[1] = find_parent(my_keys[0]).key();
-          MPI_Recv(&(neighbor_keys[0]), byte_size, MPI_BYTE, partner,
-              MPI_SHARE_EDGE_K,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-          MPI_Send(&(my_keys[0]), byte_size, MPI_BYTE, partner,
-              MPI_SHARE_EDGE_K,MPI_COMM_WORLD);
-        }
-      }
-      // Entities to send to other rank
-      std::vector<entity_t> edge_entities;
-      if (partner >= 0 && partner < size) {
-        // Compute the conflict
-        int neighbor_parent_depth = neighbor_keys[1].depth();
-        int my_parent_depth = my_keys[1].depth();
-        // Handle the cases
-        // The keys of the parents are the same
-        if (neighbor_keys[1] == my_keys[1]) {
-          // Send the bodies with this key's begining
-          // If this rank is the small one, go from back of vector
-          int max_entities = 1 << dimension;
-          if (rank < partner) {
-            auto cur = entities_.rbegin();
-            auto end = entities_.rend();
-            for (; cur != end && max_entities > 0; ++cur, --max_entities) {
-              auto b = cur;
-              key_t key = cur->key();
-              key.truncate(neighbor_parent_depth);
-              if (key == neighbor_keys[1]) {
-                edge_entities.push_back(*b);
-              }
-            }
-            // If this rank is the highest, go from the front of the vector
-          } else {
-            auto cur = entities_.begin();
-            auto end = entities_.end();
-            for (; cur != end && max_entities > 0; ++cur, --max_entities) {
-              auto b = cur;
-              key_t key = cur->key();
-              key.truncate(neighbor_parent_depth);
-              if (key == neighbor_keys[1]) {
-                edge_entities.push_back(*b);
-              }
-            }
-          }
-        } else { // Send nothing if the parent are not the same, other branch
-        }
-        // If the rank has the highest branch
-        // In this case just look if my body go in the neighbor branch
-        if (neighbor_parent_depth < my_parent_depth) {
-          // Is there a conflict: in this case compare the bodies
-          key_t nb_key = neighbor_keys[0];
-          nb_key.truncate(my_parent_depth);
-          key_t my_key = my_keys[0];
-          my_key.truncate(my_parent_depth);
-          // I send the bodies that go in conflict with its body
-          if (nb_key == my_key) {
-            int max_entities = 1 << dimension;
-            if (rank < partner) {
-              auto cur = entities_.rbegin();
-              auto end = entities_.rend();
-              for (; cur != end && max_entities > 0; ++cur, --max_entities) {
-                auto b = cur;
-                key_t key = cur->key();
-                key.truncate(my_parent_depth);
-                if (key == my_keys[1]) {
-                  edge_entities.push_back(*b);
-                }
-              }
-              // If this rank is the highest, go from the front of the vector
-            } else {
-              auto cur = entities_.begin();
-              auto end = entities_.end();
-              for (; cur != end && max_entities > 0; ++cur, --max_entities) {
-                auto b = cur;
-                key_t key = cur->key();
-                key.truncate(my_parent_depth);
-                if (key == my_keys[1]) {
-                  edge_entities.push_back(*b);
-                }
-              }
-            }
-          } else {
-          }
-        }
-        // If my neighbor have the highest branch
-        if (neighbor_parent_depth > my_parent_depth) {
-
-          // Refine to the neighbor's depth
-          while (my_parent_depth < neighbor_parent_depth) {
-            refine_(find_parent(my_keys[0]));
-            ++my_parent_depth;
-          }
-
-          key_t my_key = my_keys[0];
-          my_key.truncate(neighbor_parent_depth);
-          if (my_key == neighbor_keys[1]) {
-            // Send my branch entities
-            int max_entities = 1 << dimension;
-            if (rank < partner) {
-              auto cur = entities_.rbegin();
-              auto end = entities_.rend();
-              for (; cur != end && max_entities > 0; ++cur, --max_entities) {
-                auto b = cur;
-                key_t key = cur->key();
-                key.truncate(neighbor_parent_depth);
-                if (key == neighbor_keys[1]) {
-                  edge_entities.push_back(*b);
-                }
-              }
-              // If this rank is the highest, go from the front of the vector
-            } else {
-              auto cur = entities_.begin();
-              auto end = entities_.end();
-              for (; cur != end && max_entities > 0; ++cur, --max_entities) {
-                auto b = cur;
-                key_t key = cur->key();
-                key.truncate(neighbor_parent_depth);
-                if (key == neighbor_keys[1]) {
-                  edge_entities.push_back(*b);
-                }
-              }
-            }
-          } else {
-            // Nothing to share but be prepare to receive
-            // the other bodies at the right depth
-            int nrefine = neighbor_parent_depth - my_parent_depth;
-            int depth = my_parent_depth;
-            for (int r = 0; r < nrefine; ++r) {
-              // Find my branch
-              key_t branch_key = my_keys[0];
-              branch_key.truncate(my_parent_depth);
-              auto &b = branch_map_.find(branch_key)->second;
-              refine_(b);
-              ++my_parent_depth;
-            }
-          }
-        }
-      }
-      // 3. Send them
-      if (rank % 2 == i) {
-        partner = rank + 1;
-        if (partner < size) {
-          MPI_Send(&(edge_entities[0]), sizeof(entity_t) * edge_entities.size(),
-                   MPI_BYTE, partner, MPI_SHARE_EDGE, MPI_COMM_WORLD);
-          MPI_Status status;
-          MPI_Probe(partner, MPI_SHARE_EDGE, MPI_COMM_WORLD, &status);
-          // Get the count
-          int nrecv = 0;
-          MPI_Get_count(&status, MPI_BYTE, &nrecv);
-          int offset = received_ghosts.size();
-          received_ghosts.resize(offset + nrecv / sizeof(entity_t));
-          MPI_Recv(&(received_ghosts[offset]), nrecv, MPI_BYTE, partner, MPI_SHARE_EDGE,
-                   MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        }
-      } else {
-        partner = rank - 1;
-        if (partner >= 0) {
-          MPI_Status status;
-          MPI_Probe(partner, MPI_SHARE_EDGE, MPI_COMM_WORLD, &status);
-          // Get the count
-          int nrecv = 0;
-          MPI_Get_count(&status, MPI_BYTE, &nrecv);
-          int offset = received_ghosts.size();
-          received_ghosts.resize(offset + nrecv / sizeof(entity_t));
-          MPI_Recv(&(received_ghosts[offset]), nrecv, MPI_BYTE, partner, MPI_SHARE_EDGE,
-                   MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-          MPI_Send(&(edge_entities[0]), sizeof(entity_t) * edge_entities.size(),
-                   MPI_BYTE, partner, MPI_SHARE_EDGE, MPI_COMM_WORLD);
-        }
-      } // if
-    } // for
-
-    for (auto g : received_ghosts) {
-      shared_entities_.push_back(g);
-    }
-    for (auto &g : shared_entities_) {
-      auto *bi = &(g);
-      assert(bi->mass() != 0.);
-      assert(bi->key().value() != 0);
-      if (bi->key() > entities().back().key()) {
-        partner = rank + 1;
-      } else {
-        partner = rank - 1;
-      }
-      auto id = make_entity(bi->key(), bi->coordinates(), nullptr, partner,
-                            bi->mass(), bi->id(), bi->radius());
-      insert(id);
-      get(id)->set_entity_ptr(bi);
-      // Set the ghosts local in this case
-    }
-    for (auto &g : shared_entities_) {
-      find_parent(g.key()).set_ghosts_local(true);
-    }
+  template<typename CCOFM>
+  void reset_ghosts(CCOFM && f_c, bool do_share_edge = true) {
+    clean();
+    build_tree(f_c);
   }
 
   /**
    * \brief Change the range of the tree topology
    */
-  void set_range(const range_t &range) { range_ = range; }
+  void set_range(const range_t & range) {
+    range_ = range;
+  }
 
   /**
    * @brief Get the range
    */
-  const std::array<point_t, 2> &range() { return range_; }
-
-  /**
-   * @brief Get the ci-th child of the given branch.
-   */
-  branch_t *child(branch_t *b, size_t ci) {
-    // Use the hash table
-    key_t bid = b->key();         // Branch id
-    bid.push(ci);                       // Add child number
-    auto child = branch_map_.find(bid); // Search for the child
-    // If it does not exists, return nullptr
-    if (child == branch_map_.end())
-      return nullptr;
-    return &child->second;
+  const std::array<point_t, 2> & range() {
+    return range_;
   }
-
-  /**
-   * @brief Return reference to the vector of tree_entities
-   */
-  std::vector<tree_entity_t> &tree_entities() { return tree_entities_; }
 
   /**
    * @ brief Return a reference to the vector of the entities
    */
-  std::vector<entity_t> &entities() { return entities_; }
+  std::vector<entity_t> & entities() {
+    return entities_;
+  }
 
   /**
    * @brief Return an entity by its id
    */
-  template <typename E> entity_t &entity(E e) {
+  template<typename E>
+  entity_t & entity(E e) {
     return entities_[static_cast<int>(e)];
   }
 
   /**
-   * @brief Return a vector with all the local sub entities
-   *
-   * @param start The branch in which the search occur
-   * @param search_list The found entities vector
+   * @brief Generic traversal function
    */
-  void get_sub_entities(branch_t *start, std::vector<entity_t> &search_list) {
-    std::stack<branch_t *> stk;
-    stk.push(start);
-
-    while (!stk.empty()) {
-      branch_t *c = stk.top();
+  template<typename FUNC, typename... ARGS>
+  void traversal(hcell_t * cell, FUNC && func, ARGS &&... args) {
+    std::stack<hcell_t *> stk;
+    stk.push(cell);
+    while(!stk.empty()) {
+      hcell_t * cur = stk.top();
       stk.pop();
-      if (c->is_leaf()) {
-        for (auto id : *c) {
-          auto child = this->get(id);
-          if (child->entity_ptr() != nullptr) {
-            search_list.push_back(*(child->entity_ptr()));
-          }
-        }
-      } else {
-        for (int i = 0; i < (1 << dimension); ++i) {
-          if (!c->as_child(i))
-            continue;
-          auto next = child(c, i);
-          assert(next != nullptr);
-          stk.push(next);
-        }
-      }
-    }
+      if(func(cur, std::forward<ARGS>(args)...)) {
+        hcell_t * daughters[nchildren_] = {nullptr};
+        int children = 0;
+        daughters_(cur, daughters, children);
+        for(int i = 0; i < children; ++i) {
+          stk.push(daughters[i]);
+        } // for
+      } // if
+    } // while
   }
 
   /**
-   * @brief Find all the center of mass of the tree up to the
-   * maximum sub particles criterion.
-   *
-   * @param b The starting branch for the search, usually root
-   * @param criterion The maximum of subparticles for the COMs
-   * @param search_list The extracted COMs
-   */
-  void find_sub_cells(branch_t *b, const uint64_t &criterion,
-                      std::vector<branch_t *> &search_list) {
-    std::stack<branch_t *> stk;
-    stk.push(b);
-
-    while (!stk.empty()) {
-      branch_t *c = stk.top();
-      stk.pop();
-      if (c->is_leaf() && c->is_local()) {
-        search_list.push_back(c);
-      } else {
-        if (c->is_local() && c->sub_entities() <= criterion) {
-          search_list.push_back(c);
-        } else {
-          for (int i = (1 << dimension) - 1; i >= 0; --i) {
-            if (!c->as_child(i))
-              continue;
-            auto next = child(c, i);
-            stk.push(next);
-          }
-        }
-      }
-    }
-  }
-
-  /**
-` * @brief Apply a function ef to the sub_cells using asynchronous comms.
-  * @param [in] b The starting branch for the traversal
-  * @param [in] ncritical The number of subparticles for the branches
-  * @param [in] b The starting branch for the traversal
-  * @param [in] b The starting branch for the traversal
-  * @return <return_description>
-  * @details <details>
+` * @brief Apply a function EF to the sub_cells using asynchronous comms.
   */
-  template <typename EF, typename... ARGS>
-  void traversal_sph(branch_t *b, EF &&ef, ARGS &&... args) {
-
+  template<typename EF, typename... ARGS>
+  void traversal_sph(EF && ef, ARGS &&... args) {
+    log_one(trace) << "Traversal SPH" << std::endl;
+    double start = omp_get_wtime();
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    entities_w_ = entities_;
+    // Find all nodes of the tree with at most sub_entities_ elements
+    std::vector<key_t> cells;
+    traversal(
+      root(),
+      [&](hcell_t * cell, std::vector<key_t> & c, const int & sent) {
+        if(cell->is_node() &&
+           (cell->is_shared() || get_node(cell)->sub_entities() > sent)) {
+          return true;
+        }
+        if(cell->is_node() || (cell->is_entity() && !cell->is_shared())) {
+          c.push_back(cell->key());
+        }
+        return false;
+      } // lambda
+      ,
+      cells, sub_entities_);
 
-    std::vector<branch_t *> working_branches;
-    find_sub_cells(b, ncritical, working_branches);
+    // prepare comms arrays
+    init_comms_(size);
+    std::stack<key_t> stk_nonlocal;
 
-    // Remaining branches in case of non locality
-    std::vector<branch_t *> remaining_branches;
+    // Traversal data
+    std::vector<std::vector<key_t>> request_keys;
+    request_keys.resize(size);
+    std::vector<hcell_t *> * queue = new std::vector<hcell_t *>();
+    std::vector<hcell_t *> * new_queue = new std::vector<hcell_t *>();
+    std::vector<std::vector<entity_t *>> neighbors;
+    hcell_t* daughters[nchildren_];
+    int children;
 
-    // Start communication thread
-    if (size != 1) {
-      std::thread handler(&tree_topology::handle_requests, this);
-      // Start tree traversal
-      traverse_sph(working_branches, remaining_branches, false, ef,
-                   std::forward<ARGS>(args)...);
-      MPI_Send(NULL, 0, MPI_INT, rank, MPI_DONE, MPI_COMM_WORLD);
-      // Wait for communication thread
-      handler.join();
-    } else {
-      traverse_sph(working_branches, remaining_branches, false, ef,
-                   std::forward<ARGS>(args)...);
-    }
+    int i = 0;
+    double lost_time;
+    bool alternate = true;
+    while(i < cells.size() || !stk_nonlocal.empty()) {
 
-#ifdef DEBUG
-    int flag = 0;
-    MPI_Status status;
-    MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag,
-               &status);
-    if (flag != 0) {
-      std::cerr <<rank<< " TAG: " << status.MPI_TAG << " SOURCE: "<<
-        status.MPI_SOURCE<< std::endl;
-    };
-    assert(flag == 0);
+      if(size > 1)
+        check_comms_();
+
+      key_t curkey = key_t(0);
+#ifdef _DEBUG_TREE_
+      lost_time = omp_get_wtime();
+#endif
+      if(i >= cells.size())
+        alternate = false;
+      if(alternate) {
+        curkey = cells[i++];
+        alternate = false;
+      }
+      else {
+        if(!stk_nonlocal.empty()) {
+          curkey = stk_nonlocal.top();
+          stk_nonlocal.pop();
+        }
+        else {
+          if(i < cells.size())
+            curkey = cells[i++];
+          else
+            break;
+        }
+        alternate = true;
+      } // if
+#ifdef _DEBUG_TREE_
+      assert(curkey != key_t(0));
+#endif
+      bool non_local = false;
+      bool rank_request = false;
+
+      hcell_t * cur = &(htable_.find(curkey)->second);
+      std::vector<entity_t *> cur_entities;
+
+      cofm_t * cur_node = nullptr;
+
+      if(cur->is_node()) {
+        traversal(
+          cur,
+          [&](hcell_t * cell, std::vector<entity_t *> & ce) {
+            if(cell->is_node()) {
+              return true;
+            }
+            else {
+              if(!cell->is_shared())
+                ce.push_back(get_entity(cell));
+            }
+            return false;
+          },
+          cur_entities); // lambda
+        cur_node = get_node(cur);
+      }
+      else {
+        cur_entities.push_back(get_entity(cur));
+      } // if
+
+      neighbors.clear();
+      neighbors.resize(cur_entities.size());
+      queue->clear();
+      queue->push_back(root());
+
+      while(!queue->empty()) {
+        new_queue->clear();
+        // Eliminate geometrically
+        for(int j = 0; j < queue->size(); ++j) {
+          bool accepted = false;
+          hcell_t * hcur = (*queue)[j];
+          if(hcur->is_node()) {
+            cofm_t * c = get_node(hcur);
+            // Check if node concerned
+            if(cur_node != nullptr) {
+              if(!geometry_t::intersects_box_box(
+                   c->bmin(), c->bmax(), cur_node->bmin(), cur_node->bmax())) {
+                continue;
+              }
+            } // if
+            // If yes, check for all entities before request
+            for(int k = 0; k < cur_entities.size() && !accepted; ++k) {
+              if(geometry_t::intersects_sphere_box(c->bmin(), c->bmax(),
+                   cur_entities[k]->coordinates(), cur_entities[k]->radius())) {
+                accepted = true;
+                if(hcur->is_empty_node()) {
+                  non_local = true;
+                  if(!hcur->requested()) {
+#ifdef _DEBUG_TREE_
+                    assert(hcur->owner() != rank);
+#endif
+                    hcur->set_requested();
+                    request_keys[hcur->owner()].push_back(hcur->key());
+                    rank_request = true;
+                  }
+                }
+                else {
+                  children = 0;
+                  daughters_(hcur, daughters, children);
+                  for(int l = 0; l < children; ++l)
+                    new_queue->push_back(daughters[l]);
+                } // if
+              } // if
+            } // if
+          }
+          else {
+#ifdef _DEBUG_TREE_
+            assert(hcur->is_entity());
+#endif
+            entity_t * e = get_entity(hcur);
+#ifdef _DEBUG_TREE_
+            assert(e != nullptr);
+#endif
+            if(cur_node != nullptr) {
+              element_t extent_ent =
+                std::max(e->radius(), cur_node->lap()) + cur_node->radius();
+              if(!geometry_t::within_distance2(
+                   e->coordinates(), cur_node->coordinates(), extent_ent))
+                continue;
+            }
+            for(int k = 0; k < cur_entities.size(); ++k) {
+              element_t extent =
+                std::max(cur_entities[k]->radius(), e->radius());
+              if(geometry_t::within_distance2(
+                   cur_entities[k]->coordinates(), e->coordinates(), extent)) {
+                neighbors[k].push_back(e);
+              } // if
+            } // for
+          } // if
+        } // for
+        if(non_local) {
+          if(rank_request) {
+            request_(request_keys);
+            for(int k = 0; k < size; ++k) {
+              request_keys[k].clear();
+            } // for
+          } // if
+#ifdef _DEBUG_TREE_
+          lost_timer_ += omp_get_wtime() - lost_time;
+#endif
+          stk_nonlocal.push(curkey);
+          break;
+        } // if
+
+        auto tmp = queue;
+        queue = new_queue;
+        new_queue = tmp;
+
+      } // while
+      if(!non_local) {
+        for(int j = 0; j < cur_entities.size(); ++j) {
+#ifdef _DEBUG_TREE_
+          assert(neighbors[j].size() != 0);
+#endif
+          ef(*cur_entities[j], neighbors[j], std::forward<ARGS>(args)...);
+        } // for
+      } // if
+    } // while
+    if(size > 1) {
+      comms_all_done_ = false;
+      std::vector<MPI_Request> done_requests(size);
+      std::vector<MPI_Status>  done_status(size);
+      for(int i = 0; i < size; ++i) {
+        MPI_Issend(nullptr, 0, MPI_INT, i, DONE_COMMS, MPI_COMM_WORLD,
+            &done_requests[i]);
+      } // for
+      while(!comms_all_done_) {
+        wait_comms_();
+      } // while
+      MPI_Waitall(size, &done_requests[0], &done_status[0]);
+    } // if
+
+    clean_comms_();
+
+    queue->clear();
+    new_queue->clear();
+    delete queue;
+    delete new_queue;
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    double tree_timer = omp_get_wtime() - start;
+    log_one(trace) << std::fixed << std::setprecision(3)
+                   << "Traversal SPH.done: " << tree_timer << "s"
+#ifdef _DEBUG_TREE_
+                   << " comms_: " << comms_timer_ << "s ("
+                   << comms_timer_ * 100 / tree_timer << "%) "
+                   << "lost_: " << lost_timer_ << "s ("
+                   << lost_timer_ * 100 / tree_timer << "%)"
+#endif
+                   << std::endl;
+  } // traversal_sph
+
+  /**
+   * @brief Fast Multipole Method Traversal.
+   * Perform a tree traversal and update the missing neighbors.
+   */
+  template<typename C2C, typename P2C, typename P2P, typename C2P>
+  void traversal_fmm(const double MAC,
+    C2C && t_c2c,
+    P2C && t_p2c,
+    P2P && f_p2p,
+    C2P && f_c2p) {
+    log_one(trace) << "Traversal FMM (" << MAC << ")" << std::endl;
+    double start = omp_get_wtime();
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    init_comms_(size);
+
+    // Find pairs of interacting cells
+    using interaction_t = std::pair<key_t, key_t>;
+    std::vector<interaction_t> * queue = new std::vector<interaction_t>();
+    std::vector<interaction_t> * new_queue = new std::vector<interaction_t>();
+    std::vector<interaction_t> p2p;
+    std::vector<entity_t *> subs;
+    std::vector<entity_t *> neighbors;
+    hcell_t * daughters[nchildren_];
+    int children;
+    double lost_time;
+
+    std::vector<std::vector<key_t>> request_keys;
+    request_keys.resize(size);
+
+    queue->emplace_back(key_t::root(), key_t::root());
+    while(not queue->empty()) {
+
+      if(size > 1)
+        check_comms_();
+
+      bool rank_request = false;
+
+      new_queue->clear();
+      for(int i = 0; i < queue->size(); ++i) {
+
+#ifdef _DEBUG_TREE_
+        lost_time = omp_get_wtime();
 #endif
 
-    // Add the eventual ghosts in the tree for remaining branches
-    for (size_t i = 0; i < ghosts_entities_[current_ghosts].size(); ++i) {
-      entity_t &g = ghosts_entities_[current_ghosts][i];
-      auto id = make_entity(g.key(), g.coordinates(), nullptr, g.owner(),
-                            g.mass(), g.id(), g.radius());
-      // Assert the parent exists and is non local
-      insert(id);
-      auto nbi = get(id);
-      nbi->set_entity_ptr(&g);
-      find_parent(g.key()).set_ghosts_local(true);
-    }
+        key_t khc1 = (*queue)[i].first;
+        key_t khc2 = (*queue)[i].second;
+        hcell_t * hc1 = &(htable_.find(khc1)->second);
+        hcell_t * hc2 = &(htable_.find(khc2)->second);
 
-    // Prepare for the eventual next tree traversal, use other ghosts vector
-    if(ghosts_entities_[current_ghosts].size() > 0){
-      ++current_ghosts;
-      assert(current_ghosts < max_traversal);
-      // Recompute the COFM because new entities are present in the tree
-      // Vector useless because in this case no ghosts can be found
-      if (remaining_branches.size() > 0) {
-        std::vector<branch_t *> ignore;
-        traverse_sph(remaining_branches, ignore, true, ef,
-                     std::forward<ARGS>(args)...);
-      }
-    }
-    // Copy back the results
-    entities_ = entities_w_;
-    // Synchronize the threads to be sure they dont start to share edges
-    // Critical
-    MPI_Barrier(MPI_COMM_WORLD);
+        assert(hc1->iam_owner());
 
-  } // apply_sub_cells
-
-  /**
-   * @brief Perform a tree traversal in parallel using omp threads for
-   * each working branch. If a branch is not local, make a request to the
-   * thread handler.
-   * @param [in] do_square True is varible smoothing length false otherwize
-   * @param [in] work_branch The set of branch on which to compute the inter.
-   * @param [in] non_local_branches The branches identified as non local
-   * during this traversal, they will be computed after this traversal when the
-   * distant particles will be gathered
-   * @param [in] assert_local In the case of local run assert that no distant
-   * particles are reached.
-   * @param [in] ef The function to apply to the particles in the work_branch
-   * @param [in] args Arguments of the function ef
-   * @return void
-   * @details
-   */
-  template <typename EF, typename... ARGS>
-  void traverse_sph(std::vector<branch_t *> &working_branches,
-                    std::vector<branch_t *> &non_local_branches,
-                    const bool assert_local, EF &&ef, ARGS &&... args) {
-    int rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-    int nelem = working_branches.size();
-
-    size_t max_send = 20;
-
-#pragma omp parallel
-    {
-      std::vector<branch_t *> omp_non_local;
-      std::vector<key_t> send;
-#pragma omp for schedule(static)
-      for (int i = 0; i < nelem; ++i) {
-        std::vector<branch_t *> inter_list;
-        std::vector<branch_t *> requests_branches;
-
-        // Compute the interaction list for this branch
-        if (interactions_branches(working_branches[i], inter_list,
-                                  requests_branches)) {
-          std::vector<std::vector<entity_t *>> neighbors;
-          neighbors.clear();
-          neighbors.resize(working_branches[i]->sub_entities());
-          // Sub traversal to apply to the particles
-          interactions_particles(working_branches[i], inter_list, neighbors);
-          // Perform the computation in the same time for all the threads
-          int index = 0;
-          // for(auto j: *(working_branches[i]))
-          for (int j = working_branches[i]->begin_tree_entities();
-               j <= working_branches[i]->end_tree_entities(); ++j) {
-            if (tree_entities_[j].is_local())
-              ef(entities_w_[j], neighbors[index], std::forward<ARGS>(args)...);
-            ++index;
+        if(!hc2->is_empty_node()) {
+          if(hc1->is_entity() && hc2->is_entity()) {
+            // both are entities: append interaction to the p2p list
+            p2p.push_back((*queue)[i]);
           }
-        } else {
-          assert(!assert_local);
-          omp_non_local.push_back(working_branches[i]);
-#pragma omp critical
-          {
-            // Send branch key to request handler
-            for (auto b : requests_branches) {
-              if (!b->requested()) {
-                send.push_back(b->key());
-                b->set_requested(true);
+          else { // at least one is a node
+
+            if(hc1->key() == hc2->key()) { // same node
+              // check for the number of subentities
+
+              if(get_node(hc1)->sub_entities() < fmm_sub_entities_) {
+                p2p.push_back((*queue)[i]);
+              }
+              else {
+                // split it for self-interaction
+                daughters_(hc1, daughters, children);
+                for(int k1 = 0; k1 < children; ++k1) {
+                  if(daughters[k1]->iam_owner())
+                    new_queue->emplace_back(
+                      daughters[k1]->key(), daughters[k1]->key());
+                  for(int k2 = k1 + 1; k2 < children; ++k2) {
+                    if(daughters[k1]->iam_owner())
+                      new_queue->emplace_back(
+                        daughters[k1]->key(), daughters[k2]->key());
+                    if(daughters[k2]->iam_owner())
+                      new_queue->emplace_back(
+                        daughters[k2]->key(), daughters[k1]->key());
+                  }
+                } // for k1
               }
             }
-          } // omp critical
-          if (send.size() >= max_send) {
-            MPI_Send(&(send[0]), send.size() * sizeof(key_t), MPI_BYTE, rank,
-                     LOCAL_REQUEST, MPI_COMM_WORLD);
-            // Reset send
-            send.clear();
-          }
-        } // if else
-      }   // for
-      // Finish the send
-      if (send.size() > 0) {
-        MPI_Send(&(send[0]), send.size() * sizeof(key_t), MPI_BYTE, rank,
-                 LOCAL_REQUEST, MPI_COMM_WORLD);
-        // Reset send
-        send.clear();
-      }
-#pragma omp critical
-      non_local_branches.insert(non_local_branches.begin(),
-                                omp_non_local.begin(), omp_non_local.end());
-    } // omp parallel
-  }   // traverse_sph
+            else { // different nodes
+              point_t coords1 = {};
+              element_t radius1 = 0;
+              int subent1 = 1;
+              if(hc1->is_node()) {
+                cofm_t * n = get_node(hc1);
+                coords1 = n->coordinates();
+                radius1 = n->radius();
+                subent1 = n->sub_entities();
+              }
+              else {
+                entity_t * e = get_entity(hc1);
+                coords1 = e->coordinates();
+              }
 
-  /**
-   * @brief Compute the interaction list for all the sub-particles in b
-   * @param [in] b Branch on which to propagate the force
-   * @param [in] inter_list The interaction list of the sub-particles of b
-   * @param [in] ef The function to apply on the particles
-   * @param [in] args The arguments of the function to apply
-   * @return void
-   * @details This function apply a tree traversal because the branch b can
-   * be different than a leaf.
-   */
-  bool interactions_branches(branch_t *work_branch,
-                             std::vector<branch_t *> &inter_list,
-                             std::vector<branch_t *> &non_local) {
-    // Queues for the branches
-    std::vector<branch_t *> queue;
-    std::vector<branch_t *> new_queue;
+              point_t coords2 = {};
+              element_t radius2 = 0;
+              int subent2 = 1;
+              if(hc2->is_node()) {
+                cofm_t * n = get_node(hc2);
+                coords2 = n->coordinates();
+                radius2 = n->radius();
+                subent2 = n->sub_entities();
+              }
+              else {
+                entity_t * e = get_entity(hc2);
+                coords2 = e->coordinates();
+              }
 
-    bool missing_branch = false;
-
-    // Small number of particles, root is a leaf 
-    if(root()->is_leaf()){
-      inter_list.push_back(root());
-      return false;  
-    }
-
-    queue.push_back(root());
-    while (!queue.empty()) {
-      // Check the current queue 
-      
-      new_queue.clear();
-      // Add the next level in the queue
-      for (int i = 0; i < queue.size(); ++i) {
-        branch_t *c = queue[i];
-        assert(!c->is_leaf());
-        for (int d = 0; d < (1 << dimension); ++d) {
-          if (!c->as_child(d))
-            continue;
-          new_queue.push_back(child(c, d));
+              if(geometry_t::mac(coords1, radius1, coords2, radius2, MAC)) {
+                assert(hc1->is_node() or hc2->is_node());
+                if(hc1->is_node()) {
+                  cofm_t * n1 = get_node(hc1);
+                  if(hc2->is_node()) {
+                    t_c2c(n1, get_node(hc2));
+                  }
+                  else {
+                    entity_t * e = get_entity(hc2);
+                    t_p2c(n1, e);
+                  }
+                  // save this node for later c2c interactions
+                  n1->set_affected(true);
+                }
+                else { // hc1 is an entity
+                  neighbors.clear();
+                  subs.clear();
+                  subs.push_back(get_entity(hc1));
+                  f_p2p(subs, get_node(hc2), neighbors);
+                }
+              }
+              else { // nodes do not satisfy MAC
+                if(subent1 + subent2 < fmm_sub_entities_) {
+                  // if not enough subentities, give up with splitting
+                  p2p.push_back((*queue)[i]);
+                  std::vector<std::vector<key_t>> request_keys_subtree(size);
+                  bool rqst_subtree = false;
+                  if(hc2->is_shared()) {
+                    traversal(
+                      hc2,
+                      [&](
+                        hcell_t * cell, std::vector<std::vector<key_t>> & nk) {
+                        if((cell->is_node() && !cell->is_shared()) ||
+                           cell->is_entity()) {
+                          return false;
+                        }
+                        // if(cell->is_node() && cell->is_shared()){
+                        //  return true;
+                        //}
+                        if(cell->is_empty_node() && !cell->requested()) {
+                          rqst_subtree = true;
+                          assert(cell->owner() != rank);
+                          cell->set_requested();
+                          nk[cell->owner()].push_back(cell->key());
+                          return false;
+                        }
+                        return true;
+                      } // lambda
+                      ,
+                      request_keys_subtree);
+                  }
+                  // Send request
+                  if(rqst_subtree)
+                    request_(request_keys_subtree, REQUEST_SUBTREE);
+                  // Retrieve the non local particles of this sub-tree
+                }
+                else {
+                  if(radius1 > radius2) { // split the bigger node
+                    // node that if one of the cells is an entity, then its
+                    // radius will be zero; the other one must be the node with
+                    // nonzero radius
+                    daughters_(hc1, daughters, children);
+                    for(int k = 0; k < children; ++k) {
+                      if(daughters[k]->iam_owner()) {
+                        new_queue->emplace_back(
+                          daughters[k]->key(), hc2->key());
+                      }
+                    }
+                  }
+                  else {
+                    daughters_(hc2, daughters, children);
+                    for(int k = 0; k < children; ++k) {
+                      new_queue->emplace_back(hc1->key(), daughters[k]->key());
+                    }
+                  }
+                } // if enough subentities for splitting
+              } // if not MAC
+            } // if different nodes
+          } // if at least one is a node
         }
-      }
-      const int queue_size = new_queue.size();
-      queue.clear();
-      for (int i = 0; i < queue_size; ++i) {
-        branch_t *b = new_queue[i];
-        if (geometry_t::intersects_box_box(b->bmin(), b->bmax(),
-                                           work_branch->bmin(),
-                                           work_branch->bmax())) {
-          if (b->is_leaf()) {
-            if (b->is_local() || b->ghosts_local()) {
-              inter_list.push_back(b);
-            } else {
-              missing_branch = true;
-              if (!b->requested())
-                non_local.push_back(b);
-            }
-          } else {
-            queue.push_back(new_queue[i]);
-          }
-        }
-      }
-    }
-    return !missing_branch;
-  }
-
-  void interactions_particles(branch_t *working_branch,
-                              const std::vector<branch_t *> &inter_list,
-                              std::vector<std::vector<entity_t *>> &neighbors) {
-    std::vector<point_t> inter_coordinates;
-    std::vector<element_t> inter_radius;
-    std::vector<entity_t *> inter_entities;
-    for (int j = 0; j < inter_list.size(); ++j) {
-      for (auto k : *(inter_list[j])) {
-        inter_coordinates.push_back(tree_entities_[k].coordinates());
-        inter_radius.push_back(tree_entities_[k].radius());
-        inter_entities.push_back(tree_entities_[k].entity_ptr());
-        assert(inter_entities.back() != nullptr);
-      }
-    }
-    const int nb_entities = inter_coordinates.size();
-    int index = 0;
-    for (int i = working_branch->begin_tree_entities();
-         i <= working_branch->end_tree_entities(); ++i) {
-      point_t coordinates = tree_entities_[i].coordinates();
-      element_t radius = tree_entities_[i].radius();
-      size_t total = 0;
-      std::vector<size_t> accepted(nb_entities, 0);
-      for (int j = 0; j < nb_entities; ++j) {
-        accepted[j] += geometry_t::within_square(
-            inter_coordinates[j], coordinates, inter_radius[j], radius);
-        total += accepted[j];
-      }
-      neighbors[index].resize(total);
-      int index_add = 0;
-      for (int j = 0; j < nb_entities; ++j) {
-        if (accepted[j])
-          neighbors[index][index_add++] = inter_entities[j];
-      }
-      ++index;
-    }
-  }
-
-  template <typename FC, typename DFCDR, typename DFCDRDR, typename C2P>
-  void traversal_fmm(branch_t *b, double maxmasscell, const double MAC,
-                     FC &&f_fc, DFCDR &&f_dfcdr, DFCDRDR &&f_dfcdrdr,
-                     C2P &&f_c2p) {
-
-    int rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    clog_one(trace) << "FMM : maxmasscell: " << maxmasscell << " MAC: " << MAC
-                    << std::endl;
-
-    entities_w_ = entities_;
-
-    std::vector<branch_t *> work_branch;
-    std::vector<branch_t *> remaining_branches;
-    find_sub_cells(b, 32, work_branch);
-
-    if (size != 1) {
-      std::thread handler(&tree_topology::handle_requests, this);
-      // Start tree traversal
-      traverse_fmm(work_branch, remaining_branches, MAC, f_fc, f_dfcdr,
-                    f_dfcdrdr, f_c2p);
-      MPI_Send(NULL, 0, MPI_INT, rank, MPI_DONE, MPI_COMM_WORLD);
-      // Wait for communication thread
-      handler.join();
-    } else {
-      traverse_fmm(work_branch, remaining_branches, MAC, f_fc, f_dfcdr,
-                    f_dfcdrdr, f_c2p);
-    }
-
-    // Check if no message remainig
-#ifdef DEBUG
-    int flag = 0;
-    MPI_Status status;
-    MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag,
-               &status);
-    if(flag != 0){
-      std::cerr<<rank<<" TAG:"<<status.MPI_TAG<<" SOURCE: "<<
-        status.MPI_SOURCE<<std::endl;
-    }
-    assert(flag == 0);
+        else {
+          // Check if node is empty and retrieve if needed
+          if(!hc2->requested()) {
+#ifdef _DEBUG_TREE_
+            assert(hc2->owner() != rank);
 #endif
-    for (size_t i = 0; i < ghosts_entities_[current_ghosts].size(); ++i) {
-      entity_t &g = ghosts_entities_[current_ghosts][i];
-      auto id = make_entity(g.key(), g.coordinates(), nullptr, g.owner(),
-                            g.mass(), g.id(), g.radius());
-      insert(id);
-      auto nbi = get(id);
-      nbi->set_entity_ptr(&g);
-      // Set the parent to local for the search
-      find_parent(g.key()).set_ghosts_local(true);
-    }
-    if(ghosts_entities_[current_ghosts].size() > 0){
-      ++current_ghosts;
-      assert(current_ghosts < max_traversal);
-   
-      // compute the particle to particle interaction on each sub-branches
-      if (size != 1) {
-        std::vector<branch_t *> ignore;
-        traverse_fmm(remaining_branches, ignore, MAC, f_fc, f_dfcdr, f_dfcdrdr,
-                      f_c2p);
-      } else {
-        assert(remaining_branches.size() == 0);
-      }
-    }
-    entities_ = entities_w_;
-
-
-    // Synchronize the threads to be sure they dont start to share edges
-    // Critical
-    MPI_Barrier(MPI_COMM_WORLD);
-
-  } // apply_sub_cells
-
-  /**
-   * @brief Similar to traverse_sph but using the MAC criterion and applying
-   * the C2C and C2P computations
-   */
-  template <typename FC, typename DFCDR, typename DFCDRDR, typename C2P>
-  void traverse_fmm(std::vector<branch_t *> &work_branch,
-                     std::vector<branch_t *> &remaining_branches,
-                     const double MAC, FC &&f_fc, DFCDR &&f_dfcdr,
-                     DFCDRDR &&f_dfcdrdr, C2P &&f_c2p) {
-    int rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-    size_t total_done = 0;
-
-    size_t nelem = work_branch.size();
-
-#pragma omp parallel for
-    for (size_t i = 0; i < nelem; ++i) {
-      std::vector<branch_t *> inter_list;
-      std::vector<branch_t *> requests_branches;
-
-      total_done += work_branch[i]->sub_entities();
-      // Sub traversal and compute the MAC
-
-      if (traversal_c2c_c2p_p2p(work_branch[i], requests_branches, MAC, f_fc,
-                                f_dfcdr, f_dfcdrdr, f_c2p)) {
-        if(size == 1 ) assert(false);
-        std::vector<key_t> send;
-#pragma omp critical
-        {
-          remaining_branches.push_back(work_branch[i]);
-          // Send branch key to request handler
-          for (auto b : requests_branches) {
-            assert(b->owner() < size && b->owner() >= 0);
-            assert(b->owner() != rank);
-            if (!b->requested()) {
-              send.push_back(b->key());
-              b->set_requested(true);
-            }
+            hc2->set_requested();
+            request_keys[hc2->owner()].push_back(hc2->key());
+            rank_request = true;
           }
+          new_queue->emplace_back(hc1->key(), hc2->key());
+#ifdef _DEBUG_TREE_
+          lost_timer_ += omp_get_wtime() - lost_time;
+#endif
+        } // if
+      } // loop over the queue
+      if(rank_request) {
+        request_(request_keys);
+        for(int k = 0; k < request_keys.size(); ++k) {
+          request_keys[k].clear();
         }
-        MPI_Request request;
-        MPI_Send(&(send[0]), send.size() * sizeof(key_t), MPI_BYTE, rank,
-                 LOCAL_REQUEST, MPI_COMM_WORLD);
-      }
-    }
-  }
-
-  /**
-   * @brief Center of Mass (COM) to COM interaction and the COM to the particles
-   * in this COM.
-   */
-  template <typename FC, typename DFCDR, typename DFCDRDR, typename F_C2P>
-  bool traversal_c2c_c2p_p2p(branch_t *b, std::vector<branch_t *> &non_local,
-                             const double MAC, FC &&f_fc, DFCDR &&f_dfcdr,
-                             DFCDRDR &&f_dfcdrdr, F_C2P &&f_c2p) {
-    point_t fc = 0.;
-    double dfcdr[9] = {0.};
-    double dfcdrdr[27] = {0.};
-    point_t coordinates = b->coordinates();
-
-    std::vector<branch_t *> queue;
-    std::vector<branch_t *> new_queue;
-    std::vector<point_t> c2c_coordinates;
-    std::vector<double> c2c_mass;
-
-    // -------- 1. C2C interactions, keep track of the leaves non interacted
-    std::vector<branch_t *> interactions_leaves;
-    queue.push_back(root());
-    while (!queue.empty()) {
-      new_queue.clear();
-      const int queue_size = queue.size();
-      for (int i = 0; i < queue_size; ++i) {
-        branch_t *q = queue[i];
-        for (int d = 0; d < (1 << dimension); ++d) {
-          if (!q->as_child(d))
-            continue;
-          branch_t *c = child(q, d);
-          if (geometry_t::box_MAC(coordinates, c->coordinates(), c->bmin(),
-                                  c->bmax(), MAC)) {
-            c2c_coordinates.push_back(c->coordinates());
-            c2c_mass.push_back(c->mass());
-          } else if (!c->is_leaf()) {
-            new_queue.push_back(c);
-          } else if (!c->is_local() && !c->ghosts_local()) {
-            non_local.push_back(c);
-          } else {
-            interactions_leaves.push_back(c);
-          }
-        }
-      }
-      queue.clear();
+      } // if non_local
+      auto tmp = queue;
       queue = new_queue;
+      new_queue = tmp;
+    } // while queue
+
+    if(size > 1) {
+      comms_all_done_ = false;
+      std::vector<MPI_Request> done_requests(size);
+      std::vector<MPI_Status>  done_status(size);
+      for(int i = 0; i < size; ++i) {
+        MPI_Issend(nullptr, 0, MPI_INT, i, DONE_COMMS, MPI_COMM_WORLD,
+            &done_requests[i]);
+      } // for
+      // Handle communications
+      while(!comms_all_done_) {
+        wait_comms_();
+      } // while
+      MPI_Waitall(size, &done_requests[0], &done_status[0]);
     }
 
-    if(root()->is_leaf()){
-      assert(c2c_coordinates.size() == 0); 
-      assert(non_local.size() == 0); 
-    }
 
-    // Compute the C2C
-    for (int i = 0; i < c2c_coordinates.size(); ++i) {
-      // Compute the matrices
-      f_fc(fc, coordinates, c2c_coordinates[i], c2c_mass[i]);
-      f_dfcdr(dfcdr, coordinates, c2c_coordinates[i], c2c_mass[i]);
-      f_dfcdrdr(dfcdrdr, coordinates, c2c_coordinates[i], c2c_mass[i]);
-    }
-
-    // If all the sub particles are present
-    if (non_local.size() == 0) {
-      // Propagate this information to the sub-particles for C2P
-      for (int i = b->begin_tree_entities(); i <= b->end_tree_entities(); ++i) {
-        if (tree_entities_[i].is_local()) {
-          f_c2p(fc, dfcdr, dfcdrdr, b->coordinates(), &(entities_w_[i]));
+    // node-node interaction
+    std::vector<hcell_t *> affected_nodes;
+    traversal(
+      root(),
+      [&](hcell_t * cell, std::vector<hcell_t *> & hc) {
+        if(!cell->iam_owner()) {
+          return false; // do not expand others' nodes
         }
-      }
-      // Apply the P2P for the local particles
-      for (int l = 0; l < interactions_leaves.size(); ++l) {
-        for (auto k : *(interactions_leaves[l])) {
-          for (int i = b->begin_tree_entities(); i <= b->end_tree_entities();
-               ++i) {
-            if (tree_entities_[k].id() != tree_entities_[i].id()) {
-              // N square computation
-              point_t fc;
-              entities_w_[i].setAcceleration(
-                  entities_w_[i].getAcceleration() +
-                  f_fc(fc, entities_w_[i].coordinates(),
-                       tree_entities_[k].coordinates(),
-                       tree_entities_[k].mass()));
+        if(cell->is_node() && get_node(cell)->affected()) {
+          hc.push_back(cell);
+        }
+        return true;
+      } // lambda
+      ,
+      affected_nodes);
+
+    neighbors.clear();
+    for(int i = 0; i < affected_nodes.size(); ++i) {
+      hcell_t * hc = affected_nodes[i];
+      subs.clear();
+
+      // Find all sub entities
+      traversal(
+        hc,
+        [&](hcell_t * cell, std::vector<entity_t *> & e) {
+          if(cell->is_node()) {
+            return true;
+          }
+          if(cell->is_entity() && !cell->is_shared()) {
+            e.push_back(get_entity(cell));
+          }
+          return false;
+        } // lambda
+        ,
+        subs);
+
+      f_c2p(get_node(hc), subs);
+    }
+
+    for(int i = 0; i < p2p.size(); ++i) {
+      hcell_t * hc1 = &(htable_.find(p2p[i].first)->second);
+      hcell_t * hc2 = &(htable_.find(p2p[i].second)->second);
+
+      // subentities of hc1
+      std::vector<entity_t *> subs;
+      if(hc1->is_node()) {
+        traversal(
+          hc1,
+          [&](hcell_t * cell, std::vector<entity_t *> & e) {
+            if(cell->is_node()) {
+              return true;
             }
-          }
-        }
-      }
-    }
-    return non_local.size() > 0;
-  }
-
-  /**
-   *
-   */
-  void handle_requests() {
-    const int max_size = 500;
-    const int max_requests = 1000;
-    int rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    bool done_traversal = false;
-    bool done = false;
-
-    // Maintain a request array for all neighbors
-    std::vector<std::vector<std::vector<key_t>>> requests(size);
-    std::vector<std::vector<std::vector<entity_t>>> reply(size);
-    std::vector<int> current_requests(size, 0);
-    std::vector<int> current_reply(size, 0);
-    for (int i = 0; i < size; ++i) {
-      requests[i].resize(max_requests);
-      reply[i].resize(max_requests);
-    }
-
-    std::vector<MPI_Request> mpi_requests(max_requests);
-    int current_mpi_requests = 0;
-    std::vector<MPI_Request> mpi_replies(max_requests);
-    int current_mpi_replies = 0;
-    int request_counter = 0;
-    std::vector<bool> rank_done(size, false);
-
-    while (!done) {
-      MPI_Status status;
-      // Wait on probe
-      int source, tag, nrecv;
-      if (!done_traversal) {
-        MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-        source = status.MPI_SOURCE;
-        tag = status.MPI_TAG;
-        nrecv = 0;
-        MPI_Get_count(&status, MPI_BYTE, &nrecv);
-      } else {
-        int flag;
-        MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &status);
-        if (flag) {
-          source = status.MPI_SOURCE;
-          tag = status.MPI_TAG;
-          nrecv = 0;
-          MPI_Get_count(&status, MPI_BYTE, &nrecv);
-        } else {
-          tag = FAILED_PROBE;
-        }
-      }
-
-      switch (tag) {
-      case MPI_RANK_DONE: {
-        MPI_Recv(NULL, 0, MPI_INT, source, MPI_RANK_DONE, MPI_COMM_WORLD,
-                 MPI_STATUS_IGNORE);
-        rank_done[source] = true;
-      } break;
-      // ------------------------------------------------------------------ //
-      //     Another rank replied to my entities request                    //
-      // ------------------------------------------------------------------ //
-      case SOURCE_REPLY: {
-        assert(nrecv != 0);
-        int current = ghosts_entities_[current_ghosts].size();
-        ghosts_entities_[current_ghosts].resize(current +
-                                                nrecv / sizeof(entity_t));
-        MPI_Recv(&(ghosts_entities_[current_ghosts][current]), nrecv, MPI_BYTE,
-                 source, SOURCE_REPLY, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        --request_counter;
-      } break;
-      // ------------------------------------------------------------------ //
-      //    Another rank request information for entities                   //
-      // ------------------------------------------------------------------ //
-      case SOURCE_REQUEST: {
-        std::vector<key_t> received(nrecv / sizeof(key_t));
-        MPI_Recv(&(received[0]), nrecv, MPI_BYTE, source, SOURCE_REQUEST,
-                 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        for (auto k : received) {
-          auto branch = branch_map_.find(k);
-          assert(branch != branch_map_.end());
-          get_sub_entities(&(branch->second),
-                           reply[source][current_reply[source]]);
-        }
-        int ncount = reply[source][current_reply[source]].size();
-        MPI_Isend(&(reply[source][current_reply[source]++][0]),
-                  ncount * sizeof(entity_t), MPI_BYTE, source, SOURCE_REPLY,
-                  MPI_COMM_WORLD, &(mpi_replies[current_mpi_replies++]));
-        if (current_mpi_replies > max_requests) {
-          clog_one(error) << rank << ": Exceeding number of replies requests"
-                          << std::endl;
-        }
-      } break;
-      // ------------------------------------------------------------------ //
-      //        A local thread requested a distant particles                //
-      // ------------------------------------------------------------------ //
-      case LOCAL_REQUEST: {
-        assert(done_traversal == false);
-        std::vector<key_t> keys(nrecv / sizeof(key_t));
-        MPI_Recv(&(keys[0]), nrecv, MPI_BYTE, rank, LOCAL_REQUEST,
-                 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        for (auto k : keys) {
-          auto itr = branch_map_.find(k);
-          assert(itr != branch_map_.end());
-          branch_t *branch = &(itr->second);
-          assert(branch->requested());
-          int owner = branch->owner();
-          assert(owner != rank);
-          // Add this request to vector
-          requests[owner][current_requests[owner]].push_back(k);
-          if (requests[owner][current_requests[owner]].size() >= max_size) {
-            MPI_Isend(&(requests[owner][current_requests[owner]++][0]),
-                      max_size * sizeof(key_t), MPI_BYTE, owner, SOURCE_REQUEST,
-                      MPI_COMM_WORLD, &(mpi_requests[current_mpi_requests++]));
-            if (current_mpi_requests > max_requests) {
-              clog_one(error)
-                  << rank << ": Exceeding number of requests requests"
-                  << std::endl;
+            if(cell->is_entity() && !cell->is_shared()) {
+              e.push_back(get_entity(cell));
             }
-            ++request_counter;
-          }
-        }
-      } break;
-      // ------------------------------------------------------------------ //
-      //        The OpenMP threads are done, send the last requests         //
-      // ------------------------------------------------------------------ //
-      case MPI_DONE: {
-        // First time, send remaining requests
-        MPI_Recv(NULL, 0, MPI_INT, source, MPI_DONE, MPI_COMM_WORLD,
-                 MPI_STATUS_IGNORE);
-        for (int i = 0; i < size; ++i) {
-          if (i == rank)
-            continue;
-          if (requests[i][current_requests[i]].size() > 0) {
-            int nsend = requests[i][current_requests[i]].size();
-            MPI_Isend(&(requests[i][current_requests[i]][0]),
-                      nsend * sizeof(key_t), MPI_BYTE, i, SOURCE_REQUEST,
-                      MPI_COMM_WORLD, &(mpi_requests[current_mpi_requests++]));
-            if (current_mpi_requests > max_requests) {
-              clog_one(error)
-                  << rank << ": Exceeding number of requests requests"
-                  << std::endl;
-            }
-            ++request_counter;
-          }
-        }
-        done_traversal = true;
-      } break;
-
-      case FAILED_PROBE:
-        break;
-
-      default: {
-        std::cerr<<rank<<" TAG: "<<tag<<" FROM: "<<source<<std::endl;
-        assert(false);
-      } break;
+            return false;
+          } // lambda
+          ,
+          subs);
       }
-
-      if (done_traversal) {
-        // Check if all requests have been answered
-        done = request_counter == 0;
-        bool done_requests = true;
-        int flag;
-        for (size_t i = 0; i < current_mpi_requests; ++i) {
-          MPI_Test(&(mpi_requests[i]), &flag, MPI_STATUS_IGNORE);
-          done_requests = done_requests && flag;
-        }
-        bool done_replies = true;
-        for (size_t i = 0; i < current_mpi_replies; ++i) {
-          MPI_Test(&(mpi_replies[i]), &flag, MPI_STATUS_IGNORE);
-          done_replies = done_replies && flag;
-        }
-        done = done && done_replies && done_requests;
-        // Just do this step once to send the last requests
-        if (done && (!rank_done[rank])) {
-          rank_done[rank] = true;
-          // Send rank done
-          for (size_t i = 0; i < size; ++i) {
-            if (i == rank)
-              continue;
-            MPI_Isend(NULL, 0, MPI_INT, i, MPI_RANK_DONE, MPI_COMM_WORLD,
-                      &(mpi_requests[current_mpi_requests++]));
-            if (current_mpi_requests > max_requests) {
-              clog_one(error)
-                  << rank << ": Exceeding number of requests requests"
-                  << std::endl;
-            }
-          }
-        }
-        for (size_t i = 0; i < size; ++i) {
-          done = done && rank_done[i];
-        }
-      }
-    }
-  }
-
-  void find_level(branch_t *start, const int &level,
-                  std::vector<branch_t *> &find) {
-    std::stack<branch_t *> stk;
-    stk.push(root());
-    while (!stk.empty()) {
-      branch_t *c = stk.top();
-      int cur_level = c->key().depth();
-      stk.pop();
-      if (c->is_leaf() && c->is_local()) {
-        find.push_back(c);
-      } else {
-        if (c->is_local() && cur_level == level) {
-          find.push_back(c);
-        } else {
-          for (int i = (1 << dimension) - 1; i >= 0; --i) {
-            if (!c->as_child(i))
-              continue;
-            auto next = child(c, i);
-            stk.push(next);
-          }
-        }
-      }
-    }
-  }
-
-  void cofm(branch_t *start, element_t epsilon = 0, bool local = false) {
-    // Find the sub particles on which we want to work
-    std::vector<branch_t *> working_branches;
-    std::stack<branch_t *> stk_remaining;
-    // in 3d: 8^3 branches maximum (512)
-    int level = 5;
-    std::stack<branch_t *> stk;
-    stk.push(root());
-    while (!stk.empty()) {
-      branch_t *c = stk.top();
-      int cur_level = c->key().depth();
-      stk.pop();
-      if (c->is_leaf() && c->is_local()) {
-        working_branches.push_back(c);
-      } else {
-        if (c->is_local() && cur_level == level) {
-          working_branches.push_back(c);
-        } else {
-          stk_remaining.push(c);
-          for (int i = (1 << dimension) - 1; i >= 0; --i) {
-            if (!c->as_child(i))
-              continue;
-            auto next = child(c, i);
-            stk.push(next);
-          }
-        }
-      }
-    }
-
-    // Work in parallel on the sub branches
-    const int nwork = working_branches.size();
-
-#pragma omp parallel for
-    for (int b = 0; b < nwork; ++b) {
-      // Find the leave in order in these sub branches
-      std::stack<branch_t *> stk1;
-      std::stack<branch_t *> stk2;
-      stk1.push(working_branches[b]);
-      while (!stk1.empty()) {
-        branch_t *cur = stk1.top();
-        stk1.pop();
-        stk2.push(cur);
-        // Push children to stk1
-        if (!cur->is_leaf()) {
-          for (int i = 0; i < (1 << dimension); ++i) {
-            if (!cur->as_child(i))
-              continue;
-            branch_t *next = child(cur, i);
-            stk1.push(next);
-          }
-        }
-      }
-      // Finish the highest part of the tree in serial
-      while (!stk2.empty()) {
-        branch_t *cur = stk2.top();
-        stk2.pop();
-        update_COM(cur, epsilon, local);
-      }
-    }
-    // Finish the high part of the tree on one thread
-    while (!stk_remaining.empty()) {
-      branch_t *cur = stk_remaining.top();
-      stk_remaining.pop();
-      update_COM(cur, epsilon, local);
-    }
-  }
-
-  // Functions for the tree traversal
-  void update_COM(branch_t *b, element_t epsilon = element_t(0),
-                  bool local_only = false) {
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-    element_t mass = 0;
-    point_t bmax{}, bmin{};
-    // element_t radius = 0.;
-    point_t coordinates{};
-    uint64_t nchildren = 0;
-    int owner = b->owner();
-    size_t begin_te = tree_entities_.size();
-    size_t end_te = 0;
-    for (size_t d = 0; d < dimension; ++d) {
-      bmax[d] = -DBL_MAX;
-      bmin[d] = DBL_MAX;
-    }
-    bool full_nonlocal = true, full_local = true;
-    if (b->is_leaf()) {
-      // For local branches, compute the radius
-      if (b->is_local()) {
-        int start = -1;
-        int end = -1;
-        for (auto child : *b) {
-          auto ent = get(child);
-          if (ent->is_local()) {
-            if (start == -1)
-              start = child;
-            end = child;
-          }
-          owner = ent->owner();
-          if (local_only && !ent->is_local()) {
-            continue;
-          }
-          if (ent->owner() == rank)
-            full_nonlocal = false;
-          else
-            full_local = false;
-          ++nchildren;
-          element_t childmass = ent->mass();
-          for (size_t d = 0; d < dimension; ++d) {
-            bmax[d] = std::max(bmax[d], ent->coordinates()[d] + epsilon +
-                                            ent->radius() / 2.);
-            bmin[d] = std::min(bmin[d], ent->coordinates()[d] - epsilon -
-                                            ent->radius() / 2.);
-          }
-          coordinates += childmass * ent->coordinates();
-          mass += childmass;
-        }
-        if (mass > element_t(0))
-          coordinates /= mass;
-        begin_te = start;
-        end_te = end;
-      } else {
-        // For non local particles use existing value from remote
-        coordinates = b->coordinates();
-        bmin = b->bmin();
-        bmax = b->bmax();
-        mass = b->mass();
-        nchildren = b->sub_entities();
-      }
-      // Locality for leaves
-      if (full_nonlocal && !full_local)
-        b->set_owner(owner);
-      if (b->owner() == rank && full_local)
-        b->set_locality(branch_t::LOCAL);
-      else if (b->owner() == rank && !full_local)
-        b->set_locality(branch_t::SHARED);
-      else
-        b->set_locality(branch_t::NONLOCAL);
-
-    } else {
-      bool local = false;
-      bool nonlocal = false;
-      for (int i = 0; i < (1 << dimension); ++i) {
-        auto branch = child(b, i);
-        if (branch == nullptr)
-          continue;
-        nchildren += branch->sub_entities();
-        mass += branch->mass();
-        if (branch->locality() == branch_t::LOCAL)
-          local = true;
-        if (branch->locality() == branch_t::NONLOCAL)
-          nonlocal = true;
-        if (branch->locality() == branch_t::SHARED)
-          local = nonlocal = true;
-        if (branch->mass() > 0) {
-          for (size_t d = 0; d < dimension; ++d) {
-            bmax[d] = std::max(bmax[d], branch->bmax()[d]);
-            bmin[d] = std::min(bmin[d], branch->bmin()[d]);
-          }
-        }
-        coordinates += branch->mass() * branch->coordinates();
-
-        begin_te = std::min(begin_te, branch->begin_tree_entities());
-        end_te = std::max(end_te, branch->end_tree_entities());
-      }
-      if (mass > element_t(0))
-        coordinates /= mass;
-      if (local && nonlocal)
-        b->set_locality(branch_t::SHARED);
-      if (local && !nonlocal)
-        b->set_locality(branch_t::LOCAL);
-      if (!local && nonlocal)
-        b->set_locality(branch_t::NONLOCAL);
-    }
-    b->set_sub_entities(nchildren);
-    b->set_coordinates(coordinates);
-    b->set_mass(mass);
-    b->set_bmin(bmin);
-    b->set_bmax(bmax);
-    assert(nchildren != 0);
-    b->set_begin_tree_entities(begin_te);
-    b->set_end_tree_entities(end_te);
-  }
-
-  branch_t *find_branch(const key_t &key) {
-    auto b = branch_map_.find(key);
-    // assert(b != branch_map_.end());
-    if (b == branch_map_.end())
-      return nullptr;
-    return &(b->second);
-  }
-
-  void find_children(const key_t &key, std::vector<branch_t *> &children) {
-    auto b = &(branch_map_.find(key)->second);
-    for (int d = 0; d < (1 << dimension); ++d) {
-      if (!b->as_child(d))
-        continue;
-      children.push_back(child(b, d));
-    }
-  }
-
-  /*!
-    Return an index space containing all entities within the specified
-    spheroid.
-   */
-  template <typename EF>
-  std::vector<tree_entity_t*> find_in_radius(const point_t &center, element_t radius,
-                                    EF &&ef) {
-    std::vector<tree_entity_t*> ents;
-
-    // ITERATIVE VERSION
-    std::stack<branch_t *> stk;
-    stk.push(root());
-
-    while (!stk.empty()) {
-      branch_t *b = stk.top();
-      stk.pop();
-      if (b->is_leaf()) {
-        for (auto id : *b) {
-          auto child = &(tree_entities_[id]);
-          // Check if in radius
-          if (ef(center, child->coordinates(), radius, child->radius())) {
-            ents.push_back(child);
-          }
-        }
-      } else {
-        for (int i = 0; i < (1 << dimension); ++i) {
-          if (!b->as_child(i))
-            continue;
-          auto branch = child(b, i);
-          assert(branch != nullptr);
-          if (geometry_t::intersects_sphere_box(branch->bmin(), branch->bmax(),
-                                                center, radius)) {
-            stk.push(branch);
-          }
-        }
-      }
-    }
-    return ents;
-  }
-
-  /*!
-      Return an index space containing all entities within the specified
-      Box
-     */
-  template <typename EF>
-  std::vector<tree_entity_t*> find_in_box(const point_t &min, const point_t &max,
-                                 EF &&ef) {
-    std::vector<tree_entity_t*> ents;
-
-    // ITERATIVE VERSION
-    std::stack<branch_t *> stk;
-    stk.push(root());
-
-    while (!stk.empty()) {
-      branch_t *b = stk.top();
-      stk.pop();
-      if (b->is_leaf()) {
-        for (auto id : *b) {
-          auto child = &(tree_entities_[id]);
-          // Check if in box
-          if (ef(min, max, child->coordinates(), child->radius())) {
-            ents.push_back(child);
-          }
-        }
-      } else {
-        for (int i = 0; i < (1 << dimension); ++i) {
-          if (!b->as_child(i))
-            continue;
-          auto branch = child(b, i);
-          assert(branch != nullptr);
-          if (geometry_t::intersects_box_box(min, max, branch->bmin(),
-                                             branch->bmax())) {
-            stk.push(branch);
-          }
-        }
-      }
-    }
-    return ents;
-  }
-
-  void get_leaves(std::vector<branch_t *> &leaves) {
-    for (auto &it : branch_map_) {
-      if (it.second.is_leaf()) {
-        leaves.push_back(&(it.second));
-      }
-    }
-#ifdef DEBUG
-    // Check if unique
-    auto it = std::unique(leaves.begin(), leaves.end());
-    assert(it == leaves.end());
-#endif
-  }
-
-  void remove_non_local() {
-    // remove the non local branches in the map
-    auto it = branch_map_.begin();
-    while (it != branch_map_.end()) {
-      if (!it->second.is_local()) {
-        auto parent_key = it->second.key();
-        parent_key.pop();
-        auto parent = branch_map_.find(parent_key);
-        if (parent != branch_map_.end())
-          parent->second.remove_bit(it->second.key().last_value());
-        it = branch_map_.erase(it);
-      } else {
-        ++it;
-      }
-    }
-  }
-
-  /*!
-    Construct a new entity. The entity's constructor should not be called
-    directly.
-   */
-  template <class... Args> size_t make_entity(Args &&... args) {
-    tree_entities_.emplace_back(std::forward<Args>(args)...);
-    auto ent = &(tree_entities_.back());
-    // Size -1 to start at 0
-    size_t id = tree_entities_.size() - 1;
-    ent->set_id_(id);
-    return id;
-  }
-
-  /**
-   * Insert directly a branch (certainly remote) in the tree
-   */
-  void insert_branch(const point_t &coordinates, const element_t &mass,
-                     const point_t &bmin, const point_t &bmax, const key_t &key,
-                     const int &owner, const size_t &sub_entities) {
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    assert(rank != owner);
-    // Check if this key already exists
-    auto itr = branch_map_.find(key);
-    // Case 1, branch does not exists localy
-    if (itr == branch_map_.end()) {
-      // Add the missing parents
-      key_t pk = key;
-      int last_bit = pk.last_value();
-      pk.pop();
-      while (branch_map_.find(pk) == branch_map_.end()) {
-        branch_map_.emplace(pk, pk);
-        itr = branch_map_.find(pk);
-        itr->second.set_ghosts_local(false);
-        itr->second.set_coordinates(coordinates);
-        itr->second.set_mass(mass);
-        itr->second.set_bmin(bmin);
-        itr->second.set_bmax(bmax);
-        itr->second.set_owner(owner);
-        itr->second.set_sub_entities(sub_entities);
-        itr->second.set_locality(branch_t::NONLOCAL);
-        itr->second.set_leaf(false);
-        itr->second.add_bit_child(last_bit);
-        last_bit = pk.last_value();
-        pk.pop();
-      }
-      // Set upper level not to leave
-      branch_map_.find(pk)->second.set_leaf(false);
-      branch_map_.find(pk)->second.add_bit_child(last_bit);
-
-      branch_map_.emplace(key, key);
-      itr = branch_map_.find(key);
-      itr->second.set_ghosts_local(false);
-      itr->second.set_coordinates(coordinates);
-      itr->second.set_mass(mass);
-      itr->second.set_bmin(bmin);
-      itr->second.set_bmax(bmax);
-      itr->second.set_owner(owner);
-      itr->second.set_sub_entities(sub_entities);
-      itr->second.set_locality(branch_t::NONLOCAL);
-      itr->second.set_leaf(true);
-
-      size_t depth = key.depth();
-      // Set the new depth of the tree
-      max_depth_ = std::max(max_depth_,depth);
-    } else {
-      if (itr->second.owner() == rank)
-        assert(itr->second.is_shared());
       else {
-        // DO NOTHING, this branch have already been updated
-        assert(!itr->second.is_local());
+        subs.push_back(get_entity(hc1));
       }
-    }
-    // Add this branch if does not exists
+
+      // use 'neighbors' vector to store subentities of hc2
+      neighbors.clear();
+      if(hc2->is_node()) {
+        traversal(
+          hc2,
+          [&](hcell_t * cell, std::vector<entity_t *> & e) {
+            if(cell->is_node()) {
+              return true;
+            }
+            if(cell->is_entity() && !cell->is_shared()) {
+              e.push_back(get_entity(cell));
+            }
+            return false;
+          } // lambda
+          ,
+          neighbors);
+      }
+      else {
+        neighbors.push_back(get_entity(hc2));
+      }
+
+      if(hc1->is_node()) {
+        f_c2p(get_node(hc1), subs);
+      }
+      else {
+        subs.clear();
+        subs.push_back(get_entity(hc1));
+        f_p2p(subs, nullptr, neighbors);
+      }
+
+    } // for p2p interactions
+
+    clean_comms_();
+
+    queue->clear();
+    new_queue->clear();
+    delete queue;
+    delete new_queue;
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    double tree_timer = omp_get_wtime() - start;
+    log_one(trace) << std::fixed << std::setprecision(3)
+                   << "Traversal FMM.done: " << tree_timer << "s"
+#ifdef _DEBUG_TREE_
+                   << " comms_: " << comms_timer_ << "s ("
+                   << comms_timer_ * 100 / tree_timer << "%) "
+                   << "lost_: " << lost_timer_ << "s ("
+                   << lost_timer_ * 100 / tree_timer << "%)"
+#endif
+                   << std::endl;
+  }
+
+  /**
+   * @brief return a vector of entities in the specified spheroid
+   */
+  template<typename EF>
+  std::vector<entity_t *>
+  find_in_radius(const point_t & center, element_t radius, EF && ef) {
+    std::vector<entity_t *> result;
+    traversal(
+      root(),
+      [&](hcell_t * cur, std::vector<entity_t *> & result) {
+        if(cur->is_node()) {
+          cofm_t * c = get_node(cur);
+          element_t extent = std::max(c->lap(), radius) + c->radius();
+          if(geometry_t::within_distance2(c->coordinates(), center, extent))
+            return true;
+        }
+        else {
+          entity_t * e = get_entity(cur);
+          element_t extent = std::max(radius, e->radius());
+          if(geometry_t::within_distance2(center, e->coordinates(), extent))
+            result.push_back(e);
+        }
+        return false;
+      },
+      result);
+    return result;
   }
 
   /**
    * @brief Compute the keys of all the entities present in the structure
    */
   void compute_keys() {
-    //key_t::set_range(range_);
-#pragma omp parallel for
-    for (size_t i = 0; i < entities_.size(); ++i) {
-      entities_[i].set_key(key_t(range_,entities_[i].coordinates()));
-    }
+    for(size_t i = 0; i < entities_.size(); ++i) {
+      entities_[i].set_key(key_t(range_, entities_[i].coordinates()));
+    } // for
   }
 
   /*!
-    Return the tree's current max depth.
+    @brief eturn the tree's current max depth.
    */
-  size_t max_depth() const { return max_depth_; }
-
-  /*!
-    Get an entity by entity id.
-   */
-  tree_entity_t *get(size_t id) {
-    assert(id < tree_entities_.size());
-    return &(tree_entities_[id]);
-  }
-
-  /**
-   * @brief Get a branch by its id
-   */
-  branch_t *get(key_t id) {
-    auto itr = branch_map_.find(id);
-    assert(itr != branch_map_.end());
-    return &itr->second;
+  size_t max_depth() const {
+    return max_depth_;
   }
 
   /*!
-    Get the root branch (depth 0).
+    @brief Get the root branch (depth 0).
    */
-  branch_t *root() { return &root_->second; }
+  hcell_t * root() {
+    return &root_->second;
+  }
+
+  cofm_t * root_node() {
+    return get_node(root());
+  }
 
   /**
    * @brief Generic information for the tree topology
    */
-  friend std::ostream &operator<<(std::ostream &os, tree_topology &t) {
+  friend std::ostream & operator<<(std::ostream & os, tree_topology & t) {
+    auto r = t.htable_.find(key_t::root());
+    cofm_t * root_ptr = r->second.is_shared()
+                          ? &t.shared_nodes_[r->second.node_idx()]
+                          : &(t.cofm_[r->second.node_idx()]);
     os << "Tree: "
-       << "#brchs: " << t.branch_map_.size()
-       << " #ents: " << t.tree_entities_.size();
-    os << " #root_subents: " << t.root()->sub_entities();
+       << "#node: " << t.htable_.size() - t.entities_.size();
     os << " depth: " << t.max_depth_;
+    os << " #root_subents: " << root_ptr->sub_entities();
+    // os << " center: "<<root_ptr->coordinates();
+    os << " mass: " << root_ptr->mass();
+    os << " radius: " << root_ptr->radius();
     return os;
   }
 
   /**
-   * @brief      Export to a file the current tree in memory
-   * This is useful for small number of particles to help representing the tree
-   *
-   * @param      tree   The tree to output
-   * @param      range  The range of the particles, use to construct entity_key
+   * @brief Loop over the bodies to insert them in the tree and construct the
+   * nodes.
+   * 1. Exchange the boundaries with the neighbors
+   * 2. insert the entities and create the branches
+   * 2.a. If a branch is between lo-hi key, the cofm can be computed
+   * 3. The tree is ready to share entities/nodes with the neighbors
+   **/
+  template<typename CCOFM>
+  void build_tree(CCOFM && f_cc) {
+    log_one(trace) << "Building tree" << std::endl;
+    double start = omp_get_wtime();
+    int size, rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    /* Exchange high and low bound */
+    key_t lokey = entities_[0].key();
+    key_t hikey = entities_[entities_.size() - 1].key();
+    exchange_boundaries_(hikey, lokey, hibound_, lobound_);
+    max_depth_ = 0;
+    // Add the root
+    htable_.emplace(key_t::root(), key_t::root());
+    root_ = htable_.find(key_t::root());
+
+    size_t current_depth = key_t::max_depth();
+    // Entity keys, last and current
+    key_t lastekey = key_t(0);
+    if(rank != 0)
+      lastekey = lobound_;
+    key_t ekey;
+    // Node keys, last and Current
+    key_t lastnkey = key_t::root();
+    key_t nkey, loboundnode, hiboundnode;
+    // Current parent and value
+    hcell_t * parent = nullptr;
+    int oldidx = -1;
+
+    bool iam0 = rank == 0;
+    bool iamlast = rank == size - 1;
+
+#ifdef _DEBUG_TREE_
+    assert(lobound_ <= lokey);
+    assert(hibound_ >= hikey);
+#endif
+
+    // The extra turn in the loop is to finish the missing
+    // parent of the last entity
+    for(int i = 0; i <= entities_.size(); ++i) {
+      if(i < entities_.size()) {
+        ekey = entities_[i].key();
+        // Compute the current node key
+      }
+      else {
+        ekey = hibound_;
+      }
+      nkey = ekey;
+      nkey.pop(current_depth);
+      bool loopagain = false;
+      // Loop while there is a difference in the current keys
+      while(nkey != lastnkey || (iamlast && i == entities_.size())) {
+        loboundnode = lobound_;
+        loboundnode.pop(current_depth);
+        hiboundnode = hibound_;
+        hiboundnode.pop(current_depth);
+        if(loopagain && (iam0 || lastnkey > loboundnode) &&
+           (iamlast || lastnkey < hiboundnode)) {
+          // This node is done, we can compute CoFM
+          finish_(lastnkey, f_cc);
+        }
+        if(iamlast && lastnkey == key_t::root())
+          break;
+        loopagain = true;
+        current_depth++;
+        nkey = ekey;
+        nkey.pop(current_depth);
+        lastnkey = lastekey;
+        lastnkey.pop(current_depth);
+      } // while
+
+      if(iamlast && i == entities_.size())
+        break;
+
+      parent = &(htable_.find(lastnkey)->second);
+      oldidx = parent->entity_idx();
+      // Insert the eventual missing parents in the tree
+      // Find the current parent of the two entities
+      while(1) {
+        current_depth--;
+        lastnkey = lastekey;
+        lastnkey.pop(current_depth);
+        nkey = ekey;
+        nkey.pop(current_depth);
+        if(nkey != lastnkey)
+          break;
+        // Add a children
+        int bit = nkey.last_value();
+        parent->add_child(bit);
+        parent->set_entity_idx(-1);
+        htable_.emplace(nkey, nkey);
+        parent = &(htable_.find(nkey)->second);
+      } // while
+
+      // Recover deleted entity
+      if(oldidx != -1) {
+        int bit = lastnkey.last_value();
+        parent->add_child(bit);
+        parent->set_entity_idx(-1);
+        htable_.emplace(lastnkey, hcell_t(lastnkey, i - 1));
+      } // if
+
+      if(i < entities_.size()) {
+        // Insert the new entity
+        int bit = nkey.last_value();
+        parent->add_child(bit);
+        htable_.emplace(nkey, hcell_t(nkey, i));
+      } // if
+
+      // Prepare next loop
+      lastekey = ekey;
+      lastnkey = nkey;
+      max_depth_ = std::max(max_depth_, current_depth);
+    } // for
+    share_nodes_(f_cc);
+    MPI_Barrier(MPI_COMM_WORLD);
+    log_one(trace) << "Building tree.done: " << omp_get_wtime() - start << "s"
+                   << std::endl;
+  }
+
+  /**
+   * @brief Return an entity linked to a cell
+   * This takes care of the local/shared entity
    */
-  void mpi_tree_traversal_graphviz(int num) {
+  entity_t * get_entity(const hcell_t * hc) {
+#ifdef _DEBUG_TREE_
+    assert(hc->is_entity());
+#endif
+    int idx = hc->entity_idx();
+#ifdef _DEBUG_TREE_
+    assert(
+      hc->is_shared() ? idx < shared_entities_.size() : idx < entities_.size());
+#endif
+    return hc->is_shared() ? &shared_entities_[idx] : &entities_[idx];
+  }
+
+  /**
+   * @brief Return a node linked to a cell
+   * This takes care of the local/shared node
+   */
+  cofm_t * get_node(const hcell_t * hc) {
+#ifdef _DEBUG_TREE_
+    assert(hc->is_node());
+#endif
+    int idx = hc->node_idx();
+#ifdef _DEBUG_TREE_
+    assert(hc->is_shared() ? idx < shared_nodes_.size() : idx < cofm_.size());
+#endif
+    if(hc->is_shared())
+      return &shared_nodes_[idx];
+    else
+      return &cofm_[idx];
+    assert(false);
+    return nullptr;
+  }
+
+private:
+  /**
+   * @brief      Export to a file the current tree in memory
+   * This is useful for small number of particles to see the tree
+   * representation
+   */
+  void graphviz_draw_(int num) {
     int rank = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    clog_one(trace) << rank << " outputing tree file #" << num << std::endl;
+    log_one(trace) << rank << " outputing tree file #" << num << std::endl;
 
     char fname[64];
     sprintf(fname, "output_graphviz_%02d_%02d.gv", rank, num);
@@ -1723,205 +1050,1075 @@ public:
     output << "digraph G {" << std::endl << "forcelabels=true;" << std::endl;
 
     // Add the legend
-    output << "branch [label=\"branch\" xlabel=\"sub_entities,owner\"]"
-           << std::endl;
+    // output << "branch [label=\"branch\" xlabel=\"sub_entities,owner\"]"
+    //       << std::endl;
 
-    std::stack<branch_t *> stk;
+    std::stack<hcell_t *> stk;
     // Get root
-    auto rt = root();
-    stk.push(rt);
+    stk.push(root());
 
-    while (!stk.empty()) {
-      branch_t *cur = stk.top();
+    while(!stk.empty()) {
+      hcell_t * cur = stk.top();
       stk.pop();
-      if (!cur->is_leaf()) {
-        output << cur->key() << " [label=\"" << cur->key() << "\", xlabel=\""
-               << cur->sub_entities() << " - " << cur->owner() << "\"];"
+      if(cur->is_unset()) {
+        output << std::oct << cur->key() << std::dec << " [label=\"" << std::oct
+               << cur->key() << std::dec << "\", xlabel=\"\"];" << std::endl;
+        output << std::oct << cur->key() << std::dec
+               << " [shape=circle,color=black]" << std::endl;
+
+        // Add the child to the stack and add for display
+        for(size_t i = 0; i < nchildren_; ++i) {
+          if(cur->get_child(i)) {
+            key_t ckey = cur->key();
+            ckey.push(i);
+            auto it = htable_.find(ckey);
+            if(it != htable_.end()) {
+              stk.push(&it->second);
+            }
+            else {
+              continue;
+            }
+            output << std::oct << cur->key() << "->" << it->second.key()
+                   << std::dec << std::endl;
+          } // if
+        }
+      }
+      else if(cur->is_node()) {
+        int sub_ent = 0;
+        int idx = cur->node_idx();
+        cofm_t * c = cur->is_shared() ? &shared_nodes_[idx] : &cofm_[idx];
+        output << std::oct << cur->key() << std::dec << " [label=\"" << std::oct
+               << cur->key() << std::dec << "\", xlabel=\"" << cur->nchildren()
+               << "," << c->sub_entities() << "," << cur->owner() << "\"];"
                << std::endl;
-        switch (cur->locality()) {
-        case 1:
-          output << cur->key() << " [shape=circle,color=blue]" << std::endl;
-          break;
-        case 2:
-          output << cur->key() << " [shape=circle,color=red]" << std::endl;
-          break;
-        case 3:
-          output << cur->key() << " [shape=circle,color=green]" << std::endl;
-          break;
-        default:
-          output << cur->key() << " [shape=circle,color=black]" << std::endl;
-          break;
+        if(cur->is_shared()) {
+          output << std::oct << cur->key() << std::dec
+                 << " [shape=circle,color=green]" << std::endl;
+        }
+        else {
+          output << std::oct << cur->key() << std::dec
+                 << " [shape=circle,color=blue]" << std::endl;
         }
 
         // Add the child to the stack and add for display
-        for (size_t i = 0; i < (1 << dimension); ++i) {
-          auto br = child(cur, i);
-          if (br == nullptr)
-            continue;
-          stk.push(br);
-          output << std::oct << cur->key() << "->" << br->key() << std::dec
-                 << std::endl;
-        }
-      } else {
-        output << cur->key() << " [label=\"" << cur->key() << "\", xlabel=\""
-               << cur->sub_entities() << " - " << cur->owner() << "\"];"
-               << std::endl;
-        switch (cur->locality()) {
-        case 1:
-          output << cur->key() << " [shape=circle,color=blue]" << std::endl;
-          break;
-        case 2:
-          output << cur->key() << " [shape=circle,color=red]" << std::endl;
-          break;
-        case 3:
-          output << cur->key() << " [shape=circle,color=green]" << std::endl;
-          break;
-        default:
-          output << cur->key() << " [shape=circle,color=black]" << std::endl;
-          break;
-        }
-        for (auto ent : *cur) {
-          auto e = get(ent);
-          key_t key(range(), e->coordinates());
-          key.truncate(max_depth() + 2);
-
-          output << key << " [label=\"" << key << "\", xlabel=\"" << e->owner()
-                 << " - " << e->global_id() << "\"];" << std::endl;
-
-          output << cur->key() << "->" << key << std::endl;
-          switch (e->locality()) {
-          case 2:
-            output << key << " [shape=box,color=green]" << std::endl;
-            break;
-          case 3:
-            output << key << " [shape=box,color=black]" << std::endl;
-            break;
-          case 1:
-            output << key << " [shape=box,color=red]" << std::endl;
-            break;
-          default:
-            output << key << " [shape=circle,color=red]" << std::endl;
-            break;
-          }
-          output << std::dec;
+        for(size_t i = 0; i < nchildren_; ++i) {
+          if(cur->get_child(i)) {
+            key_t ckey = cur->key();
+            ckey.push(i);
+            auto it = htable_.find(ckey);
+            if(it != htable_.end()) {
+              stk.push(&it->second);
+            }
+            else {
+              continue;
+            }
+            output << std::oct << cur->key() << "->" << it->second.key()
+                   << std::dec << std::endl;
+          } // if
         }
       }
-    }
+      else {
+        output << std::oct << cur->key() << std::dec << " [label=\"" << std::oct
+               << cur->key() << std::dec << "\", xlabel=\"" << cur->owner()
+               << "\"];" << std::endl;
+        if(cur->is_shared()) {
+          output << std::oct << cur->key() << std::dec
+                 << " [shape=circle,color=grey]" << std::endl;
+        }
+        else {
+          output << std::oct << cur->key() << std::dec
+                 << " [shape=circle,color=red]" << std::endl;
+        }
+      } // if
+    } // while
     output << "}" << std::endl;
     output.close();
   }
 
   /**
-   * @brief Try to insert an entity in the tree. This might need to refine
-   * the branch.
+   * @brief Check for communciation: requests or replies from other
+   * ranks.
    */
-  void insert(const size_t &id) {
+  void check_comms_() {
+#ifdef _DEBUG_TREE_
+    double start = omp_get_wtime();
+#endif
+    int flag = 1, size, rank;
+    MPI_Status status;
+    // static int tree_num = 1 ;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    // bool updated_tree = false;
+    // Handle all current requests
+    while(flag == 1) {
+      // Change to MPI_Probe when replying only
+      MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &status);
+      if(flag) {
+        int source = status.MPI_SOURCE;
+        int tag = status.MPI_TAG;
+        int nrecv = 0;
+#ifdef _DEBUG_TREE_
+        if(tag != DONE_COMMS)
+          assert(source != rank);
+#endif
+        MPI_Get_count(&status, MPI_BYTE, &nrecv);
+        switch(tag) {
+          case REQUEST_SUBTREE:
+            recv_requests_subtree_(source, nrecv);
+            break;
+          case REQUEST:
+            recv_requests_(source, nrecv);
+            break;
+          case REPLY_NODE:
+            // updated_tree = true;
+            recv_node_replies_(source, nrecv);
+            break;
+          case REPLY_ENTITY:
+            // updated_tree = true;
+            recv_entity_replies_(source, nrecv);
+            break;
+          case DONE_COMMS:
+            MPI_Recv(nullptr, 0, MPI_INT, source, DONE_COMMS, MPI_COMM_WORLD,
+              MPI_STATUS_IGNORE);
+            comms_done_[source] = true;
+            comms_all_done_ = true;
+            for(int i = 0; i < size; ++i) {
+              if(!comms_done_[i]) {
+                comms_all_done_ = false;
+                break;
+              } // if
+            } // for
+            break;
+          default:
+            std::cerr << "Unknown message type: " << tag
+                      << " source: " << source << std::endl;
+            MPI_Finalize();
+            exit(1);
+        } // switch
+      } // if
+    } // while
+#ifdef _DEBUG_TREE_
+    comms_timer_ += omp_get_wtime() - start;
+#endif
+    // if(updated_tree){
+    //  graphviz_draw(tree_num++);
+    //}
+  }
+
+  void wait_comms_() {
+#ifdef _DEBUG_TREE_
+    double start = omp_get_wtime();
+#endif
+    int size, rank;
+    bool end = false;
+    MPI_Status status;
+    // static int tree_num = 1 ;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    // bool updated_tree = false;
+    // Handle all current requests
+    while(!comms_all_done_) {
+      // Change to MPI_Probe when replying only
+      MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+      int source = status.MPI_SOURCE;
+      int tag = status.MPI_TAG;
+      int nrecv = 0;
+#ifdef _DEBUG_TREE_
+      if(tag != DONE_COMMS)
+        assert(source != rank);
+#endif
+      MPI_Get_count(&status, MPI_BYTE, &nrecv);
+      switch(tag) {
+        case REQUEST_SUBTREE:
+          recv_requests_subtree_(source, nrecv);
+          break;
+        case REQUEST:
+          recv_requests_(source, nrecv);
+          break;
+        case REPLY_NODE:
+          // updated_tree = true;
+          recv_node_replies_(source, nrecv);
+          break;
+        case REPLY_ENTITY:
+          // updated_tree = true;
+          recv_entity_replies_(source, nrecv);
+          break;
+        case DONE_COMMS:
+          MPI_Recv(nullptr, 0, MPI_INT, source, DONE_COMMS, MPI_COMM_WORLD,
+            MPI_STATUS_IGNORE);
+          comms_done_[source] = true;
+          comms_all_done_ = true;
+          for(int i = 0; i < size; ++i) {
+            if(!comms_done_[i]) {
+              comms_all_done_ = false;
+              break;
+            } // if
+          } // for
+          break;
+        default:
+          std::cerr << "Unknown message type: " << tag << " source: " << source
+                    << std::endl;
+          MPI_Finalize();
+          exit(1);
+      } // switch
+    } // while
+#ifdef _DEBUG_TREE_
+    comms_timer_ += omp_get_wtime() - start;
+#endif
+    // if(updated_tree){
+    //  graphviz_draw(tree_num++);
+    //}
+  }
+
+  /**
+   * @brief Request a set of keys from another rank.
+   */
+  void request_(const std::vector<std::vector<key_t>> & keys,
+    int rtype = REQUEST) {
+    int rank, size;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    for(int i = 0; i < size; ++i) {
+      int ksize = keys[i].size();
+      if(ksize > 0) {
+        if(mpi_requests_[current_requests_].size() + 1 >=
+           requests_keys_max_ - 1) {
+          current_requests_++;
+          mpi_requests_.resize(current_requests_ + 1);
+          mpi_requests_[current_requests_].reserve(requests_keys_max_);
+        } // if
+        requests_keys_.push_back(keys[i]);
+        int cksize = requests_keys_.back().size();
+        mpi_requests_[current_requests_].push_back(MPI_Request{});
+        MPI_Issend(&requests_keys_.back()[0], ksize * sizeof(key_t), MPI_BYTE, i,
+          rtype, MPI_COMM_WORLD, &mpi_requests_[current_requests_].back());
+      } // if
+    } // for
+
+  }
+
+  /**
+   * @brief Check if another rank requested a group of keys.
+   * In this version the reply will be split between the nodes
+   * and the entities present in the requested keys.
+   **/
+  void recv_requests_(const int & partner, const int & nrecv) {
+    bool found = false;
     int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    // Find parent of the id
-    auto ent = &(tree_entities_[id]);
-    key_t bid = ent->key();
-    assert(bid.depth() > max_depth_);
-    branch_t &b = find_parent(bid);
-    // It is not a leaf, need to insert intermediate branch
-    if (!b.is_leaf()) {
-      // Create the branch
-      size_t depth = b.key().depth() + 1;
-      bid.truncate(depth);
-      int bit = bid.last_value();
-      b.add_bit_child(bit);
-      branch_map_.emplace(bid, bid);
-      branch_map_.find(bid)->second.set_leaf(true);
-      branch_map_.find(bid)->second.insert(id);
-    } else {
-      // Conflict with a children
-      if (b.size() == (1 << dimension)) {
-        refine_(b);
-        insert(id);
-      } else {
-        b.insert(id);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    int nkeys = nrecv / sizeof(key_t);
+    std::vector<key_t> keys(nkeys);
+    MPI_Recv(&keys[0], nrecv, MPI_BYTE, partner, REQUEST, MPI_COMM_WORLD,
+      MPI_STATUS_IGNORE);
+    std::vector<share_node_t> tmp_nodes_replies;
+    std::vector<share_entity_t> tmp_entities_replies;
+    for(int i = 0; i < nkeys; ++i) {
+      hcell_t * cur = &(htable_.find(keys[i])->second);
+#ifdef _DEBUG_TREE_
+      assert(cur->is_node());
+#endif
+      tmp_nodes_replies.emplace_back(cur->owner(),cur->key(),*get_node(cur),
+          cur->nchildren());
+      for(int j = 0; j < nchildren_; ++j) {
+        if(cur->get_child(j)) {
+          key_t ckey = cur->key();
+          ckey.push(j);
+          auto child = htable_.find(ckey);
+#ifdef _DEBUG_TREE_
+          assert(child != htable_.end());
+#endif
+          if(child->second.is_node()) {
+            tmp_nodes_replies.emplace_back(child->second.owner(),
+              child->second.key(), *get_node(&child->second),
+              child->second.nchildren());
+          }
+          else if(child->second.is_entity()) {
+            tmp_entities_replies.emplace_back(child->second.owner(),
+              child->second.key(), *get_entity(&child->second));
+          }
+#ifdef _DEBUG_TREE_
+          else {
+            assert(false);
+          } // if
+#endif
+        } // if
+      } // for
+    } // for
+    if(tmp_nodes_replies.size() != 0) {
+      mpi_replies_[current_replies_].push_back(MPI_Request{});
+      nodes_replies_.push_back(tmp_nodes_replies);
+      MPI_Issend(&nodes_replies_[nodes_replies_.size() - 1][0],
+        sizeof(share_node_t) * tmp_nodes_replies.size(), MPI_BYTE, partner,
+        REPLY_NODE, MPI_COMM_WORLD, &mpi_replies_[current_replies_].back());
+      found = true;
+      if(mpi_replies_[current_replies_].size() >= requests_keys_max_ - 1) {
+        current_replies_++;
+        mpi_replies_.resize(current_replies_ + 1);
+        mpi_replies_[current_replies_].reserve(requests_keys_max_);
+      } // if
+    } // if
+    if(tmp_entities_replies.size() != 0) {
+      mpi_replies_[current_replies_].push_back(MPI_Request{});
+      entities_replies_.push_back(tmp_entities_replies);
+      MPI_Issend(&entities_replies_[entities_replies_.size() - 1][0],
+        sizeof(share_entity_t) * tmp_entities_replies.size(), MPI_BYTE, partner,
+        REPLY_ENTITY, MPI_COMM_WORLD, &mpi_replies_[current_replies_].back());
+      found = true;
+      if(mpi_replies_[current_replies_].size() >= requests_keys_max_ - 1) {
+        current_replies_++;
+        mpi_replies_.resize(current_replies_ + 1);
+        mpi_replies_[current_replies_].reserve(requests_keys_max_);
+      } // if
+    } // if
+#ifdef _DEBUG_TREE_
+    assert(found);
+#endif
+  }
+
+  /**
+   * @brief Check if another rank requested a group of keys.
+   * In this version the reply will be split between the nodes
+   * and the entities present in the requested keys.
+   **/
+  void recv_requests_subtree_(const int & partner, const int & nrecv) {
+    bool found = false;
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    int nkeys = nrecv / sizeof(key_t);
+    std::vector<key_t> keys(nkeys);
+    MPI_Recv(&keys[0], nrecv, MPI_BYTE, partner, REQUEST_SUBTREE,
+      MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    std::vector<share_node_t> tmp_nodes_replies;
+    std::vector<share_entity_t> tmp_entities_replies;
+    for(int i = 0; i < nkeys; ++i) {
+      hcell_t * cur = &(htable_.find(keys[i])->second);
+#ifdef _DEBUG_TREE_
+      assert(cur->is_node());
+#endif
+      // Find all the local sub-entities to be send to other rank
+      std::vector<hcell_t *> cells;
+      traversal(
+        cur,
+        [&](hcell_t * cell, std::vector<hcell_t *> & c) {
+          if(cell->key() == cur->key())
+            return true;
+          if(cell->is_node()) {
+            c.push_back(cell);
+            return true;
+          }
+          c.push_back(cell);
+          return false;
+        } // lambda
+        ,
+        cells);
+
+      for(int j = 0; j < cells.size(); ++j) {
+        if(cells[j]->is_node()) {
+          cells[j]->set_nchildren_to_receive(cells[j]->nchildren());
+          tmp_nodes_replies.emplace_back(
+            cells[j]->owner(), cells[j]->key(), *get_node(cells[j]),
+            cells[j]->nchildren());
+        }
+        else if(cells[j]->is_entity()) {
+          tmp_entities_replies.emplace_back(
+            cells[j]->owner(), cells[j]->key(), *get_entity(cells[j]));
+        }
+#ifdef _DEBUG_TREE_
+        else {
+          assert(false);
+        } // if
+#endif
+      } // for
+    } // for
+    if(tmp_nodes_replies.size() != 0) {
+      mpi_replies_[current_replies_].push_back(MPI_Request{});
+      nodes_replies_.push_back(tmp_nodes_replies);
+      MPI_Issend(&nodes_replies_[nodes_replies_.size() - 1][0],
+        sizeof(share_node_t) * tmp_nodes_replies.size(), MPI_BYTE, partner,
+        REPLY_NODE, MPI_COMM_WORLD, &mpi_replies_[current_replies_].back());
+      found = true;
+      if(mpi_replies_[current_replies_].size() >= requests_keys_max_ - 1) {
+        current_replies_++;
+        mpi_replies_.resize(current_replies_ + 1);
+        mpi_replies_[current_replies_].reserve(requests_keys_max_);
+      } // if
+    } // if
+    if(tmp_entities_replies.size() != 0) {
+      mpi_replies_[current_replies_].push_back(MPI_Request{});
+      entities_replies_.push_back(tmp_entities_replies);
+      MPI_Issend(&entities_replies_[entities_replies_.size() - 1][0],
+        sizeof(share_entity_t) * tmp_entities_replies.size(), MPI_BYTE, partner,
+        REPLY_ENTITY, MPI_COMM_WORLD, &mpi_replies_[current_replies_].back());
+      found = true;
+      if(mpi_replies_[current_replies_].size() >= requests_keys_max_ - 1) {
+        current_replies_++;
+        mpi_replies_.resize(current_replies_ + 1);
+        mpi_replies_[current_replies_].reserve(requests_keys_max_);
+      } // if
+    } // if
+#ifdef _DEBUG_TREE_
+    assert(found);
+#endif
+  }
+
+  /**
+   * @brief Receive a group of entities from a distant node and
+   * add them in the local tree, create the appropriate parents
+   * of the entity inserted to be able to reach it
+   */
+  void recv_entity_replies_(const int & partner, const int & nrecv) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    int nentities = nrecv / sizeof(share_entity_t);
+    std::vector<share_entity_t> recv_entities(nentities);
+    MPI_Recv(&recv_entities[0], nrecv, MPI_BYTE, partner, REPLY_ENTITY,
+      MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+    for(int i = 0; i < recv_entities.size(); ++i) {
+      key_t pkey = recv_entities[i].key;
+      pkey.pop();
+      auto parent = htable_.find(pkey);
+      shared_entities_.push_back(recv_entities[i].entity);
+#ifdef _DEBUG_TREE_
+      assert(htable_.find(recv_entities[i].key) == htable_.end());
+#endif
+      htable_.emplace(recv_entities[i].key,
+        hcell_t(recv_entities[i].key, shared_entities_.size() - 1));
+      auto it = htable_.find(recv_entities[i].key);
+      it->second.set_shared();
+      it->second.set_owner(recv_entities[i].owner);
+      // Change parent
+      int child = recv_entities[i].key.last_value();
+      parent->second.add_child(child);
+    } // for
+  }
+
+  /**
+   * @brief Add a group of nodes received from another rank in the
+   * local tree. This may request the creation of intermediate nodes
+   * in the tree.
+   */
+  void recv_node_replies_(const int & partner, const int & nrecv) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    int nnodes = nrecv / sizeof(share_node_t);
+    std::vector<share_node_t> recv_nodes(nnodes);
+    MPI_Recv(&recv_nodes[0], nrecv, MPI_BYTE, partner, REPLY_NODE,
+      MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    for(int i = 0; i < nnodes; ++i) {
+      key_t pkey = recv_nodes[i].key;
+      pkey.pop();
+      auto parent = htable_.find(pkey);
+#ifdef _DEBUG_TREE_
+      assert(parent != htable_.end());
+#endif
+      shared_nodes_.push_back(recv_nodes[i].node);
+#ifdef _DEBUG_TREE_
+      assert(htable_.find(recv_nodes[i].key) == htable_.end());
+#endif
+      htable_.emplace(recv_nodes[i].key, recv_nodes[i].key);
+      auto it = htable_.find(recv_nodes[i].key);
+      it->second.set_shared();
+      it->second.set_node_idx(shared_nodes_.size() - 1);
+      it->second.set_owner(recv_nodes[i].owner);
+      it->second.set_nchildren_to_receive(recv_nodes[i].nchildren);
+      // Change parent
+      int child = recv_nodes[i].key.last_value();
+#ifdef _DEBUG_TREE_
+      key_t ckey = recv_nodes[i].key;
+      ckey.pop();
+      assert(parent->first == ckey);
+#endif
+      parent->second.add_child(child);
+    } // for
+    // Do we need to clean a node after being requested
+    // since it should never be requested again.
+    // Otherwise we need to store:
+    // current children + total children (bitmap)
+    // if(parent->second.nchildren() ==
+    // get_node(&parent->second)->sub_entities())
+    //  parent->second.unset_requested();
+  }
+
+  /**
+   * @brief Share the entities/nodes with neighbors
+   * Find the branches that are not allocated yet, hey are on the limit
+   * of the domain.
+   */
+  template<typename CCOFM>
+  void share_nodes_(CCOFM && f_cc) {
+    double start = omp_get_wtime();
+    log_one(trace) << "Sharing nodes/entities " << std::endl;
+
+    int size, rank;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    MPI_Status status;
+    // Do the hypercube communciation to share the branches
+    // Add them in the tree in the same time
+    int dim = log2(size);
+    bool non_power_2 = false;
+    // In case of non power two, consider dim + 1
+    // In this case all rank also take size + 1 rank
+    int ghosts_rank = -1;
+    if(1 << dim < size) {
+      non_power_2 = true;
+      dim++;
+      ghosts_rank = rank + (1 << (dim - 1));
+      if(ghosts_rank > (1 << dim) - 1)
+        ghosts_rank = rank;
+    }
+    std::vector<share_entity_t> ghosts_entities, r_ghosts_entities;
+    std::vector<share_node_t> ghosts_nodes, r_ghosts_nodes;
+    const int sz_entities = sizeof(share_entity_t);
+    const int sz_nodes = sizeof(share_node_t);
+    int s_ge_size, s_gn_size;
+
+    // For non power of 2 cases, store the array of entities
+    // of the ghost rank represented.
+    std::vector<share_entity_t> r_ghosts_entities_n2;
+    std::vector<share_node_t> r_ghosts_nodes_n2;
+
+    // Communication for all channels
+    for(int i = 0; i < dim; ++i) {
+      int partner = rank ^ (1 << i);
+      if(partner >= 0 && partner < size) {
+        ghosts_entities.clear();
+        ghosts_nodes.clear();
+        find_nodes_(ghosts_nodes, ghosts_entities, rank);
+#ifdef _DEBUG_TREE_
+        assert(partner >= 0 && partner != rank && partner < size);
+#endif
+        // Send lobound and hibound and bytes for nodes/entities
+        s_ge_size = ghosts_entities.size() * sz_entities;
+        s_gn_size = ghosts_nodes.size() * sz_nodes;
+        std::pair<int[2], key_t[2]> s_keys;
+        s_keys.first[0] = s_ge_size;
+        s_keys.first[1] = s_gn_size;
+        s_keys.second[0] = lobound_;
+        s_keys.second[1] = hibound_;
+        std::pair<int[2], key_t[2]> s_rkeys;
+        MPI_Sendrecv(&s_keys, sizeof(std::pair<int, key_t[2]>), MPI_BYTE,
+          partner, 0, &s_rkeys, sizeof(std::pair<int, key_t[2]>), MPI_BYTE,
+          partner, 0, MPI_COMM_WORLD, &status);
+        lobound_ = std::min(s_rkeys.second[0], lobound_);
+        hibound_ = std::max(s_rkeys.second[1], hibound_);
+        // Send entities
+        r_ghosts_entities.resize(s_rkeys.first[0] / sz_entities);
+        MPI_Sendrecv(&ghosts_entities[0], s_ge_size, MPI_BYTE, partner, 0,
+          &r_ghosts_entities[0], s_rkeys.first[0], MPI_BYTE, partner, 0,
+          MPI_COMM_WORLD, &status);
+        // Send nodes
+        r_ghosts_nodes.resize(s_rkeys.first[1] / sz_nodes);
+        MPI_Sendrecv(&ghosts_nodes[0], s_gn_size, MPI_BYTE, partner, 0,
+          &r_ghosts_nodes[0], s_rkeys.first[1], MPI_BYTE, partner, 0,
+          MPI_COMM_WORLD, &status);
+        // Insert the nodes/entities in the tree
+        for(int j = 0; j < r_ghosts_entities.size(); ++j) {
+          if(r_ghosts_entities[j].owner != rank) {
+            shared_entities_.push_back(r_ghosts_entities[j].entity);
+            load_shared_entity_(shared_entities_.size() - 1,
+              r_ghosts_entities[j].key, r_ghosts_entities[j].owner);
+          }
+        }
+        for(int j = 0; j < r_ghosts_nodes.size(); ++j) {
+          if(r_ghosts_nodes[j].owner != rank) {
+            shared_nodes_.push_back(r_ghosts_nodes[j].node);
+            load_shared_node_(shared_nodes_.size() - 1, r_ghosts_nodes[j].key,
+              r_ghosts_nodes[j].owner);
+          }
+        }
+        cofm_update_(root(), f_cc);
+        // Handle the non power two cases
+      } // if
+      if(non_power_2) {
+        // If this ghosts_rank exists for a real rank don't use it
+        if(rank != ghosts_rank && ghosts_rank <= size - 1)
+          continue;
+        int ghosts_partner = ghosts_rank ^ (1 << i);
+        partner = ghosts_partner;
+        // Case already handled before
+        if(ghosts_rank == rank && partner < size)
+          continue;
+        if(ghosts_rank > size && partner > size)
+          continue;
+        if(partner >= size) {
+          partner -= (1 << (dim - 1));
+        }
+        if(partner == rank) {
+          // Add into each buffer, no communication needed
+          ghosts_entities.clear();
+          ghosts_nodes.clear();
+          find_nodes_(ghosts_nodes, ghosts_entities, rank);
+          r_ghosts_entities_n2.insert(r_ghosts_entities_n2.end(),
+            ghosts_entities.begin(), ghosts_entities.end());
+          r_ghosts_nodes_n2.insert(
+            r_ghosts_nodes_n2.end(), ghosts_nodes.begin(), ghosts_nodes.end());
+          for(int j = 0; j < r_ghosts_entities_n2.size(); ++j) {
+            if(r_ghosts_entities_n2[j].owner != rank) {
+              shared_entities_.push_back(r_ghosts_entities_n2[j].entity);
+              load_shared_entity_(shared_entities_.size() - 1,
+                r_ghosts_entities_n2[j].key, r_ghosts_entities_n2[j].owner);
+            }
+          }
+          for(int j = 0; j < r_ghosts_nodes_n2.size(); ++j) {
+            if(r_ghosts_nodes_n2[j].owner != rank) {
+              shared_nodes_.push_back(r_ghosts_nodes_n2[j].node);
+              load_shared_node_(shared_nodes_.size() - 1,
+                r_ghosts_nodes_n2[j].key, r_ghosts_nodes_n2[j].owner);
+            }
+          }
+          cofm_update_(root(), f_cc);
+        }
+        else {
+          if(ghosts_rank == rank) {
+            ghosts_entities.clear();
+            ghosts_nodes.clear();
+            find_nodes_(ghosts_nodes, ghosts_entities, rank);
+          }
+          else {
+            ghosts_entities = r_ghosts_entities_n2;
+            ghosts_nodes = r_ghosts_nodes_n2;
+          }
+#ifdef _DEBUG_TREE_
+          assert(partner >= 0 && partner != rank && partner < size);
+#endif
+          // Send lobound and hibound and bytes for nodes/entities
+          s_ge_size = ghosts_entities.size() * sz_entities;
+          s_gn_size = ghosts_nodes.size() * sz_nodes;
+          std::pair<int[2], key_t[2]> s_keys;
+          s_keys.first[0] = s_ge_size;
+          s_keys.first[1] = s_gn_size;
+          s_keys.second[0] = lobound_;
+          s_keys.second[1] = hibound_;
+          std::pair<int[2], key_t[2]> s_rkeys;
+          MPI_Sendrecv(&s_keys, sizeof(std::pair<int, key_t[2]>), MPI_BYTE,
+            partner, 0, &s_rkeys, sizeof(std::pair<int, key_t[2]>), MPI_BYTE,
+            partner, 0, MPI_COMM_WORLD, &status);
+          lobound_ = std::min(s_rkeys.second[0], lobound_);
+          hibound_ = std::max(s_rkeys.second[1], hibound_);
+          // Send entities
+          r_ghosts_entities.resize(s_rkeys.first[0] / sz_entities);
+          MPI_Sendrecv(&ghosts_entities[0], s_ge_size, MPI_BYTE, partner, 0,
+            &r_ghosts_entities[0], s_rkeys.first[0], MPI_BYTE, partner, 0,
+            MPI_COMM_WORLD, &status);
+          // Send nodes
+          r_ghosts_nodes.resize(s_rkeys.first[1] / sz_nodes);
+          MPI_Sendrecv(&ghosts_nodes[0], s_gn_size, MPI_BYTE, partner, 0,
+            &r_ghosts_nodes[0], s_rkeys.first[1], MPI_BYTE, partner, 0,
+            MPI_COMM_WORLD, &status);
+          if(rank == ghosts_rank) {
+            // Insert the nodes/entities in the tree
+            for(int j = 0; j < r_ghosts_entities.size(); ++j) {
+              if(r_ghosts_entities[j].owner != rank) {
+                shared_entities_.push_back(r_ghosts_entities[j].entity);
+                load_shared_entity_(shared_entities_.size() - 1,
+                  r_ghosts_entities[j].key, r_ghosts_entities[j].owner);
+              }
+            }
+            for(int j = 0; j < r_ghosts_nodes.size(); ++j) {
+              if(r_ghosts_nodes[j].owner != rank) {
+                shared_nodes_.push_back(r_ghosts_nodes[j].node);
+                load_shared_node_(shared_nodes_.size() - 1,
+                  r_ghosts_nodes[j].key, r_ghosts_nodes[j].owner);
+              }
+            }
+            cofm_update_(root(), f_cc);
+          }
+          else {
+            r_ghosts_entities_n2.insert(r_ghosts_entities_n2.end(),
+              ghosts_entities.begin(), ghosts_entities.end());
+            r_ghosts_nodes_n2.insert(r_ghosts_nodes_n2.end(),
+              ghosts_nodes.begin(), ghosts_nodes.end());
+          }
+        } // if
+      } // if
+    } // for
+#ifdef _DEBUG_TREE_
+    assert(root()->is_node());
+#endif
+    log_one(trace) << "Sharing nodes/entities.done: " << omp_get_wtime() - start
+                   << "s" << std::endl;
+  }
+
+  /**
+   * @brief Complete the CoFM in the tree with new entities and branches
+   * This function is called during the sharing of entities/nodes.
+   * The inserted parents in the tree needs to be associated with a
+   * cofm and it needs to be computed.
+   */
+  template<typename CCOFM>
+  void cofm_update_(hcell_t * current, CCOFM && f_cc) {
+    key_t nkey = current->key();
+    key_t min_key, max_key;
+    key_boundary_(nkey, min_key, max_key);
+    if(min_key >= lobound_ && max_key <= hibound_) {
+      if(current->is_unset()) {
+        std::vector<hcell_t *> daughters;
+        daughters.reserve(nchildren_);
+        for(int i = 0; i < nchildren_; ++i) {
+          if(current->get_child(i)) {
+            key_t ckey = nkey;
+            ckey.push(i);
+            auto it = htable_.find(ckey);
+#ifdef _DEBUG_TREE_
+            assert(it != htable_.end());
+#endif
+            daughters.push_back(&(htable_.find(ckey)->second));
+          } // if
+        } // for
+        for(int i = 0; i < daughters.size(); ++i) {
+          cofm_update_(daughters[i], f_cc);
+        } // for
+        current->set_shared();
+        current->set_node_idx(shared_nodes_.size());
+        shared_nodes_.push_back(nkey);
+        cofm_children_(&shared_nodes_[current->node_idx()], daughters, f_cc);
+      } // if
+    }
+  }
+
+  /**
+   * @brief Find the nodes or entities to be shared with other ranks.
+   * This searches for the first nodes/entities that have an index.
+   */
+  void find_nodes_(std::vector<share_node_t> & nodes,
+    std::vector<share_entity_t> & entities,
+    const int rank) {
+    nodes.clear();
+    entities.clear();
+    std::vector<hcell_t *> queue;
+    std::vector<hcell_t *> nqueue;
+    queue.push_back(root());
+    while(!queue.empty()) {
+      for(hcell_t * cur : queue) {
+        key_t nkey = cur->key();
+        if(cur->is_unset()) {
+#ifdef _DEBUG_TREE_
+          assert(cur->type() != 0);
+#endif
+          for(int j = 0; j < nchildren_; ++j) {
+            if(cur->get_child(j)) {
+              key_t ckey = nkey;
+              ckey.push(j);
+              auto it = htable_.find(ckey);
+              nqueue.push_back(&(it->second));
+            } // if
+          } // for
+        }
+        else {
+          if(cur->is_node()) {
+            cofm_t * cofm = get_node(cur);
+            // TODO: check if initializing nchildren with 0 is OK here
+            nodes.emplace_back(cur->owner(), cur->key(), *cofm, 0); 
+          }
+          else {
+            entity_t * ent = get_entity(cur);
+            entities.emplace_back(cur->owner(), cur->key(), *ent);
+          } // if
+        } // else
+      } // for
+      queue.clear();
+      queue = nqueue;
+      nqueue.clear();
+    } // while
+  }
+
+  /**
+   * @brief Load an entity in the tree from a distant process
+   * Call the add_parent_ function to link this entity to
+   * the tree.
+   **/
+  void
+  load_shared_entity_(const int & entity_idx, key_t key, const int & owner) {
+#ifdef _DEBUG_TREE_
+    assert(htable_.find(key) == htable_.end());
+#endif
+    htable_.emplace(key, hcell_t(key, entity_idx));
+    hcell_t * cur = &(htable_.find(key)->second);
+    cur->set_shared();
+    cur->set_owner(owner);
+    int lastbit = key.pop_value();
+    add_parent_(key, lastbit, owner);
+  }
+
+  /**
+   * @brief Load a node in the tree from a distant process
+   * Call the add_parent_ function to link this entity to
+   * the tree
+   **/
+  void load_shared_node_(const int & node_idx, key_t key, const int & owner) {
+#ifdef _DEBUG_TREE_
+    assert(htable_.find(key) == htable_.end());
+#endif
+    htable_.emplace(key, key);
+    hcell_t * cur = &(htable_.find(key)->second);
+    cur->set_shared();
+    cur->set_node_idx(node_idx);
+    cur->set_owner(owner);
+    int lastbit = key.pop_value();
+    add_parent_(key, lastbit, owner);
+  }
+
+  /**
+   * @brief Add missing parent in the tree from a distant
+   * node or entity insertion.
+   * The new parents are empty and we add the children in
+   * the types for the tree traversal
+   */
+  void add_parent_(key_t key, int child, const int & owner) {
+    auto parent = htable_.end();
+    while((parent = htable_.find(key)) == htable_.end()) {
+      htable_.emplace(key, key);
+      parent = htable_.find(key);
+      parent->second.set_shared();
+      parent->second.add_child(child);
+      parent->second.set_owner(owner);
+      child = key.pop_value();
+    } // while
+#ifdef _DEBUG_TREE_
+    assert(parent->second.node_idx() == -1);
+#endif
+    parent->second.add_child(child);
+  }
+
+  /**
+   * @brief Finish a branch during the creation of the tree
+   * This branch is done and this rank is the only one that
+   * have information for it (middle of its local tree).
+   * Add node cofm + compute cofm data with cofm_children_
+   */
+  template<typename CCOFM>
+  void finish_(const key_t & key, CCOFM && f_c) {
+    hcell_t * n = &(htable_.find(key)->second);
+    if(n->entity_idx() != -1)
+      return;
+#ifdef _DEBUG_TREE_
+    assert(n->node_idx() == -1 && n->entity_idx() == -1);
+#endif
+    n->set_node_idx(cofm_.size());
+    cofm_.emplace_back(key);
+    std::vector<hcell_t *> daughters;
+    daughters.reserve(nchildren_);
+    for(int j = 0; j < nchildren_; ++j) {
+      if(n->get_child(j)) {
+        key_t ckey = key;
+        ckey.push(j);
+        auto it = htable_.find(ckey);
+#ifdef _DEBUG_TREE_
+        assert(it != htable_.end());
+#endif
+        daughters.push_back(&(htable_.find(ckey)->second));
+      } // if
+    } // for
+    cofm_children_(&cofm_[n->node_idx()], daughters, f_c);
+  }
+
+  /**
+   * @brief Return a pointer to the hcell daughters of a node.
+   * Using the key of the current hcell and pushing the child number in
+   * the parent key.
+   */
+  void daughters_(hcell_t * cell, hcell_t ** daughters, int & children) {
+#ifdef _DEBUG_TREE_
+    assert(cell != nullptr);
+    assert(daughters != nullptr);
+#endif
+    key_t nkey = cell->key();
+    children = 0;
+    for(int i = 0; i < nchildren_; ++i) {
+      if(cell->get_child(i)) {
+        key_t ckey = nkey;
+        ckey.push(i);
+        auto it = htable_.find(ckey);
+#ifdef _DEBUG_TREE_
+        assert(it != htable_.end());
+#endif
+        daughters[children++] = &(it->second);
+      } // if
+    } // for
+  }
+
+  /**
+   * @brief Compute the CofM data based on the daughters of the node.
+   */
+  template<typename CCOFM>
+  void cofm_children_(cofm_t * cofm,
+    const std::vector<hcell_t *> & daughters,
+    CCOFM && f_ce) {
+    std::vector<entity_t *> v_entities;
+    std::vector<cofm_t *> v_nodes;
+    for(int i = 0; i < daughters.size(); ++i) {
+      if(daughters[i]->is_entity()) {
+        v_entities.push_back(get_entity(daughters[i]));
+      }
+      else if(daughters[i]->is_node()) {
+        v_nodes.push_back(get_node(daughters[i]));
+      }
+#ifdef _DEBUG_TREE_
+      else {
+        assert(false);
+      }
+#endif
+    } // for
+    // Compute center of mass values
+    f_ce(cofm, v_entities, v_nodes);
+  }
+
+  /**
+   * @brief Exchange the keys boundries with direct neighbors
+   * This will be used during the sharing of nodes and entities.
+   * The first and last process have: 100.. and 177.. for low or high.
+   **/
+  void exchange_boundaries_(const key_t & hikey,
+    const key_t & lokey,
+    key_t & hibound,
+    key_t & lobound) {
+    int size, rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Status status;
+
+    int up = rank == size - 1 ? -1 : rank + 1;
+    int down = rank == 0 ? -1 : rank - 1;
+
+    if(rank & 1) {
+      if(up >= 0) {
+        MPI_Sendrecv(&hikey, sizeof(key_t), MPI_BYTE, up, 0, &hibound,
+          sizeof(key_t), MPI_BYTE, up, 0, MPI_COMM_WORLD, &status);
+      }
+      else {
+        hibound = key_t::max();
+      }
+      if(down >= 0) {
+        MPI_Sendrecv(&lokey, sizeof(key_t), MPI_BYTE, down, 0, &lobound,
+          sizeof(key_t), MPI_BYTE, down, 0, MPI_COMM_WORLD, &status);
+      }
+      else {
+        lobound = key_t::min();
       }
     }
-  }
-
-private:
-  /**
-   * @brief Find the parent of an entity or branch based on the key
-   * @details First truncate the key to the lowest possible in the tree, then
-   * loop on the key to find an existing branch. At least it will find the root
-   */
-  branch_t &find_parent(key_t bid) {
-    key_t pid = bid;
-    pid.truncate(max_depth_);
-    while (pid != root_->second.key()) {
-      auto itr = branch_map_.find(pid);
-      if (itr != branch_map_.end()) {
-        return itr->second;
+    else {
+      if(up >= 0) {
+        MPI_Sendrecv(&hikey, sizeof(key_t), MPI_BYTE, up, 0, &hibound,
+          sizeof(key_t), MPI_BYTE, up, 0, MPI_COMM_WORLD, &status);
       }
-      pid.pop();
-    }
-    return root_->second;
+      else {
+        hibound = key_t::max();
+      }
+      if(down >= 0) {
+        MPI_Sendrecv(&lokey, sizeof(key_t), MPI_BYTE, down, 0, &lobound,
+          sizeof(key_t), MPI_BYTE, down, 0, MPI_COMM_WORLD, &status);
+      }
+      else {
+        lobound = key_t::min();
+      }
+    } // if
+  } // exchange_boundaries_
+
+  /**
+   * @brief Find the min (1XX00..) and max (1XX77..) keys around a key
+   * in the tree. This key might not be at the max depth.
+   */
+  void key_boundary_(const key_t & key, key_t & min_key, key_t & max_key) {
+    key_t stop;
+    stop = key_t::min();
+    max_key = key;
+    min_key = key;
+    while(min_key < stop) {
+      max_key.push((1 << dimension) - 1);
+      min_key.push(0);
+    } // while
+  } // key_boundary
+
+  /**
+   * @brief Initialization of the communication array
+   * based on the number of ranks involved in the comms.
+   */
+  void init_comms_(const int & size) {
+    std::fill(comms_done_.begin(), comms_done_.end(), false);
+    mpi_requests_.resize(1);
+    mpi_requests_[0].reserve(requests_keys_max_);
+    mpi_replies_.resize(1);
+    mpi_replies_[0].reserve(requests_keys_max_);
+    current_requests_ = 0;
+    current_replies_ = 0;
+    comms_timer_ = 0;
+    lost_timer_ = 0;
   }
 
   /**
-   * @brief Refine the current branch b if there is a conflict of children
+   * @brief Clean the communications arrays.
+   * Check the requests termination
    */
-  void refine_(branch_t &b) {
-    key_t pid = b.key();
-    size_t depth = pid.depth() + 1;
-
-    // For every children
-    uint bit_child = 0;
-    for (auto ent : b) {
-      key_t k = get(ent)->key();
-      k.truncate(depth);
-      bit_child |= 1 << k.last_value();
-      branch_map_.emplace(k, k);
+  void clean_comms_() {
+    // Check that all communications have beens completed
+    MPI_Status status;
+    int flag;
+    for(int i = 0; i < mpi_requests_.size(); ++i) {
+      for(int j = 0; j < mpi_requests_[i].size(); ++j) {
+        MPI_Test(&mpi_requests_[i][j], &flag, &status);
+#ifdef _DEBUG_TREE_
+        assert(flag);
+#endif
+      }
     }
-    max_depth_ = std::max(max_depth_, depth);
-
-    for (auto ent : b) {
-      insert(ent);
+    mpi_requests_.clear();
+    for(int i = 0; i < mpi_replies_.size(); ++i) {
+      for(int j = 0; j < mpi_replies_[i].size(); ++j) {
+        MPI_Test(&mpi_replies_[i][j], &flag, &status);
+#ifdef _DEBUG_TREE_
+        assert(flag);
+#endif
+      }
     }
-
-    b.set_leaf(false);
-    b.clear();
-    b.set_bit_child(bit_child);
+    mpi_replies_.clear();
+    requests_keys_.clear();
+    nodes_replies_.clear();
+    entities_replies_.clear();
   }
 
-  /** Hashtable Type used to store the branches of the tree */
-  // using branch_map_t = hashtable<key_int_t,branch_t>;
-  using branch_map_t =
-      std::unordered_map<key_t, branch_t, branch_id_hasher__<key_t>>;
+  // KEEP this hashing function to be able to
+  // switch from hashtable to unordered_map from
+  // std.
+  template<class key_t>
+  struct branch_id_hasher__ {
+    size_t operator()(const key_t & k) const noexcept {
+      return static_cast<size_t>(k.value() & ((1 << 22) - 1));
+    }
+  };
 
-  /** Hashtable of branches */
-  branch_map_t branch_map_;
-  /** Direct iterator to the root of the tree */
-  typename branch_map_t::iterator root_;
-
-  /** Lowest depth of branches in the tree */
+  // Tree topology
   size_t max_depth_;
-  /** Range of the particle system */
+  // KEEP this to switch with hashtable
+  // to see the best implementation
+  using umap_t = std::unordered_map<key_t, hcell_t, branch_id_hasher__<key_t>>;
+  // using umap_t = hashtable<key_t, hcell_t>;
+  typename umap_t::iterator root_;
+  umap_t htable_;
   range_t range_;
-  /** Tree entities, light representation of entities */
-  std::vector<tree_entity_t> tree_entities_;
-
-  /** Entities vectors for read/write during traversal */
+  std::vector<cofm_t> cofm_;
   std::vector<entity_t> entities_;
-  std::vector<entity_t> entities_w_;
-
-  /** Max number of traversals */
-  const size_t max_traversal = 10;
-  /** Ghosts entities frmo other ranks */
-  std::vector<std::vector<entity_t>> ghosts_entities_;
-  /** Current position in the array of ghosts */
-  size_t current_ghosts = 0;
-
-  /** Entities gathered with direct neighbors */
   std::vector<entity_t> shared_entities_;
-
-  /** Number of entities in the branches during traversal */
-  const int ncritical = 32;
+  std::vector<cofm_t> shared_nodes_;
+  static constexpr int nchildren_ = (1 << dimension);
+  key_t hibound_, lobound_;
+  // Communication
+  std::vector<std::vector<key_t>> requests_keys_;
+  int current_requests_, current_replies_;
+  std::vector<std::vector<MPI_Request>> mpi_requests_;
+  std::vector<std::vector<MPI_Request>> mpi_replies_;
+  std::vector<std::vector<share_node_t>> nodes_replies_;
+  std::vector<std::vector<share_entity_t>> entities_replies_;
+  std::vector<bool> comms_done_;
+  bool comms_all_done_;
+  const int requests_keys_max_ = 100;
+  double comms_timer_, lost_timer_;
+  // Traversal
+  const int sub_entities_ = 128;
+  const int fmm_sub_entities_ = 0;
 };
 
 } // namespace topology
