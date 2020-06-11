@@ -35,6 +35,7 @@ RUN apt-get -y install gsl-bin libgsl0-dev; exit 0
 RUN apt-get install -y libgtest-dev; exit 0
 RUN apt-get -y install software-properties-common; exit 0
 RUN apt-get install wget; exit 0
+RUN apt-get install libssl-dev; exit 0
 RUN wget https://github.com/Kitware/CMake/releases/download/v3.18.0-rc1/cmake-3.18.0-rc1.tar.gz; tar zxvf cmake-3.18.0-rc1.tar.gz; cd cmake-3.18.0-rc1/; cmake .; make; make install; exit 0
 #RUN apt-get install -y cmake; exit 0
 
