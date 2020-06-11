@@ -33,6 +33,7 @@ RUN sed -i "s%http://archive.ubuntu.com%http://old-releases.ubuntu.com%g" /etc/a
 RUN apt-get update -y; exit 0
 RUN apt-get -y install gsl-bin libgsl0-dev; exit 0 
 RUN apt-get install -y libgtest-dev; exit 0
+RUN sudo apt-get install software-properties-common; exit 0
 RUN sudo add-apt-repository ppa:george-edison55/cmake-3.x; exit 0
 RUN sudo apt-get update; exit 0
 RUN apt-get install -y cmake; exit 0
