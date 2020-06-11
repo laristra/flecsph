@@ -70,7 +70,7 @@ RUN cd /home/flecsi/flecsph && \
           -DENABLE_COLOR_UNIT_TESTS=ON \
           -DFleCSI_INCLUDE_DIR=/usr/local/include \
           -DFleCSI_RUNTIME=/usr/local/share/FleCSI/runtime \
-          -DFleCSI_LIBRARY=/usr/local/lib*/libFleCSI.so \
+          -DFleCSI_LIBRARY=/usr/local/lib64/libFleCSI.so \
           -DENABLE_MPI_THREAD_MULITPLE=ON \
           -DMPIEXEC_PREFLAGS=--oversubscribe \
           ${COVERAGE:+-DENABLE_COVERAGE_BUILD=ON} .. && \
