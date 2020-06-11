@@ -29,8 +29,10 @@ RUN chown -R flecsi:flecsi /home/flecsi/flecsph /home/flecsi/.ccache /home/flecs
 RUN yum install -y which; exit 0
 RUN yum install -y gsl-devel; exit 0 
 RUN yum install -y gtest-devel; exit 0
+RUN apt-get update -y; exit 0
 RUN apt-get -y install gsl-bin libgsl0-dev; exit 0 
 RUN apt-get install -y libgtest-dev; exit 0
+RUN apt-get install -y cmake; exit 0
 
 #build flecsi
 RUN cd /home/flecsi && \ 
