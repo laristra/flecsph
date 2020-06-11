@@ -63,6 +63,7 @@ RUN cd /home/flecsi/flecsph && \
     cmake -DCMAKE_BUILD_TYPE=Debug \
           -DENABLE_MPI=ON \
           -DENABLE_UNIT_TESTS=ON \
+          -DENABLE_MPI_TESTS=OFF \
           -DENABLE_OPENMP=ON \
           -DENABLE_DOXYGEN=ON \
           -DCMAKE_CXX_FLAGS="-fpermissive" \
