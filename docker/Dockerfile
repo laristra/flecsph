@@ -76,7 +76,6 @@ RUN cd /home/flecsi/flecsph && \
           ${COVERAGE:+-DENABLE_COVERAGE_BUILD=ON} .. && \
     HDF5_USE_SHLIB=yes ${SONARQUBE:+build-wrapper-linux-x86-64 --out-dir bw-output} make -j2 && \
     ccache -s && \
-    make doxygen && \
     make install DESTDIR=${PWD}/install && rm -rf ${PWD}/install  && \
     make test
 
