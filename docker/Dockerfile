@@ -18,9 +18,8 @@ ARG TRAVIS_TAG
 ARG TRAVIS_REPO_SLUG
 ARG TRAVIS_COMMIT
 ARG TRAVIS_OS_NAME
-
 # Cleans and install 
-RUN echo "$TRAVIS_OS_NAME"
+
 RUN rm -rf /home/flecsi/.ccache
 COPY flecsph /home/flecsi/flecsph
 COPY ccache/ /home/flecsi/.ccache
@@ -61,6 +60,7 @@ RUN cd /home/flecsi && \
 # Buidl FleCSPH 
 
 ENV LD_LIBRARY_PATH="/usr/local/lib64/:/usr/local/lib/:${LD_LIBRARY_PATH}"
+ENV CMAKE_PREFIX_PATH="/usr/local/lib:/usr/local/lib64:${CMAKE_PREFIX_PATH}"
 
 USER flecsi 
 RUN cd /home/flecsi/flecsph && \
