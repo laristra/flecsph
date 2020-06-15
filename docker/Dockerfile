@@ -20,6 +20,7 @@ ARG TRAVIS_COMMIT
 ARG TRAVIS_OS_NAME
 
 # Cleans and install 
+RUN echo "$TRAVIS_OS_NAME"
 RUN rm -rf /home/flecsi/.ccache
 COPY flecsph /home/flecsi/flecsph
 COPY ccache/ /home/flecsi/.ccache
