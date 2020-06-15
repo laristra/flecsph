@@ -153,7 +153,6 @@ cat > task.sh <<EOL
 #SBATCH --output=out
 #SBATCH --error=err
 
-export CLOG_ENABLE_STDLOG=1
 export OMP_NUM_THREADS=$OMP_THREADS
 
 time mpirun -n 1 ../../../bin/id_generators/${INPUT}_3d_generator ./${INTPUT}_n$NPARTS.par

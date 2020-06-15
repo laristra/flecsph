@@ -1,0 +1,28 @@
+#
+# Sodtube test #1 for 10000 particles in linear dimension
+#
+# initial data
+  initial_data_prefix = "sod_test3_n10000"
+  lattice_nx = 10000       # particle lattice linear dimension
+  poly_gamma = 1.4        # polytropic index
+  sodtest_num  = 3        # which test to generate
+  equal_mass = yes        # determines whether equal mass particles are used or equal separation
+  sph_eta = 1.5
+  lattice_type = 0        # 0:rectangular, 1:hcp, 2:fcc  **in 2d both hcp and fcc are triangular**
+  domain_type = 0         # 0:cube, 1:sphere, 2:full box
+  box_length = 2.0
+
+# evolution
+  sph_kernel = "Wendland C6"
+  initial_dt = 1e-12
+  sph_variable_h = yes
+  adaptive_timestep = yes
+  timestep_cfl_factor = 0.05
+  #thermokinetic_formulation = no
+  final_iteration = 50000
+  out_screen_every = 10
+  out_scalar_every = 10
+  out_h5data_every = 100
+  out_diagnostic_every = 1
+  output_h5data_prefix = "ev_sod_test3_n10000"
+

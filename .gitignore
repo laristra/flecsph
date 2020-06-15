@@ -1,4 +1,4 @@
-tools/bns_generator/*.h5part
+tools/*/*.h5part
 build*
 bld
 *.o
@@ -11,3 +11,4 @@ bld
 .DS_Store
 *.h5
 __pycache__
+.vscode*

@@ -168,7 +168,6 @@ cat > task.sh <<EOL
 #SBATCH -c 18
 #SBATCH --output=out
 #SBATCH --error=err
-export CLOG_ENABLE_STDLOG=1
 
 export OMP_NUM_THREADS=$CORE_MAX
 time mpirun -n 1 ${PATH_TO_FLECSPH_DIR}/build/app/id_generators/${INPUT}_3d_generator ./${INPUT}_n${NPART_MAX}.par

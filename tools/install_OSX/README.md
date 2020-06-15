@@ -62,7 +62,7 @@ $  cmake .. \
        -DENABLE_MPI=ON                            \
        -DENABLE_OPENMP=ON                         \
        -DCXX_CONFORMANCE_STANDARD=c++17           \
-       -DENABLE_CLOG=ON                           \
+       -DENABLE_LOG=ON                           \
        -DFLECSI_RUNTIME_MODEL=mpi                 \
        -DENABLE_FLECSIT=OFF                       \
        -DENABLE_FLECSI_TUTORIAL=OFF               \

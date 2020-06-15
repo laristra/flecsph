@@ -3,7 +3,7 @@
  * All rights reserved.
  *~--------------------------------------------------------------------------~*/
 
- /*~--------------------------------------------------------------------------~*
+/*~--------------------------------------------------------------------------~*
  *
  * /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
  * /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
@@ -21,142 +21,141 @@
  * @brief Functions used in the FMM computation
  */
 
- #ifndef _fmm_h_
- #define _fmm_h_
+#pragma once
 
- #include "params.h"
- #include "tree.h"
+#include "params.h"
+#include "tree.h"
 
 namespace fmm {
-  using namespace param;
-
-  /*
-  * @brief Compute the gravitation interation
-  * Return the computed value if needed for direct particle interaction
-  *
-  * The Sink is the one on which I compute the fc, dfcdr, dfcdrdr
-  * The Source is the distant box
-  */
-  inline
-  point_t gravitation_fc(
-    point_t & fc,
-    const point_t& sink_coordinates,
-    const point_t& source_coordinates,
-    const double& source_mass
-  )
-  {
-    double dist = flecsi::distance(sink_coordinates,source_coordinates);
-    point_t res = -gravitational_constant*source_mass/(dist*dist*dist)*
-      (sink_coordinates-source_coordinates);
-    fc += res;
-    return res;
-  }
-
-  /*
-  * @brief Compute the Jacobian (dfcdr) matrix on the Sink from the Source
-  */
-  inline
-  void gravitation_dfcdr(
-    double dfcdr[9],
-    const point_t& sink_coordinates,
-    const point_t& source_coordinates,
-    const double& source_mass
-  )
-  {
-    double dist = flecsi::distance(sink_coordinates,source_coordinates);
-    double dist_2 = dist*dist;
-    point_t diffPos =  sink_coordinates - source_coordinates;
-    double jacobicoeff = -gravitational_constant*source_mass/(dist_2*dist);
-    for(int i = 0; i < 9; ++i){
-      int a = i/3; int b = i%3;
-      double valjacobian = jacobicoeff*((a==b)-3*diffPos[a]*diffPos[b]/(dist_2));
-      dfcdr[i] += valjacobian;
-    }
-  }
-
-  /*
-  * @brief Compute the Hessian (dfcdrdr) matrix on the Sink from the Source
-  */
-  inline
-  void gravitation_dfcdrdr(
-    double dfcdrdr[27],
-    const point_t& sink_coordinates,
-    const point_t& source_coordinates,
-    const double& source_mass
-  )
-  {
-
-    double dist = flecsi::distance(sink_coordinates,source_coordinates);
-    double dist_2 = dist*dist;
-    point_t diffPos =  sink_coordinates - source_coordinates;
-    double hessiancoeff = -gravitational_constant*3.0*source_mass/(dist_2*dist_2*dist);
-    for(int i = 0 ; i < 27 ; ++i){
-      int a = i/9; int b = (i%9)/3; int c = i%3;
-      double term_1 = (a==b)*diffPos[c]+(c==a)*diffPos[b]+(b==c)*diffPos[a];
-      double valhessian = hessiancoeff *
-        ( 5.0/(dist_2)*diffPos[a]*diffPos[b]*diffPos[c] - term_1) ;
-      dfcdrdr[i] += valhessian;
-    }
+using namespace param;
+double gc = gravitational_constant;
 
 /*
-    for(size_t i=0;i<gdimension;++i){
-      size_t matrixPos = i*gdimension*gdimension;
-      for(size_t j=0;j<gdimension;++j){
-        for(size_t k=0;k<gdimension;++k){
-          size_t position = matrixPos+j*gdimension+k;
-          double term_1 = (i==j)*diffPos[k]+(j==k)*diffPos[i]+(k==i)*diffPos[j];
-          double valhessian = hessiancoeff *
-            ( 5.0/(dist_2)*diffPos[i]*diffPos[j]*diffPos[k] - term_1) ;
-          dfcdrdr[position] += valhessian;
-        } // for
-      } // for
-    } // for*/
-  }
+ * @brief Compute gravitation interaction between two points
+ *        Returns the resulting gravitational acceleration
+ */
+inline point_t 
+gravitation_p2p(double & gpot,
+  const point_t & local_coordinates,
+  const point_t & dist_coordinates,
+  const double & sm) {
+  double dist = flecsi::distance(local_coordinates,dist_coordinates);
+  gpot += -gc*sm/dist;
+  point_t res =-gc*sm/(dist*dist*dist)*(local_coordinates - dist_coordinates);
+  return res;
+}
 
-  /*
-  * @brief Taylor expansion of degree 2 using the computed function, jacobi,
-  * hessian and the targeted particle
-  */
-  void interation_c2p(
-    point_t& fc,
-    double dfcdr[9],
-    double dfcdrdr[27],
-    point_t cofm_coordinates,
-    body* sink
-  )
-  {
-    point_t part_coordinates = sink->coordinates();
+/*
+ * @brief Compute the gravitation interaction between point and cell
+ */
+inline void 
+gravitation_fc(double & pc,
+  point_t & fc,
+  const point_t & local_coordinates,
+  const node * source) {
+  const point_t & dist_coordinates = source->coordinates();
+  const double M = source->mass();
+  double d = flecsi::distance(local_coordinates,dist_coordinates);
+  double d3 = d*d*d;
+  point_t r = local_coordinates - dist_coordinates;
 
-    point_t diffPos = part_coordinates - cofm_coordinates;
-    point_t grav = fc;
-    // The Jacobi
-    for(size_t i=0;i<gdimension;++i){
-      for(size_t j=0;j<gdimension;++j){
-        grav[i] += dfcdr[i*gdimension+j]*diffPos[j];
-      } // for
-    } // for
-    // The hessian
-    double tmpMatrix[gdimension*gdimension] = {};
-    for(size_t i=0;i<gdimension;++i){
-      for(size_t j=0;j<gdimension;++j){
-        for(size_t k=0;k<gdimension;++k){
-          tmpMatrix[i*gdimension+j] +=
-            diffPos[k]*dfcdrdr[i*gdimension*gdimension+j*gdimension+k];
-        } // for
-      } // for
-    } // for
-    double tmpVector[gdimension] = {};
-    for(size_t i=0;i<gdimension;++i){
-      for(size_t j=0;j<gdimension;++j){
-        tmpVector[j] += tmpMatrix[i*gdimension+j]*diffPos[i];
-      } // for
-    } // for
-    for(size_t i=0;i<gdimension;++i){
-      grav[i] += 0.5*tmpVector[i];
-    } // for
-    sink->setAcceleration(grav+sink->getAcceleration());
+  pc += -gc*M/d;
+  for(int m = 0; m < gdimension; ++m) {
+    fc[m] += -gc*M*r[m]/d3; // Monopole
   }
+}
+
+/*
+ * @brief Compute the gravitation interaction between point and node
+ */
+inline void
+gravitation_fc(double & pc,
+  point_t & fc,
+  const point_t & local_coordinates,
+  const body * source) {
+  const point_t & dist_coordinates = source->coordinates();
+  const double M = source->mass();
+  double d = flecsi::distance(local_coordinates,dist_coordinates);
+  double d3 = d*d*d;
+  point_t r = local_coordinates-dist_coordinates;
+  pc += -gc*M/d;
+  for(int m = 0; m < gdimension; ++m){
+    fc[m] += -gc*M*r[m]/d3; // Monopole
+  }
+}
+
+/*
+ * @brief Taylor expansion up to first order using gravity 
+ *        at the cell center of mass
+ */
+void 
+interaction_c2p(body * sink, const node * source) {
+  const double & pc  = source->pc();
+  const point_t & fc = source->fc();
+  point_t cofm_coordinates = source->coordinates();
+
+  point_t part_coordinates = sink->coordinates();
+  point_t r = part_coordinates - cofm_coordinates;
+  point_t grav = fc;
+  double pot = pc;
+
+  for(int i = 0 ; i < gdimension; ++i){
+    pot += -r[i]*fc[i];
+  }
+  sink->setGPotential(sink->getGPotential()+pot);
+  sink->setGAcceleration(grav+sink->getGAcceleration());
+}
+
+
+/**
+ * @brief For all sub_entities, add gravitational force and potential of the
+ *        node nd, using Taylor expansion coefficients stored in the node.
+ */
+void
+fmm_c2p(const node* nd, std::vector<body *> & sub_entities) {
+  for (int k = 0; k < sub_entities.size(); ++k) {
+    interaction_c2p(sub_entities[k], nd);
+  }
+}
+
+/**
+ * @brief Particle-particle interactions between 'sources' and 'sinks'
+ */
+void 
+fmm_p2p(std::vector<body *> & sinks,
+  const node * node_sources,
+  const std::vector<body *> & particle_sources) {
+  for (int i=0; i<sinks.size(); ++i) {
+    body *p = sinks[i];
+    double pc = p->getGPotential();
+    point_t acc = p->getGAcceleration();
+    if(node_sources != nullptr)
+    gravitation_fc(pc, acc, p->coordinates(), node_sources);
+    for (int k = 0; k < particle_sources.size(); ++k) {
+      body *q = particle_sources[k];
+      if (q->id() == p->id())
+        continue;
+      acc+= gravitation_p2p(pc,p->coordinates(),q->coordinates(),q->mass());
+    } // for
+    p->setGPotential(pc);
+    p->setGAcceleration(acc);
+  }
+}
+
+/**
+ * @brief node-node interaction: update Taylor expansion coefficients
+ */
+void
+taylor_c2c(node * sink, const node * source) {
+  gravitation_fc(sink->pc(), sink->fc(), sink->coordinates(), source);
+}
+
+/**
+ * @brief node<-particle interaction: update Taylor expansion coefficients
+ */
+void 
+taylor_p2c(node * sink, const body * source) {
+  gravitation_fc(sink->pc(), sink->fc(), sink->coordinates(), source);
+}
 
 } // namespace fmm
-
-#endif

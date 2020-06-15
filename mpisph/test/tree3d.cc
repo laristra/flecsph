@@ -1,9 +1,10 @@
-#include <cinchdevel.h>
-#include <cinchtest.h>
+#include "gtest/gtest.h"
 
 #include <cmath>
 #include <iostream>
+#include <log.h>
 
+#include "default_physics.h"
 #include "tree.h"
 
 // Number of particles
@@ -21,68 +22,92 @@ using namespace std;
 using namespace flecsi;
 using namespace topology;
 
-std::ostream &operator<<(std::ostream &ostr, const key_type id) {
+std::ostream &
+operator<<(std::ostream & ostr, const key_type id) {
   id.output_(ostr);
   return ostr;
 }
 
-double uniform() { return double(rand()) / RAND_MAX; }
+double
+uniform() {
+  return double(rand()) / RAND_MAX;
+}
 
-double uniform(double a, double b) { return a + (b - a) * uniform(); }
+double
+uniform(double a, double b) {
+  return a + (b - a) * uniform();
+}
 
 namespace flecsi {
 namespace execution {
-void driver(int argc, char *argv[]) {}
+void
+driver(int argc, char * argv[]) {}
 } // namespace execution
 } // namespace flecsi
 
 TEST(tree_topology, neighbors_sphere_NORMAL) {
+  MPI_Init(nullptr, nullptr);
   tree_topology_t t;
 
   size_t n = N;
   double mass = 1.0;
   range_t range = {point_t{RMINX, RMINY, RMINZ}, point_t{RMAXX, RMAXY, RMAXZ}};
   std::cout << "Range: " << range[0] << "-" << range[1] << std::endl;
-  //key_type::set_range(range);
 
-  for (size_t i = 0; i < n; ++i) {
-    point_t p = {uniform(RMINX, RMAXX), uniform(RMINY, RMAXY),
-                 uniform(RMINZ, RMAXZ)};
-    auto e = t.make_entity(key_type(range,p), p, nullptr, 0, mass, 0, HMAX);
-    t.insert(e);
+  t.set_range(range);
+
+  std::vector<body> entities;
+
+  for(size_t i = 0; i < n; ++i) {
+    point_t p = {
+      uniform(RMINX, RMAXX), uniform(RMINY, RMAXY), uniform(RMINZ, RMAXZ)};
+    t.entities().push_back(body{});
+    t.entities().back().set_coordinates(p);
+    t.entities().back().set_mass(mass);
+    t.entities().back().set_radius(HMAX);
   }
 
-  std::cout << "Computing cofm";
+  t.compute_keys();
 
-  t.cofm(t.root(), 0, false);
+  std::sort(
+    t.entities().begin(), t.entities().end(), [](auto & left, auto & right) {
+      if(left.key() < right.key()) {
+        return true;
+      }
+      if(left.key() == right.key()) {
+        return left.id() < right.id();
+      }
+      return false;
+    }); // sort
 
-  std::cout << ".done" << std::endl;
+  t.build_tree(physics::compute_cofm);
 
-  ASSERT_TRUE(t.root()->mass() == n * mass);
+  ASSERT_TRUE(t.get_node(t.root())->mass() == n * mass);
 
-  for (size_t i = 0; i < n; ++i) {
-    auto ent = t.get(i);
+  for(size_t i = 0; i < n; ++i) {
+    auto ent = &(t.entities()[i]);
 
     // std::cout<<"Entity "<<i+1<<"/"<<n<<" = "<<ent->key();
     auto ns =
-        t.find_in_radius(ent->coordinates(), HMAX, tree_geometry_t::within);
+      t.find_in_radius(ent->coordinates(), HMAX, tree_geometry_t::within);
     // std:cout<<" -> "<<ns.size()<<" nbrs.done"<<std::endl;
 
-    set<body_holder *> s1;
+    set<body *> s1;
     s1.insert(ns.begin(), ns.end());
 
-    set<body_holder *> s2;
+    set<body *> s2;
 
-    for (size_t j = 0; j < n; ++j) {
-      auto ej = t.get(j);
+    for(size_t j = 0; j < n; ++j) {
+      auto ej = &(t.entities()[j]);
 
-      if (distance(ent->coordinates(), ej->coordinates()) < HMAX) {
+      if(distance(ent->coordinates(), ej->coordinates()) < HMAX) {
         s2.insert(ej);
       }
     }
 
     ASSERT_TRUE(s1 == s2);
   }
+  MPI_Finalize();
 }
 
 #if 0
@@ -127,115 +152,6 @@ TEST(tree_topology, neighbors_sphere_VARIABLE) {
     }
 
     std::cout<<s1.size()<<" "<<s2.size()<<std::endl;
-    ASSERT_TRUE(s1 == s2);
-  }
-}
-#endif 
-
-TEST(tree_topology, neighbors_box_NORMAL) {
-  tree_topology_t t;
-
-  size_t n = N;
-  double mass = 1.0;
-  range_t range = {point_t{RMINX, RMINY, RMINZ}, point_t{RMAXX, RMAXY, RMAXZ}};
-  std::cout << "Range: " << range[0] << "-" << range[1] << std::endl;
-  //key_type::set_range(range);
-
-  point_t max;
-  point_t min;
-
-  for (size_t i = 0; i < n; ++i) {
-    point_t p = {uniform(RMINX, RMAXX), uniform(RMINY, RMAXY),
-                 uniform(RMINZ, RMAXZ)};
-    auto e = t.make_entity(key_type(range,p), p, nullptr, 0, mass, 0, HMAX);
-    t.insert(e);
-  }
-
-  t.cofm(t.root(), 0, false);
-
-  ASSERT_TRUE(t.root()->mass() == n * mass);
-
-  for (size_t i = 0; i < n; ++i) {
-    auto ent = t.get(i);
-
-    for (size_t d = 0; d < gdimension; ++d) {
-      max[d] = ent->coordinates()[d] + HMAX;
-      min[d] = ent->coordinates()[d] - HMAX;
-    }
-    auto ns = t.find_in_box(min, max, tree_geometry_t::within_box);
-
-    set<body_holder *> s1;
-    s1.insert(ns.begin(), ns.end());
-
-    set<body_holder *> s2;
-
-    for (size_t j = 0; j < n; ++j) {
-      auto ej = t.get(j);
-
-      bool in_box = true;
-      for (size_t d = 0; d < gdimension; ++d) {
-        if (ej->coordinates()[d] > max[d] || ej->coordinates()[d] < min[d]) {
-          in_box = false;
-          break;
-        }
-      }
-
-      if (in_box) {
-        s2.insert(ej);
-      }
-    }
-
-    ASSERT_TRUE(s1 == s2);
-  }
-}
-
-#if 0
-TEST(tree_topology, neighbors_box_VARIABLE) {
-  tree_topology_t t;
-
-  size_t n = N;
-  double mass = 1.0;
-
-  point_t max;
-  point_t min;
-  range_t range = {point_t{RMINX,RMINY,RMINZ},point_t{RMAXX,RMAXY,RMAXZ}};
-  std::cout<<"Range: "<<range[0]<<"-"<<range[1]<<std::endl;
-  //key_type::set_range(range);
-
-
-  for(size_t i = 0; i < n; ++i){
-    point_t p = {uniform(RMINX, RMAXX), uniform(RMINY, RMAXY),
-        uniform(RMINZ, RMAXZ)};
-    auto e = t.make_entity(key_type(p),p,nullptr,0,mass,0,uniform(HMIN,HMAX));
-    t.insert(e);
-  }
-
-  t.cofm(t.root(),0,false);
-
-  ASSERT_TRUE(t.root()->mass() == n*mass);
-
-  for(size_t i = 0; i < n; ++i){
-    auto ent = t.get(i);
-
-	  for(size_t d = 0; d < gdimension; ++d ){
-		  max[d] = ent->coordinates()[d]+0.00001+ent->radius();
-		  min[d] = ent->coordinates()[d]-0.00001-ent->radius();
-	  }
-    auto ns = t.find_in_box(min,max,tree_geometry_t::intersects_sphere_box);
-
-    set<body_holder*> s1;
-    s1.insert(ns.begin(), ns.end());
-
-    set<body_holder*> s2;
-
-    for(size_t j = 0; j < n; ++j){
-      auto ej = t.get(j);
-
-      if(tree_geometry_t::intersects_sphere_box(min,max,
-        ej->coordinates(),ej->radius())){
-        s2.insert(ej);
-      }
-	  }
     ASSERT_TRUE(s1 == s2);
   }
 }

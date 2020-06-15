@@ -110,6 +110,17 @@ If $\vec{g}=0$, then the basic formulation, when integrated with a symplectic
 integrator, conserves energy, momentum and angular momentum \emph{exactly}
 (e.g. Rosswog 2009, Section 2.4).
 
+Alternatively, \texttt{FleCSPH} features an implementation of the so-called thermokinetic formulation, 
+in which the total particle energy is evolved: $e_a = u_a + \frac{1}{2} v_a^2$. 
+Corresponding discretized version of the energy equation reads,
+\begin{align}
+    \label{eqn:thermo}
+    \frac{d e_a}{dt} 
+      = - \sum_b m_b \left( 
+             \frac{P_a \vec{v}_b}{\rho_a^2} + \frac{P_b \vec{v}_a}{\rho_b^2}
+             + \frac{\vec{v}_a+\vec{v}_b}{2} \Pi_{ab}\right) \cdot \vec\nabla_a W_{ab}.
+\end{align}
+
 \subsection{The SPH Equations with {\it grad-h} Term}
 The smoothing length $h$ is not necessarily constant. Rather, $h$ should 
 be adapted in space and time whenever densities and length scales vary 

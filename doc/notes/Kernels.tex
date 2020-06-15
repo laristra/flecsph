@@ -114,7 +114,7 @@ Radial derivative of the cubic spline kernel is:
 \end{align}
 
 
-%Wendland
+%Wendland C2
 \subsection{{\tt sph\_kernel = "Wendland C2"}}
 The Wendland C2-continuous kernel (C2) for 2D and 3D is
 \begin{equation}
@@ -144,24 +144,106 @@ where $\sigma_D$ is:
 \end{equation}
 
 
-% Kernels that will be added into FleCSPH
-There are more kernels that we are adding to the code. Below is several examples
-\subsection{Super Gaussian Kernel}
+\subsection{{\tt sph\_kernel = "Super Gaussian"}}
+The super Gaussian Kernal is given by
 \begin{equation}
 W(\vec{r},h) = \frac{1}{\pi^{D/2} h^D} 
   \begin{cases}
     e^{-q^2} \left(\frac{D}{2} + 1 - q^2 \right) & \text{if} \; 0 \leq q \leq 3, \\
     0        & \text{if} \;  q >3 
-    \end{cases}
+    \end{cases}.
 \end{equation}
 
-\subsection{Wendland C4 Kernel}
+\subsection{{\tt sph\_kernel = "Wendland C4"}}
+The Wendland C4-continuous kernel (C4) for 2D and 3D is
+\begin{equation}
+W(\vec{r},h) = \frac{\sigma_D}{h^D} 
+  \begin{cases}
+    \left(1-\frac{q}{2} \right)^6 (\frac{35}{12}q^2+3q+1) & \text{if} \; 0 \leq q \leq 2, \\
+    0        & \text{if} \;  q > 2 
+\end{cases}
+\end{equation}
+where $\sigma_D$ is:
+\begin{equation}
+\sigma_D =  \left\{ \frac{9}{4 \pi}, \frac{495}{256\pi}\right\}
+         \; \text{in 2D and 3D resp.}
+\end{equation}
+For 1D:
+\begin{equation}
+W(\vec{r},h) = \frac{\sigma_D}{h} 
+  \begin{cases}
+    \left(1-\frac{q}{2} \right)^5 (2q^2+2.5q+1) & \text{if} \; 0 \leq q \leq 2, \\
+    0        & \text{if} \;  q > 2 
+\end{cases}
+\end{equation}
+where $\sigma_D$ is:
+\begin{equation}
+\sigma_D =  \frac{3}{4}
+         \; \text{in 1D}
+ \end{equation}
 
-\subsection{Wendland C6 Kernel}
 
-\subsection{Sinc Kernel}
+\subsection{{\tt sph\_kernel = "Wendland C6"}}
+The Wendland C6-continuous kernel (C6) for 2D and 3D is
+\begin{equation}
+W(\vec{r},h) = \frac{\sigma_D}{h^D} 
+  \begin{cases}
+    \left(1-\frac{q}{2} \right)^8 (4q^3+6.25q^2+4q+1) & \text{if} \; 0 \leq q \leq 2, \\
+    0        & \text{if} \;  q > 2 
+\end{cases}
+\end{equation}
+where $\sigma_D$ is:
+\begin{equation}
+\sigma_D =  \left\{ \frac{78}{28 \pi}, \frac{1365}{512\pi}\right\}
+         \; \text{in 2D and 3D resp.}
+\end{equation}
+For 1D:
+\begin{equation}
+W(\vec{r},h) = \frac{\sigma_D}{h} 
+  \begin{cases}
+    \left(1-\frac{q}{2} \right)^7 (\frac{21}{8}q^3++\frac{19}{4}q^2+3.5q+1) & \text{if} \; 0 \leq q \leq 2, \\
+    0        & \text{if} \;  q > 2 
+\end{cases}
+\end{equation}
+where $\sigma_D$ is:
+\begin{equation}
+\sigma_D =  \frac{55}{64}
+         \; \text{in 1D}
+ \end{equation}
 
-We also refer \href{https://pdfs.semanticscholar.org/6ae2/960b7cbeab3e1969033b343dbe3594c99cb3.pdf}{Liu 2010} for more discussions.
+
+\subsection{{\tt sph\_kernel = "Sinc"}}
+The sinc Kernal is given by
+\begin{equation}
+W(\vec{r},h) = \frac{\sigma_{D,n}}{h^D} 
+  \begin{cases}
+    \sinc^n\left(\frac{\pi}{2}\right) & \text{if} \; 0 \leq q \leq 2, \\
+    0        & \text{if} \;  q >2 
+    \end{cases},
+\end{equation}
+where $n$ is kernel index which is ranging from 3 to 12. 
+and $\sigma_D$ is
+\begin{equation}
+\sigma_{D,n} = 
+  \begin{cases}
+   b_0 + b_1 n^{1/2} + b_2 n + b_3 n^{-1/2} & \text{for} \; 1D, \\
+   b_0 + b_1 n + b_2 n^{-1} + b_3 n^{-2} & \text{for} \; 2D, \\
+   b_0 + b_1 n^{1/2} + b_2 n + b_3 n^{3/2} & \text{for} \; 3D,
+    \end{cases}
+\end{equation}
+where the values of coefficients $b_0, b_1, b_2$, and $b_3$ as a function 
+of the dimensions are given by
+\begin{table}[]
+\centering
+\begin{tabular}{lllll}
+\hline
+Dimensions & $b_0$                       & $b_1$                      & $b_2$                       & $b_3$                       \\ \hline
+1D         & $-1.5404568 \times 10^{-2}$ & $3.6632876 \times 10^{-1}$ & $-4.6519576 \times 10^{-4}$ & $-7.3658324 \times 10^{-2}$ \\
+2D         & $5.2245027 \times 10^{-2}$  & $1.3090245 \times 10^{-1}$ & $1.9358485 \times 10^{-2}$  & $-6.1642906 \times 10^{-3}$ \\
+3D         & $2.7012593 \times 10^{-2}$  & $2.0510827 \times 10^{-2}$ & $3.7451957 \times 10^{-3}$  & $4.7013839 \times 10^{-2}$  \\ \hline
+\end{tabular}
+\end{table}
+%We also refer \href{https://pdfs.semanticscholar.org/6ae2/960b7cbeab3e1969033b343dbe3594c99cb3.pdf}{Liu 2010} for more discussions.
 
 %%% Using this, we can calculate kernel gradient. Below procedure shows the steps of kernel gradient in 3D
 %%% $$W = \frac{1}{\pi h^3} \times \begin{cases} 1 - \frac{3}{2} (\frac{r}{h})^2 + \frac{3}{4} (\frac{r}{h})^3, & \mbox{si } 0 \leq \frac{r}{h} < 1 \\ \frac{1}{4} [2-\frac{r}{h}]^3, & \mbox{si } 1 \leq \frac{r}{h} < 2\\ 0, & \mbox{si } \frac{r}{h} \geq 2 \end{cases}$$

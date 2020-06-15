@@ -1,0 +1,47 @@
+#
+# 3D uniform sphere with density rho=1 and radius r=1
+# Particle initialization with random position 
+# WVT relaxation 
+#
+# Usage: ./sedov_3d_generator <this_file>.par to generate initial data
+#        ./wvt_3d <this_file>.par to run wvt relaxation
+#
+  initial_data_prefix = "wvt_nx20"
+
+# geometry: spherical domain with radius R = 1
+  domain_type = 1                           # 0:box, 1:sphere
+  sphere_radius = 1.0                       # radius of sphere 
+
+# icosahedral lattice with small perturbations
+  lattice_nx = 20                           # 20x20x20 particles
+  lattice_type = 4                          # 0:rect.; 1:hcp; 2:fcc; 3:ico; 4:random
+
+# equation of state type and parameters
+  eos_type = "no eos"                       # no eos for wvt required 
+
+# density and pressure
+  rho_initial = 1.0                         # desired density
+  pressure_initial = 0.1                    # desired pressure 
+
+# since we only need spherical distribution of particles,
+# set Sedov energy to zero
+  sedov_blast_energy = 0.0
+
+# parameters for relaxation / evolution
+  final_iteration = 20                      # number of interations 
+  wvt_method = "diehl"                      # "arth" or "diehl"
+  wvt_boundary = "reflective"               # "reflective" or "frozen"
+  wvt_mu = 1.e-3                            # small fraction of smoothing length 
+  wvt_ngb = 20                              # desired number of neighbors within h 
+
+# output parameters
+  out_screen_every = 20                     # output on screen
+  out_scalar_every = 20                     # output in .dat files
+  out_h5data_every = 20                     # output in h5part files
+  output_h5data_prefix = "wvt_3d"
+
+# SPH kernel parameters
+  sph_kernel = "Wendland C6"                # kernel choice
+  sph_eta = 1.6                             # smoothing length
+  sph_variable_h = yes                      # variable smoothing length
+

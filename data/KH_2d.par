@@ -29,7 +29,7 @@
   output_h5data_prefix = "ev_KH_t1_n30"
 
 # boundary conditions
-  box_width = 1.
-  box_length = 1.
+  box_width = 1.5
+  box_length = 1.0
   periodic_boundary_y = yes
   periodic_boundary_x = yes

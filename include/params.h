@@ -3,7 +3,7 @@
  * All rights reserved.
  *~--------------------------------------------------------------------------~*/
 
- /*~--------------------------------------------------------------------------~*
+/*~--------------------------------------------------------------------------~*
  *
  * /@@@@@@@@  @@           @@@@@@   @@@@@@@@ @@@@@@@  @@      @@
  * /@@/////  /@@          @@////@@ @@////// /@@////@@/@@     /@@
@@ -50,8 +50,8 @@
  * All parameters in a parfile have exactly the same name as in the code, to
  * avoid confusion. Parameters are read-only (const references) in the param::
  * namespace. It is also possible to #define a parameter instead for optimized
- * performance -- in this case, however, this parameter needs to be commented out
- * in the parameter file.
+ * performance -- in this case, however, this parameter needs to be commented
+ * out in the parameter file.
  *
  * To introduce a new parameter:
  *  - add its declaration below using DECLARE_PARAM or DECLARE_STRING_PARAM
@@ -65,51 +65,57 @@
  *       instead of DECLARE/READ pair
  */
 
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <string.h>
-#include <sstream>
-#include <stdlib.h>
+#include "log.h"
+#include "mpi.h"
 #include <assert.h>
 #include <cstdbool>
-#include "cinchlog.h"
-#include "mpi.h"
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <stdlib.h>
+#include <string.h>
+#include <string>
 
 #ifndef PARAMS_H
 #define PARAMS_H
 #include <boost/algorithm/string.hpp>
 
 //////////////////////////////////////////////////////////////////////
-#define DECLARE_PARAM(PTYPE,PNAME,PDEF) \
-  PTYPE _##PNAME = (PDEF); \
+#define DECLARE_PARAM(PTYPE, PNAME, PDEF)                                      \
+  PTYPE _##PNAME = (PDEF);                                                     \
   const PTYPE & PNAME = _##PNAME;
 
 #define STRING_MAXLEN 511
-#define DECLARE_STRING_PARAM(PNAME,PDEF) \
-  char _##PNAME[STRING_MAXLEN] = (PDEF); \
+#define DECLARE_STRING_PARAM(PNAME, PDEF)                                      \
+  char _##PNAME[STRING_MAXLEN] = (PDEF);                                       \
   const char * PNAME = _##PNAME;
 
-#define DECLARE_KEYWORD_PARAM(PNAME,PDEF) \
-  PNAME##_keyword _##PNAME = (PDEF); \
+#define DECLARE_KEYWORD_PARAM(PNAME, PDEF)                                     \
+  PNAME##_keyword _##PNAME = (PDEF);                                           \
   const PNAME##_keyword & PNAME = _##PNAME;
 
 #define DO_QUOTE(str) #str
 #define QUOTE(str) DO_QUOTE(str)
 
-#define READ_BOOLEAN_PARAM(PNAME) \
-  if (param_name == QUOTE(PNAME)) { \
-    (_##PNAME) = lparam_value; unknown_param=false;}
+#define READ_BOOLEAN_PARAM(PNAME)                                              \
+  if(param_name == QUOTE(PNAME)) {                                             \
+    (_##PNAME) = lparam_value;                                                 \
+    unknown_param = false;                                                     \
+  }
 
-#define READ_NUMERIC_PARAM(PNAME)\
-  if (param_name == QUOTE(PNAME)) {\
-    iss >> (_##PNAME); unknown_param=false;}
+#define READ_NUMERIC_PARAM(PNAME)                                              \
+  if(param_name == QUOTE(PNAME)) {                                             \
+    iss >> (_##PNAME);                                                         \
+    unknown_param = false;                                                     \
+  }
 
-#define READ_STRING_PARAM(PNAME) \
-  if (param_name == QUOTE(PNAME)) { \
-    strcpy(_##PNAME, str_value.c_str()); unknown_param = false;}
+#define READ_STRING_PARAM(PNAME)                                               \
+  if(param_name == QUOTE(PNAME)) {                                             \
+    strcpy(_##PNAME, str_value.c_str());                                       \
+    unknown_param = false;                                                     \
+  }
 
-#define SET_PARAM(PNAME,EXPR) _##PNAME = (EXPR);
+#define SET_PARAM(PNAME, EXPR) _##PNAME = (EXPR);
 // TODO: the macro above won't work for strings!
 
 //////////////////////////////////////////////////////////////////////
@@ -136,35 +142,35 @@ typedef enum sph_kernel_keyword_enum {
 //
 //- initial iteration
 #ifndef initial_iteration
-  DECLARE_PARAM(int64_t,initial_iteration,0)
+DECLARE_PARAM(int64_t, initial_iteration, 0)
 #endif
 
 //- final iteration (= total iterations + 1, if counting from 0)
 #ifndef final_iteration
-  DECLARE_PARAM(int64_t,final_iteration,10)
+DECLARE_PARAM(int64_t, final_iteration, 0)
 #endif
 
 #ifndef initial_time
-  DECLARE_PARAM(int64_t,initial_time,0)
+DECLARE_PARAM(int64_t, initial_time, 0)
 #endif
 
 #ifndef final_time
-  DECLARE_PARAM(int64_t,final_time,1.0)
+DECLARE_PARAM(double, final_time, 0.0)
 #endif
 
 //- inital timestep
 #ifndef initial_dt
-  DECLARE_PARAM(double,initial_dt,0.001)
+DECLARE_PARAM(double, initial_dt, 0.001)
 #endif
 
 //- timestep Courant-Friedrichs-Lewy factor (Dt/Dx)
-# ifndef timestep_cfl_factor
-  DECLARE_PARAM(double,timestep_cfl_factor,0.25)
-# endif
+#ifndef timestep_cfl_factor
+DECLARE_PARAM(double, timestep_cfl_factor, 0.25)
+#endif
 
 //- adaptive timestepping flag
 #ifndef adaptive_timestep
-  DECLARE_PARAM(bool,adaptive_timestep,false)
+DECLARE_PARAM(bool, adaptive_timestep, false)
 #endif
 
 //
@@ -172,49 +178,49 @@ typedef enum sph_kernel_keyword_enum {
 //
 //- global number of particles
 #ifndef nparticles
-  DECLARE_PARAM(int64_t,nparticles,1000)
+DECLARE_PARAM(int64_t, nparticles, 1000)
 #endif
 
 //- particle lattice linear dimension
 #ifndef lattice_nx
-  DECLARE_PARAM(int64_t,lattice_nx,100)
+DECLARE_PARAM(int64_t, lattice_nx, 100)
 #endif
 
 //- SPH eta parameter, eta = h (rho/m)^1/D (Rosswog'09, eq.51)
 #ifndef sph_eta
-  DECLARE_PARAM(double,sph_eta,1.5)
+DECLARE_PARAM(double, sph_eta, 1.5)
 #endif
 
 //- if smoothing length is constant: value of the smoothing length
 #ifndef sph_smoothing_length
-  DECLARE_PARAM(double,sph_smoothing_length,-1.0) // POISONED DEFAULT
+DECLARE_PARAM(double, sph_smoothing_length, -1.0) // POISONED DEFAULT
 #endif
 
 //- minimum interparticle distance (for some initial data problems)
 #ifndef sph_separation
-  DECLARE_PARAM(double,sph_separation,-1.0) // POISONED DEFAULT
+DECLARE_PARAM(double, sph_separation, -1.0) // POISONED DEFAULT
 #endif
 
 //- which kernel to use
 #ifndef sph_kernel
-  DECLARE_KEYWORD_PARAM(sph_kernel,wendland_c4)
+DECLARE_KEYWORD_PARAM(sph_kernel, wendland_c4)
 #endif
 
 //- sinc kernel power index
 #ifndef sph_sinc_index
-  DECLARE_PARAM(double,sph_sinc_index,4.0)
+DECLARE_PARAM(double, sph_sinc_index, 4.0)
 #endif
 
 //- if true, recompute (uniform) smoothing length every timestep
 //  h = average { sph_eta (m/rho)^1/D } (Rosswog'09, eq.51)
-# ifndef sph_update_uniform_h
-  DECLARE_PARAM(bool, sph_update_uniform_h,false)
-# endif
+#ifndef sph_update_uniform_h
+DECLARE_PARAM(bool, sph_update_uniform_h, false)
+#endif
 
 //- if true, the smoothing length is variable, not the same among the
 // particles.
 #ifndef sph_variable_h
-  DECLARE_PARAM(bool, sph_variable_h,false)
+DECLARE_PARAM(bool, sph_variable_h, false)
 #endif
 
 //
@@ -223,24 +229,24 @@ typedef enum sph_kernel_keyword_enum {
 //- rectangular configuration parameters (e.g. sodtube in 2D/3D)
 
 // in various tests: sets the type of the domain (0:box, 1:sphere/circle)
-# ifndef domain_type
-  DECLARE_PARAM(int,domain_type,0)
-# endif
+#ifndef domain_type
+DECLARE_PARAM(int, domain_type, 0)
+#endif
 
 #ifndef box_length
-  DECLARE_PARAM(double,box_length,3.0)
+DECLARE_PARAM(double, box_length, 3.0)
 #endif
 
 #ifndef box_width
-  DECLARE_PARAM(double,box_width,1.0)
+DECLARE_PARAM(double, box_width, 1.0)
 #endif
 
 #ifndef box_height
-  DECLARE_PARAM(double,box_height,1.0)
+DECLARE_PARAM(double, box_height, 1.0)
 #endif
 
 #ifndef sphere_radius
-  DECLARE_PARAM(double,sphere_radius,1.0)
+DECLARE_PARAM(double, sphere_radius, 1.0)
 #endif
 
 //
@@ -248,29 +254,29 @@ typedef enum sph_kernel_keyword_enum {
 //
 //- TODO: add description
 #ifndef do_boundaries
-  DECLARE_PARAM(bool,do_boundaries,false)
+DECLARE_PARAM(bool, do_boundaries, false)
 #endif
 
 //- TODO: add description
 #ifndef stop_boundaries
-  DECLARE_PARAM(bool,stop_boundaries,false)
+DECLARE_PARAM(bool, stop_boundaries, false)
 #endif
 
 //- TODO: add description
 #ifndef reflect_boundaries
-  DECLARE_PARAM(bool,reflect_boundaries,false)
+DECLARE_PARAM(bool, reflect_boundaries, false)
 #endif
 
 #ifndef periodic_boundary_x
-  DECLARE_PARAM(bool,periodic_boundary_x,false)
+DECLARE_PARAM(bool, periodic_boundary_x, false)
 #endif
 
 #ifndef periodic_boundary_y
-  DECLARE_PARAM(bool,periodic_boundary_y,false)
+DECLARE_PARAM(bool, periodic_boundary_y, false)
 #endif
 
 #ifndef periodic_boundary_z
-  DECLARE_PARAM(bool,periodic_boundary_z,false)
+DECLARE_PARAM(bool, periodic_boundary_z, false)
 #endif
 
 //- tolerance to lattice mismatch for periodic boundaries:
@@ -280,7 +286,7 @@ typedef enum sph_kernel_keyword_enum {
 //  at the boundary
 //
 #ifndef lattice_matchup_tolerance
-  DECLARE_PARAM(double,lattice_mismatch_tolerance,0.05)
+DECLARE_PARAM(double, lattice_mismatch_tolerance, 0.05)
 #endif
 
 //
@@ -288,81 +294,146 @@ typedef enum sph_kernel_keyword_enum {
 //
 //- file prefix for input and intiial data file[s]
 #ifndef initial_data_prefix
-  DECLARE_STRING_PARAM(initial_data_prefix,"initial_data")
+DECLARE_STRING_PARAM(initial_data_prefix, "initial_data")
 #endif
 
 //- ID-generator-specific parameter to overwrite initial data
 #ifndef modify_initial_data
-  DECLARE_PARAM(bool,modify_initial_data,false)
+DECLARE_PARAM(bool, modify_initial_data, false)
 #endif
 
 //- file prefix for HDF5 output data file[s]
 #ifndef output_h5data_prefix
-  DECLARE_STRING_PARAM(output_h5data_prefix,"output_data")
+DECLARE_STRING_PARAM(output_h5data_prefix, "output_data")
 #endif
 
-//- screen output frequency
+//- screen output frequency by iteration
 #ifndef out_screen_every
-  DECLARE_PARAM(int32_t,out_screen_every,1)
+DECLARE_PARAM(int32_t, out_screen_every, 1)
 #endif
 
-//- scalar reductions output frequency
+//- screen output frequency by time
+//  if positive: overrides out_screen_every
+#ifndef out_screen_dt
+DECLARE_PARAM(double, out_screen_dt, 0)
+#endif
+
+//- scalar reductions output frequency by iteration
 #ifndef out_scalar_every
-  DECLARE_PARAM(int32_t,out_scalar_every,10)
+DECLARE_PARAM(int32_t, out_scalar_every, 10)
 #endif
 
-// - diagnostic info output frequency
+//- scalar reductions output frequency by time
+//  if positive: overrides out_scalar_every
+#ifndef out_scalar_dt
+DECLARE_PARAM(double, out_scalar_dt, 0)
+#endif
+
+// - diagnostic info output frequency by iteration
 #ifndef out_diagnostic_every
-  DECLARE_PARAM(int32_t,out_diagnostic_every,10);
+DECLARE_PARAM(int32_t, out_diagnostic_every, 0);
 #endif
 
-//- HDF5 output frequency
+//- HDF5 output frequency by iteration
 #ifndef out_h5data_every
-  DECLARE_PARAM(int32_t,out_h5data_every,10)
+DECLARE_PARAM(int32_t, out_h5data_every, 10)
+#endif
+
+//- HDF5 output frequency by time
+//  if positive: overrides out_h5data_every
+#ifndef out_h5data_dt
+DECLARE_PARAM(double, out_h5data_dt, 0)
 #endif
 
 //- produce separate HDF5 file per iteration
 #ifndef out_h5data_separate_iterations
-  DECLARE_PARAM(bool,out_h5data_separate_iterations,false)
+DECLARE_PARAM(bool, out_h5data_separate_iterations, false)
 #endif
 
-// WVT parameters 
-// Method: 
+// WVT parameters
+// Method:
 // * Diehl et al., PASA 2015
 // * Arth et al., 2019
 //
 // Boundary conditions:
 // * reflective (default)
-// * frozen 
+// * frozen
 //
 // wvt_mu
-// * 0.01 (default)
-// 
+// Fraction of smoothing lenght that particles are
+// allowed to move in one iteraiton
+//
 // wvt_ngb
-// Number of desired wvt neighbors
-// 
+// Number of desired particle neighbors
+//
+// wvt_convergence_check
+// Stops simulation when convergence criterial is
+// reached
+//
+// wvt_convergence_point
+// Convergence criteria in terms of percentage of particles
+// that moved more than 1.e-3 times the mean particle
+// spacing at one iteration.
+//
+// wvt_h_ngb
+// Alternative way to calculate the smoothing length based
+// on the number of particle neighbors
+//
+// wvt_cool_down
+// wvt iterations with decreasing wvt_mu
+//
+// wvt_radius
+// sets wvt radius to apply boundary conditions
 
-
-// - method for wvt pseudo-acceleration 
+// - method for wvt pseudo-acceleration
 #ifndef wvt_method
-  DECLARE_STRING_PARAM(wvt_method,"diehl")
-#endif 
+DECLARE_STRING_PARAM(wvt_method, "arth")
+#endif
 
 // - boundary condition for wvt particles
 #ifndef wvt_boundary
-  DECLARE_STRING_PARAM(wvt_boundary,"reflective")
-#endif 
+DECLARE_STRING_PARAM(wvt_boundary, "reflective")
+#endif
 
-// - wvt_mu
+// - wvt_mu; control for step size
 #ifndef wvt_mu
-DECLARE_PARAM(double,wvt_mu,0.01)
+DECLARE_PARAM(double, wvt_mu, 1.e-3)
 #endif
 
-// - wvt_ngb
+// - wvt_ngb; desired number of neighbors
 #ifndef wvt_ngb
-DECLARE_PARAM(double,wvt_ngb,128)
+DECLARE_PARAM(double, wvt_ngb, 120)
 #endif
 
+// - switch for wvt convergence check
+#ifndef wvt_convergence_check
+DECLARE_PARAM(bool, wvt_convergence_check, true)
+#endif
+
+// - determined when simulation is converged
+#ifndef wvt_convergence_point
+DECLARE_PARAM(double, wvt_convergence_point, 1.0)
+#endif
+
+// - neighbor-based smoothing length
+#ifndef wvt_h_ngb
+DECLARE_PARAM(bool, wvt_h_ngb, false)
+#endif
+
+// - wvt iterations with decreasing step size
+#ifndef wvt_cool_down
+DECLARE_PARAM(int, wvt_cool_down, 0)
+#endif
+
+// - switch for wvt boundary setting
+#ifndef wvt_set_boundary
+DECLARE_PARAM(bool, wvt_set_boundary, true)
+#endif
+
+// - radius for wvt boundary conditions
+#ifndef wvt_radius
+DECLARE_PARAM(double, wvt_radius, 1.0)
+#endif
 
 //
 // Viscosity and equation of state
@@ -373,62 +444,67 @@ DECLARE_PARAM(double,wvt_ngb,128)
 //  * "white dwarf"
 //  * "piecewise polytropic"
 #ifndef eos_type
-  DECLARE_STRING_PARAM(eos_type,"ideal fluid")
+DECLARE_STRING_PARAM(eos_type, "ideal fluid")
 #endif
 
 // - file for tabulated EOS
 #ifndef eos_tab_file_path
-  DECLARE_STRING_PARAM(eos_tab_file_path,".")
+DECLARE_STRING_PARAM(eos_tab_file_path, ".")
 #endif
 
 //- polytropic index
 #ifndef poly_gamma
-  DECLARE_PARAM(double,poly_gamma,1.4)
+DECLARE_PARAM(double, poly_gamma, 1.4)
 #endif
 
 //- additional polytropic index for piecewise polytrope
 #ifndef poly_gamma
-  DECLARE_PARAM(double,poly_gamma2,2.5)
+DECLARE_PARAM(double, poly_gamma2, 2.5)
+#endif
+
+// Gamma value for stitched polytrope when SC reader is used
+#ifndef gamma_poly_thresh
+DECLARE_PARAM(double, gamma_poly_thresh, 1.4)
 #endif
 
 // - which viscosity computation to use?
 // * artificial_viscosity
 #ifndef sph_viscosity
-  DECLARE_STRING_PARAM(sph_viscosity,"artificial_viscosity")
+DECLARE_STRING_PARAM(sph_viscosity, "artificial_viscosity")
 #endif
 
 //- artificial viscosity: parameter alpha (Rosswog'09, eq.59)
 #ifndef sph_viscosity_alpha
-  DECLARE_PARAM(double,sph_viscosity_alpha,1.0)
+DECLARE_PARAM(double, sph_viscosity_alpha, 1.0)
 #endif
 
 //- artificial viscosity: parameter beta
 #ifndef sph_viscosity_beta
-  DECLARE_PARAM(double,sph_viscosity_beta,2.0)
+DECLARE_PARAM(double, sph_viscosity_beta, 2.0)
 #endif
 
 //- artificial viscosity: parameter eta
 #ifndef sph_viscosity_epsilon
-  DECLARE_PARAM(double,sph_viscosity_epsilon,0.01)
+DECLARE_PARAM(double, sph_viscosity_epsilon, 0.01)
 #endif
 
 //
 // Gravity-related parameters
 //
 // Do FMM computation
-# ifndef enable_fmm
-  DECLARE_PARAM(bool,enable_fmm,false)
-# endif
+#ifndef enable_fmm
+DECLARE_PARAM(bool, enable_fmm, false)
+#endif
 
 //- mac'n'cheese acceptance criteria
-# ifndef fmm_macangle
-  DECLARE_PARAM(double,fmm_macangle,0.0)
-# endif
+#ifndef fmm_macangle
+DECLARE_PARAM(double, fmm_macangle, 0.0)
+#endif
 
 //- maximum mass per cell
-# ifndef fmm_max_cell_mass
-  DECLARE_PARAM(double,fmm_max_cell_mass, 0.)
-# endif
+#ifndef fmm_max_cell_mass
+DECLARE_PARAM(double, fmm_max_cell_mass, 0.)
+#endif
 
 //
 // Parameters for particle relaxation, used to relax configurations
@@ -442,87 +518,105 @@ DECLARE_PARAM(double,wvt_ngb,128)
 
 //- apply relaxation for this many steps (non-inclusive);
 //  if set to zero (default), do not apply relaxation.
-# ifndef relaxation_steps
-  DECLARE_PARAM(int,relaxation_steps,0)
-# endif
+#ifndef relaxation_steps
+DECLARE_PARAM(int, relaxation_steps, 0)
+#endif
 
 //- relaxation coefficients beta and gamma (both must be positive)
-# ifndef relaxation_beta
-  DECLARE_PARAM(double,relaxation_beta,1.e-6)
-# endif
+#ifndef relaxation_beta
+DECLARE_PARAM(double, relaxation_beta, 1.e-6)
+#endif
 
-# ifndef relaxation_gamma
-  DECLARE_PARAM(double,relaxation_gamma,0.0)
-# endif
+#ifndef relaxation_gamma
+DECLARE_PARAM(double, relaxation_gamma, 0.0)
+#endif
 
-# ifndef relaxation_repulsion_radius
-  DECLARE_PARAM(double,relaxation_repulsion_radius,0.25)
-# endif
+#ifndef relaxation_repulsion_radius
+DECLARE_PARAM(double, relaxation_repulsion_radius, 0.25)
+#endif
 
-# ifndef relaxation_repulsion_gamma
-  DECLARE_PARAM(double,relaxation_repulsion_gamma,0.0)
-# endif
+#ifndef relaxation_repulsion_gamma
+DECLARE_PARAM(double, relaxation_repulsion_gamma, 0.0)
+#endif
 
-# ifndef evolve_internal_energy
-  DECLARE_PARAM(bool,evolve_internal_energy,true)
-# endif
-
+#ifndef evolve_internal_energy
+DECLARE_PARAM(bool, evolve_internal_energy, true)
+#endif
 
 //
 // Parameters for external acceleration
 //
-# ifndef thermokinetic_formulation
-  DECLARE_PARAM(bool,thermokinetic_formulation, true)
-# endif
+#ifndef thermokinetic_formulation
+DECLARE_PARAM(bool, thermokinetic_formulation, true)
+#endif
 
 //- which external force to apply?
 //  * "none" (default)
 #ifndef external_force_type
-  DECLARE_STRING_PARAM(external_force_type,"none")
+DECLARE_STRING_PARAM(external_force_type, "none")
 #endif
 
 // poison zero potential level: since potential is defined
 // up to a constant, any poison value should still work
-# ifndef zero_potential_poison_value
-  DECLARE_PARAM(double,zero_potential_poison_value, 0.0)
-# endif
+#ifndef zero_potential_poison_value
+DECLARE_PARAM(double, zero_potential_poison_value, 0.0)
+#endif
 
 // boundary wall power index
-# ifndef extforce_wall_powerindex
-  DECLARE_PARAM(double,extforce_wall_powerindex, 5.0)
-# endif
+#ifndef extforce_wall_powerindex
+DECLARE_PARAM(double, extforce_wall_powerindex, 5.0)
+#endif
 
 // boundary wall steepness parameter
-# ifndef extforce_wall_steepness
-  DECLARE_PARAM(double,extforce_wall_steepness, 1e12)
-# endif
+#ifndef extforce_wall_steepness
+DECLARE_PARAM(double, extforce_wall_steepness, 1e12)
+#endif
 
 // in mesa potential, fraction of the density-drop outer section to the radius
-# ifndef mesa_rim_width
-  DECLARE_PARAM(double,mesa_rim_width, 0.25)
-# endif
+#ifndef mesa_rim_width
+DECLARE_PARAM(double, mesa_rim_width, 0.25)
+#endif
 
-// value of the gravity constant
-# ifndef gravity_acceleration_constant
-  DECLARE_PARAM(double,gravity_acceleration_constant, 9.81)
-# endif
+// gravitational acceleration constant on Earth
+#ifndef gravity_acceleration_constant
+DECLARE_PARAM(double, gravity_acceleration_constant, 9.81)
+#endif
 
-// value of the Gravitational constant in CGS units
-# ifndef gravitational_constant
-  DECLARE_PARAM(double,gravitational_constant, 1)
-# endif
+// Newtonian constant of gravitation (in CGS units)
+#ifndef gravitational_constant
+DECLARE_PARAM(double, gravitational_constant, 1)
+//  DECLARE_PARAM(double,gravitational_constant, 6.674e-8)
+#endif
+
+//
+// Parameters for the white dwarf / neutron star binary setup
+//
+// binary orbital separation (in cm)
+#ifndef orbital_separation
+DECLARE_PARAM(double, orbital_separation, 2.5e9)
+#endif
+
+// in a NS-WD binary: mass of the neutron star (in g)
+#ifndef mass_neutron_star
+DECLARE_PARAM(double, mass_neutron_star, 1.26 * 1.988435e33)
+#endif
+
+// in a NS-WD binary: mass of the white dwarf (in g)
+#ifndef mass_white_dwarf
+DECLARE_PARAM(double, mass_white_dwarf, 1.10 * 1.988435e33)
+#endif
 
 //
 // Specific apps
 //
 /// number of Sodtest to run (1..5)
 #ifndef sodtest_num
-  DECLARE_PARAM(unsigned short,sodtest_num,1)
+DECLARE_PARAM(unsigned short, sodtest_num, 1)
 #endif
 
 // equal mass or equal particle separation switch for sodtube
 #ifndef equal_mass
-  DECLARE_PARAM(bool,equal_mass,true)
+DECLARE_PARAM(bool, equal_mass, true)
 #endif
 
 // initial density profile: for initial data or density-supporting
@@ -533,146 +627,146 @@ DECLARE_PARAM(double,wvt_ngb,128)
 // * 'mesa'      :constant density with a smooth parabolic fade-out on edge
 // * 'from file' :setup density from the input_density_file
 #ifndef density_profile
-  DECLARE_STRING_PARAM(density_profile,"constant")
+DECLARE_STRING_PARAM(density_profile, "constant")
 #endif
 
 // gridded input data for generating / supporting arbitrary density profiles
 // used when parameter 'density_profile' is set to 'from file'
 #ifndef input_density_file
-  DECLARE_STRING_PARAM(input_density_file,"")
+DECLARE_STRING_PARAM(input_density_file, "")
 #endif
 
 // characteristic density for initial conditions
-# ifndef rho_initial
-  DECLARE_PARAM(double,rho_initial,1.0)
-# endif
+#ifndef rho_initial
+DECLARE_PARAM(double, rho_initial, 1.0)
+#endif
 
 // characteristic pressure
-# ifndef pressure_initial
-  DECLARE_PARAM(double,pressure_initial,1.0)
-# endif
+#ifndef pressure_initial
+DECLARE_PARAM(double, pressure_initial, 1.0)
+#endif
 
 // characteristic specific internal energy
-# ifndef uint_initial
-  DECLARE_PARAM(double,uint_initial,1.0)
-# endif
+#ifndef uint_initial
+DECLARE_PARAM(double, uint_initial, 1.0)
+#endif
 
 // in Sedov test: total injected blast enregy
-# ifndef sedov_blast_energy
-  DECLARE_PARAM(double,sedov_blast_energy,1.0)
-# endif
+#ifndef sedov_blast_energy
+DECLARE_PARAM(double, sedov_blast_energy, 1.0)
+#endif
 
 // in Sedov test: radius of energy injection
 // (in units of particle separation)
-# ifndef sedov_blast_radius
-  DECLARE_PARAM(double,sedov_blast_radius,0.05)
-# endif
+#ifndef sedov_blast_radius
+DECLARE_PARAM(double, sedov_blast_radius, 0.05)
+#endif
 
 // in Noh test: infall velocity
-# ifndef noh_infall_velocity
-  DECLARE_PARAM(double,noh_infall_velocity,0.1)
-# endif
+#ifndef noh_infall_velocity
+DECLARE_PARAM(double, noh_infall_velocity, 0.1)
+#endif
 
 // initial data lattice type:
-# ifndef lattice_type
-  DECLARE_PARAM(int,lattice_type,0)
-# endif
+#ifndef lattice_type
+DECLARE_PARAM(int, lattice_type, 0)
+#endif
 
 // if >0: lattice is randomly perturbed with this amplitude
 // amplitude is in units of smoothing length (h)
-# ifndef lattice_perturbation_amplitude
-  DECLARE_PARAM(double,lattice_perturbation_amplitude,0.0)
-# endif
+#ifndef lattice_perturbation_amplitude
+DECLARE_PARAM(double, lattice_perturbation_amplitude, 0.0)
+#endif
 
 // in several tests: initial velocity of the flow
-# ifndef flow_velocity
-  DECLARE_PARAM(double,flow_velocity,0.0)
-# endif
+#ifndef flow_velocity
+DECLARE_PARAM(double, flow_velocity, 0.0)
+#endif
 
 // in several tests (e.g. KH and RT instabilities): density ratio
-# ifndef density_ratio
-  DECLARE_PARAM(double,density_ratio,2.0)
-# endif
+#ifndef density_ratio
+DECLARE_PARAM(double, density_ratio, 2.0)
+#endif
 
 // A value from KH in Price's paper
-# ifndef KH_A
-  DECLARE_PARAM(double, KH_A, 0.025)
+#ifndef KH_A
+DECLARE_PARAM(double, KH_A, 0.025)
 #endif
 
 // Lamdba value for KH in Price's paper
 #ifndef KH_lambda
-  DECLARE_PARAM(double, KH_lambda, 1./6.)
+DECLARE_PARAM(double, KH_lambda, 1. / 6.)
 #endif
 
 // Rayleigh-Taylor instability: perturbation amplitude
 #ifndef rt_perturbation_amplitude
-  DECLARE_PARAM(double, rt_perturbation_amplitude, 0.2)
+DECLARE_PARAM(double, rt_perturbation_amplitude, 0.2)
 #endif
 
 // RT instability: the width of stripe where to apply perturbation
 #ifndef rt_perturbation_stripe_width
-  DECLARE_PARAM(double, rt_perturbation_stripe_width, 0.1)
+DECLARE_PARAM(double, rt_perturbation_stripe_width, 0.1)
 #endif
 
 // RT instability: perturbation mode (1=one cusp, 2=two cusps etc.)
 #ifndef rt_perturbation_mode
-  DECLARE_PARAM(double, rt_perturbation_mode,1)
+DECLARE_PARAM(double, rt_perturbation_mode, 1)
 #endif
 
 //
 // Airfoil parameters
 //
-# ifndef airfoil_size
-  DECLARE_PARAM(double,airfoil_size, 2.0)
-# endif
+#ifndef airfoil_size
+DECLARE_PARAM(double, airfoil_size, 2.0)
+#endif
 
-# ifndef airfoil_thickness
-  DECLARE_PARAM(double,airfoil_thickness, 0.05)
-# endif
+#ifndef airfoil_thickness
+DECLARE_PARAM(double, airfoil_thickness, 0.05)
+#endif
 
-# ifndef airfoil_camber
-  DECLARE_PARAM(double,airfoil_camber, 0.1)
-# endif
+#ifndef airfoil_camber
+DECLARE_PARAM(double, airfoil_camber, 0.1)
+#endif
 
-# ifndef airfoil_anchor_x
-  DECLARE_PARAM(double,airfoil_anchor_x, -1.0)
-# endif
+#ifndef airfoil_anchor_x
+DECLARE_PARAM(double, airfoil_anchor_x, -1.0)
+#endif
 
-# ifndef airfoil_anchor_y
-  DECLARE_PARAM(double,airfoil_anchor_y, 0.0)
-# endif
+#ifndef airfoil_anchor_y
+DECLARE_PARAM(double, airfoil_anchor_y, 0.0)
+#endif
 
-# ifndef airfoil_attack_angle
-  DECLARE_PARAM(double,airfoil_attack_angle, 0.0)
-# endif
+#ifndef airfoil_attack_angle
+DECLARE_PARAM(double, airfoil_attack_angle, 0.0)
+#endif
 
 // ---
 
 /*!
    trim whitespace from the begging and end of line
  */
-std::string trim(const std::string& str) {
+std::string
+trim(const std::string & str) {
   using namespace std;
   const size_t strBegin = str.find_first_not_of(" \t");
-  if (strBegin == string::npos)
+  if(strBegin == string::npos)
     return "";
   const size_t strEnd = str.find_last_not_of(" \t");
   return str.substr(strBegin, strEnd - strBegin + 1);
 }
 
-
 /**
  * @brief Sets a global parameter param_name to the value, given by its
  *        string representation param_value
  */
-void set_param(const std::string& param_name,
-               const std::string& param_value) {
+void
+set_param(const std::string & param_name, const std::string & param_value) {
 
-  // RANK/SIZE for CLOG output
+  // RANK/SIZE for LOG output
   int rank = 0;
   int size = 1;
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  MPI_Comm_size(MPI_COMM_WORLD,&size);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
 
   using namespace std;
   bool unknown_param = true;
@@ -680,444 +774,485 @@ void set_param(const std::string& param_name,
   // strip trailing comments
   size_t i2 = param_value.find("#");
   string str_value;
-  if (i2 != string::npos)
-    str_value = trim(param_value.substr(0,i2));
+  if(i2 != string::npos)
+    str_value = trim(param_value.substr(0, i2));
   else
     str_value = param_value;
 
   // remove (single or double) quotes
-  if (str_value[0]=='\'' or str_value[0]=='\"')
-    str_value = str_value.substr(1,str_value.length()-2);
+  if(str_value[0] == '\'' or str_value[0] == '\"')
+    str_value = str_value.substr(1, str_value.length() - 2);
   istringstream iss(str_value);
 
   // for boolean parameters
-  bool lparam_value = (str_value == "yes"
-                    or str_value == "'yes'"
-                    or str_value == "\"yes\""
-                    or str_value == "true"
-                    or str_value == "'true'"
-                    or str_value == "\"true\"");
+  bool lparam_value =
+    (str_value == "yes" or str_value == "'yes'" or str_value == "\"yes\"" or
+      str_value == "true" or str_value == "'true'" or str_value == "\"true\"");
   // timestepping and iterations --------------------------------------------
-# ifndef initial_iteration
+#ifndef initial_iteration
   READ_NUMERIC_PARAM(initial_iteration)
-# endif
+#endif
 
-# ifndef final_iteration
+#ifndef final_iteration
   READ_NUMERIC_PARAM(final_iteration)
-# endif
+#endif
 
-# ifndef initial_time
+#ifndef initial_time
   READ_NUMERIC_PARAM(initial_time)
-# endif
+#endif
 
-# ifndef final_time
+#ifndef final_time
   READ_NUMERIC_PARAM(final_time)
-# endif
+#endif
 
-# ifndef initial_dt
+#ifndef initial_dt
   READ_NUMERIC_PARAM(initial_dt)
-# endif
+#endif
 
-# ifndef timestep_cfl_factor
+#ifndef timestep_cfl_factor
   READ_NUMERIC_PARAM(timestep_cfl_factor)
-# endif
+#endif
 
-# ifndef adaptive_timestep
+#ifndef adaptive_timestep
   READ_BOOLEAN_PARAM(adaptive_timestep)
-# endif
+#endif
 
   // particle number and density --------------------------------------------
-# ifndef nparticles
+#ifndef nparticles
   READ_NUMERIC_PARAM(nparticles)
-# endif
+#endif
 
-# ifndef lattice_nx
+#ifndef lattice_nx
   READ_NUMERIC_PARAM(lattice_nx)
-# endif
+#endif
 
-# ifndef sph_eta
+#ifndef sph_eta
   READ_NUMERIC_PARAM(sph_eta)
-# endif
+#endif
 
-# ifndef sph_smoothing_length
+#ifndef sph_smoothing_length
   READ_NUMERIC_PARAM(sph_smoothing_length)
-# endif
+#endif
 
-# ifndef sph_separation
+#ifndef sph_separation
   READ_NUMERIC_PARAM(sph_separation)
-# endif
+#endif
 
-  if (param_name == "sph_kernel") {
-    for (int c=0; c<str_value.length(); ++c)
-      if (str_value[c] == ' ') str_value[c] = '_';
+  if(param_name == "sph_kernel") {
+    for(int c = 0; c < str_value.length(); ++c)
+      if(str_value[c] == ' ')
+        str_value[c] = '_';
 
-#   ifndef sph_kernel
-    if (boost::iequals(str_value,"cubic_spline"))
-      _sph_kernel =               cubic_spline;
+#ifndef sph_kernel
+    if(boost::iequals(str_value, "cubic_spline"))
+      _sph_kernel = cubic_spline;
 
-    else if (boost::iequals(str_value,"quintic_spline"))
-      _sph_kernel =                    quintic_spline;
+    else if(boost::iequals(str_value, "quintic_spline"))
+      _sph_kernel = quintic_spline;
 
-    else if (boost::iequals(str_value,"wendland_c2"))
-      _sph_kernel =                    wendland_c2;
+    else if(boost::iequals(str_value, "wendland_c2"))
+      _sph_kernel = wendland_c2;
 
-    else if (boost::iequals(str_value,"wendland_c4"))
-      _sph_kernel =                    wendland_c4;
+    else if(boost::iequals(str_value, "wendland_c4"))
+      _sph_kernel = wendland_c4;
 
-    else if (boost::iequals(str_value,"wendland_c6"))
-      _sph_kernel =                    wendland_c6;
+    else if(boost::iequals(str_value, "wendland_c6"))
+      _sph_kernel = wendland_c6;
 
-    else if (boost::iequals(str_value,"gaussian"))
-      _sph_kernel =                    gaussian;
+    else if(boost::iequals(str_value, "gaussian"))
+      _sph_kernel = gaussian;
 
-    else if (boost::iequals(str_value,"super_gaussian"))
-      _sph_kernel =                    super_gaussian;
+    else if(boost::iequals(str_value, "super_gaussian"))
+      _sph_kernel = super_gaussian;
 
-    else if (boost::iequals(str_value,"sinc_ker"))
-       _sph_kernel =                   sinc_ker;
+    else if(boost::iequals(str_value, "sinc_ker"))
+      _sph_kernel = sinc_ker;
 
     else {
       assert(false);
     }
-#   else
-    if (not boost::iequals(str_value,QUOTE(sph_kernel))) {
-      clog_one(error)
-          << "ERROR: sph_kernel #defined as \"" << QUOTE(sph_kernel) << "\" "
-          << "but is reset to \"" << str_value << "\" in parameter file"
-          << std::endl;
+#else
+    if(not boost::iequals(str_value, QUOTE(sph_kernel))) {
+      log_one(error) << "ERROR: sph_kernel #defined as \"" << QUOTE(sph_kernel)
+                     << "\" "
+                     << "but is reset to \"" << str_value
+                     << "\" in parameter file" << std::endl;
       exit(2);
     }
-#   endif
+#endif
     unknown_param = false;
   }
 
-# ifndef sph_sinc_index
+#ifndef sph_sinc_index
   READ_NUMERIC_PARAM(sph_sinc_index)
-# endif
+#endif
 
-# ifndef sph_update_uniform_h
+#ifndef sph_update_uniform_h
   READ_BOOLEAN_PARAM(sph_update_uniform_h)
-# endif
+#endif
 
 #ifndef sph_variable_h
   READ_BOOLEAN_PARAM(sph_variable_h)
 #endif
 
   // geometric configuration  -----------------------------------------------
-# ifndef domain_type
+#ifndef domain_type
   READ_NUMERIC_PARAM(domain_type)
-# endif
+#endif
 
-# ifndef box_length
+#ifndef box_length
   READ_NUMERIC_PARAM(box_length)
-# endif
+#endif
 
-# ifndef box_width
+#ifndef box_width
   READ_NUMERIC_PARAM(box_width)
-# endif
+#endif
 
-# ifndef box_height
+#ifndef box_height
   READ_NUMERIC_PARAM(box_height)
-# endif
+#endif
 
-# ifndef sphere_radius
+#ifndef sphere_radius
   READ_NUMERIC_PARAM(sphere_radius)
-# endif
+#endif
 
   // boundary conditions  ---------------------------------------------------
-# ifndef do_boundaries
+#ifndef do_boundaries
   READ_BOOLEAN_PARAM(do_boundaries)
-# endif
+#endif
 
-# ifndef stop_boundaries
+#ifndef stop_boundaries
   READ_BOOLEAN_PARAM(stop_boundaries)
-# endif
+#endif
 
-# ifndef reflect_boundaries
+#ifndef reflect_boundaries
   READ_BOOLEAN_PARAM(reflect_boundaries)
-# endif
+#endif
 
-# ifndef periodic_boundary_x
+#ifndef periodic_boundary_x
   READ_BOOLEAN_PARAM(periodic_boundary_x)
-# endif
+#endif
 
-# ifndef periodic_boundary_y
+#ifndef periodic_boundary_y
   READ_BOOLEAN_PARAM(periodic_boundary_y)
-# endif
+#endif
 
-# ifndef periodic_boundary_z
+#ifndef periodic_boundary_z
   READ_BOOLEAN_PARAM(periodic_boundary_z)
-# endif
+#endif
 
-# ifndef lattice_matchup_tolerance
+#ifndef lattice_matchup_tolerance
   READ_NUMERIC_PARAM(lattice_mismatch_tolerance)
-# endif
+#endif
 
   // i/o parameters  --------------------------------------------------------
-# ifndef initial_data_prefix
+#ifndef initial_data_prefix
   READ_STRING_PARAM(initial_data_prefix)
-# endif
+#endif
 
 #ifndef modify_initial_data
   READ_BOOLEAN_PARAM(modify_initial_data)
 #endif
 
-# ifndef output_h5data_prefix
+#ifndef output_h5data_prefix
   READ_STRING_PARAM(output_h5data_prefix)
-# endif
+#endif
 
-# ifndef out_screen_every
+#ifndef out_screen_every
   READ_NUMERIC_PARAM(out_screen_every)
-# endif
+#endif
 
-# ifndef out_scalar_every
+#ifndef out_screen_dt
+  READ_NUMERIC_PARAM(out_screen_dt)
+#endif
+
+#ifndef out_scalar_every
   READ_NUMERIC_PARAM(out_scalar_every)
-# endif
+#endif
 
-# ifndef out_diagnostic_every
+#ifndef out_scalar_dt
+  READ_NUMERIC_PARAM(out_scalar_dt)
+#endif
+
+#ifndef out_diagnostic_every
   READ_NUMERIC_PARAM(out_diagnostic_every)
-# endif
+#endif
 
-# ifndef out_h5data_every
+#ifndef out_h5data_every
   READ_NUMERIC_PARAM(out_h5data_every)
-# endif
+#endif
 
-# ifndef out_h5data_separate_iterations
+#ifndef out_h5data_dt
+  READ_NUMERIC_PARAM(out_h5data_dt)
+#endif
+
+#ifndef out_h5data_separate_iterations
   READ_BOOLEAN_PARAM(out_h5data_separate_iterations)
-# endif
+#endif
 
   // wvt parameters ---------------------------------------------------------
-# ifndef wvt_method
+#ifndef wvt_method
   READ_STRING_PARAM(wvt_method)
-# endif
+#endif
 
-# ifndef wvt_boundary
+#ifndef wvt_boundary
   READ_STRING_PARAM(wvt_boundary)
-# endif
+#endif
 
-# ifndef wvt_mu
+#ifndef wvt_mu
   READ_NUMERIC_PARAM(wvt_mu)
-# endif
+#endif
 
-# ifndef wvt_ngb
+#ifndef wvt_ngb
   READ_NUMERIC_PARAM(wvt_ngb)
-# endif
+#endif
+
+#ifndef wvt_convergence_check
+  READ_BOOLEAN_PARAM(wvt_convergence_check)
+#endif
+
+#ifndef wvt_convergence_point
+  READ_NUMERIC_PARAM(wvt_convergence_point)
+#endif
+
+#ifndef wvt_h_ngb
+  READ_BOOLEAN_PARAM(wvt_h_ngb)
+#endif
+
+#ifndef wvt_cool_down
+  READ_NUMERIC_PARAM(wvt_cool_down)
+#endif
+
+#ifndef wvt_radius
+  READ_NUMERIC_PARAM(wvt_radius)
+#endif
 
   // viscosity and equation of state ----------------------------------------
-# ifndef eos_type
+#ifndef eos_type
   READ_STRING_PARAM(eos_type)
-# endif
+#endif
 
-# ifndef eos_tab_file_path
+#ifndef eos_tab_file_path
   READ_STRING_PARAM(eos_tab_file_path)
-# endif
+#endif
 
-# ifndef poly_gamma
+#ifndef poly_gamma
   READ_NUMERIC_PARAM(poly_gamma)
-# endif
+#endif
 
-# ifndef poly_gamma2
+#ifndef poly_gamma2
   READ_NUMERIC_PARAM(poly_gamma2)
-# endif
+#endif
 
-# ifndef sph_viscosity
+#ifndef gamma_poly_thresh
+  READ_NUMERIC_PARAM(gamma_poly_thresh)
+#endif
+
+#ifndef sph_viscosity
   READ_STRING_PARAM(sph_viscosity)
-# endif
+#endif
 
-# ifndef sph_viscosity_alpha
+#ifndef sph_viscosity_alpha
   READ_NUMERIC_PARAM(sph_viscosity_alpha)
-# endif
+#endif
 
-# ifndef sph_viscosity_beta
+#ifndef sph_viscosity_beta
   READ_NUMERIC_PARAM(sph_viscosity_beta)
-# endif
+#endif
 
-# ifndef sph_viscosity_epsilon
+#ifndef sph_viscosity_epsilon
   READ_NUMERIC_PARAM(sph_viscosity_epsilon)
-# endif
+#endif
 
   // gravity-related  -------------------------------------------------------
 
-# ifndef enable_fmm
+#ifndef enable_fmm
   READ_BOOLEAN_PARAM(enable_fmm)
-# endif
+#endif
 
-# ifndef fmm_macangle
+#ifndef fmm_macangle
   READ_NUMERIC_PARAM(fmm_macangle)
-# endif
-
-# ifndef fmm_max_cell_mass
-  READ_NUMERIC_PARAM(fmm_max_cell_mass)
-# endif
+#endif
 
   // relaxation parameters  --------------------------------------------------
-# ifndef relaxation_steps
+#ifndef relaxation_steps
   READ_NUMERIC_PARAM(relaxation_steps)
-# endif
+#endif
 
-# ifndef relaxation_beta
+#ifndef relaxation_beta
   READ_NUMERIC_PARAM(relaxation_beta)
-# endif
+#endif
 
-# ifndef relaxation_gamma
+#ifndef relaxation_gamma
   READ_NUMERIC_PARAM(relaxation_gamma)
-# endif
+#endif
 
-# ifndef relaxation_repulsion_radius
+#ifndef relaxation_repulsion_radius
   READ_NUMERIC_PARAM(relaxation_repulsion_radius)
-# endif
+#endif
 
-# ifndef relaxation_repulsion_gamma
+#ifndef relaxation_repulsion_gamma
   READ_NUMERIC_PARAM(relaxation_repulsion_gamma)
-# endif
+#endif
 
-# ifndef evolve_internal_energy
+#ifndef evolve_internal_energy
   READ_BOOLEAN_PARAM(evolve_internal_energy)
-# endif
-
+#endif
 
   // external force  --------------------------------------------------------
-# ifndef thermokinetic_formulation
+#ifndef thermokinetic_formulation
   READ_BOOLEAN_PARAM(thermokinetic_formulation)
-# endif
+#endif
 
 #ifndef external_force_type
   READ_STRING_PARAM(external_force_type)
 #endif
 
-# ifndef zero_potential_poison_value
+#ifndef zero_potential_poison_value
   READ_NUMERIC_PARAM(zero_potential_poison_value)
-# endif
+#endif
 
-# ifndef extforce_wall_powerindex
+#ifndef extforce_wall_powerindex
   READ_NUMERIC_PARAM(extforce_wall_powerindex)
-# endif
+#endif
 
-# ifndef extforce_wall_steepness
+#ifndef extforce_wall_steepness
   READ_NUMERIC_PARAM(extforce_wall_steepness)
-# endif
+#endif
 
-# ifndef mesa_rim_width
+#ifndef mesa_rim_width
   READ_NUMERIC_PARAM(mesa_rim_width)
-# endif
+#endif
 
-# ifndef gravity_acceleration_constant
+#ifndef gravity_acceleration_constant
   READ_NUMERIC_PARAM(gravity_acceleration_constant)
-# endif
+#endif
 
-# ifndef gravitational_constant
+#ifndef gravitational_constant
   READ_NUMERIC_PARAM(gravitational_constant)
-# endif
+#endif
+
+#ifndef orbital_separation
+  READ_NUMERIC_PARAM(orbital_separation)
+#endif
+
+#ifndef mass_neutron_star
+  READ_NUMERIC_PARAM(mass_neutron_star)
+#endif
+
+#ifndef mass_white_dwarf
+  READ_NUMERIC_PARAM(mass_white_dwarf)
+#endif
 
   // specific apps  ---------------------------------------------------------
-# ifndef sodtest_num
+#ifndef sodtest_num
   READ_NUMERIC_PARAM(sodtest_num)
-# endif
+#endif
 
 #ifndef equal_mass
   READ_BOOLEAN_PARAM(equal_mass)
 #endif
 
-# ifndef density_profile
+#ifndef density_profile
   READ_STRING_PARAM(density_profile)
-# endif
+#endif
 
-# ifndef input_density_file
+#ifndef input_density_file
   READ_STRING_PARAM(input_density_file)
-# endif
+#endif
 
-# ifndef rho_initial
+#ifndef rho_initial
   READ_NUMERIC_PARAM(rho_initial)
-# endif
+#endif
 
-# ifndef pressure_initial
+#ifndef pressure_initial
   READ_NUMERIC_PARAM(pressure_initial)
-# endif
+#endif
 
-# ifndef uint_initial
+#ifndef uint_initial
   READ_NUMERIC_PARAM(uint_initial)
-# endif
+#endif
 
-# ifndef sedov_blast_energy
+#ifndef sedov_blast_energy
   READ_NUMERIC_PARAM(sedov_blast_energy)
-# endif
+#endif
 
-# ifndef sedov_blast_radius
+#ifndef sedov_blast_radius
   READ_NUMERIC_PARAM(sedov_blast_radius)
-# endif
+#endif
 
-# ifndef noh_infall_velocity
+#ifndef noh_infall_velocity
   READ_NUMERIC_PARAM(noh_infall_velocity)
-# endif
+#endif
 
-# ifndef lattice_type
+#ifndef lattice_type
   READ_NUMERIC_PARAM(lattice_type)
-# endif
+#endif
 
-# ifndef lattice_perturbation_amplitude
+#ifndef lattice_perturbation_amplitude
   READ_NUMERIC_PARAM(lattice_perturbation_amplitude)
-# endif
+#endif
 
-# ifndef flow_velocity
+#ifndef flow_velocity
   READ_NUMERIC_PARAM(flow_velocity)
-# endif
+#endif
 
-# ifndef density_ratio
+#ifndef density_ratio
   READ_NUMERIC_PARAM(density_ratio)
-# endif
+#endif
 
-# ifndef KH_A
+#ifndef KH_A
   READ_NUMERIC_PARAM(KH_A)
-# endif
+#endif
 
-# ifndef KH_lambda
+#ifndef KH_lambda
   READ_NUMERIC_PARAM(KH_lambda)
-# endif
+#endif
 
-# ifndef rt_perturbation_amplitude
+#ifndef rt_perturbation_amplitude
   READ_NUMERIC_PARAM(rt_perturbation_amplitude)
-# endif
+#endif
 
-# ifndef rt_perturbation_stripe_width
+#ifndef rt_perturbation_stripe_width
   READ_NUMERIC_PARAM(rt_perturbation_stripe_width)
-# endif
+#endif
 
-# ifndef rt_perturbation_mode
+#ifndef rt_perturbation_mode
   READ_NUMERIC_PARAM(rt_perturbation_mode)
-# endif
+#endif
 
   // airfoil parameters  ----------------------------------------------------
-# ifndef airfoil_size
+#ifndef airfoil_size
   READ_NUMERIC_PARAM(airfoil_size)
-# endif
+#endif
 
-# ifndef airfoil_thickness
+#ifndef airfoil_thickness
   READ_NUMERIC_PARAM(airfoil_thickness)
-# endif
+#endif
 
-# ifndef airfoil_camber
+#ifndef airfoil_camber
   READ_NUMERIC_PARAM(airfoil_camber)
-# endif
+#endif
 
-# ifndef airfoil_anchor_x
+#ifndef airfoil_anchor_x
   READ_NUMERIC_PARAM(airfoil_anchor_x)
-# endif
+#endif
 
-# ifndef airfoil_anchor_y
+#ifndef airfoil_anchor_y
   READ_NUMERIC_PARAM(airfoil_anchor_y)
-# endif
+#endif
 
-# ifndef airfoil_attack_angle
+#ifndef airfoil_attack_angle
   READ_NUMERIC_PARAM(airfoil_attack_angle)
-# endif
+#endif
 
   // unknown parameter -------------------------------
-  if (unknown_param) {
-    clog_one(error) << "ERROR: unknown parameter " << param_name << endl;
+  if(unknown_param) {
+    log_one(error) << "ERROR: unknown parameter " << param_name << endl;
     exit(2);
   }
 
-  clog_one(trace) << param_name << ": " << param_value << endl;
+  log_one(trace) << param_name << ": " << param_value << endl;
 }
 
 /**
@@ -1143,97 +1278,99 @@ void set_param(const std::string& param_name,
   initial_data_prefix  = "sodtube_np10k"
  * ---<<<  --------------------------------
  */
-void read_params(const char * parfile) {
+void
+read_params(const char * parfile) {
   using namespace std;
   ifstream infile;
   string line;
 
   // attempt to open the file
-  infile.open (parfile);
-  if (!infile) {
+  infile.open(parfile);
+  if(!infile) {
     cerr << "ERROR: Unable to open parameter file 'input.par'" << endl;
     exit(1);
   }
 
-
-  for (int ln=1; std::getline(infile,line); ++ln) {
+  for(int ln = 1; std::getline(infile, line); ++ln) {
 
     // skip comments (lines starting with '#' at any position)
     // and blank lines
     bool is_blank = true, is_comment = false;
-    for (size_t i=0;i<line.length();i++) {
+    for(size_t i = 0; i < line.length(); i++) {
       char c = line[i];
       is_comment = (c == '#');
       is_blank = (c == ' ' || c == '\t');
-      if (is_comment or not is_blank) break;
+      if(is_comment or not is_blank)
+        break;
     }
-    if (is_comment or is_blank) continue;
+    if(is_comment or is_blank)
+      continue;
 
     // line must be in the form:
     // lhs = rhs
     size_t eqpos = line.find("=");
-    if (eqpos == string::npos) {
-      cerr << "ERROR in parameter file " << parfile
-           << ", line #" << ln << endl;
+    if(eqpos == string::npos) {
+      cerr << "ERROR in parameter file " << parfile << ", line #" << ln << endl;
       exit(1);
     }
-    string lhs = line.substr(0,eqpos);
-    string rhs = line.substr(eqpos+1);
+    string lhs = line.substr(0, eqpos);
+    string rhs = line.substr(eqpos + 1);
 
     // strip whitespace
     lhs = trim(lhs);
     rhs = trim(rhs);
-    if (lhs.length() == 0 or rhs.length() == 0) {
-      cerr << "ERROR in parameter file " << parfile
-           << ", line #" << ln << ": wrong format" << endl;
+    if(lhs.length() == 0 or rhs.length() == 0) {
+      cerr << "ERROR in parameter file " << parfile << ", line #" << ln
+           << ": wrong format" << endl;
       exit(1);
     }
-    set_param(lhs,rhs);
+    set_param(lhs, rhs);
   }
   infile.close();
-
 }
 
 /**
  * @brief MPI parameter file reader
  * @todo  Use FleCSI infrastructure instead (e.g. Flecsi_Sim_IO?)
  */
-void mpi_read_params(const char * parameter_file) {
+void
+mpi_read_params(const char * parameter_file) {
   const int MAXLEN = 2048;
   char buffer[MAXLEN];
   char * parfile = buffer;
   int len, rank, size, parfile_free = 0;
 
-  MPI_Comm_size(MPI_COMM_WORLD,&size);
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Status status;
 
   // the char* array pointer is only valid on rank 0;
   // broadcast parfile name from rank 0 to other ranks
-  if (rank == 0) {
-    strcpy(parfile,parameter_file);
+  if(rank == 0) {
+    strcpy(parfile, parameter_file);
     len = strlen(parfile);
   }
   MPI_Bcast(&len, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  MPI_Bcast(parfile, len+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+  MPI_Bcast(parfile, len + 1, MPI_CHAR, 0, MPI_COMM_WORLD);
 
-  clog_one(trace) << "Parameter file name on rank " << rank << " over "<<
-              size << ": " << parfile << std::endl << std::flush;
+  log_one(trace) << "Parameter file name on rank " << rank << " over " << size
+                 << ": " << parfile << std::endl
+                 << std::flush;
 
   // queue ranks to read the parfile sequentially;
   // wait for a message from previous rank, unless this is rank 0
-  if (rank > 0)
-    MPI_Recv(&parfile_free,1,MPI_INT,rank-1,1,MPI_COMM_WORLD,&status);
+  if(rank > 0)
+    MPI_Recv(&parfile_free, 1, MPI_INT, rank - 1, 1, MPI_COMM_WORLD, &status);
 
   // read parameters
-  read_params (parfile);
+  read_params(parfile);
 
   // inform the next rank that the file is free to read
-  if (rank + 1 < size)
-    MPI_Send(&parfile_free,1,MPI_INT,rank+1,1,MPI_COMM_WORLD);
+  if(rank + 1 < size)
+    MPI_Send(&parfile_free, 1, MPI_INT, rank + 1, 1, MPI_COMM_WORLD);
 
 } // mpi_read_param
 
-} // namespace params
+} // namespace param
 
 #endif // PARAMS_H
