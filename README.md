@@ -129,9 +129,9 @@ You will need the following tools:
 - C++17 - capable compiler, such as gcc version >= 7;
 - git version > 2.14;
 - MPI libraries;
-- cmake version > 3.7;
+- cmake version >= 3.15;
 - boost library version > 1.59;
-- Python version > 2.7.
+- Python version >= 3.6.
 - HDF5 compiled with parallel flag version > 1.8
 - GSL library 
 
@@ -186,6 +186,7 @@ Configure and build commands:
        -DENABLE_DEBUG=OFF       \
        -DLOG_STRIP_LEVEL=1
    make -j
+   make install
 ```
 
 
@@ -226,6 +227,8 @@ you are in your build directory after having successfully built FleCSPH):
   app/id_generators/sodtube_1d_generator sodtube.par
   app/driver/hydro_1d sodtube.par
 ```
+Our [wiki](https://github.com/laristra/flecsph/wiki#several-examples-you-may-want-to-try) 
+page contains more examples that you may want to try.
 
 # Creating your own initial data or drivers
 You can add your own initial data generator or a new evolution module under
@@ -272,7 +275,7 @@ by default it is set to 0 (trace), but for simulations it is perhaps preferrable
 ```
 
 For further details, refer to the documentation at:
-https://github.com/laristra/cinch/blob/master/logging/README.md
+[Cinch: Logging](https://github.com/laristra/cinch/blob/master/logging/README.md)
 
 # Contacts
 
