@@ -129,9 +129,9 @@ You will need the following tools:
 - C++17 - capable compiler, such as gcc version >= 7;
 - git version > 2.14;
 - MPI libraries;
-- cmake version > 3.15;
+- cmake version >= 3.15;
 - boost library version > 1.59;
-- Python version > 3.6.
+- Python version >= 3.6.
 - HDF5 compiled with parallel flag version > 1.8
 - GSL library 
 
