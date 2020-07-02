@@ -106,7 +106,7 @@ set_derived_params() {
 
   // count the number of particles
   np = particle_lattice::count(
-    lattice_type, gdimension, box_min, box_max, sph_separation, 0);
+    lattice_type, domain_type, box_min, box_max, sph_separation, 0);
 
   mass = totalmass / np;
 
@@ -177,7 +177,7 @@ main(int argc, char * argv[]) {
 
   // generate the lattice
   auto _np = particle_lattice::generate(
-    lattice_type, gdimension, box_min, box_max, sph_separation, 0, x, y, z);
+    lattice_type, domain_type, box_min, box_max, sph_separation, 0, x, y, z);
   assert(np == _np);
 
   // max. value for the speed of sound

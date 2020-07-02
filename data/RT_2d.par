@@ -9,7 +9,7 @@
                           #or equal separation
   sph_eta = 1.5
   lattice_type = 1        # 0:rectangular, 1..2:triangular
-  domain_type = 1         # 0:box, 1:sphere
+  domain_type = 0         # 0:box, 1:sphere
 
 # evolution
   sph_kernel = "Wendland C4"

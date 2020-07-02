@@ -10,7 +10,7 @@
   equal_mass = yes        # determines whether equal mass particles are used
                           #or equal separation
   lattice_type = 1        # 0:rectangular, 1..2:triangular
-  domain_type = 1         # 0:box, 1:sphere
+  domain_type = 0         # 0:box, 1:sphere
   box_length = 1.5
   flow_velocity = 1
 
