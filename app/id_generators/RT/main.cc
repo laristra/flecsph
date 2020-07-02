@@ -213,9 +213,9 @@ set_derived_params() {
 
   // count the number of particles
   np_bottom = particle_lattice::count(
-    lattice_type, gdimension, bbox_min, bbox_max, sph_separation, 0);
+    lattice_type, domain_type, bbox_min, bbox_max, sph_separation, 0);
   np_top = particle_lattice::count(
-    lattice_type, gdimension, tbox_min, tbox_max, sph_sep_t, np_bottom);
+    lattice_type, domain_type, tbox_min, tbox_max, sph_sep_t, np_bottom);
 
   SET_PARAM(nparticles, np_bottom + np_top);
 }
@@ -285,10 +285,10 @@ main(int argc, char * argv[]) {
 
   // generate the lattice
   auto && [_npb, _npt] =
-    std::make_tuple(particle_lattice::generate(lattice_type, gdimension,
+    std::make_tuple(particle_lattice::generate(lattice_type, domain_type,
                       bbox_min, bbox_max, sph_separation, 0, x, y, z),
-      particle_lattice::generate(lattice_type, gdimension, tbox_min, tbox_max,
-        sph_sep_t, np_bottom, x, y, z));
+      particle_lattice::generate(lattice_type, domain_type, 
+        tbox_min, tbox_max, sph_sep_t, np_bottom, x, y, z));
 
   assert(np_bottom == _npb && np_top == _npt);
   // max. value for the speed of sound

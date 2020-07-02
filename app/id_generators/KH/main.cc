@@ -72,6 +72,9 @@ set_derived_params() {
     exit(0);
   }
 
+  // domain must be rectangular
+  assert(domain_type == 0);
+
   mbox_max[0] = bbox_max[0] = tbox_max[0] = box_length / 2.;
   mbox_min[0] = bbox_min[0] = tbox_min[0] = -box_length / 2.;
 
@@ -215,10 +218,10 @@ set_derived_params() {
 
   // count the number of particles
   np_middle = particle_lattice::count(
-    lattice_type, gdimension, mbox_min, mbox_max, sph_separation, 0);
+    lattice_type, domain_type, mbox_min, mbox_max, sph_separation, 0);
   np_top = particle_lattice::count(
-    lattice_type, gdimension, tbox_min, tbox_max, sph_sep_t, np_middle);
-  np_bottom = particle_lattice::count(lattice_type, gdimension, bbox_min,
+    lattice_type, domain_type, tbox_min, tbox_max, sph_sep_t, np_middle);
+  np_bottom = particle_lattice::count(lattice_type, domain_type, bbox_min,
     bbox_max, sph_sep_t, np_middle + np_top);
 
   SET_PARAM(nparticles, np_middle + np_bottom + np_top);
@@ -243,9 +246,8 @@ main(int argc, char * argv[]) {
     exit(0);
   }
 
-  // anything other than 2D is not implemented yet
+  // only 2D and 3D cases are implemented
   assert(gdimension == 2 || gdimension == 3);
-  assert(domain_type == 0);
 
   // screen output
   log_one(info) << "Kelvin-Helmholtz instability initial data "
@@ -289,12 +291,12 @@ main(int argc, char * argv[]) {
 
   // generate the lattice
   auto && [_npm, _npt, _npb] =
-    std::make_tuple(particle_lattice::generate(lattice_type, gdimension,
+    std::make_tuple(particle_lattice::generate(lattice_type, domain_type,
                       mbox_min, mbox_max, sph_separation, 0, x, y, z),
-      particle_lattice::generate(lattice_type, gdimension, tbox_min, tbox_max,
-        sph_sep_t, np_middle, x, y, z),
-      particle_lattice::generate(lattice_type, gdimension, bbox_min, bbox_max,
-        sph_sep_t, nparticles - np_bottom, x, y, z));
+      particle_lattice::generate(lattice_type, domain_type,
+        tbox_min, tbox_max, sph_sep_t, np_middle, x, y, z),
+      particle_lattice::generate(lattice_type, domain_type,
+        bbox_min, bbox_max, sph_sep_t, nparticles - np_bottom, x, y, z));
   assert(np_middle == _npm && np_top == _npt && np_bottom == _npb);
 
   // stretch top and bottom blocks to align with the width

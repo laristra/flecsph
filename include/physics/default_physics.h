@@ -217,19 +217,15 @@ compute_signalspeed(body & particle, std::vector<body *> & nbs) {
 
 /**
  * @brief      Calculates total energy for every particle
- * @param      srch  The source's body holder
+ *             NOTE: total energy does not include grav. energy
+ * @param      particle
  */
 void
 set_total_energy(body & particle) {
   const point_t pos = particle.coordinates(), vel = particle.getVelocity();
   const double eint = particle.getInternalenergy(),
+               ekin = .5*flecsi::dot(vel, vel),
                epot = external_force::potential(pos);
-  // const point_t & svel = *reinterpret_cast<const point_t *> (&vel);
-  // double ekin = flecsi::dot(vel,vel)/2.0;
-  double ekin = vel[0] * vel[0];
-  for(unsigned short i = 1; i < gdimension; ++i)
-    ekin += vel[i] * vel[i];
-  ekin *= .5;
   particle.setTotalenergy(eint + epot + ekin);
 } // set_total_energy
 
@@ -242,17 +238,15 @@ void
 recover_internal_energy(body & particle) {
   const point_t pos = particle.coordinates(), vel = particle.getVelocity();
   const double etot = particle.getTotalenergy(),
+               ekin = .5*flecsi::dot(vel, vel),
                epot = external_force::potential(pos);
-  double ekin = vel[0] * vel[0];
-  for(unsigned short i = 1; i < gdimension; ++i)
-    ekin += vel[i] * vel[i];
-  ekin *= .5;
   const double eint = etot - ekin - epot;
   if(eint < 0.0) {
     std::cerr << "ERROR: internal energy is negative!" << std::endl
               << "particle id: " << particle.id() << std::endl
               << "total energy: " << etot << std::endl
               << "kinetic energy: " << ekin << std::endl
+              << "internal energy: " << eint << std::endl
               << "potential energy: " << epot << std::endl
               << "particle position: " << pos << std::endl;
     mpi_assert(false);
@@ -275,7 +269,7 @@ compute_density_pressure_soundspeed(body & particle,
     recover_internal_energy(particle);
   eos::compute_pressure(particle);
   eos::compute_soundspeed(particle);
-  compute_signalspeed(particle, nbs);   
+  compute_signalspeed(particle, nbs);
 }
 
 /**
@@ -428,9 +422,7 @@ compute_dudt(body & particle, std::vector<body *> & nbs) {
   const double h_a = particle.radius(), rho_a = particle.getDensity(),
                P_a = particle.getPressure(), c_a = particle.getSoundspeed();
   const point_t pos_a = particle.coordinates(), vel_a = particle.getVelocity(),
-                v12_a = particle.getVelocityhalf(),
-                ga_a = particle.getGAcceleration();
-  const double dv = dot(ga_a, vel_a);
+                v12_a = particle.getVelocityhalf();
 
   // neighbor particles (index 'b')
   const int n_nb = nbs.size();
@@ -470,7 +462,7 @@ compute_dudt(body & particle, std::vector<body *> & nbs) {
     dudt_pressure += m_[b] * vab_dot_DiWa_[b];
     dudt_visc += m_[b] * vab_dot_DiWa_[b] * Pi_a_[b];
   }
-  double dudt = P_a / (rho_a * rho_a) * dudt_pressure + .5 * dudt_visc + dv;
+  double dudt = P_a / (rho_a * rho_a) * dudt_pressure + .5 * dudt_visc;
   particle.setDudt(dudt);
 } // compute_dudt
 
@@ -496,7 +488,9 @@ compute_dedt(body & particle, std::vector<body *> & nbs) {
   const double h_a = particle.radius(), rho_a = particle.getDensity(),
                P_a = particle.getPressure(), c_a = particle.getSoundspeed();
   const point_t pos_a = particle.coordinates(), vel_a = particle.getVelocity(),
-                v12_a = particle.getVelocityhalf();
+                v12_a = particle.getVelocityhalf(),
+                 ga_a = particle.getGAcceleration();
+  const double gv = dot(ga_a,vel_a);
 
   // neighbor particles (index 'b')
   const int n_nb = nbs.size();
@@ -538,6 +532,7 @@ compute_dedt(body & particle, std::vector<body *> & nbs) {
     dedt -= m_[b] * (Prho2_a * vb_dot_DiWa_[b] + va_dot_DiWa_[b] * Prho2_b +
                       .5 * Pi_a_[b] * (vb_dot_DiWa_[b] + va_dot_DiWa_[b]));
   }
+  dedt += gv;
   particle.setDedt(dedt);
 } // compute_dedt
 
@@ -658,12 +653,12 @@ set_adaptive_timestep(std::vector<body> & bodies) {
 
   double dt_orig = dt;
   totaltime_next = totaltime + dt;
-  
-  if(out_screen_dt > 0) { 
+
+  if(out_screen_dt > 0) {
     // if output to screen by time:
     // match the next screen output time
     if (totaltime == t_screen_output) {
-      if (dt_saved > 0) 
+      if (dt_saved > 0)
         dt = dt_saved;
       t_screen_output += out_screen_dt;
     }
@@ -672,12 +667,12 @@ set_adaptive_timestep(std::vector<body> & bodies) {
       totaltime_next = t_screen_output;
     }
   }
-  
-  if(out_scalar_dt > 0) { 
+
+  if(out_scalar_dt > 0) {
     // if output scalar by time:
     // match the next scalar output time
     if (totaltime == t_scalar_output) {
-      if (dt_saved > 0) 
+      if (dt_saved > 0)
         dt = dt_saved;
       t_scalar_output += out_scalar_dt;
     }
@@ -686,12 +681,12 @@ set_adaptive_timestep(std::vector<body> & bodies) {
       totaltime_next = std::min(totaltime_next, t_scalar_output);
     }
   }
-  
-  if(out_h5data_dt > 0) { 
+
+  if(out_h5data_dt > 0) {
     // if output h5data by time:
     // match the next h5data output time
     if (totaltime == t_h5data_output) {
-      if (dt_saved > 0) 
+      if (dt_saved > 0)
         dt = dt_saved;
       t_h5data_output += out_h5data_dt;
     }
@@ -837,23 +832,23 @@ check_negativity(body & particle) {
   auto id  = particle.id();
   auto rho = particle.getDensity();
   auto P   = particle.getPressure();
-  auto u   = particle.getInternalenergy(); 
+  auto u   = particle.getInternalenergy();
   bool passed = true;
   if (rho < 0) {
-    log_one(error) 
-        << "particle[" << id << "]: negative density = " 
+    log_one(error)
+        << "particle[" << id << "]: negative density = "
         << rho << std::endl;
     passed = false;
   }
   if (P < 0) {
-    log_one(error) 
-        << "particle[" << id << "]: negative pressure = " 
+    log_one(error)
+        << "particle[" << id << "]: negative pressure = "
         << P << std::endl;
     passed = false;
   }
   if (param::evolve_internal_energy and u < 0) {
-    log_one(error) 
-        << "particle[" << id << "]: negative internal energy = " 
+    log_one(error)
+        << "particle[" << id << "]: negative internal energy = "
         << u << std::endl;
     passed = false;
   }
