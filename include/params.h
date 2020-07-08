@@ -141,10 +141,7 @@ typedef enum eos_type_keyword_enum{
   eos_polytropic,
   eos_wd,
   eos_ppt,
-  eos_no_eos,
-  eos_stellar_collapse,
-  eos_wd_ideal_gas,
-  eos_helmholtz
+  eos_no_eos
 } eos_type_keyword;
 
 //////////////////////////////////////////////////////////////////////
