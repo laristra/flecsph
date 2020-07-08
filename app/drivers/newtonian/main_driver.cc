@@ -72,7 +72,7 @@ set_derived_params() {
   analysis::set_initial_time_iteration();
 
   // set equation of state
-  eos::select(eos_type);
+  eos::select();
 
   // set gravitational constant
   fmm::gc = gravitational_constant;

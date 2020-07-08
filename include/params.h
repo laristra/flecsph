@@ -136,6 +136,14 @@ typedef enum sph_kernel_keyword_enum {
   sinc_ker
 } sph_kernel_keyword;
 
+typedef enum eos_type_keyword_enum{
+  eos_ideal,
+  eos_polytropic,
+  eos_wd,
+  eos_ppt,
+  eos_no_eos
+} eos_type_keyword;
+
 //////////////////////////////////////////////////////////////////////
 //
 // Parameters controlling timestepping and iterations
@@ -444,8 +452,9 @@ DECLARE_PARAM(double, wvt_radius, 1.0)
 //  * "white dwarf"
 //  * "piecewise polytropic"
 #ifndef eos_type
-DECLARE_STRING_PARAM(eos_type, "ideal fluid")
+DECLARE_KEYWORD_PARAM(eos_type, eos_ideal)
 #endif
+
 
 // - file for tabulated EOS
 #ifndef eos_tab_file_path
@@ -458,13 +467,13 @@ DECLARE_PARAM(double, poly_gamma, 1.4)
 #endif
 
 //- additional polytropic index for piecewise polytrope
-#ifndef poly_gamma
+#ifndef poly_gamma2
 DECLARE_PARAM(double, poly_gamma2, 2.5)
 #endif
 
-// Gamma value for stitched polytrope when SC reader is used
-#ifndef gamma_poly_thresh
-DECLARE_PARAM(double, gamma_poly_thresh, 1.4)
+//- in piecewise polytropic equationa of state: threshold density
+#ifndef ppt_density_thr
+DECLARE_PARAM(double, ppt_density_thr, 5e+14)
 #endif
 
 // - which viscosity computation to use?
@@ -589,7 +598,7 @@ DECLARE_PARAM(double, gravitational_constant, 1)
 #endif
 
 //
-// Parameters for the white dwarf / neutron star binary setup
+// Parameters for the orbiting binary star setup
 //
 // binary orbital separation (in cm)
 #ifndef orbital_separation
@@ -1028,9 +1037,42 @@ set_param(const std::string & param_name, const std::string & param_value) {
 #endif
 
   // viscosity and equation of state ----------------------------------------
+  if(param_name == "eos_type") {
+    for(int c = 0; c < str_value.length(); ++c)
+      if(str_value[c] == ' ')
+        str_value[c] = '_';
+
+    std::cout << "STR = " << str_value << std::endl;
 #ifndef eos_type
-  READ_STRING_PARAM(eos_type)
+    if(boost::iequals(str_value, "ideal_fluid"))
+      _eos_type = eos_ideal;
+
+    else if(boost::iequals(str_value, "polytropic"))
+      _eos_type = eos_polytropic;
+
+    else if(boost::iequals(str_value, "wd"))
+      _eos_type = eos_wd;
+
+    else if(boost::iequals(str_value, "ppt"))
+      _eos_type = eos_ppt;
+
+    else if(boost::iequals(str_value, "no_eos"))
+      _eos_type = eos_no_eos;
+
+    else {
+      assert(false);
+    }
+#else
+    if(not boost::iequals(str_value, QUOTE(eos_type))) {
+      log_one(error) << "ERROR: eos_type #defined as \"" << QUOTE(eos_type)
+                     << "\" "
+                     << "but is reset to \"" << str_value
+                     << "\" in parameter file" << std::endl;
+      exit(2);
+    }
 #endif
+    unknown_param = false;
+  }
 
 #ifndef eos_tab_file_path
   READ_STRING_PARAM(eos_tab_file_path)
@@ -1044,8 +1086,8 @@ set_param(const std::string & param_name, const std::string & param_value) {
   READ_NUMERIC_PARAM(poly_gamma2)
 #endif
 
-#ifndef gamma_poly_thresh
-  READ_NUMERIC_PARAM(gamma_poly_thresh)
+#ifndef ppt_density_thr
+  READ_NUMERIC_PARAM(ppt_density_thr)
 #endif
 
 #ifndef sph_viscosity

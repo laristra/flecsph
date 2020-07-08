@@ -70,7 +70,7 @@ set_derived_params() {
   physics::dt = initial_dt;
 
   // set equation of state
-  eos::select(eos_type);
+  eos::select();
 
   // set external force
   external_force::select(external_force_type);
