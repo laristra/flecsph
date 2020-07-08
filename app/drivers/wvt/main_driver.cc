@@ -77,7 +77,7 @@ set_derived_params() {
   physics::dt = initial_dt; // TODO: use particle separation and Courant factor
 
   // set equation of state
-  eos::select(eos_type);
+  eos::select();
 
   // set external force
   external_force::select(external_force_type);
