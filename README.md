@@ -56,7 +56,8 @@ cd flecsph
 ```
 Sample parameter files and the intial data can be found in the `data` subdirectory.
 
-For the developper guideline, please refer to the 
+For the developper guideline, please refer to this page: 
+[Development Guidelines](https://github.com/laristra/flecsph/blob/master/doc/development.md)
 
 # Building FleCSPH manually
 
@@ -225,10 +226,6 @@ targets with different dimensions using examples in `app/drivers/CMakeLists.txt`
 Make sure to document your subproject in a corresponding `README.md` file
 that describes the problem you want to run. In order to get all files easily and
 correctly, you can copy them from other subprojects such as `sodtube` or `hydro`.
-
-# For developers
-Please refer to the following page:
-[Development Guidelines](https://github.com/laristra/flecsph/blob/master/doc/development.md)
 
 # Logs
 
