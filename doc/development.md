@@ -21,6 +21,46 @@ We follow the standard git development workflow.
 of the git workflow that we adopt, specifically used in github service.
 We further describe some specifics of the FleCSPH development workflow:
 
+
+# Using Spack in the development workflow
+
+If you have downloaded FleCSPH from github and working on a development branch, it is very
+convenient to use spack to automatically handle the dependencies:
+
+1. Follow the steps above to install FleCSPH with spack. 
+This will ensure that all the dependencies are satisfied.
+
+2. To inspect the dependencies:
+```{engine=sh}
+spack module tcl loads --dependencies flecsph@refactor
+```
+If this command returns empty, use `spack bootstrap` for tcl.
+
+3. Load the FleCSPH dependencies installed by spack into the ``bash`` environment:
+```{engine=sh}
+source <(spack module tcl loads --dependencies flecsph)
+```
+Unload FleCSPH itself as you will be using your own custom built version:
+```{engine=sh}
+module unload $(spack module tcl find flecsph)
+```
+Inspect your module environment to make sure dependencies have been loaded:
+```{engine=sh}
+module list
+```
+
+4. You can now build your development version with cmake as described below, 
+skipping all the dependencies.
+cmake should find all the dependencies from what you loaded with spack:
+```{engine=sh}
+mkdir build; cd build
+cmake .. \
+    -DCMAKE_BUILD_TYPE=debug \
+    -DENABLE_UNIT_TESTS=ON   \
+    -DENABLE_DEBUG=OFF       \
+    -DLOG_STRIP_LEVEL=1
+```
+
 # Development Flow
 
 ## 1. Create your own branch, based on master branch
