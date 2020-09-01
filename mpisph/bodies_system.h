@@ -10,8 +10,7 @@
  * Contain the function for user, hidding the IO/distribution and tree search.
  */
 
-#ifndef _mpisph_body_system_h_
-#define _mpisph_body_system_h_
+#pragma once
 
 #include "fmm.h"
 #include "io.h"
@@ -217,8 +216,8 @@ public:
       &mybodies, 1, MPI_INT, &totalprocbodies[0], 1, MPI_INT, MPI_COMM_WORLD);
     int min = *std::min_element(totalprocbodies.begin(), totalprocbodies.end());
     int max = *std::max_element(totalprocbodies.begin(), totalprocbodies.end());
-    int total = std::accumulate(totalprocbodies.begin(), totalprocbodies.end(), 0); 
-    assert(total == totalnbodies_); 
+    int total = std::accumulate(totalprocbodies.begin(), totalprocbodies.end(), 0);
+    assert(total == totalnbodies_);
     assert(max - min <= 1);
 #endif // DEBUG_TREE
 
@@ -282,7 +281,7 @@ public:
    */
   void gravitation_fmm() {
     assert (gdimension == 3);
-    if constexpr (gdimension == 3) { 
+    if constexpr (gdimension == 3) {
       using namespace fmm;
       tree_.traversal_fmm(macangle_, taylor_c2c, taylor_p2c, fmm_p2p, fmm_c2p);
     }
@@ -379,4 +378,3 @@ private:
   int current_refresh = refresh_tree;
 };
 
-#endif

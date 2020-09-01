@@ -157,56 +157,39 @@ public:
     state_ = static_cast<state_t>(state);
   }
   // Dependent of the problem
-  double getInternalenergy() const {
-    return internalenergy_;
-  }
-  void setInternalenergy(double internalenergy) {
-    internalenergy_ = internalenergy;
-  }
-  double getTotalenergy() const {
-    return totalenergy_;
-  }
-  void setTotalenergy(double totalenergy) {
-    totalenergy_ = totalenergy;
-  }
-  void setDudt(double dudt) {
-    dudt_ = dudt;
-  };
-  void setDedt(double dedt) {
-    dedt_ = dedt;
-  };
-  double getDudt() {
-    return dudt_;
-  };
-  double getDedt() {
-    return dedt_;
-  };
-  double getAdiabatic() const {
-    return adiabatic_;
-  }
-  void setAdiabatic(double adiabatic) {
-    adiabatic_ = adiabatic;
-  };
-  double getDadt() const {
-    return dadt_;
-  };
-  void setDadt(double dadt) {
-    dadt_ = dadt;
-  };
+  double getInternalenergy() const{return internalenergy_;}
+  void setInternalenergy(double internalenergy)
+      {internalenergy_=internalenergy;}
+  double getTotalenergy() const{return totalenergy_;}
+  void setTotalenergy(double totalenergy) {totalenergy_=totalenergy;}
+  void setDudt(double dudt){dudt_ = dudt;}
+  void setDedt(double dedt){dedt_ = dedt;}
+  double getDudt(){return dudt_;}
+  double getDedt(){return dedt_;}
+  double getAdiabatic() const{return adiabatic_;}
+  void setAdiabatic(double adiabatic){adiabatic_ = adiabatic;}
+  double getDadt() const{return dadt_;}
+  void setDadt(double dadt){dadt_ = dadt;}
+  void setAlpha(double alpha){alpha_ = alpha;}
+  double getAlpha() const{return alpha_;}
+  void setDivergenceV(double divergenceV){divergenceV_ = divergenceV;}
+  void setDdivvdt(double dDivVdt){dDivVdt_ = dDivVdt;}
+  double getDivergenceV() const{return divergenceV_;}
+  double getDdivvdt() const{return dDivVdt_;}
+  void setTrigger(double trigger){trigger_ = trigger;}
+  double getTrigger() const{return trigger_;}
+  void setXi(double xi){xi_ = xi;}
+  double getXi() const{return xi_;}
+  void setTraceSS(double traceSS){traceSS_ = traceSS;}
+  double getTraceSS() const{return traceSS_;}
+  void setGradV(double gradv){gradv_ = gradv;}
+  double getGradV() const{return gradv_;}
 
-  void setNeighbors(const size_t & neighbors) {
-    neighbors_ = neighbors;
-  }
-  size_t getNeighbors() const {
-    return neighbors_;
-  }
+  void setNeighbors(const size_t& neighbors) { neighbors_ = neighbors;}
+  size_t getNeighbors() const {return neighbors_;}
 
-  void setPressuremin(const double & pressuremin) {
-    pressuremin_ = pressuremin;
-  }
-  double getPressuremin() const {
-    return pressuremin_;
-  }
+  void setPressuremin(const double& pressuremin) { pressuremin_ = pressuremin;}
+  double getPressuremin() const{return pressuremin_;}
 
   void setSignalspeed(const double & signalspeed) {
     signalspeed_ = signalspeed;
@@ -254,6 +237,13 @@ private:
   double adiabatic_;
   double dadt_;
   double dt_;
+  double alpha_;
+  double divergenceV_;
+  double dDivVdt_;
+  double trigger_;
+  double xi_;
+  double traceSS_;
+  double gradv_;
   particle_type_t type_;
   size_t neighbors_;
   state_t state_;

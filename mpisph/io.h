@@ -917,11 +917,12 @@ outputDataHDF5(std::vector<body> & bodies,
   H5P_setNumParticles(bodies.size());
 
   // 4 buffers, 3 double and 1 int64
-  double * b1 = new double[IO_nparticlesproc];
-  double * b2 = new double[IO_nparticlesproc];
-  double * b3 = new double[IO_nparticlesproc];
-  int64_t * bi = new int64_t[IO_nparticlesproc];
-  int32_t * bint = new int32_t[IO_nparticlesproc];
+  double *b1 = new double[IO_nparticlesproc];
+  double *b2 = new double[IO_nparticlesproc];
+  double *b3 = new double[IO_nparticlesproc];
+  double *b4 = new double[IO_nparticlesproc];
+  int64_t *bi = new int64_t[IO_nparticlesproc];
+  int32_t *bint = new int32_t[IO_nparticlesproc];
 
   // Position
   int64_t pos = 0L;
@@ -972,6 +973,7 @@ outputDataHDF5(std::vector<body> & bodies,
   // Extract data from bodies
   for(auto bi : bodies) {
     b1[pos] = bi.getAcceleration()[0] + bi.getGAcceleration()[0];
+    b4[pos] = bi.getGradV();
     if(gdimension > 1) {
       b2[pos] = bi.getAcceleration()[1] + bi.getGAcceleration()[1];
     }
@@ -988,6 +990,7 @@ outputDataHDF5(std::vector<body> & bodies,
   H5P_writeDataset(dataFile, "ax", b1);
   H5P_writeDataset(dataFile, "ay", b2);
   H5P_writeDataset(dataFile, "az", b3);
+  H5P_writeDataset(dataFile, "gradV", b4);
 
   // Smoothing length, Density, Internal Energy
   pos = 0L;
@@ -1013,19 +1016,41 @@ outputDataHDF5(std::vector<body> & bodies,
     b1[pos] = bid.getPressure();
     b2[pos] = bid.mass();
     b3[pos] = bid.getDt();
+    b4[pos] = bid.getTraceSS();
     bi[pos] = bid.id();
     bint[pos++] = bid.getType();
   }
   H5P_writeDataset(dataFile, "P", b1);
   H5P_writeDataset(dataFile, "m", b2);
   H5P_writeDataset(dataFile, "dt", b3);
+  H5P_writeDataset(dataFile, "traceSS", b4);
   H5P_writeDataset(dataFile, "id", bi);
   H5P_writeDataset(dataFile, "type", bint);
 
+  // Pressure, Mass, Id, timestep
   pos = 0L;
-  for(auto bid : bodies) {
-    bint[pos++] = bid.state();
+  // Extract data from bodies
+  for (auto bid : bodies) {
+    b1[pos] = bid.getAlpha();
+    b2[pos] = bid.getDivergenceV();
+    b3[pos] = bid.getDdivvdt();
+    pos++;
   }
+  H5P_writeDataset(dataFile, "alpha", b1);
+  H5P_writeDataset(dataFile, "divergenceV", b2);
+  H5P_writeDataset(dataFile, "dDivVdt", b3);
+
+  // Pressure, Mass, Id, timestep
+  pos = 0L;
+  // Extract data from bodies
+  for (auto bid : bodies) {
+    b1[pos] = bid.getTrigger();
+    b2[pos] = bid.getXi();
+    bint[pos] = bid.state();
+    pos++;
+  }
+  H5P_writeDataset(dataFile, "trigger", b1);
+  H5P_writeDataset(dataFile, "xi", b2);
   H5P_writeDataset(dataFile, "state", bint);
 
   // Output the rank for analysis
@@ -1049,6 +1074,7 @@ outputDataHDF5(std::vector<body> & bodies,
   delete[] b1;
   delete[] b2;
   delete[] b3;
+  delete[] b4;
   delete[] bi;
   delete[] bint;
 

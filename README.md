@@ -1,8 +1,8 @@
 ![logo](doc/flecsph_logo_bg.png)
 
 [![Build Status](https://travis-ci.com/laristra/flecsph.svg?branch=master)](https://travis-ci.com/laristra/flecsph)
-[![codecov.io](https://codecov.io/github/laristra/flecsph/coverage.svg?branch=master)](https://codecov.io/github/laristra/flecsph?branch=master)
 <!---
+[![codecov.io](https://codecov.io/github/laristra/flecsph/coverage.svg?branch=master)](https://codecov.io/github/laristra/flecsph?branch=master)
 [![Quality Gate](https://sonarqube.com/api/badges/gate?key=flecsph%3A%2Fmaster)](https://sonarqube.com/dashboard?id=flecsph%3A%2Fmaster)
 --->
 
@@ -30,9 +30,10 @@ We provide several examples of physics problems in 1D, 2D and 3D:
 FleCSPH can now be installed as a Spack package:
 - Download spack at: github.com/spack/spack 
 - Follow installation instructions 
-- Use the following command to install core spack utilities:
+- Use the following command to install _module_ support for spack and load the module. The second line can be added in your bash_profile.sh
 ```{engine=sh}
-spack bootstrap
+spack install lmod
+. $(spack location -i lmod)/lmod/lmod/init/bash
 ```
 - Run:
 ```{engine=sh}
@@ -48,47 +49,15 @@ You will then have access to the generators and the drivers:
 - sodtube\_{1-2-3}d\_generator, sedov\_{2-3}d\_generator...
 - hydro\_{1-2-3}d, newtonian\_3d...
 
+You can access to pre-configured parameter files and examples by downloading this repository: 
+```{engine=sh}
+git clone --recursive git@github.com:laristra/flecsph.git
+cd flecsph
+```
 Sample parameter files and the intial data can be found in the `data` subdirectory.
 
-
-## Using Spack in the development workflow
-
-If you have downloaded FleCSPH from github and working on a development branch, it is very
-convenient to use spack to automatically handle the dependencies:
-
-1. Follow the steps above to install FleCSPH with spack. 
-This will ensure that all the dependencies are satisfied.
-
-2. To inspect the dependencies:
-```{engine=sh}
-spack module tcl loads --dependencies flecsph@refactor
-```
-If this command returns empty, use `spack bootstrap` for tcl.
-
-3. Load the FleCSPH dependencies installed by spack into the ``bash`` environment:
-```{engine=sh}
-source <(spack module tcl loads --dependencies flecsph)
-```
-Unload FleCSPH itself as you will be using your own custom built version:
-```{engine=sh}
-module unload $(spack module tcl find flecsph)
-```
-Inspect your module environment to make sure dependencies have been loaded:
-```{engine=sh}
-module list
-```
-
-4. You can now build your development version with cmake as described below, 
-skipping all the dependencies.
-cmake should find all the dependencies from what you loaded with spack:
-```{engine=sh}
-mkdir build; cd build
-cmake .. \
-    -DCMAKE_BUILD_TYPE=debug \
-    -DENABLE_UNIT_TESTS=ON   \
-    -DENABLE_DEBUG=OFF       \
-    -DLOG_STRIP_LEVEL=1
-```
+For the developper guideline, please refer to this page: 
+[Development Guidelines](https://github.com/laristra/flecsph/blob/master/doc/development.md)
 
 # Building FleCSPH manually
 

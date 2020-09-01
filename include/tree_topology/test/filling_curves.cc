@@ -13,7 +13,7 @@ using namespace flecsi;
 namespace flecsi {
 namespace execution {
 void
-driver(int argc, char * argv[]) {}
+driver(int, char **) {}
 } // namespace execution
 } // namespace flecsi
 
@@ -114,7 +114,7 @@ TEST(hilbert,rnd_3d){
     hcs[i] = hc(range,points[i]);
     point_t inv;
     hcs[i].coordinates(range,inv);
-    double dist = distance(points[i],inv);
+    //double dist = distance(points[i],inv);
     std::cout << points[i] <<" "<< hcs[i] << " = "<<inv<<std::endl;
     //ASSERT_TRUE(dist<1.0e-4);
   }
@@ -128,7 +128,7 @@ TEST(hilbert,rnd_3d){
     point_t inv;
     hc h(range,pt);
     h.coordinates(range,inv);
-    double dist = distance(pt,inv);
+    //double dist = distance(pt,inv);
     std::cout << pt <<" = "<< h << " = "<<inv<<std::endl;
     //ASSERT_TRUE(dist<1.0e-4);
   }

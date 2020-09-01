@@ -36,4 +36,13 @@
 static const size_t gdimension = EXT_GDIMENSION;
 using type_t = double;
 
+// fix sph_kernel at compile time
+// #define sph_kernel wendland_c4
+
+// fix sph_viscosity at compile time
+// #define sph_viscosity visc_constant
+
+// fix eos_type at compile time
+// #define eos_type eos_ideal
+
 #endif // _user_h_

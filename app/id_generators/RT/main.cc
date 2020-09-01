@@ -31,9 +31,7 @@ print_usage() {
 // derived parameters
 //
 static double pressure_0; // Initial pressure
-static int64_t nparticlesproc; // number of particles per proc
 static double rho_1, rho_2; // densities
-static double vx_1, vx_2; // velocities
 static double pressure_1, pressure_2; // pressures
 static std::string initial_data_file; // = initial_data_prefix + ".h5part"
 
@@ -376,8 +374,22 @@ main(int argc, char * argv[]) {
 
   H5P_closeFile(dataFile);
 
-  delete[] x, y, z, vx, vy, vz, ax, ay, az, h, rho, u, P, m, id, dt;
-
+  delete[]  x; 
+  delete[]  y;
+  delete[]  z;
+  delete[]  vx;
+  delete[]  vy;
+  delete[]  vz;
+  delete[]  ax;
+  delete[]  ay;
+  delete[]  az;
+  delete[]  h;
+  delete[]  rho;
+  delete[]  u;
+  delete[]  P;
+  delete[]  m;
+  delete[]  id;
+  delete[]  dt;
   MPI_Finalize();
   return 0;
 }

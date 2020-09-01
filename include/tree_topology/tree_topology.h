@@ -915,7 +915,7 @@ public:
 
     // The extra turn in the loop is to finish the missing
     // parent of the last entity
-    for(int i = 0; i <= entities_.size(); ++i) {
+    for(size_t i = 0; i <= entities_.size(); ++i) {
       if(i < entities_.size()) {
         ekey = entities_[i].key();
         // Compute the current node key
@@ -1587,7 +1587,7 @@ private:
       if(partner >= 0 && partner < size) {
         ghosts_entities.clear();
         ghosts_nodes.clear();
-        find_nodes_(ghosts_nodes, ghosts_entities, rank);
+        find_nodes_(ghosts_nodes, ghosts_entities);
 #ifdef _DEBUG_TREE_
         assert(partner >= 0 && partner != rank && partner < size);
 #endif
@@ -1616,14 +1616,14 @@ private:
           &r_ghosts_nodes[0], s_rkeys.first[1], MPI_BYTE, partner, 0,
           MPI_COMM_WORLD, &status);
         // Insert the nodes/entities in the tree
-        for(int j = 0; j < r_ghosts_entities.size(); ++j) {
+        for(size_t j = 0; j < r_ghosts_entities.size(); ++j) {
           if(r_ghosts_entities[j].owner != rank) {
             shared_entities_.push_back(r_ghosts_entities[j].entity);
             load_shared_entity_(shared_entities_.size() - 1,
               r_ghosts_entities[j].key, r_ghosts_entities[j].owner);
           }
         }
-        for(int j = 0; j < r_ghosts_nodes.size(); ++j) {
+        for(size_t j = 0; j < r_ghosts_nodes.size(); ++j) {
           if(r_ghosts_nodes[j].owner != rank) {
             shared_nodes_.push_back(r_ghosts_nodes[j].node);
             load_shared_node_(shared_nodes_.size() - 1, r_ghosts_nodes[j].key,
@@ -1651,19 +1651,19 @@ private:
           // Add into each buffer, no communication needed
           ghosts_entities.clear();
           ghosts_nodes.clear();
-          find_nodes_(ghosts_nodes, ghosts_entities, rank);
+          find_nodes_(ghosts_nodes, ghosts_entities);
           r_ghosts_entities_n2.insert(r_ghosts_entities_n2.end(),
             ghosts_entities.begin(), ghosts_entities.end());
           r_ghosts_nodes_n2.insert(
             r_ghosts_nodes_n2.end(), ghosts_nodes.begin(), ghosts_nodes.end());
-          for(int j = 0; j < r_ghosts_entities_n2.size(); ++j) {
+          for(size_t j = 0; j < r_ghosts_entities_n2.size(); ++j) {
             if(r_ghosts_entities_n2[j].owner != rank) {
               shared_entities_.push_back(r_ghosts_entities_n2[j].entity);
               load_shared_entity_(shared_entities_.size() - 1,
                 r_ghosts_entities_n2[j].key, r_ghosts_entities_n2[j].owner);
             }
           }
-          for(int j = 0; j < r_ghosts_nodes_n2.size(); ++j) {
+          for(size_t j = 0; j < r_ghosts_nodes_n2.size(); ++j) {
             if(r_ghosts_nodes_n2[j].owner != rank) {
               shared_nodes_.push_back(r_ghosts_nodes_n2[j].node);
               load_shared_node_(shared_nodes_.size() - 1,
@@ -1676,7 +1676,7 @@ private:
           if(ghosts_rank == rank) {
             ghosts_entities.clear();
             ghosts_nodes.clear();
-            find_nodes_(ghosts_nodes, ghosts_entities, rank);
+            find_nodes_(ghosts_nodes, ghosts_entities);
           }
           else {
             ghosts_entities = r_ghosts_entities_n2;
@@ -1711,14 +1711,14 @@ private:
             MPI_COMM_WORLD, &status);
           if(rank == ghosts_rank) {
             // Insert the nodes/entities in the tree
-            for(int j = 0; j < r_ghosts_entities.size(); ++j) {
+            for(size_t j = 0; j < r_ghosts_entities.size(); ++j) {
               if(r_ghosts_entities[j].owner != rank) {
                 shared_entities_.push_back(r_ghosts_entities[j].entity);
                 load_shared_entity_(shared_entities_.size() - 1,
                   r_ghosts_entities[j].key, r_ghosts_entities[j].owner);
               }
             }
-            for(int j = 0; j < r_ghosts_nodes.size(); ++j) {
+            for(size_t j = 0; j < r_ghosts_nodes.size(); ++j) {
               if(r_ghosts_nodes[j].owner != rank) {
                 shared_nodes_.push_back(r_ghosts_nodes[j].node);
                 load_shared_node_(shared_nodes_.size() - 1,
@@ -1762,14 +1762,15 @@ private:
           if(current->get_child(i)) {
             key_t ckey = nkey;
             ckey.push(i);
-            auto it = htable_.find(ckey);
+            auto it = htable_.end(); 
+            it = htable_.find(ckey);
 #ifdef _DEBUG_TREE_
             assert(it != htable_.end());
 #endif
             daughters.push_back(&(htable_.find(ckey)->second));
           } // if
         } // for
-        for(int i = 0; i < daughters.size(); ++i) {
+        for(size_t i = 0; i < daughters.size(); ++i) {
           cofm_update_(daughters[i], f_cc);
         } // for
         current->set_shared();
@@ -1785,8 +1786,7 @@ private:
    * This searches for the first nodes/entities that have an index.
    */
   void find_nodes_(std::vector<share_node_t> & nodes,
-    std::vector<share_entity_t> & entities,
-    const int rank) {
+    std::vector<share_entity_t> & entities) {
     nodes.clear();
     entities.clear();
     std::vector<hcell_t *> queue;
@@ -1906,7 +1906,8 @@ private:
       if(n->get_child(j)) {
         key_t ckey = key;
         ckey.push(j);
-        auto it = htable_.find(ckey);
+        auto it = htable_.end(); 
+        it = htable_.find(ckey);
 #ifdef _DEBUG_TREE_
         assert(it != htable_.end());
 #endif
@@ -1950,7 +1951,7 @@ private:
     CCOFM && f_ce) {
     std::vector<entity_t *> v_entities;
     std::vector<cofm_t *> v_nodes;
-    for(int i = 0; i < daughters.size(); ++i) {
+    for(size_t i = 0; i < daughters.size(); ++i) {
       if(daughters[i]->is_entity()) {
         v_entities.push_back(get_entity(daughters[i]));
       }

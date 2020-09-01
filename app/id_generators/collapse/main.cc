@@ -223,7 +223,22 @@ main(int argc, char * argv[]) {
 
   H5P_closeFile(dataFile);
 
-  delete[] x, y, z, vx, vy, vz, ax, ay, az, h, rho, u, P, m, id, dt;
+  delete[]  x; 
+  delete[]  y;
+  delete[]  z;
+  delete[]  vx;
+  delete[]  vy;
+  delete[]  vz;
+  delete[]  ax;
+  delete[]  ay;
+  delete[]  az;
+  delete[]  h;
+  delete[]  rho;
+  delete[]  u;
+  delete[]  P;
+  delete[]  m;
+  delete[]  id;
+  delete[]  dt;
 
   MPI_Finalize();
   return 0;

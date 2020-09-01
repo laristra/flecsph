@@ -29,7 +29,6 @@ print_usage() {
 //
 // derived parameters
 //
-static int64_t nparticlesproc; // number of particles per proc
 static double rho_m, rho_t; // densities
 static double vx_m, vx_t; // velocities
 static double pressure_m, pressure_t; // pressures
@@ -60,9 +59,6 @@ void
 set_derived_params() {
   using namespace std;
   using namespace param;
-
-  // boundary tolerance factor
-  const double b_tol = particle_lattice::b_tol;
 
   // support for only equal-mass configurations for now
   if(not equal_mass) {
@@ -343,7 +339,7 @@ main(int argc, char * argv[]) {
 
   // particle id number
   int64_t posid = 0;
-  double wmid2 = -y[0] + .1 * dy_m;
+  //double wmid2 = -y[0] + .1 * dy_m;
   for(int64_t part = 0; part < nparticles; ++part) {
     id[part] = posid++;
     // if (std::abs(y[part]) < wmid2) {
@@ -409,7 +405,22 @@ main(int argc, char * argv[]) {
 
   H5P_closeFile(dataFile);
 
-  delete[] x, y, z, vx, vy, vz, ax, ay, az, h, rho, u, P, m, id, dt;
+  delete[]  x; 
+  delete[]  y;
+  delete[]  z;
+  delete[]  vx;
+  delete[]  vy;
+  delete[]  vz;
+  delete[]  ax;
+  delete[]  ay;
+  delete[]  az;
+  delete[]  h;
+  delete[]  rho;
+  delete[]  u;
+  delete[]  P;
+  delete[]  m;
+  delete[]  id;
+  delete[]  dt;
 
   MPI_Finalize();
   return 0;
