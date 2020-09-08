@@ -30,7 +30,7 @@ for f in args.file:
 	
 	while(not(done)):
 		dataset = "/Step#"+str(in_step)
-		if dataset not in h5_in.keys():
+		if dataset not in h5_in:
 			done = True
 			continue
 		grp = out.create_group("/Step#"+str(out_step))

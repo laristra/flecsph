@@ -3,6 +3,15 @@
  * All rights reserved.
  *~--------------------------------------------------------------------------~*/
 
+/*
+ * The Sod shock tube test: standard set of five Riemann problems for numerical 
+ * hydrodynamics. Initial setup consists of two constant uniform conditions
+ * (left and right) with an interface that develops into a series of shock waves.
+ * The tests are described in detail in e.g. E.Toro "Rieman Solvers and 
+ * Numerical Methods for Fluid Dynamics", 3rd Edition, 2009, Chapter 4.3.3
+ */
+
+#include <iostream>
 #include <algorithm>
 #include <cassert>
 #include <iostream>
@@ -30,7 +39,6 @@ print_usage() {
 //
 // derived parameters
 //
-static int64_t nparticlesproc; // number of particles per proc
 static double rho_1, rho_2; // densities
 static double vx_1, vx_2; // velocities
 static double pressure_1, pressure_2; // pressures
@@ -198,6 +206,11 @@ main(int argc, char * argv[]) {
   set_derived_params();
   particle_lattice::select();
 
+  // screen output
+  log_one(info)
+    << "Sod shocktube test #" << sodtest_num
+    << " in " << gdimension << "D" << std::endl;
+
   // set kernel
   kernels::select();
 
@@ -223,8 +236,6 @@ main(int argc, char * argv[]) {
   log_one(info) << "Initial data file: " << initial_data_file << std::endl;
 
   double lr_sph_sep = 0.;
-  double temp_part = 0;
-  double temp_part_new = 0;
   double dy1, dy2, dz1, dz2;
   dy1 = dy2 = dz1 = dz2 = sph_separation;
   if(equal_mass) {
@@ -561,8 +572,22 @@ main(int argc, char * argv[]) {
 
   H5P_closeFile(dataFile);
 
-  delete[] x, y, z, vx, vy, vz, ax, ay, az, h, rho, u, P, m, id, dt;
-
+  delete[]  x; 
+  delete[]  y;
+  delete[]  z;
+  delete[]  vx;
+  delete[]  vy;
+  delete[]  vz;
+  delete[]  ax;
+  delete[]  ay;
+  delete[]  az;
+  delete[]  h;
+  delete[]  rho;
+  delete[]  u;
+  delete[]  P;
+  delete[]  m;
+  delete[]  id;
+  delete[]  dt;
   MPI_Finalize();
   return 0;
 }

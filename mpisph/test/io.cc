@@ -15,7 +15,7 @@ using namespace topology;
 namespace flecsi {
 namespace execution {
 void
-driver(int argc, char * argv[]) {}
+driver(int, char **) {}
 } // namespace execution
 } // namespace flecsi
 
@@ -30,13 +30,13 @@ TEST(io, write_N_read) {
   const char * filename = "io_utest.h5part";
 
   // Generate particles, write to file, read and compare
-  size_t n = 1000;
+  int64_t n = 1000;
   double mass = 1.0;
   double u = 1.0;
 
   std::vector<body> bodies(n);
 
-  for(size_t i = 0; i < n; ++i) {
+  for(int64_t i = 0; i < n; ++i) {
     point_t p = {(double)rand() / (double)RAND_MAX,
       (double)rand() / (double)RAND_MAX, (double)rand() / (double)RAND_MAX};
     // Create body to check the class too

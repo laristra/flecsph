@@ -227,6 +227,10 @@ Make sure to document your subproject in a corresponding `README.md` file
 that describes the problem you want to run. In order to get all files easily and
 correctly, you can copy them from other subprojects such as `sodtube` or `hydro`.
 
+# For developers
+Please refer to the following page:
+[Development Guidelines](https://github.com/laristra/flecsph/blob/master/doc/development.md)
+
 # Logs
 
 In the code, you can set the level of output from trace(0) and info(1) to warn(2), error(3) and fatal(4).

@@ -41,7 +41,7 @@ uniform(double a, double b) {
 namespace flecsi {
 namespace execution {
 void
-driver(int argc, char * argv[]) {}
+driver(int, char **) {}
 } // namespace execution
 } // namespace flecsi
 

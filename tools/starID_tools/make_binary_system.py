@@ -256,8 +256,9 @@ def main():
     tempD   = zero((newsize))
     tempO   = zero((newsize))
     temp    = zero((newsize))
-    omega = np.sqrt(G_newt*(M_star + M_star2)/(sep**3.0))
+    omega = np.sqrt(G_newt*(Mtot)/(sep**3.0))
     state = np.hstack((np.full(dsetX.shape,1,dtype=int),np.full(dsetX.shape,2,dtype=int)))
+    
     if(args.ident):
       print("calculating X and Y coordinates")
       tempX[:size] = dsetX[()] - x_offset

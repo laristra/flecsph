@@ -23,15 +23,12 @@
  * @brief Basic analysis
  */
 
-#ifndef _PHYSICS_ANALYSIS_H_
-#define _PHYSICS_ANALYSIS_H_
+#pragma once
 
 #include "bodies_system.h"
 #include "params.h"
 #include "wvt.h"
 #include <vector>
-
-//#include "physics.h"
 
 namespace analysis {
 
@@ -93,30 +90,34 @@ compute_total_energy(std::vector<body> & bodies) {
   using namespace param;
 
   total_energy = 0.;
-  if(thermokinetic_formulation) {
-    for(size_t i = 0; i < bodies.size(); ++i) {
-      if(bodies[i].type() != NORMAL)
-        continue;
-      total_energy += bodies[i].mass() * bodies[i].getTotalenergy();
+  if (thermokinetic_formulation) {
+    for(size_t i = 0 ; i < bodies.size(); ++i) {
+      body & pt = bodies[i];
+      if(pt.type() != NORMAL)  continue;
+      total_energy += bodies[i].mass()*bodies[i].getTotalenergy();
     }
   }
   else {
-    for(size_t i = 0; i < bodies.size(); ++i) {
-      if(bodies[i].type() != NORMAL)
-        continue;
-      double m = bodies[i].mass(), eint = bodies[i].getInternalenergy();
-      total_energy += m * eint;
-      point_t v = bodies[i].getVelocity();
-      double v2 = v[0] * v[0];
-      for(unsigned short int k = 1; k < gdimension; ++k)
-        v2 += v[k] * v[k];
-      total_energy += .5 * m * v2;
+    for(size_t i = 0 ; i < bodies.size(); ++i){
+      body & pt = bodies[i];
+      if(pt.type() != NORMAL)  continue;
+      const point_t 
+          pos = pt.coordinates(),
+          vel = pt.getVelocity();
+      const double 
+          m = pt.mass(),
+          eint = pt.getInternalenergy(),
+          epot = external_force::potential(pos),
+          ekin = .5*flecsi::dot(vel,vel);
+      total_energy += m*(ekin + eint + epot);
     }
   }
   if(enable_fmm) {
     for(size_t i = 0; i < bodies.size(); ++i) {
+      body & pt = bodies[i];
+      if(pt.type() != NORMAL)  continue;
       // factor of 0.5 takes care of double-counting
-      total_energy += 0.5*bodies[i].getGPotential() * bodies[i].mass();
+      total_energy += 0.5*pt.getGPotential()*pt.mass();
     }
   }
   mpi_utils::reduce_sum(total_energy);
@@ -128,19 +129,16 @@ compute_total_energy(std::vector<body> & bodies) {
  * @param      bodies  Vector of all the local bodies
  */
 void
-compute_total_kinetic_energy(std::vector<body> & bodies) {
+compute_total_kinetic_energy(std::vector<body>& bodies) {
   using namespace param;
 
   total_kinetic_energy = 0.;
-  for(size_t i = 0; i < bodies.size(); ++i) {
-    if(bodies[i].type() != NORMAL)
-      continue;
-    double m = bodies[i].mass();
-    point_t v = bodies[i].getVelocity();
-    double v2 = v[0] * v[0];
-    for(unsigned short int k = 1; k < gdimension; ++k)
-      v2 += v[k] * v[k];
-    total_kinetic_energy += .5 * m * v2;
+  for(size_t i = 0 ; i < bodies.size(); ++i){
+    body & pt = bodies[i];
+    if(pt.type() != NORMAL)  continue;
+    const double m = pt.mass();
+    const point_t vel = pt.getVelocity();
+    total_kinetic_energy += .5*m*flecsi::dot(vel,vel);
   }
   mpi_utils::reduce_sum(total_kinetic_energy);
 }
@@ -196,20 +194,20 @@ compute_total_ang_mom(std::vector<body> & bodies) {
       const double m = bodies[i].mass();
       const point_t v = bodies[i].getVelocity();
       const point_t r = bodies[i].coordinates();
-      total_ang_mom[0] += m * (r[0] * v[1] - r[1] * v[0]);
+      total_ang_mom[0] += m*(r[0]*v[1] - r[1]*v[0]);
     }
     mpi_utils::reduce_sum(total_ang_mom);
   }
-  else if constexpr(gdimension == 3) {
+  if constexpr(gdimension == 3) {
     for(size_t i = 0; i < bodies.size(); ++i) {
       if(bodies[i].type() != NORMAL)
         continue;
       const double m = bodies[i].mass();
       const point_t v = bodies[i].getVelocity();
       const point_t r = bodies[i].coordinates();
-      total_ang_mom[0] += m * (r[1] * v[2] - r[2] * v[1]);
-      total_ang_mom[1] += m * (r[2] * v[0] - r[0] * v[2]);
-      total_ang_mom[2] += m * (r[0] * v[1] - r[1] * v[0]);
+      total_ang_mom[0] += m*(r[1]*v[2] - r[2]*v[1]);
+      total_ang_mom[1] += m*(r[2]*v[0] - r[0]*v[2]);
+      total_ang_mom[2] += m*(r[0]*v[1] - r[1]*v[0]);
     }
     mpi_utils::reduce_sum(total_ang_mom);
   }
@@ -526,5 +524,3 @@ check_conservation(const std::vector<e_conservation> & check) {
 } // conservation check
 
 }; // namespace analysis
-
-#endif // _PHYSICS_ANALYSIS_H_

@@ -57,7 +57,7 @@ set_derived_params() {
   kernels::select();
 
   // set viscosity
-  viscosity::select(sph_viscosity);
+  viscosity::select();
 
   // filenames (this will change for multiple files output)
   std::ostringstream oss;
@@ -110,7 +110,6 @@ mpi_init_task(const char * parameter_file) {
         std::vector<tree_topology_t::entity_t *> & n, size_t & total) {
         total += n.size();
         bool found = false;
-        //auto id_e = e.id();
         for(auto nb : n) {
           e.id() == nb->id() ? found = true : found;
         }
@@ -160,9 +159,6 @@ check_conservation(const std::vector<analysis::e_conservation> & check) {
 
 void
 specialization_tlt_init(int argc, char * argv[]) {
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
   log_set_output_rank(0);
 
   log_one(trace) << "In user specialization_driver" << std::endl;

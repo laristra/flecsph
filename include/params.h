@@ -144,6 +144,13 @@ typedef enum eos_type_keyword_enum{
   eos_no_eos
 } eos_type_keyword;
 
+
+// sph_viscosity keywords
+typedef enum sph_viscosity_keyword_enum {
+  visc_constant,
+  visc_cullen
+} sph_viscosity_keyword;
+
 //////////////////////////////////////////////////////////////////////
 //
 // Parameters controlling timestepping and iterations
@@ -179,6 +186,12 @@ DECLARE_PARAM(double, timestep_cfl_factor, 0.25)
 //- adaptive timestepping flag
 #ifndef adaptive_timestep
 DECLARE_PARAM(bool, adaptive_timestep, false)
+#endif
+
+//- number of passes when computing du/dt or de/dt 
+//  to accurately update the pressure (1 or 2)
+#ifndef pressure_updates_number
+  DECLARE_PARAM(int64_t,pressure_updates_number,1)
 #endif
 
 //
@@ -455,7 +468,6 @@ DECLARE_PARAM(double, wvt_radius, 1.0)
 DECLARE_KEYWORD_PARAM(eos_type, eos_ideal)
 #endif
 
-
 // - file for tabulated EOS
 #ifndef eos_tab_file_path
 DECLARE_STRING_PARAM(eos_tab_file_path, ".")
@@ -476,25 +488,45 @@ DECLARE_PARAM(double, poly_gamma2, 2.5)
 DECLARE_PARAM(double, ppt_density_thr, 5e+14)
 #endif
 
-// - which viscosity computation to use?
-// * artificial_viscosity
+// - defines viscosity prescription; options:
+//   * constant: constant artificial_viscosity
+//     cullen:   the Cullen'10 adaptive visc. prescription
 #ifndef sph_viscosity
-DECLARE_STRING_PARAM(sph_viscosity, "artificial_viscosity")
+DECLARE_KEYWORD_PARAM(sph_viscosity,visc_constant)
 #endif
 
-//- artificial viscosity: parameter alpha (Rosswog'09, eq.59)
+//- for constant viscosity: parameter alpha (Rosswog'09, eq.59)
+//  for adaptive Cullen+10 viscosity: minimum alpha
 #ifndef sph_viscosity_alpha
 DECLARE_PARAM(double, sph_viscosity_alpha, 1.0)
 #endif
 
-//- artificial viscosity: parameter beta
+//- constant viscosity parameter beta (usually = 2*alpha)
 #ifndef sph_viscosity_beta
 DECLARE_PARAM(double, sph_viscosity_beta, 2.0)
 #endif
 
-//- artificial viscosity: parameter eta
+//- viscosity parameter eta (avoids division by zero)
 #ifndef sph_viscosity_epsilon
 DECLARE_PARAM(double, sph_viscosity_epsilon, 0.01)
+#endif
+
+//- Cullen+10 viscosity: maximum allowed value of alpha
+#ifndef sph_viscosity_alpha_max
+  DECLARE_PARAM(double,sph_viscosity_alpha_max,1.0)
+#endif
+
+//- in adaptive Cullen+10 viscosity: how fast alpha returns to min alpha
+//  tau = h / (2*l*v_sig)
+//  typical values: 0.1 .. 0.2
+#ifndef sph_viscosity_l
+  DECLARE_PARAM(double,sph_viscosity_l,0.05)
+#endif
+
+//- in adaptive Cullen+10 viscosity: in the alpha_loc formula, relative 
+//  weight between vsig^2 and A*h^2
+#ifndef sph_viscosity_delta
+  DECLARE_PARAM(double,sph_viscosity_delta,1.0)
 #endif
 
 //
@@ -826,6 +858,11 @@ set_param(const std::string & param_name, const std::string & param_value) {
   READ_BOOLEAN_PARAM(adaptive_timestep)
 #endif
 
+# ifndef pressure_updates_number
+  READ_NUMERIC_PARAM(pressure_updates_number)
+# endif
+
+
   // particle number and density --------------------------------------------
 #ifndef nparticles
   READ_NUMERIC_PARAM(nparticles)
@@ -1042,7 +1079,6 @@ set_param(const std::string & param_name, const std::string & param_value) {
       if(str_value[c] == ' ')
         str_value[c] = '_';
 
-    std::cout << "STR = " << str_value << std::endl;
 #ifndef eos_type
     if(boost::iequals(str_value, "ideal_fluid"))
       _eos_type = eos_ideal;
@@ -1050,13 +1086,16 @@ set_param(const std::string & param_name, const std::string & param_value) {
     else if(boost::iequals(str_value, "polytropic"))
       _eos_type = eos_polytropic;
 
-    else if(boost::iequals(str_value, "wd"))
+    else if(boost::iequals(str_value, "wd")
+         or boost::iequals(str_value, "white_dwarf"))
       _eos_type = eos_wd;
 
-    else if(boost::iequals(str_value, "ppt"))
+    else if(boost::iequals(str_value, "ppt")
+         or boost::iequals(str_value, "piecewise_polytropic"))
       _eos_type = eos_ppt;
 
-    else if(boost::iequals(str_value, "no_eos"))
+    else if(boost::iequals(str_value, "no_eos")
+         or boost::iequals(str_value, "none"))
       _eos_type = eos_no_eos;
 
     else {
@@ -1090,9 +1129,35 @@ set_param(const std::string & param_name, const std::string & param_value) {
   READ_NUMERIC_PARAM(ppt_density_thr)
 #endif
 
-#ifndef sph_viscosity
-  READ_STRING_PARAM(sph_viscosity)
-#endif
+// parsing sph_viscosity keywords
+  if (param_name == "sph_viscosity") {
+    for (int c=0; c<str_value.length(); ++c)
+      if (str_value[c] == ' ') str_value[c] = '_';
+
+#   ifndef sph_viscosity
+    if (boost::iequals(str_value,"constant"))
+      _sph_viscosity =       visc_constant;
+
+    else if (boost::iequals(str_value,"cullen"))
+      _sph_viscosity =            visc_cullen;
+
+    else {
+      log_one(error)
+          << "ERROR: wrong value for sph_viscosity parameter"
+          << std::endl;
+      exit(2);
+    }
+#   else
+    if (not boost::iequals(str_value,QUOTE(sph_viscosity))) {
+      log_one(error)
+          << "ERROR: sph_viscosity #define'd as \"" << QUOTE(sph_viscosity)
+          << "\" but is reset to \"" << str_value << "\" in parameter file"
+          << std::endl;
+      exit(2);
+    }
+#   endif
+    unknown_param = false;
+  }
 
 #ifndef sph_viscosity_alpha
   READ_NUMERIC_PARAM(sph_viscosity_alpha)
@@ -1105,6 +1170,18 @@ set_param(const std::string & param_name, const std::string & param_value) {
 #ifndef sph_viscosity_epsilon
   READ_NUMERIC_PARAM(sph_viscosity_epsilon)
 #endif
+
+# ifndef sph_viscosity_alpha_max
+  READ_NUMERIC_PARAM(sph_viscosity_alpha_max)
+# endif
+
+# ifndef sph_viscosity_l
+  READ_NUMERIC_PARAM(sph_viscosity_l)
+# endif
+
+# ifndef sph_viscosity_delta
+  READ_NUMERIC_PARAM(sph_viscosity_delta)
+# endif
 
   // gravity-related  -------------------------------------------------------
 

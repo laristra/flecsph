@@ -18,7 +18,7 @@ operator==(const body & b1, const body & b2) {
 namespace flecsi {
 namespace execution {
 void
-driver(int argc, char * argv[]) {}
+driver(int, char **) {}
 } // namespace execution
 } // namespace flecsi
 
@@ -50,7 +50,7 @@ TEST(tree_colorer, mpi_qsort) {
   range[1] = point_t{maxbound, maxbound, maxbound};
   std::vector<body> bodies(nparticlesperproc);
   // Create the bodies and keys
-  for(size_t i = 0; i < nparticlesperproc; ++i) {
+  for(int64_t i = 0; i < nparticlesperproc; ++i) {
     // Random x, y and z
     bodies[i].set_coordinates(
       point_t{(double)rand() / (double)RAND_MAX * (maxbound),

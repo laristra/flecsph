@@ -58,7 +58,7 @@ set_derived_params() {
   kernels::select();
 
   // set viscosity
-  viscosity::select(sph_viscosity);
+  viscosity::select();
 
   // density profiles
   density_profiles::select();
@@ -236,7 +236,7 @@ mpi_init_task(const char * parameter_file) {
 flecsi_register_mpi_task(mpi_init_task, flecsi::execution);
 
 void
-usage(int rank) {
+usage() {
   log_one(warn) << "Usage: ./hydro_" << gdimension << "d "
                 << "<parameter-file.par>" << std::endl
                 << std::flush;
@@ -250,9 +250,6 @@ check_conservation(const std::vector<analysis::e_conservation> & check) {
 
 void
 specialization_tlt_init(int argc, char * argv[]) {
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
   log_set_output_rank(0);
 
   log_one(trace) << "In user specialization_driver" << std::endl;
@@ -260,7 +257,7 @@ specialization_tlt_init(int argc, char * argv[]) {
   // check options list: exactly one option is allowed
   if(argc != 2) {
     log_one(error) << "ERROR: parameter file not specified!" << std::endl;
-    usage(rank);
+    usage();
     return;
   }
 
@@ -269,7 +266,7 @@ specialization_tlt_init(int argc, char * argv[]) {
 } // specialization driver
 
 void
-driver(int argc, char * argv[]) {
+driver(int, char **) {
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   log_one(trace) << "In user driver" << std::endl;

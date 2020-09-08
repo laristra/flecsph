@@ -14,7 +14,7 @@ using namespace topology;
 namespace flecsi {
 namespace execution {
 void
-driver(int argc, char * argv[]) {}
+driver(int, char **) {}
 } // namespace execution
 } // namespace flecsi
 
@@ -31,7 +31,7 @@ TEST(tree, add_entities) {
 
   size_t nbodies = 1000;
   size_t id = 0;
-  for(int i = 0; i < nbodies; ++i) {
+  for(size_t i = 0; i < nbodies; ++i) {
     tree->entities().push_back(body{});
     tree->entities()[i].set_coordinates(
       point_t((double)rand() / (double)RAND_MAX,

@@ -263,13 +263,11 @@ main(int argc, char * argv[]) {
 
     // set density, particle mass, smoothing length and id
     double rho_a, m_a, h_a;
-    int64_t id_a;
     if(modify_initial_data) {
       rho_a = particle.getDensity();
       m_a = particle.mass();
       // h_a   = particle.radius();
       h_a = sph_eta * kernels::kernel_width * pow(m_a / rho_a, 1. / gdimension);
-      id_a = particle.id();
     }
     else {
       rho_a = rho_initial / rho0 // renormalize density profile
@@ -277,7 +275,6 @@ main(int argc, char * argv[]) {
       m_a = mass_particle;
       h_a = sph_eta * kernels::kernel_width *
             pow(mass_particle / rho_a, 1. / gdimension);
-      id_a = a;
       particle.setDensity(rho_a);
       particle.set_mass(m_a);
       particle.set_radius(h_a);
@@ -323,7 +320,9 @@ main(int argc, char * argv[]) {
 
   // remove the previous file
   remove(initial_data_file);
-  delete[] x, y, z;
+  delete[] x;
+  delete[] y;
+  delete[] z;
 
   // write the file; iteration for initial data MUST BE zero!!
   bs.write_bodies(initial_data_prefix, 0, 0.0);
