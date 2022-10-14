@@ -250,3 +250,23 @@ For further details, refer to the documentation at:
 
 If you have any questions or concerns regarding FleCSPH, please contact us 
 via the mailing list flecsph-support@lanl.gov
+
+# Cite FleCSPH
+
+If you use FleCSPH, please cite our paper
+```
+@article{Loiseau2020,
+   title={FleCSPH: The next generation FleCSIble parallel computational infrastructure for smoothed particle hydrodynamics},
+   volume={12},
+   ISSN={2352-7110},
+   url={http://dx.doi.org/10.1016/j.softx.2020.100602},
+   DOI={10.1016/j.softx.2020.100602},
+   journal={SoftwareX},
+   publisher={Elsevier BV},
+   author={Loiseau, Julien and Lim, Hyun and Kaltenborn, Mark Alexander and Korobkin, Oleg and Mauney, Christopher M. and Sagert, Irina and Even, Wesley P. and Bergen, Benjamin K.},
+   year={2020},
+   month={Jul},
+   pages={100602}
+}
+
+```
